@@ -51,7 +51,23 @@ export async function api(path, opts = {}) {
   }
 
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      // Non-JSON response — usually the API isn't reachable (proxy/backend down),
+      // so we got an HTML/plain-text error page instead of JSON.
+      const err = new Error(
+        res.status === 404
+          ? 'Cannot reach the server. The backend may be starting up or not deployed yet — try again in a minute.'
+          : `Unexpected server response (${res.status}). Please try again shortly.`
+      );
+      err.status = res.status;
+      err.code = 'bad_gateway';
+      throw err;
+    }
+  }
   if (!res.ok) {
     const err = new Error(data?.message || `Request failed (${res.status})`);
     err.status = res.status;
