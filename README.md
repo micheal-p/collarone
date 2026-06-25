@@ -53,6 +53,25 @@ admin@origingroupng.com  /  ChangeMe!2026
 ```
 Change this immediately after first login.
 
-## Going to production (Mongo Atlas)
-Set `MONGO_URI` in `server/.env` to your Atlas connection string and rotate `JWT_SECRET` /
-`JWT_REFRESH_SECRET`. Nothing else changes — the data layer is environment-driven.
+## Deployment — Vercel (frontend) + Render (backend)
+
+The frontend is a static Vite SPA (Vercel); the backend is a long-running Express server
+(Render) connected to Mongo Atlas. Vercel proxies `/api/*` to Render so the auth refresh
+cookie stays same-origin (avoids cross-site cookie blocking on Safari/iOS).
+
+### Backend → Render
+1. **New → Blueprint**, connect this repo (Render reads `render.yaml`). Or create a Web Service
+   manually with: Root Dir `server`, Build `npm install --no-workspaces`, Start `npm start`.
+2. Set these env vars (secrets) in the Render dashboard:
+   `MONGO_URI` (Atlas, incl. `/org_ops_erp`), `JWT_SECRET`, `JWT_REFRESH_SECRET`,
+   `CLIENT_ORIGIN` (your Vercel URL).
+3. In **Atlas → Network Access**, allow `0.0.0.0/0` (Render free tier has no static outbound IP).
+4. Note the service URL, e.g. `https://originerp-api.onrender.com`.
+
+### Frontend → Vercel
+1. Project **Settings → Root Directory = `client`** (framework auto-detects as Vite).
+2. Edit `client/vercel.json` → set the `/api` rewrite destination to your Render URL.
+3. Deploy. The SPA calls `/api/...` on the Vercel domain → Vercel proxies to Render.
+
+> Atlas is already seeded (tenant + System Admin), so no seeding step is needed on Render.
+> Only the **server's** host needs Atlas allowlisting — end users never touch Atlas directly.

@@ -1,0 +1,28 @@
+# Render Blueprint for the Org-Ops API (backend).
+# New → Blueprint → connect this repo. Then set the `sync:false` secrets in the dashboard.
+services:
+  - type: web
+    name: originerp-api
+    runtime: node
+    rootDir: server
+    plan: free
+    region: frankfurt          # closest free region to Nigeria; change if you prefer
+    buildCommand: npm install --no-workspaces
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_ACCESS_TTL
+        value: 1h
+      - key: JWT_REFRESH_TTL
+        value: 7d
+      # --- secrets: set these in the Render dashboard (not committed) ---
+      - key: MONGO_URI            # your Atlas connection string (with /org_ops_erp)
+        sync: false
+      - key: JWT_SECRET           # copy from your local server/.env
+        sync: false
+      - key: JWT_REFRESH_SECRET   # copy from your local server/.env
+        sync: false
+      - key: CLIENT_ORIGIN        # your Vercel URL, e.g. https://originerp.vercel.app
+        sync: false

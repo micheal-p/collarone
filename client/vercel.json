@@ -1,0 +1,15 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "//": "Proxy API calls to the Render backend so cookies stay same-origin on the Vercel domain. Update the host if Render assigns a different URL.",
+      "source": "/api/:path*",
+      "destination": "https://originerp-api.onrender.com/api/:path*"
+    },
+    {
+      "//": "SPA fallback: let React Router handle all other routes.",
+      "source": "/((?!assets/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
