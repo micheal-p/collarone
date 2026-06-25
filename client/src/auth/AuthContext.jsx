@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { api, apiPost, setAccessToken, onAuthExpired } from '../api/client.js';
+import { api, apiPost, setAccessToken, onAuthExpired, bootSession } from '../api/client.js';
 
 const AuthCtx = createContext(null);
 export const useAuth = () => useContext(AuthCtx);
@@ -8,16 +8,12 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(true);
 
-  // On first load, try to restore a session from the refresh cookie.
+  // On first load, try to restore a session (demo: localStorage; real: refresh cookie).
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' });
-        if (r.ok) {
-          const data = await r.json();
-          setAccessToken(data.accessToken);
-          setUser(data.user);
-        }
+        const data = await bootSession();
+        if (data) { setAccessToken(data.accessToken); setUser(data.user); }
       } catch {
         /* no session */
       } finally {

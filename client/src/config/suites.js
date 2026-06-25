@@ -1,3 +1,18 @@
+// Mirrors server/src/config/suites.js. The SERVER is authoritative for access in
+// real mode; in demo mode this list also drives the mock API.
+export const SUITES = [
+  { key: 'hr',          name: 'HR & Staff',         tier: 'core',     status: 'live', desc: 'Employee records, org structure, onboarding.' },
+  { key: 'leave',       name: 'Leave Management',   tier: 'core',     status: 'live', desc: 'Requests, approvals and balance tracking.' },
+  { key: 'tasks',       name: 'Task & Report',      tier: 'core',     status: 'live', desc: 'Assignments, priorities and productivity reports.' },
+  { key: 'visitors',    name: 'Visitor Management', tier: 'core',     status: 'live', desc: 'Front-desk check-in, host alerts, visitor logs.' },
+  { key: 'it-assets',   name: 'IT Assets',          tier: 'extended', status: 'soon', desc: 'Asset tracking, assignment and lifecycle.' },
+  { key: 'procurement', name: 'Procurement',        tier: 'extended', status: 'soon', desc: 'Purchase requests, vendors and approvals.' },
+  { key: 'inventory',   name: 'Inventory',          tier: 'extended', status: 'soon', desc: 'Stock levels, low-stock alerts, warehouses.' },
+  { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'soon', desc: 'Expenses, budgets and financial reports.' },
+  { key: 'projects',    name: 'Projects',           tier: 'extended', status: 'soon', desc: 'Milestones, boards and collaboration.' },
+  { key: 'documents',   name: 'Documents',          tier: 'extended', status: 'soon', desc: 'Secure storage, versioning, permissions.' },
+];
+
 // Mirrors server/src/config/suites.js for presentation. The SERVER is authoritative
 // for access; this only adds per-tile visuals (icon key + accent tint).
 export const SUITE_META = {
