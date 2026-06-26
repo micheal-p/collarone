@@ -26,7 +26,12 @@ export default function Login() {
   const microsoft = async () => {
     setErr('');
     try { await loginWithMicrosoft(); } // redirects away to Microsoft
-    catch (e) { setErr(e.message || 'Could not start Microsoft sign-in.'); }
+    catch (e) {
+      const msg = e?.message || '';
+      if (/not enabled|unsupported provider/i.test(msg))
+        setErr('Microsoft sign-in isn’t switched on yet — your administrator is still setting it up.');
+      else setErr(msg || 'Could not start Microsoft sign-in.');
+    }
   };
 
   if (!booting && user) return <Navigate to="/" replace />;
