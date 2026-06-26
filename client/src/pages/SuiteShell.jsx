@@ -4,6 +4,10 @@ import { apiGet } from '../api/client.js';
 import { SUITE_META } from '../config/suites.js';
 import AppLayout from '../components/AppLayout.jsx';
 import SuiteIcon from '../components/SuiteIcon.jsx';
+import LeaveApp from '../suites/leave/LeaveApp.jsx';
+
+// Suites that have a real app built. Others fall back to the "foundation ready" stub.
+const SUITE_APPS = { leave: LeaveApp };
 
 export default function SuiteShell() {
   const { key } = useParams();
@@ -53,14 +57,20 @@ export default function SuiteShell() {
             </span>
           </header>
 
-          <section className="suite-canvas">
-            <div className="suite-canvas-inner">
-              <SuiteIcon name={meta.icon || 'grid'} size={40} color={meta.tint || 'var(--brand)'} />
-              <h2>{suite.name} workspace</h2>
-              <p>Access confirmed. This suite is wired into the platform shell — its screens (records, workflows and reports) plug in here next.</p>
-              <span className="badge badge-core">Foundation ready</span>
-            </div>
-          </section>
+          {(() => {
+            const App = SUITE_APPS[key];
+            if (App) return <App access={access} suite={suite} />;
+            return (
+              <section className="suite-canvas">
+                <div className="suite-canvas-inner">
+                  <SuiteIcon name={meta.icon || 'grid'} size={40} color={meta.tint || 'var(--brand)'} />
+                  <h2>{suite.name} workspace</h2>
+                  <p>Access confirmed. This suite is wired into the platform shell — its screens (records, workflows and reports) plug in here next.</p>
+                  <span className="badge badge-core">Foundation ready</span>
+                </div>
+              </section>
+            );
+          })()}
         </>
       )}
     </AppLayout>
