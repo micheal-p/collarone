@@ -5,6 +5,7 @@ import ChangePassword from './pages/ChangePassword.jsx';
 import Launcher from './pages/Launcher.jsx';
 import SuiteShell from './pages/SuiteShell.jsx';
 import AdminUsers from './pages/admin/Users.jsx';
+import AdminDepartments from './pages/admin/Departments.jsx';
 
 export default function App() {
   return (
@@ -34,6 +35,15 @@ export default function App() {
         element={
           <ProtectedRoute requireAdmin>
             <AdminUsers />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/departments"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminDepartments />
           </ProtectedRoute>
         }
       />

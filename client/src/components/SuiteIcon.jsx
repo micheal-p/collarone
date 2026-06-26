@@ -14,6 +14,7 @@ const PATHS = {
   home: <><path d="M4 10.5L12 4l8 6.5" /><path d="M6 9.5V20h12V9.5" /><path d="M10 20v-5h4v5" /></>,
   shield: <><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z" /><path d="M9 12l2 2 4-4" /></>,
   lock: <><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
+  building: <><rect x="3" y="8" width="18" height="13" rx="1.5" /><path d="M8 21V8M16 21V8M3 13h18M3 17h18" /><path d="M9 4h6v4H9z" /></>,
 };
 
 export default function SuiteIcon({ name, size = 24, color = 'currentColor', strokeWidth = 1.6 }) {

@@ -5,9 +5,10 @@ import { SUITE_META } from '../config/suites.js';
 import AppLayout from '../components/AppLayout.jsx';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 import LeaveApp from '../suites/leave/LeaveApp.jsx';
+import TasksApp from '../suites/tasks/TasksApp.jsx';
 
 // Suites that have a real app built. Others fall back to the "foundation ready" stub.
-const SUITE_APPS = { leave: LeaveApp };
+const SUITE_APPS = { leave: LeaveApp, tasks: TasksApp };
 
 export default function SuiteShell() {
   const { key } = useParams();

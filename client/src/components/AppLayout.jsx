@@ -134,6 +134,7 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
               <div className="rail-divider" />
               <div className="rail-group">Administration</div>
               <RailItem to="/admin/users" icon="people" label="Users" onClick={() => setDrawer(false)} />
+              <RailItem to="/admin/departments" icon="building" label="Departments" onClick={() => setDrawer(false)} />
             </>
           )}
         </nav>
