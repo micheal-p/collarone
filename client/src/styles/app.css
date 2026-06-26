@@ -174,7 +174,7 @@
 /* row kebab menu */
 .kebab { width: 30px; height: 30px; border: 0; background: transparent; border-radius: 4px; cursor: pointer; color: var(--text-2); }
 .kebab:hover { background: var(--surface-2); }
-.rowmenu { position: absolute; right: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-16); z-index: 30; min-width: 180px; padding: 6px; }
+.rowmenu { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-16); z-index: 9999; min-width: 180px; padding: 6px; }
 .rowmenu button { display: block; width: 100%; text-align: left; padding: 9px 12px; border: 0; background: transparent; border-radius: 6px; font-size: 14px; cursor: pointer; color: var(--text); }
 .rowmenu button:hover { background: var(--surface-2); }
 .rowmenu button.danger { color: var(--danger); }

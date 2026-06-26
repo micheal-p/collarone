@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { apiGet, apiPost, apiPatch, apiPut } from '../../api/client.js';
 import { SUITE_META } from '../../config/suites.js';
 import AppLayout from '../../components/AppLayout.jsx';
@@ -10,6 +11,7 @@ const ROLE_FILTERS = [
   { key: 'super_admin', label: 'System Admins' },
   { key: 'manager', label: 'Managers' },
   { key: 'staff', label: 'Staff' },
+  { key: '_setup', label: 'Needs setup' },
 ];
 
 /* ---- command-bar glyphs (SVG, no emoji) ---- */
@@ -74,11 +76,12 @@ function Modal({ title, onClose, children, wide }) {
   );
 }
 
-const EMPTY = { name: '', email: '', password: '', role: 'staff', jobTitle: '', department: '', suites: [] };
+const EMPTY = { name: '', email: '', password: '', role: 'staff', jobTitle: '', department: '', departmentId: '', suites: [] };
 
 export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [catalog, setCatalog] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [q, setQ] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [sortDir, setSortDir] = useState(1);
@@ -87,18 +90,23 @@ export default function AdminUsers() {
   const [toast, setToast] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [manage, setManage] = useState(null);
-  const [rowMenu, setRowMenu] = useState(null);
+  const [rowMenu, setRowMenu] = useState(null); // { id, rect } | null
 
   const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 2800); };
 
   const load = () =>
     apiGet('/users').then((d) => setUsers(d.users)).catch((e) => flash(e.message, true)).finally(() => setLoading(false));
 
-  useEffect(() => { apiGet('/catalog').then((d) => setCatalog(d.suites)).catch(() => {}); load(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => {
+    apiGet('/catalog').then((d) => setCatalog(d.suites)).catch(() => {});
+    apiGet('/departments').then((d) => setDepartments(d.departments)).catch(() => {});
+    load(); /* eslint-disable-next-line */
+  }, []);
 
   const view = useMemo(() => {
     let list = users;
-    if (roleFilter) list = list.filter((u) => u.role === roleFilter);
+    if (roleFilter === '_setup') list = list.filter((u) => u.suites.length === 0 && u.role !== 'super_admin');
+    else if (roleFilter) list = list.filter((u) => u.role === roleFilter);
     if (q.trim()) {
       const rx = new RegExp(q.trim(), 'i');
       list = list.filter((u) => rx.test(u.name) || rx.test(u.email) || rx.test(u.department || ''));
@@ -190,10 +198,14 @@ export default function AdminUsers() {
                       </div>}
                 </td>
                 <td><span className={`status-dot ${u.status}`} />{u.status === 'active' ? 'Active' : 'Disabled'}</td>
-                <td className="col-check" style={{ position: 'relative' }}>
-                  <button className="kebab" onClick={() => setRowMenu(rowMenu === u.id ? null : u.id)} aria-label="Row actions">{I.kebab}</button>
-                  {rowMenu === u.id && (
-                    <RowMenu u={u} onClose={() => setRowMenu(null)}
+                <td className="col-check">
+                  <button className="kebab" aria-label="Row actions"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setRowMenu(rowMenu?.id === u.id ? null : { id: u.id, rect });
+                    }}>{I.kebab}</button>
+                  {rowMenu?.id === u.id && (
+                    <RowMenu u={u} rect={rowMenu.rect} onClose={() => setRowMenu(null)}
                       onManage={() => { setRowMenu(null); setManage(u); }}
                       onReset={() => { setRowMenu(null); resetPw(u); }}
                       onStatus={() => { setRowMenu(null); setStatus(u, u.status === 'active' ? 'disabled' : 'active').then((ok) => ok && flash(`${u.name} ${u.status === 'active' ? 'disabled' : 'enabled'}.`)); }} />
@@ -205,34 +217,52 @@ export default function AdminUsers() {
         </table>
       </div>
 
-      {createOpen && <CreateUserModal catalog={catalog} onClose={() => setCreateOpen(false)}
+      {createOpen && <CreateUserModal catalog={catalog} departments={departments} onClose={() => setCreateOpen(false)}
         onCreated={(u) => { setUsers((l) => [u, ...l]); setCreateOpen(false); flash(`${u.name} created.`); }} onError={(m) => flash(m, true)} />}
-      {manage && <ManageAccessModal user={manage} catalog={catalog} onClose={() => setManage(null)}
+      {manage && <EditUserModal user={manage} catalog={catalog} departments={departments} onClose={() => setManage(null)}
         onSaved={(u) => { replace(u); setManage(null); flash('Access updated.'); }} onError={(m) => flash(m, true)} />}
       {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
     </AppLayout>
   );
 }
 
-function RowMenu({ u, onClose, onManage, onReset, onStatus }) {
+function RowMenu({ u, rect, onClose, onManage, onReset, onStatus }) {
   const ref = useRef(null);
   useClickOutside(ref, onClose);
-  return (
-    <div className="rowmenu" ref={ref}>
+  const style = rect ? { position: 'fixed', top: rect.bottom + 4, right: window.innerWidth - rect.right } : {};
+  return createPortal(
+    <div className="rowmenu" ref={ref} style={style}>
       {u.role !== 'super_admin' && <button onClick={onManage}>Manage access</button>}
       <button onClick={onReset}>Reset password</button>
       {u.role !== 'super_admin' && <button className={u.status === 'active' ? 'danger' : ''} onClick={onStatus}>{u.status === 'active' ? 'Disable account' : 'Enable account'}</button>}
-    </div>
+    </div>,
+    document.body
   );
 }
 
-function CreateUserModal({ catalog, onClose, onCreated, onError }) {
+function DeptSelect({ departments, value, onChange }) {
+  return (
+    <select className="select" value={value} onChange={(e) => onChange(e.target.value)}>
+      <option value="">— No department —</option>
+      {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+    </select>
+  );
+}
+
+function CreateUserModal({ catalog, departments, onClose, onCreated, onError }) {
   const [f, setF] = useState(EMPTY); const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const isAdmin = f.role === 'super_admin';
+  const pickDept = (id) => {
+    const dept = departments.find((d) => String(d.id) === String(id));
+    setF((s) => ({ ...s, departmentId: id ? Number(id) : '', department: dept?.name || '' }));
+  };
   const submit = async (e) => {
     e.preventDefault(); setBusy(true);
-    try { const d = await apiPost('/users', { ...f, suites: isAdmin ? [] : f.suites }); onCreated(d.user); }
+    try {
+      const d = await apiPost('/users', { ...f, departmentId: f.departmentId || null, suites: isAdmin ? [] : f.suites });
+      onCreated(d.user);
+    }
     catch (e2) { onError(e2.message); } finally { setBusy(false); }
   };
   return (
@@ -242,7 +272,9 @@ function CreateUserModal({ catalog, onClose, onCreated, onError }) {
           <div className="field"><label>Full name</label><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></div>
           <div className="field"><label>Work email</label><input className="input" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} required /></div>
           <div className="field"><label>Job title</label><input className="input" value={f.jobTitle} onChange={(e) => set('jobTitle', e.target.value)} /></div>
-          <div className="field"><label>Department</label><input className="input" value={f.department} onChange={(e) => set('department', e.target.value)} /></div>
+          <div className="field"><label>Department</label>
+            <DeptSelect departments={departments} value={f.departmentId} onChange={pickDept} />
+          </div>
           <div className="field"><label>Temporary password</label><input className="input" value={f.password} onChange={(e) => set('password', e.target.value)} required placeholder="Min 8 characters" /></div>
           <div className="field"><label>System role</label>
             <select className="select" value={f.role} onChange={(e) => set('role', e.target.value)}>
@@ -262,20 +294,54 @@ function CreateUserModal({ catalog, onClose, onCreated, onError }) {
   );
 }
 
-function ManageAccessModal({ user, catalog, onClose, onSaved, onError }) {
-  const [grants, setGrants] = useState(user.suites); const [busy, setBusy] = useState(false);
+function EditUserModal({ user, catalog, departments, onClose, onSaved, onError }) {
+  const [grants, setGrants] = useState(user.suites);
+  const [role, setRole] = useState(user.role);
+  const [deptId, setDeptId] = useState(user.departmentId ? String(user.departmentId) : '');
+  const [busy, setBusy] = useState(false);
+
+  const pickDept = (id) => setDeptId(id);
+
   const save = async () => {
     setBusy(true);
-    try { const d = await apiPut(`/users/${user.id}/suites`, { suites: grants }); onSaved(d.user); }
+    try {
+      const dept = departments.find((d) => String(d.id) === String(deptId));
+      const [profileRes] = await Promise.all([
+        apiPatch(`/users/${user.id}`, {
+          role,
+          departmentId: deptId ? Number(deptId) : null,
+          department: dept?.name || '',
+        }),
+      ]);
+      const suitesRes = await apiPut(`/users/${user.id}/suites`, { suites: grants });
+      onSaved({ ...profileRes.user, suites: suitesRes.user.suites });
+    }
     catch (e) { onError(e.message); } finally { setBusy(false); }
   };
+
+  const isAdmin = role === 'super_admin';
+
   return (
-    <Modal title={`Suite access · ${user.name}`} onClose={onClose} wide>
-      <p className="muted" style={{ marginTop: 0 }}>Tick the suites {user.name.split(' ')[0]} may open, and set their role inside each.</p>
-      <SuiteGrantPicker catalog={catalog} value={grants} onChange={setGrants} />
+    <Modal title={`Edit user · ${user.name}`} onClose={onClose} wide>
+      <div className="form-grid" style={{ marginBottom: 16 }}>
+        <div className="field"><label>System role</label>
+          <select className="select" value={role} onChange={(e) => setRole(e.target.value)} disabled={user.role === 'super_admin'}>
+            <option value="staff">Staff</option>
+            <option value="manager">Manager</option>
+            <option value="super_admin">System Admin</option>
+          </select>
+        </div>
+        <div className="field"><label>Department</label>
+          <DeptSelect departments={departments} value={deptId} onChange={pickDept} />
+        </div>
+      </div>
+      <div className="field">
+        <label>Suite access {isAdmin && <span className="muted">— System Admins get every suite automatically</span>}</label>
+        <SuiteGrantPicker catalog={catalog} value={grants} onChange={setGrants} disabled={isAdmin} />
+      </div>
       <div className="modal-actions">
         <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" onClick={save} disabled={busy}>{busy ? <span className="spinner" /> : 'Save access'}</button>
+        <button className="btn btn-primary" onClick={save} disabled={busy}>{busy ? <span className="spinner" /> : 'Save changes'}</button>
       </div>
     </Modal>
   );

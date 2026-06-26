@@ -17,6 +17,7 @@ const toPublic = (p) => ({
   name: p.name,
   jobTitle: p.job_title || '',
   department: p.department || '',
+  departmentId: p.department_id || null,
   role: p.role,
   suites: Array.isArray(p.suites) ? p.suites.map((s) => ({ key: s.key, role: s.role })) : [],
   status: p.status,
@@ -94,6 +95,11 @@ export async function supabaseApi(path, opts = {}) {
     return { suites: tiles(p), isSystemAdmin: p.role === 'super_admin' };
   }
   if (head === 'GET /catalog') return { suites: SUITES };
+  if (head === 'GET /departments') {
+    const { data, error } = await supabase.from('departments').select('id, name, code').eq('active', true).order('name');
+    if (error) fail(400, error.message);
+    return { departments: data };
+  }
 
   // ---- suite gating ----
   if (method === 'GET' && seg[0] === 'suites' && seg.length === 2) {
@@ -118,6 +124,7 @@ export async function supabaseApi(path, opts = {}) {
     ['name', 'role'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
     if (body.jobTitle !== undefined) patch.job_title = body.jobTitle;
     if (body.department !== undefined) patch.department = body.department;
+    if (body.departmentId !== undefined) patch.department_id = body.departmentId || null;
     const { data, error } = await supabase.from('profiles').update(patch).eq('id', seg[1]).select().single();
     if (error) fail(400, error.message);
     return { user: toPublic(data) };

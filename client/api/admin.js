@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
   try {
     if (action === 'create') {
-      const { name, email, password, role = 'staff', jobTitle = '', department = '', suites = [] } = body;
+      const { name, email, password, role = 'staff', jobTitle = '', department = '', departmentId = null, suites = [] } = body;
       if (!name || !email || !password) return json(res, 400, { message: 'Name, email and password are required.' });
       if (password.length < 8) return json(res, 400, { message: 'Temporary password must be at least 8 characters.' });
       const cleanEmail = email.toLowerCase().trim();
@@ -40,6 +40,7 @@ export default async function handler(req, res) {
 
       const row = {
         id: created.user.id, email: cleanEmail, name: name.trim(), job_title: jobTitle, department,
+        department_id: departmentId || null,
         role, suites: role === 'super_admin' ? [] : (Array.isArray(suites) ? suites : []),
         status: 'active', must_change_password: true,
       };
