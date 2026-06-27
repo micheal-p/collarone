@@ -637,13 +637,15 @@ function SecurityView({ flash }) {
 
 /* ---- ManagementView ------------------------------------------------------- */
 function ManagementView({ flash }) {
-  const [visits,  setVisits]  = useState([]);
-  const [banned,  setBanned]  = useState([]);
-  const [stats,   setStats]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tab,     setTab]     = useState('dashboard');
-  const [q,       setQ]       = useState('');
-  const [banModal, setBanModal] = useState(null); // visitor object to ban/unban
+  const [visits,   setVisits]   = useState([]);
+  const [banned,   setBanned]   = useState([]);
+  const [stats,    setStats]    = useState([]);
+  const [staff,    setStaff]    = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [tab,      setTab]      = useState('dashboard');
+  const [q,        setQ]        = useState('');
+  const [modal,    setModal]    = useState(false);
+  const [banModal, setBanModal] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -661,6 +663,11 @@ function ManagementView({ flash }) {
   const statsMap = useMemo(() => Object.fromEntries((stats || []).map((r) => [r.metric, Number(r.value)])), [stats]);
 
   const overstay = useMemo(() => visits.filter(V.isOverstay), [visits]);
+
+  // load staff for host picker on mount
+  useEffect(() => {
+    import('../../api/client.js').then(({ apiGet }) => apiGet('/staff').then((d) => setStaff(d.staff)).catch(() => {}));
+  }, []);
 
   const logView = useMemo(() => {
     let list = visits;
@@ -686,7 +693,10 @@ function ManagementView({ flash }) {
     <>
       <div className="lv-tabs">
         {TABS.map((t) => <button key={t.key} className={`lv-tab ${tab===t.key?'active':''}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
-        <button className="btn btn-ghost lv-apply" onClick={load}>{I.refresh} Refresh</button>
+        <button className="btn btn-primary lv-apply" onClick={() => setModal(true)}>
+          <span style={{ marginRight:6 }}>{I.add}</span>Pre-register visitor
+        </button>
+        <button className="btn btn-ghost" onClick={load}>{I.refresh}</button>
       </div>
 
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
@@ -753,6 +763,10 @@ function ManagementView({ flash }) {
         </div>
       )}
 
+      {modal && (
+        <VisitModal showHostPicker staff={staff} onClose={() => setModal(false)} flash={flash}
+          onSaved={() => { load(); setModal(false); }} />
+      )}
       {banModal && (
         <BanModal visitor={banModal} onClose={() => setBanModal(null)} onDone={() => { setBanModal(null); load(); }} flash={flash} />
       )}
