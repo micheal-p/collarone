@@ -242,16 +242,17 @@ export default function AdminUsers() {
         onCreated={(u) => { setUsers((l) => [u, ...l]); setCreateOpen(false); flash(`${u.name} created.`); }} onError={(m) => flash(m, true)} />}
       {manage && <EditUserModal user={manage} catalog={catalog} departments={departments} onClose={() => setManage(null)}
         onSaved={(u) => { replace(u); setManage(null); flash('Access updated.'); }} onError={(m) => flash(m, true)} />}
-      {viewUser && <ProfileModal user={viewUser} catalog={catalog} onClose={() => setViewUser(null)}
+      {viewUser && <ProfileModal user={viewUser} catalog={catalog} departments={departments} onClose={() => setViewUser(null)}
         onManage={() => { setViewUser(null); setManage(viewUser); }} />}
       {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
     </AppLayout>
   );
 }
 
-function ProfileModal({ user: u, catalog, onClose, onManage }) {
+function ProfileModal({ user: u, catalog, departments, onClose, onManage }) {
   const initials = u.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   const fmtDate  = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'Never';
+  const deptName = departments.find((d) => String(d.id) === String(u.departmentId))?.name || '—';
 
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
@@ -282,7 +283,7 @@ function ProfileModal({ user: u, catalog, onClose, onManage }) {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px 24px', padding:'18px 0', borderBottom:'1px solid var(--line)' }}>
             {[
               { label:'Job title',    value: u.jobTitle    || '—' },
-              { label:'Department',   value: u.department  || '—' },
+              { label:'Department',   value: deptName },
               { label:'Last login',   value: fmtDate(u.lastLoginAt) },
               { label:'Account ID',   value: u.id.slice(0, 8) + '…' },
             ].map(({ label, value }) => (
