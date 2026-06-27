@@ -29,3 +29,14 @@ export const SUITE_META = {
 };
 
 export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
+
+// Per-suite role options shown in the admin grant picker.
+// Suites not listed here get the default Member / Manager pair.
+export const SUITE_ROLES = {
+  visitors: [
+    { value: 'staff',        label: 'Staff' },
+    { value: 'receptionist', label: 'Receptionist' },
+    { value: 'security',     label: 'Security' },
+    { value: 'management',   label: 'Management' },
+  ],
+};

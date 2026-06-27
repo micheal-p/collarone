@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { apiGet, apiPost, apiPatch, apiPut } from '../../api/client.js';
-import { SUITE_META } from '../../config/suites.js';
+import { SUITE_META, SUITE_ROLES } from '../../config/suites.js';
 import AppLayout from '../../components/AppLayout.jsx';
 import SuiteIcon from '../../components/SuiteIcon.jsx';
 
@@ -32,14 +32,21 @@ function useClickOutside(ref, onOut) {
   }, [ref, onOut]);
 }
 
+const DEFAULT_ROLES = [{ value: 'member', label: 'Member' }, { value: 'manager', label: 'Manager' }];
+const getSuiteRoles = (key) => SUITE_ROLES[key] || DEFAULT_ROLES;
+
 function SuiteGrantPicker({ catalog, value, onChange, disabled }) {
   const map = useMemo(() => Object.fromEntries(value.map((g) => [g.key, g.role])), [value]);
-  const toggle = (key) => map[key] !== undefined ? onChange(value.filter((g) => g.key !== key)) : onChange([...value, { key, role: 'member' }]);
+  const toggle = (key) => {
+    const defaultRole = getSuiteRoles(key)[0].value;
+    map[key] !== undefined ? onChange(value.filter((g) => g.key !== key)) : onChange([...value, { key, role: defaultRole }]);
+  };
   const setRole = (key, role) => onChange(value.map((g) => (g.key === key ? { ...g, role } : g)));
   return (
     <div className={`grant-grid ${disabled ? 'is-disabled' : ''}`}>
       {catalog.map((s) => {
         const on = map[s.key] !== undefined; const meta = SUITE_META[s.key] || {};
+        const roles = getSuiteRoles(s.key);
         return (
           <div key={s.key} className={`grant-row ${on ? 'on' : ''}`}>
             <label className="grant-main">
@@ -51,7 +58,7 @@ function SuiteGrantPicker({ catalog, value, onChange, disabled }) {
             </label>
             {on && (
               <select className="select grant-role" value={map[s.key]} disabled={disabled} onChange={(e) => setRole(s.key, e.target.value)}>
-                <option value="member">Member</option><option value="manager">Manager</option>
+                {roles.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             )}
           </div>

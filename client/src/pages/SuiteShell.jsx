@@ -4,11 +4,12 @@ import { apiGet } from '../api/client.js';
 import { SUITE_META } from '../config/suites.js';
 import AppLayout from '../components/AppLayout.jsx';
 import SuiteIcon from '../components/SuiteIcon.jsx';
-import LeaveApp from '../suites/leave/LeaveApp.jsx';
-import TasksApp from '../suites/tasks/TasksApp.jsx';
+import LeaveApp    from '../suites/leave/LeaveApp.jsx';
+import TasksApp    from '../suites/tasks/TasksApp.jsx';
+import VisitorsApp from '../suites/visitors/VisitorsApp.jsx';
 
 // Suites that have a real app built. Others fall back to the "foundation ready" stub.
-const SUITE_APPS = { leave: LeaveApp, tasks: TasksApp };
+const SUITE_APPS = { leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp };
 
 export default function SuiteShell() {
   const { key } = useParams();
@@ -53,8 +54,8 @@ export default function SuiteShell() {
               <h1 style={{ margin: 0 }}>{suite.name}</h1>
               <p>{suite.desc}</p>
             </div>
-            <span className={`role-pill role-${access?.role === 'manager' ? 'manager' : 'staff'}`}>
-              {access?.role === 'manager' ? 'Manager view' : 'Member view'}
+            <span className={`role-pill role-${['manager','receptionist','security','management'].includes(access?.role) ? 'manager' : 'staff'}`}>
+              {{ manager:'Manager view', member:'Member view', receptionist:'Receptionist', security:'Security', management:'Management', staff:'Staff' }[access?.role] || 'Member view'}
             </span>
           </header>
 

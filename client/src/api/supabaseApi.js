@@ -219,5 +219,142 @@ export async function supabaseApi(path, opts = {}) {
     return { staff: data };
   }
 
+  // ---- visitors (person records) ----
+  if (head === 'GET /visitors') {
+    let q = supabase.from('visitors').select('*').order('name');
+    if (path.includes('banned=true')) { q = q.eq('is_banned', true); }
+    else if (body.q || path.includes('q=')) {
+      const term = body.q || decodeURIComponent((path.match(/q=([^&]*)/) || [])[1] || '');
+      if (term) q = q.or(`name.ilike.%${term}%,phone.ilike.%${term}%`);
+    }
+    const { data, error } = await q;
+    if (error) fail(400, error.message);
+    return { visitors: data };
+  }
+  if (head === 'POST /visitors') {
+    const { name, company, phone, email, idType, idNumber } = body;
+    if (!name || !phone) fail(400, 'Name and phone are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('visitors').insert({
+      name: name.trim(), company: (company || '').trim(),
+      phone: phone.trim(), email: (email || '').trim(), created_by: user.id,
+    }).select().single();
+    if (error) fail(400, error.message);
+    return { visitor: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'visitors' && seg[2] === 'ban') {
+    const { banned, reason } = body;
+    const { data, error } = await supabase.from('visitors')
+      .update({ is_banned: Boolean(banned), ban_reason: reason || '' })
+      .eq('id', seg[1]).select().single();
+    if (error) fail(400, error.message);
+    return { visitor: data };
+  }
+
+  // ---- visits ----
+  const VISIT_SELECT = '*, visitor:visitors(id,name,company,phone,email,is_banned,ban_reason), host:profiles!host_id(id,name,email), checkin_by:profiles!checked_in_by(id,name), checkout_by:profiles!checked_out_by(id,name), dept:departments(id,name)';
+
+  if (head === 'GET /visits') {
+    // Code lookup: GET /visits/code/:code
+    if (seg[1] === 'code' && seg[2]) {
+      const { data, error } = await supabase.from('visits').select(VISIT_SELECT)
+        .eq('access_code', seg[2]).in('status', ['expected','checked_in']).maybeSingle();
+      if (error) fail(400, error.message);
+      if (!data) fail(404, 'No active visit found for that code.');
+      return { visit: data };
+    }
+
+    let q = supabase.from('visits').select(VISIT_SELECT).order('expected_at', { ascending: false });
+    if (path.includes('mine=true')) {
+      const { data: { user } } = await supabase.auth.getUser();
+      q = q.or(`host_id.eq.${user.id},created_by.eq.${user.id}`);
+    }
+    if (path.includes('status=')) {
+      const status = (path.match(/status=([^&]*)/) || [])[1];
+      if (status) q = q.eq('status', status);
+    }
+    if (path.includes('overstay=true')) {
+      const cutoff = new Date(Date.now() - 4 * 3600000).toISOString();
+      q = q.eq('status', 'checked_in').lt('checked_in_at', cutoff);
+    }
+    const { data, error } = await q;
+    if (error) fail(400, error.message);
+    return { visits: data };
+  }
+
+  if (head === 'POST /visits') {
+    // Mark no-shows
+    if (seg[1] === 'noshow') {
+      const { data, error } = await supabase.rpc('mark_no_shows');
+      if (error) fail(400, error.message);
+      return { count: data };
+    }
+    // Create visit (creates visitor inline if no visitorId)
+    const { visitorId, visitorName, visitorCompany, visitorPhone, visitorEmail,
+            purpose, notes, expectedAt, accessPoint, hostId } = body;
+    if (!purpose) fail(400, 'Purpose is required.');
+    if (!expectedAt) fail(400, 'Expected arrival time is required.');
+
+    const { data: { user } } = await supabase.auth.getUser();
+    const resolvedHostId = hostId || user.id;
+
+    // Resolve or create visitor person record
+    let resolvedVisitorId = visitorId;
+    if (!resolvedVisitorId) {
+      if (!visitorName || !visitorPhone) fail(400, 'Visitor name and phone are required.');
+      const { data: vis, error: visErr } = await supabase.from('visitors').insert({
+        name: visitorName.trim(), company: (visitorCompany || '').trim(),
+        phone: visitorPhone.trim(), email: (visitorEmail || '').trim(),
+        created_by: user.id,
+      }).select().single();
+      if (visErr) fail(400, visErr.message);
+      resolvedVisitorId = vis.id;
+    }
+
+    // Get department from host profile
+    const { data: hostProfile } = await supabase.from('profiles').select('department_id').eq('id', resolvedHostId).single();
+    const deptId = hostProfile?.department_id || null;
+
+    const { data, error } = await supabase.rpc('create_visit', {
+      p_visitor_id:    resolvedVisitorId,
+      p_host_id:       resolvedHostId,
+      p_department_id: deptId,
+      p_purpose:       purpose.trim(),
+      p_notes:         notes || '',
+      p_expected_at:   expectedAt,
+      p_access_point:  accessPoint || 'Main Entrance',
+    });
+    if (error) fail(400, error.message);
+    return { visit: data };
+  }
+
+  if (method === 'PATCH' && seg[0] === 'visits' && seg.length === 2) {
+    const { action, badgeNumber, accessPoint, flagReason } = body;
+    const { data: { user } } = await supabase.auth.getUser();
+    let patch = {};
+    if (action === 'checkin') {
+      patch = { status: 'checked_in', checked_in_at: new Date().toISOString(), checked_in_by: user.id };
+      if (badgeNumber) patch.badge_number = badgeNumber;
+      if (accessPoint) patch.access_point = accessPoint;
+    } else if (action === 'checkout') {
+      patch = { status: 'checked_out', checked_out_at: new Date().toISOString(), checked_out_by: user.id };
+    } else if (action === 'cancel') {
+      patch = { status: 'cancelled' };
+    } else if (action === 'flag') {
+      patch = { flagged: true, flag_reason: flagReason || '' };
+    } else {
+      fail(400, 'Unknown action. Use: checkin, checkout, cancel, flag.');
+    }
+    const { data, error } = await supabase.from('visits').update(patch).eq('id', seg[1]).select(VISIT_SELECT).single();
+    if (error) fail(400, error.message);
+    return { visit: data };
+  }
+
+  if (head === 'GET /visitstats') {
+    const { data, error } = await supabase.rpc('get_visitor_stats');
+    if (error) fail(400, error.message);
+    return { stats: data };
+  }
+
   return fail(404, `No Supabase route for ${method} ${path}`);
 }
