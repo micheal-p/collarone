@@ -154,20 +154,26 @@ export default function AdminUsers() {
         <button className="cmd" onClick={() => bulkStatus('disabled')}><span className="ci">{I.block}</span> Disable ({selected.size})</button>
         <button className="cmd" onClick={() => bulkStatus('active')}><span className="ci">{I.check}</span> Enable</button>
       </>)}
-      <div className="cmd-search">{I.search}
-        <input placeholder="Search active users list" value={q} onChange={(e) => setQ(e.target.value)} />
-      </div>
     </>
   );
 
   return (
     <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Users' }]} title="Active users" commandBar={commandBar}>
       <div className="filterbar">
-        <span className="filter-label">Filter set:</span>
+        <span className="filter-label">Filter:</span>
         <div className="filter-pills">
           {ROLE_FILTERS.map((f) => (
             <button key={f.key} className={`pill ${roleFilter === f.key ? 'active' : ''}`} onClick={() => setRoleFilter(f.key)}>{f.label}</button>
           ))}
+        </div>
+        <div className="cmd-search" style={{ marginLeft:'auto' }}>
+          {I.search}
+          <input
+            placeholder="Search by name, email or department…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ border:'none', outline:'none', background:'transparent', fontSize:13, marginLeft:6, width:220 }}
+          />
         </div>
         <span className="count">{view.length} account{view.length === 1 ? '' : 's'}</span>
       </div>
