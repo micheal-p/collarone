@@ -166,35 +166,52 @@ export async function supabaseApi(path, opts = {}) {
   }
 
   // ---- tasks ----
+  const TASK_SELECT = '*, assignee:profiles!assigned_to(id,name,email), creator:profiles!created_by(id,name), dept:departments(id,name)';
+
   if (head === 'GET /tasks') {
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*, assignee:profiles!assigned_to(id,name,email), creator:profiles!created_by(id,name), dept:departments(id,name)')
-      .order('created_at', { ascending: false });
+    // GET /tasks/:id/reports
+    if (seg.length === 3 && seg[2] === 'reports') {
+      const { data, error } = await supabase.from('task_reports')
+        .select('*, author:profiles!author_id(id,name,email)')
+        .eq('task_id', seg[1]).order('created_at', { ascending: false });
+      if (error) fail(400, error.message);
+      return { reports: data };
+    }
+    const { data, error } = await supabase.from('tasks').select(TASK_SELECT).order('created_at', { ascending: false });
     if (error) fail(400, error.message);
     return { tasks: data };
   }
   if (head === 'POST /tasks') {
+    // POST /tasks/:id/reports
+    if (seg.length === 3 && seg[2] === 'reports') {
+      const { reportBody, attachments } = body;
+      if (!reportBody?.trim()) fail(400, 'Report body is required.');
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase.from('task_reports')
+        .insert({ task_id: seg[1], author_id: user.id, body: reportBody.trim(), attachments: attachments || [] })
+        .select('*, author:profiles!author_id(id,name,email)').single();
+      if (error) fail(400, error.message);
+      return { report: data };
+    }
     const { title, description, departmentId, assignedTo, priority, dueDate } = body;
     if (!title) fail(400, 'Title is required.');
     const { data: { user } } = await supabase.auth.getUser();
     const row = { title, description: description || '', created_by: user.id };
     if (departmentId) row.department_id = departmentId;
-    if (assignedTo) row.assigned_to = assignedTo;
-    if (priority) row.priority = priority;
-    if (dueDate) row.due_date = dueDate;
-    const { data, error } = await supabase.from('tasks').insert(row).select('*, assignee:profiles!assigned_to(id,name,email), creator:profiles!created_by(id,name), dept:departments(id,name)').single();
+    if (assignedTo)   row.assigned_to   = assignedTo;
+    if (priority)     row.priority      = priority;
+    if (dueDate)      row.due_date      = dueDate;
+    const { data, error } = await supabase.from('tasks').insert(row).select(TASK_SELECT).single();
     if (error) fail(400, error.message);
     return { task: data };
   }
   if (method === 'PATCH' && seg[0] === 'tasks' && seg.length === 2) {
     const patch = {};
     ['title','description','priority','status'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
-    if (body.dueDate !== undefined) patch.due_date = body.dueDate || null;
-    if (body.assignedTo !== undefined) patch.assigned_to = body.assignedTo || null;
+    if (body.dueDate      !== undefined) patch.due_date      = body.dueDate      || null;
+    if (body.assignedTo   !== undefined) patch.assigned_to   = body.assignedTo   || null;
     if (body.departmentId !== undefined) patch.department_id = body.departmentId || null;
-    const { data, error } = await supabase.from('tasks').update(patch).eq('id', seg[1])
-      .select('*, assignee:profiles!assigned_to(id,name,email), creator:profiles!created_by(id,name), dept:departments(id,name)').single();
+    const { data, error } = await supabase.from('tasks').update(patch).eq('id', seg[1]).select(TASK_SELECT).single();
     if (error) fail(400, error.message);
     return { task: data };
   }
@@ -203,10 +220,13 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { ok: true };
   }
-  if (head === 'GET /tasks' && seg[1] === 'stats') {
-    const { data, error } = await supabase.rpc('get_task_stats');
+  // All task reports across dept (supervisor view)
+  if (head === 'GET /taskreports') {
+    const { data, error } = await supabase.from('task_reports')
+      .select('*, author:profiles!author_id(id,name,email), task:tasks!task_id(id,title)')
+      .order('created_at', { ascending: false });
     if (error) fail(400, error.message);
-    return { stats: data };
+    return { reports: data };
   }
   if (head === 'GET /taskstats') {
     const { data, error } = await supabase.rpc('get_task_stats');
