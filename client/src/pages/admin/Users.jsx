@@ -96,7 +96,8 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [manage, setManage] = useState(null);
+  const [manage,  setManage]  = useState(null);
+  const [viewUser, setViewUser] = useState(null);
   const [rowMenu, setRowMenu] = useState(null); // { id, rect } | null
 
   const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 2800); };
@@ -190,9 +191,13 @@ export default function AdminUsers() {
                     <input className="cbx" type="checkbox" checked={selected.has(u.id)} onChange={() => toggleOne(u.id)} aria-label={`Select ${u.name}`} />}
                 </td>
                 <td>
-                  <div className="cell-user">
+                  <div className="cell-user" style={{ cursor:'pointer' }} onClick={() => setViewUser(u)}>
                     <span className="avatar sm">{u.name.split(' ').slice(0,2).map((w)=>w[0]).join('').toUpperCase()}</span>
-                    <div className="cu-name">{u.name}</div>
+                    <div className="cu-name" style={{ color:'var(--brand)', textDecoration:'underline', textDecorationColor:'transparent' }}
+                      onMouseEnter={(e) => e.currentTarget.style.textDecorationColor = 'var(--brand)'}
+                      onMouseLeave={(e) => e.currentTarget.style.textDecorationColor = 'transparent'}>
+                      {u.name}
+                    </div>
                   </div>
                 </td>
                 <td className="cu-mail">{u.email}</td>
@@ -213,6 +218,7 @@ export default function AdminUsers() {
                     }}>{I.kebab}</button>
                   {rowMenu?.id === u.id && (
                     <RowMenu u={u} rect={rowMenu.rect} onClose={() => setRowMenu(null)}
+                      onView={() => { setRowMenu(null); setViewUser(u); }}
                       onManage={() => { setRowMenu(null); setManage(u); }}
                       onReset={() => { setRowMenu(null); resetPw(u); }}
                       onStatus={() => { setRowMenu(null); setStatus(u, u.status === 'active' ? 'disabled' : 'active').then((ok) => ok && flash(`${u.name} ${u.status === 'active' ? 'disabled' : 'enabled'}.`)); }} />
@@ -228,17 +234,100 @@ export default function AdminUsers() {
         onCreated={(u) => { setUsers((l) => [u, ...l]); setCreateOpen(false); flash(`${u.name} created.`); }} onError={(m) => flash(m, true)} />}
       {manage && <EditUserModal user={manage} catalog={catalog} departments={departments} onClose={() => setManage(null)}
         onSaved={(u) => { replace(u); setManage(null); flash('Access updated.'); }} onError={(m) => flash(m, true)} />}
+      {viewUser && <ProfileModal user={viewUser} catalog={catalog} onClose={() => setViewUser(null)}
+        onManage={() => { setViewUser(null); setManage(viewUser); }} />}
       {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
     </AppLayout>
   );
 }
 
-function RowMenu({ u, rect, onClose, onManage, onReset, onStatus }) {
+function ProfileModal({ user: u, catalog, onClose, onManage }) {
+  const initials = u.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+  const fmtDate  = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'Never';
+
+  return (
+    <div className="modal-overlay" onMouseDown={onClose}>
+      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+        <div className="modal-head">
+          <h2>Staff profile</h2>
+          <button className="iconbtn dark" onClick={onClose} aria-label="Close">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div className="modal-body" style={{ padding: '0 24px 24px' }}>
+
+          {/* Header */}
+          <div style={{ display:'flex', alignItems:'center', gap:16, padding:'20px 0 20px', borderBottom:'1px solid var(--line)' }}>
+            <span className="avatar" style={{ width:56, height:56, fontSize:20, flexShrink:0 }}>{initials}</span>
+            <div>
+              <div style={{ fontSize:18, fontWeight:600 }}>{u.name}</div>
+              <div style={{ fontSize:13, color:'var(--text-2)', marginTop:2 }}>{u.email}</div>
+              <div style={{ marginTop:6, display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
+                <span className={`role-pill role-${u.role}`}>{ROLE_LABEL[u.role]}</span>
+                <span className={`status-dot ${u.status}`} style={{ marginLeft:4 }} />
+                <span style={{ fontSize:12, color:'var(--text-2)' }}>{u.status === 'active' ? 'Active' : 'Disabled'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Details grid */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'14px 24px', padding:'18px 0', borderBottom:'1px solid var(--line)' }}>
+            {[
+              { label:'Job title',    value: u.jobTitle    || '—' },
+              { label:'Department',   value: u.department  || '—' },
+              { label:'Last login',   value: fmtDate(u.lastLoginAt) },
+              { label:'Account ID',   value: u.id.slice(0, 8) + '…' },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <div style={{ fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:3 }}>{label}</div>
+                <div style={{ fontSize:13 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Suites */}
+          <div style={{ padding:'16px 0 8px' }}>
+            <div style={{ fontSize:11, fontWeight:600, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:10 }}>Suites granted</div>
+            {u.role === 'super_admin' ? (
+              <span className="all-suites">All suites (System Admin)</span>
+            ) : u.suites.length === 0 ? (
+              <span className="muted" style={{ fontSize:13 }}>No suites assigned yet.</span>
+            ) : (
+              <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                {u.suites.map((s) => {
+                  const meta = SUITE_META[s.key] || {};
+                  const name = catalog.find((c) => c.key === s.key)?.name || s.key;
+                  return (
+                    <div key={s.key} style={{ display:'flex', alignItems:'center', gap:7, background:'var(--surface)', border:'1px solid var(--line)', borderRadius:6, padding:'6px 10px' }}>
+                      <span style={{ width:8, height:8, borderRadius:'50%', background: meta.tint || 'var(--brand)', flexShrink:0 }} />
+                      <span style={{ fontSize:13, fontWeight:500 }}>{name}</span>
+                      <span style={{ fontSize:11, color:'var(--text-2)', background:'#f3f2f1', padding:'1px 6px', borderRadius:8, textTransform:'capitalize' }}>{s.role}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Actions */}
+          {u.role !== 'super_admin' && (
+            <div style={{ paddingTop:16, borderTop:'1px solid var(--line)', display:'flex', justifyContent:'flex-end' }}>
+              <button className="btn btn-primary" onClick={onManage}>Manage access</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RowMenu({ u, rect, onClose, onView, onManage, onReset, onStatus }) {
   const ref = useRef(null);
   useClickOutside(ref, onClose);
   const style = rect ? { position: 'fixed', top: rect.bottom + 4, right: window.innerWidth - rect.right } : {};
   return createPortal(
     <div className="rowmenu" ref={ref} style={style}>
+      <button onClick={onView}>View profile</button>
       {u.role !== 'super_admin' && <button onClick={onManage}>Manage access</button>}
       <button onClick={onReset}>Reset password</button>
       {u.role !== 'super_admin' && <button className={u.status === 'active' ? 'danger' : ''} onClick={onStatus}>{u.status === 'active' ? 'Disable account' : 'Enable account'}</button>}
