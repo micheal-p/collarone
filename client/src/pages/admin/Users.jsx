@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router-dom';
 import { apiGet, apiPost, apiPatch, apiPut } from '../../api/client.js';
 import { SUITE_META, SUITE_ROLES } from '../../config/suites.js';
 import AppLayout from '../../components/AppLayout.jsx';
@@ -86,10 +87,11 @@ function Modal({ title, onClose, children, wide }) {
 const EMPTY = { name: '', email: '', password: '', role: 'staff', jobTitle: '', department: '', departmentId: '', suites: [] };
 
 export default function AdminUsers() {
+  const [searchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [departments, setDepartments] = useState([]);
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(searchParams.get('q') || '');
   const [roleFilter, setRoleFilter] = useState('');
   const [sortDir, setSortDir] = useState(1);
   const [selected, setSelected] = useState(new Set());

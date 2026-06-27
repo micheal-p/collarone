@@ -21,26 +21,55 @@ function useClickOutside(ref, onOut) {
  * Microsoft-365-Admin-Center-style shell: suite bar + collapsible left rail + content.
  * Pages pass breadcrumb / title / commandBar and render their body as children.
  */
+const ADMIN_LINKS = [
+  { label: 'Users',       to: '/admin/users' },
+  { label: 'Departments', to: '/admin/departments' },
+];
+
 export default function AppLayout({ breadcrumb = [], title, commandBar, children }) {
   const { user, logout } = useAuth();
   const nav = useNavigate();
-  const [railOpen, setRailOpen] = useState(true);     // desktop collapse
-  const [drawer, setDrawer] = useState(false);        // mobile overlay
+  const [railOpen, setRailOpen] = useState(true);
+  const [drawer, setDrawer] = useState(false);
   const [waffle, setWaffle] = useState(false);
   const [menu, setMenu] = useState(false);
   const [suites, setSuites] = useState([]);
+  const [sbQ, setSbQ] = useState('');
+  const [sbUsers, setSbUsers] = useState([]);
   const waffleRef = useRef(null);
   const menuRef = useRef(null);
+  const sbRef = useRef(null);
 
   useClickOutside(waffleRef, () => setWaffle(false));
   useClickOutside(menuRef, () => setMenu(false));
+  useClickOutside(sbRef, () => { setSbQ(''); setSbUsers([]); });
 
   useEffect(() => {
     apiGet('/me/suites').then((d) => setSuites(d.suites)).catch(() => {});
   }, []);
 
-  const openable = suites.filter((s) => s.openable);
   const isAdmin = user?.role === 'super_admin';
+  const openable = suites.filter((s) => s.openable);
+
+  // Debounced people search (admin only)
+  useEffect(() => {
+    if (!sbQ.trim() || !isAdmin) { setSbUsers([]); return; }
+    const t = setTimeout(() => {
+      apiGet('/users').then((d) => {
+        const rx = new RegExp(sbQ.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        setSbUsers((d.users || []).filter((u) => rx.test(u.name) || rx.test(u.email)).slice(0, 5));
+      }).catch(() => {});
+    }, 200);
+    return () => clearTimeout(t);
+  }, [sbQ, isAdmin]);
+
+  const sbSuites = sbQ.trim()
+    ? suites.filter((s) => new RegExp(sbQ.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(s.name)).slice(0, 4)
+    : [];
+  const sbAdmin = isAdmin && sbQ.trim()
+    ? ADMIN_LINKS.filter((l) => new RegExp(sbQ.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(l.label))
+    : [];
+  const sbHasResults = sbUsers.length > 0 || sbSuites.length > 0 || sbAdmin.length > 0;
 
   const go = (path) => { setDrawer(false); nav(path); };
 
@@ -59,9 +88,61 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
           </Link>
         </div>
 
-        <div className="sb-search">
-          <SuiteIcon name="grid" size={16} color="#8a8886" />
-          <input placeholder="Search suites, people and settings" aria-label="Search" />
+        <div className="sb-search" ref={sbRef}>
+          <SearchIcon />
+          <input
+            placeholder="Search suites, people and settings"
+            aria-label="Search"
+            value={sbQ}
+            onChange={(e) => setSbQ(e.target.value)}
+            onKeyDown={(e) => e.key === 'Escape' && (setSbQ(''), setSbUsers([]))}
+          />
+          {sbQ && (
+            <div className="sb-results">
+              {sbSuites.length > 0 && (
+                <div className="sb-group">
+                  <div className="sb-group-label">Suites</div>
+                  {sbSuites.map((s) => (
+                    <button key={s.key} className="sb-result" onClick={() => { setSbQ(''); go(`/suite/${s.key}`); }}>
+                      <span className="sb-result-icon" style={{ background: SUITE_META[s.key]?.tint || 'var(--brand)' }}>
+                        <SuiteIcon name={SUITE_META[s.key]?.icon || 'grid'} size={13} color="#fff" />
+                      </span>
+                      <span className="sb-result-name">{s.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {sbUsers.length > 0 && (
+                <div className="sb-group">
+                  <div className="sb-group-label">People</div>
+                  {sbUsers.map((u) => (
+                    <button key={u.id} className="sb-result" onClick={() => { setSbQ(''); go(`/admin/users?q=${encodeURIComponent(u.name)}`); }}>
+                      <span className="avatar sm" style={{ flexShrink: 0 }}>
+                        {u.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
+                      </span>
+                      <span className="sb-result-info">
+                        <span className="sb-result-name">{u.name}</span>
+                        <span className="sb-result-sub">{u.email}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {sbAdmin.length > 0 && (
+                <div className="sb-group">
+                  <div className="sb-group-label">Administration</div>
+                  {sbAdmin.map((l) => (
+                    <button key={l.to} className="sb-result" onClick={() => { setSbQ(''); go(l.to); }}>
+                      <span className="sb-result-name">{l.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!sbHasResults && (
+                <div className="sb-no-results">No results for "{sbQ}"</div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="sb-right">
@@ -184,4 +265,7 @@ const ChevronRight = () => (
 );
 const SignOutIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#605e5c" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" /></svg>
+);
+const SearchIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8a8886" strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink:0 }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
 );
