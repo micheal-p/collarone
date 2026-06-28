@@ -40,10 +40,18 @@ body {
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  /* prevent pull-to-refresh and bounce — feels more like a native app */
+  overscroll-behavior: none;
 }
 a { color: var(--brand); text-decoration: none; }
 a:hover { text-decoration: underline; }
 button { font-family: inherit; }
+/* prevent iOS from zooming into form fields — must be ≥16px */
+@media (max-width: 820px) {
+  input, select, textarea { font-size: 16px !important; }
+}
+/* disable callout / selection on buttons for app feel */
+button, [role="button"] { -webkit-tap-highlight-color: transparent; user-select: none; }
 
 /* ---- buttons ---- */
 .btn {
@@ -86,6 +94,10 @@ button { font-family: inherit; }
   border-radius: 50%; animation: spin .7s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-2);
+}
 
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
