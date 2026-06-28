@@ -23,6 +23,9 @@ const toPublic = (p) => ({
   status: p.status,
   mustChangePassword: p.must_change_password,
   lastLoginAt: p.last_login_at,
+  phone: p.phone || '',
+  whatsapp: p.whatsapp || '',
+  avatarUrl: p.avatar_url || '',
 });
 
 async function myProfile() {
@@ -90,6 +93,17 @@ export async function supabaseApi(path, opts = {}) {
 
   // ---- me / catalog ----
   if (head === 'GET /me' && !seg[1]) return { user: toPublic(await myProfile()) };
+  if (head === 'PATCH /me' && !seg[1]) {
+    const { phone, whatsapp, avatarUrl } = body;
+    if (!phone || !phone.trim()) fail(400, 'Phone number is required.');
+    const { error } = await supabase.rpc('update_my_profile', {
+      p_phone:      phone.trim(),
+      p_whatsapp:   (whatsapp || '').trim(),
+      p_avatar_url: (avatarUrl || '').trim(),
+    });
+    if (error) fail(500, error.message);
+    return { user: toPublic(await myProfile()) };
+  }
   if (head === 'GET /me' && seg[1] === 'suites') {
     const p = await myProfile();
     return { suites: tiles(p), isSystemAdmin: p.role === 'super_admin' };

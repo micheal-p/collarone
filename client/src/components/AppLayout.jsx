@@ -171,12 +171,16 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
 
           <div className="usermenu-wrap" ref={menuRef}>
             <button className="usermenu-btn" onClick={() => setMenu((v) => !v)}>
-              <span className="avatar">{initials(user?.name)}</span>
+              {user?.avatarUrl
+                ? <img src={user.avatarUrl} alt="" className="avatar" style={{ objectFit:'cover' }} />
+                : <span className="avatar">{initials(user?.name)}</span>}
             </button>
             {menu && (
               <div className="flyout usermenu">
                 <div className="usermenu-head">
-                  <span className="avatar lg">{initials(user?.name)}</span>
+                  {user?.avatarUrl
+                    ? <img src={user.avatarUrl} alt="" className="avatar lg" style={{ objectFit:'cover' }} />
+                    : <span className="avatar lg">{initials(user?.name)}</span>}
                   <div>
                     <div className="um-name">{user?.name}</div>
                     <div className="um-mail">{user?.email}</div>
@@ -186,6 +190,9 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
                   </div>
                 </div>
                 <div className="usermenu-links">
+                  <Link to="/profile" onClick={() => setMenu(false)} className="um-link">
+                    <ProfileIcon /> My profile
+                  </Link>
                   <Link to="/change-password" onClick={() => setMenu(false)} className="um-link">
                     <SuiteIcon name="lock" size={16} color="#605e5c" /> Change password
                   </Link>
@@ -268,4 +275,7 @@ const SignOutIcon = () => (
 );
 const SearchIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8a8886" strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink:0 }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+);
+const ProfileIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#605e5c" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
 );

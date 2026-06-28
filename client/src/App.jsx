@@ -6,6 +6,7 @@ import Launcher from './pages/Launcher.jsx';
 import SuiteShell from './pages/SuiteShell.jsx';
 import AdminUsers from './pages/admin/Users.jsx';
 import AdminDepartments from './pages/admin/Departments.jsx';
+import Profile from './pages/Profile.jsx';
 
 export default function App() {
   return (
@@ -53,6 +54,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <SuiteShell />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
           </ProtectedRoute>
         }
       />
