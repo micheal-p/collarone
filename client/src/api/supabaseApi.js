@@ -566,6 +566,173 @@ export async function supabaseApi(path, opts = {}) {
     return { interviews: data };
   }
 
+  // ---- hr: performance & growth ----
+  const withEmployeeFilter = (q, path) => {
+    const employeeId = (path.match(/employeeId=([^&]*)/) || [])[1];
+    return employeeId ? q.eq('employee_id', employeeId) : q;
+  };
+
+  if (head === 'GET /hr' && seg[1] === 'goals') {
+    let q = supabase.from('goals').select('*, employee:profiles!employee_id(id,name)').order('created_at', { ascending: false });
+    const { data, error } = await withEmployeeFilter(q, path);
+    if (error) fail(400, error.message);
+    return { goals: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'goals') {
+    const { employeeId, title, description, targetDate } = body;
+    if (!employeeId || !title?.trim()) fail(400, 'Employee and title are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('goals').insert({
+      employee_id: employeeId, title: title.trim(), description: description || '', target_date: targetDate || null, created_by: user.id,
+    }).select('*, employee:profiles!employee_id(id,name)').single();
+    if (error) fail(400, error.message);
+    return { goal: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'goals' && seg.length === 3) {
+    const patch = {};
+    ['title','description','status'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
+    if (body.targetDate !== undefined) patch.target_date = body.targetDate || null;
+    const { data, error } = await supabase.from('goals').update(patch).eq('id', seg[2]).select('*, employee:profiles!employee_id(id,name)').single();
+    if (error) fail(400, error.message);
+    return { goal: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'goals' && seg.length === 3) {
+    const { error } = await supabase.from('goals').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  if (head === 'GET /hr' && seg[1] === 'reviews') {
+    let q = supabase.from('performance_reviews').select('*, employee:profiles!employee_id(id,name), reviewer:profiles!reviewer_id(id,name)').order('created_at', { ascending: false });
+    const { data, error } = await withEmployeeFilter(q, path);
+    if (error) fail(400, error.message);
+    return { reviews: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'reviews') {
+    const { employeeId, cycleLabel } = body;
+    if (!employeeId || !cycleLabel?.trim()) fail(400, 'Employee and cycle label are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('performance_reviews').insert({
+      employee_id: employeeId, reviewer_id: user.id, cycle_label: cycleLabel.trim(),
+    }).select('*, employee:profiles!employee_id(id,name), reviewer:profiles!reviewer_id(id,name)').single();
+    if (error) fail(400, error.message);
+    return { review: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'reviews' && seg.length === 3) {
+    const patch = {};
+    ['rating','strengths','improvements','status'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
+    const { data, error } = await supabase.from('performance_reviews').update(patch).eq('id', seg[2]).select('*, employee:profiles!employee_id(id,name), reviewer:profiles!reviewer_id(id,name)').single();
+    if (error) fail(400, error.message);
+    return { review: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'reviews' && seg[3] === 'acknowledge') {
+    const { error } = await supabase.rpc('acknowledge_review', { p_review_id: seg[2] });
+    if (error) fail(400, error.message);
+    const { data, error: getErr } = await supabase.from('performance_reviews').select('*, employee:profiles!employee_id(id,name), reviewer:profiles!reviewer_id(id,name)').eq('id', seg[2]).single();
+    if (getErr) fail(400, getErr.message);
+    return { review: data };
+  }
+
+  if (head === 'GET /hr' && seg[1] === 'trainings') {
+    let q = supabase.from('trainings').select('*, employee:profiles!employee_id(id,name)').order('completed_date', { ascending: false });
+    const { data, error } = await withEmployeeFilter(q, path);
+    if (error) fail(400, error.message);
+    return { trainings: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'trainings') {
+    const { employeeId, title, provider, completedDate, certificateExpiry } = body;
+    if (!employeeId || !title?.trim()) fail(400, 'Employee and title are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('trainings').insert({
+      employee_id: employeeId, title: title.trim(), provider: provider || '', completed_date: completedDate || null,
+      certificate_expiry: certificateExpiry || null, created_by: user.id,
+    }).select('*, employee:profiles!employee_id(id,name)').single();
+    if (error) fail(400, error.message);
+    return { training: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'trainings' && seg.length === 3) {
+    const { error } = await supabase.from('trainings').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  // ---- hr: compliance & case management ----
+  if (head === 'GET /hr' && seg[1] === 'documents') {
+    let q = supabase.from('employee_documents').select('*, employee:profiles!employee_id(id,name)').order('created_at', { ascending: false });
+    const { data, error } = await withEmployeeFilter(q, path);
+    if (error) fail(400, error.message);
+    return { documents: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'documents') {
+    const { employeeId, title, category, filePath, expiryDate } = body;
+    if (!employeeId || !title?.trim() || !filePath) fail(400, 'Employee, title and file are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('employee_documents').insert({
+      employee_id: employeeId, title: title.trim(), category: category || 'other', file_path: filePath,
+      expiry_date: expiryDate || null, uploaded_by: user.id,
+    }).select('*, employee:profiles!employee_id(id,name)').single();
+    if (error) fail(400, error.message);
+    return { document: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'documents' && seg.length === 3) {
+    const { error } = await supabase.from('employee_documents').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  if (head === 'GET /hr' && seg[1] === 'cases') {
+    const { data, error } = await supabase.from('disciplinary_cases').select('*, employee:profiles!employee_id(id,name), openedBy:profiles!opened_by(id,name)').order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { cases: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'cases') {
+    const { employeeId, category, description } = body;
+    if (!employeeId || !description?.trim()) fail(400, 'Employee and description are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('disciplinary_cases').insert({
+      employee_id: employeeId, opened_by: user.id, category: category || 'other', description: description.trim(),
+    }).select('*, employee:profiles!employee_id(id,name), openedBy:profiles!opened_by(id,name)').single();
+    if (error) fail(400, error.message);
+    return { case: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'cases' && seg.length === 3) {
+    const patch = {};
+    ['category','description','resolutionNotes'].forEach((k) => {
+      const col = { resolutionNotes: 'resolution_notes' }[k] || k;
+      if (body[k] !== undefined) patch[col] = body[k];
+    });
+    if (body.status !== undefined) { patch.status = body.status; if (body.status === 'resolved') patch.resolved_at = new Date().toISOString(); }
+    const { data, error } = await supabase.from('disciplinary_cases').update(patch).eq('id', seg[2]).select('*, employee:profiles!employee_id(id,name), openedBy:profiles!opened_by(id,name)').single();
+    if (error) fail(400, error.message);
+    return { case: data };
+  }
+
+  // ---- hr: self-service letter requests ----
+  if (head === 'GET /hr' && seg[1] === 'letters') {
+    const { data, error } = await supabase.from('letter_requests').select('*, employee:profiles!employee_id(id,name,email)').order('requested_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { letters: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'letters') {
+    const { letterType, purpose } = body;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('letter_requests').insert({
+      employee_id: user.id, letter_type: letterType || 'employment_verification', purpose: purpose || '',
+    }).select('*, employee:profiles!employee_id(id,name,email)').single();
+    if (error) fail(400, error.message);
+    return { letter: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'letters' && seg.length === 3) {
+    const { status, declineReason, issuedFilePath } = body;
+    const { data: { user } } = await supabase.auth.getUser();
+    const patch = { status, decided_by: user.id, decided_at: new Date().toISOString() };
+    if (declineReason !== undefined) patch.decline_reason = declineReason;
+    if (issuedFilePath !== undefined) patch.issued_file_path = issuedFilePath;
+    const { data, error } = await supabase.from('letter_requests').update(patch).eq('id', seg[2]).select('*, employee:profiles!employee_id(id,name,email)').single();
+    if (error) fail(400, error.message);
+    return { letter: data };
+  }
+
   // ---- hr: onboarding / offboarding ----
   if (head === 'GET /hr' && seg[1] === 'templates') {
     const phase = (path.match(/phase=([^&]*)/) || [])[1];

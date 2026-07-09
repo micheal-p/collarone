@@ -4,6 +4,8 @@ import { apiPatch } from '../api/client.js';
 import { supabase } from '../lib/supabaseClient.js';
 import AppLayout from '../components/AppLayout.jsx';
 import * as P from '../suites/payroll/payrollApi.js';
+import * as PF from '../suites/hr/performanceApi.js';
+import * as L from '../suites/hr/lettersApi.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 
@@ -73,6 +75,12 @@ export default function Profile() {
       breadcrumb={[{ label: 'Home', to: '/' }, { label: 'My profile' }]}
       title="My profile"
     >
+      <style>{`
+        .lc-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; }
+        .lc-exit-done    { background:#dff6dd; color:#1a6a1a; }
+        .lc-req-draft    { background:#f3f2f1; color:#605e5c; }
+        .lc-stage-rejected { background:#fde7e9; color:#a4262c; }
+      `}</style>
       <div style={{ maxWidth: 580, marginTop: 8 }}>
 
         {/* Avatar card */}
@@ -168,6 +176,9 @@ export default function Profile() {
         </div>
 
         <MyPayslips />
+        <MyGoals />
+        <MyReviews />
+        <LetterRequests />
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button className="btn btn-primary" onClick={save} disabled={saving}>
@@ -210,6 +221,123 @@ function MyPayslips() {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+function MyGoals() {
+  const [goals, setGoals] = useState(null);
+
+  useEffect(() => { PF.getGoals().then(setGoals).catch(() => setGoals([])); }, []);
+
+  const markDone = async (g) => {
+    try { const updated = await PF.updateGoal(g.id, { status: 'done' }); setGoals((gs) => gs.map((x) => (x.id === updated.id ? updated : x))); }
+    catch { /* silent — non-critical self-service action */ }
+  };
+
+  if (goals === null || goals.length === 0) return null;
+
+  return (
+    <div className="card" style={{ padding: 24, marginBottom: 20 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 14 }}>
+        My goals
+      </div>
+      {goals.map((g) => {
+        const st = PF.GOAL_STATUS[g.status];
+        return (
+          <div key={g.id} style={{ borderTop: '1px solid var(--line)', padding: '10px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 500 }}>{g.title}</div>
+              {g.target_date && <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Target {PF.fmtDate(g.target_date)}</div>}
+            </div>
+            {g.status !== 'done' ? (
+              <button className="btn btn-ghost" style={{ fontSize: 12, padding: '3px 10px' }} onClick={() => markDone(g)}>Mark done</button>
+            ) : <span className={`lc-badge ${st.cls}`}>{st.label}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MyReviews() {
+  const [reviews, setReviews] = useState(null);
+  const [open, setOpen] = useState(null);
+
+  useEffect(() => { PF.getReviews().then((rs) => setReviews(rs.filter((r) => r.status !== 'draft'))).catch(() => setReviews([])); }, []);
+
+  const ack = async (r) => {
+    try { const updated = await PF.acknowledgeReview(r.id); setReviews((rs) => rs.map((x) => (x.id === updated.id ? updated : x))); }
+    catch { /* silent */ }
+  };
+
+  if (reviews === null || reviews.length === 0) return null;
+
+  return (
+    <div className="card" style={{ padding: 24, marginBottom: 20 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 14 }}>
+        My reviews
+      </div>
+      {reviews.map((r) => (
+        <div key={r.id} style={{ borderTop: '1px solid var(--line)', padding: '10px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+            onClick={() => setOpen(open === r.id ? null : r.id)}>
+            <span style={{ fontSize: 13.5, fontWeight: 500 }}>{r.cycle_label}</span>
+            {r.status === 'submitted'
+              ? <button className="btn btn-primary" style={{ fontSize: 12, padding: '3px 10px' }} onClick={(e) => { e.stopPropagation(); ack(r); }}>Acknowledge</button>
+              : <span className="lc-badge lc-exit-done">Acknowledged</span>}
+          </div>
+          {open === r.id && (
+            <div style={{ fontSize: 12.5, color: 'var(--text-2)', marginTop: 8, lineHeight: 1.7 }}>
+              {r.rating && <div>Rating: {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</div>}
+              {r.strengths && <p style={{ margin: '4px 0 0' }}><b>Strengths:</b> {r.strengths}</p>}
+              {r.improvements && <p style={{ margin: '4px 0 0' }}><b>Areas to improve:</b> {r.improvements}</p>}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LetterRequests() {
+  const [letters, setLetters] = useState(null);
+  const [requesting, setRequesting] = useState(false);
+  const [type, setType] = useState('employment_verification');
+  const [purpose, setPurpose] = useState('');
+
+  const load = () => L.getLetters().then(setLetters).catch(() => setLetters([]));
+  useEffect(load, []);
+
+  const submit = async () => {
+    setRequesting(true);
+    try { await L.requestLetter({ letterType: type, purpose }); setPurpose(''); load(); }
+    catch { /* silent */ } finally { setRequesting(false); }
+  };
+
+  if (letters === null) return null;
+
+  return (
+    <div className="card" style={{ padding: 24, marginBottom: 20 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 14 }}>
+        Letter requests
+      </div>
+      {letters.map((l) => {
+        const st = L.LETTER_STATUS[l.status];
+        return (
+          <div key={l.id} style={{ borderTop: '1px solid var(--line)', padding: '8px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 13 }}>{L.LETTER_TYPE[l.letter_type]} · {L.fmtDate(l.requested_at)}</span>
+            <span className={`lc-badge ${st.cls}`}>{st.label}</span>
+          </div>
+        );
+      })}
+      <div style={{ display: 'flex', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+        <select className="select" value={type} onChange={(e) => setType(e.target.value)} style={{ fontSize: 13 }}>
+          {Object.entries(L.LETTER_TYPE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <input className="input" placeholder="Purpose (optional)" value={purpose} onChange={(e) => setPurpose(e.target.value)} style={{ fontSize: 13, flex: 1, minWidth: 160 }} />
+        <button className="btn btn-primary" style={{ fontSize: 13 }} disabled={requesting} onClick={submit}>Request letter</button>
+      </div>
     </div>
   );
 }

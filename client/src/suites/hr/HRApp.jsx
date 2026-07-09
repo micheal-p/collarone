@@ -4,6 +4,8 @@ import * as H from './hrApi.js';
 import RecruitingApp, { MyInterviewsView } from './RecruitingApp.jsx';
 import OnboardingApp from './OnboardingApp.jsx';
 import OffboardingApp from './OffboardingApp.jsx';
+import PerformanceApp from './PerformanceApp.jsx';
+import ComplianceApp from './ComplianceApp.jsx';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
@@ -219,6 +221,8 @@ export default function HRApp({ access }) {
       { key: 'recruiting',   label: 'Recruiting' },
       { key: 'onboarding',   label: 'Onboarding' },
       { key: 'offboarding',  label: 'Offboarding' },
+      { key: 'performance',  label: 'Performance' },
+      { key: 'compliance',   label: 'Compliance' },
     ] : []),
   ];
 
@@ -348,6 +352,8 @@ export default function HRApp({ access }) {
           {tab === 'recruiting'  && <RecruitingApp access={access} departments={departments} staff={staff} myId={myId} />}
           {tab === 'onboarding'  && <OnboardingApp access={access} />}
           {tab === 'offboarding' && <OffboardingApp access={access} staff={staff} />}
+          {tab === 'performance' && <PerformanceApp staff={staff} />}
+          {tab === 'compliance'  && <ComplianceApp staff={staff} />}
         </>
       )}
 
