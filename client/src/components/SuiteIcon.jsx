@@ -15,6 +15,9 @@ const PATHS = {
   shield: <><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z" /><path d="M9 12l2 2 4-4" /></>,
   lock: <><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
   building: <><rect x="3" y="8" width="18" height="13" rx="1.5" /><path d="M8 21V8M16 21V8M3 13h18M3 17h18" /><path d="M9 4h6v4H9z" /></>,
+  wallet: <><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11A2.5 2.5 0 0 1 19 7.5V8H5.5A2.5 2.5 0 0 1 3 5.5" /><rect x="3" y="8" width="18" height="11" rx="2" /><circle cx="16" cy="13.5" r="1.4" /></>,
+  clock: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3.2 2" /></>,
+  heart: <><path d="M12 20s-7.5-4.6-9.7-9.3C.7 6.9 3 3.6 6.4 3.6c2 0 3.5 1.2 5.6 3.8 2.1-2.6 3.6-3.8 5.6-3.8 3.4 0 5.7 3.3 4.1 7.1C19.5 15.4 12 20 12 20z" /></>,
 };
 
 export default function SuiteIcon({ name, size = 24, color = 'currentColor', strokeWidth = 1.6 }) {

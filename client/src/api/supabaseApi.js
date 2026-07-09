@@ -31,6 +31,7 @@ const toPublic = (p) => ({
   managerId: p.manager_id || null,
   probationEndDate: p.probation_end_date || '',
   confirmedAt: p.confirmed_at || null,
+  stateOfResidence: p.state_of_residence || '',
 });
 
 async function myProfile() {
@@ -280,6 +281,121 @@ export async function supabaseApi(path, opts = {}) {
     const { data, error } = await supabase.from('profiles').select('id, name, email, department_id').eq('status','active').order('name');
     if (error) fail(400, error.message);
     return { staff: data };
+  }
+
+  // ---- payroll ----
+  if (head === 'GET /payroll' && seg[1] === 'employees') {
+    const { data, error } = await supabase.from('profiles')
+      .select('id, name, email, status, job_title, state_of_residence, dept:departments(id,name)')
+      .eq('status', 'active').order('name');
+    if (error) fail(400, error.message);
+    return { employees: data.map((p) => ({ id: p.id, name: p.name, email: p.email, jobTitle: p.job_title || '', deptName: p.dept?.name || '', stateOfResidence: p.state_of_residence || '' })) };
+  }
+  if (method === 'PATCH' && seg[0] === 'payroll' && seg[1] === 'employees' && seg[3] === 'state') {
+    const { data, error } = await supabase.rpc('payroll_set_state', { p_employee_id: seg[2], p_state: body.state || null });
+    if (error) fail(400, error.message);
+    return { user: toPublic(data) };
+  }
+
+  if (head === 'GET /payroll' && seg[1] === 'salary' && seg.length === 3) {
+    const { data, error } = await supabase.from('salary_structures').select('*').eq('employee_id', seg[2]).order('effective_date', { ascending: false });
+    if (error) fail(400, error.message);
+    return { history: data };
+  }
+  if (head === 'POST /payroll' && seg[1] === 'salary') {
+    const { employeeId, basic, housing, transport, otherAllowances, effectiveDate } = body;
+    if (!employeeId) fail(400, 'employeeId is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('salary_structures').insert({
+      employee_id: employeeId, basic: basic || 0, housing: housing || 0, transport: transport || 0,
+      other_allowances: otherAllowances || 0, effective_date: effectiveDate || new Date().toISOString().slice(0, 10), created_by: user.id,
+    }).select().single();
+    if (error) fail(400, error.message);
+    return { structure: data };
+  }
+
+  if (head === 'GET /payroll' && seg[1] === 'bank' && seg.length === 3) {
+    const { data, error } = await supabase.from('bank_accounts').select('*').eq('employee_id', seg[2]).order('is_primary', { ascending: false });
+    if (error) fail(400, error.message);
+    return { accounts: data };
+  }
+  if (head === 'POST /payroll' && seg[1] === 'bank') {
+    const { employeeId, bankName, bankCode, accountNumber, accountName, isPrimary } = body;
+    if (!employeeId || !bankName || !accountNumber || !accountName) fail(400, 'Employee, bank, account number and account name are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (isPrimary !== false) await supabase.from('bank_accounts').update({ is_primary: false }).eq('employee_id', employeeId);
+    const { data, error } = await supabase.from('bank_accounts').insert({
+      employee_id: employeeId, bank_name: bankName, bank_code: bankCode || '', account_number: accountNumber,
+      account_name: accountName, is_primary: isPrimary !== false, created_by: user.id,
+    }).select().single();
+    if (error) fail(400, error.message);
+    return { account: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'payroll' && seg[1] === 'bank' && seg.length === 3) {
+    const { error } = await supabase.from('bank_accounts').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  if (head === 'GET /payroll' && seg[1] === 'runs' && seg.length === 2) {
+    const { data, error } = await supabase.from('payroll_runs').select('*, approvedBy:profiles!approved_by(id,name)').order('period_year', { ascending: false }).order('period_month', { ascending: false });
+    if (error) fail(400, error.message);
+    return { runs: data };
+  }
+  if (head === 'POST /payroll' && seg[1] === 'runs' && seg[2] === 'generate') {
+    const { month, year } = body;
+    if (!month || !year) fail(400, 'Month and year are required.');
+    const { data, error } = await supabase.rpc('generate_payroll_run', { p_month: month, p_year: year });
+    if (error) fail(400, /unique/i.test(error.message) ? 'A payroll run already exists for that period.' : error.message);
+    const { data: run, error: getErr } = await supabase.from('payroll_runs').select('*').eq('id', data).single();
+    if (getErr) fail(400, getErr.message);
+    return { run };
+  }
+  if (method === 'DELETE' && seg[0] === 'payroll' && seg[1] === 'runs' && seg.length === 3) {
+    const { error } = await supabase.from('payroll_runs').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+  if (method === 'PATCH' && seg[0] === 'payroll' && seg[1] === 'runs' && seg.length === 3) {
+    const { action, reference, notes } = body;
+    const { data: { user } } = await supabase.auth.getUser();
+    let patch = {};
+    if (action === 'approve')       patch = { status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() };
+    else if (action === 'release')  patch = { status: 'released', released_at: new Date().toISOString() };
+    else if (action === 'disburse') patch = { status: 'disbursed', disbursed_at: new Date().toISOString(), disbursement_reference: reference || '' };
+    else if (action === 'reopen')   patch = { status: 'draft' };
+    else if (notes !== undefined)   patch = { notes };
+    else fail(400, 'Unknown action. Use: approve, release, disburse, reopen.');
+    const { data, error } = await supabase.from('payroll_runs').update(patch).eq('id', seg[2]).select('*, approvedBy:profiles!approved_by(id,name)').single();
+    if (error) fail(400, error.message);
+    return { run: data };
+  }
+
+  const PAYROLL_LINE_SELECT = '*, employee:profiles!employee_id(id,name,email,job_title)';
+  if (head === 'GET /payroll' && seg[1] === 'runs' && seg[3] === 'lines') {
+    const { data, error } = await supabase.from('payroll_lines').select(PAYROLL_LINE_SELECT).eq('run_id', seg[2]).order('name', { foreignTable: 'employee' });
+    if (error) fail(400, error.message);
+    return { lines: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'payroll' && seg[1] === 'lines' && seg.length === 3) {
+    const patch = {};
+    if (body.otherDeductions !== undefined) patch.other_deductions = body.otherDeductions || 0;
+    if (patch.other_deductions !== undefined) {
+      const { data: line } = await supabase.from('payroll_lines').select('gross, pension_employee, nhf, paye').eq('id', seg[2]).single();
+      if (line) patch.net = line.gross - line.pension_employee - line.nhf - line.paye - patch.other_deductions;
+    }
+    const { data, error } = await supabase.from('payroll_lines').update(patch).eq('id', seg[2]).select(PAYROLL_LINE_SELECT).single();
+    if (error) fail(400, error.message);
+    return { line: data };
+  }
+
+  if (head === 'GET /payroll' && seg[1] === 'mypayslips') {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('payroll_lines')
+      .select('*, run:payroll_runs!run_id(id,period_month,period_year,released_at)')
+      .eq('employee_id', user.id).order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { payslips: data.filter((l) => l.run?.released_at) };
   }
 
   // ---- hr (employee directory + org structure) ----

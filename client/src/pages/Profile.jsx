@@ -1,8 +1,9 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { apiPatch } from '../api/client.js';
 import { supabase } from '../lib/supabaseClient.js';
 import AppLayout from '../components/AppLayout.jsx';
+import * as P from '../suites/payroll/payrollApi.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 
@@ -166,6 +167,8 @@ export default function Profile() {
           </div>
         </div>
 
+        <MyPayslips />
+
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button className="btn btn-primary" onClick={save} disabled={saving}>
             {saving ? 'Saving…' : 'Save profile'}
@@ -175,6 +178,39 @@ export default function Profile() {
 
       {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
     </AppLayout>
+  );
+}
+
+function MyPayslips() {
+  const [payslips, setPayslips] = useState(null);
+  const [open, setOpen] = useState(null);
+
+  useEffect(() => { P.getMyPayslips().then(setPayslips).catch(() => setPayslips([])); }, []);
+
+  if (payslips === null) return null;
+  if (payslips.length === 0) return null;
+
+  return (
+    <div className="card" style={{ padding: 24, marginBottom: 20 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 14 }}>
+        My payslips
+      </div>
+      {payslips.map((p) => (
+        <div key={p.id} style={{ borderTop: '1px solid var(--line)', padding: '10px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+            onClick={() => setOpen(open === p.id ? null : p.id)}>
+            <span style={{ fontSize: 13.5, fontWeight: 500 }}>{P.MONTHS[p.run.period_month - 1]} {p.run.period_year}</span>
+            <span style={{ fontSize: 13.5, fontWeight: 600 }}>{P.money(p.net)}</span>
+          </div>
+          {open === p.id && (
+            <div style={{ fontSize: 12.5, color: 'var(--text-2)', marginTop: 8, lineHeight: 1.8 }}>
+              Gross {P.money(p.gross)} · Pension {P.money(p.pension_employee)} · NHF {P.money(p.nhf)} · PAYE {P.money(p.paye)}
+              {p.other_deductions > 0 && <> · Other deductions {P.money(p.other_deductions)}</>}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 
