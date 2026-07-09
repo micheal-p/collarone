@@ -398,6 +398,32 @@ export async function supabaseApi(path, opts = {}) {
     return { payslips: data.filter((l) => l.run?.released_at) };
   }
 
+  if (head === 'GET /payroll' && seg[1] === 'rates') {
+    const { data: rates, error: rErr } = await supabase.from('deduction_rates').select('*').order('key');
+    if (rErr) fail(400, rErr.message);
+    const { data: bands, error: bErr } = await supabase.from('paye_bands').select('*').order('sort_order');
+    if (bErr) fail(400, bErr.message);
+    return { deductionRates: rates, payeBands: bands };
+  }
+  if (method === 'PATCH' && seg[0] === 'payroll' && seg[1] === 'rates' && seg.length === 3) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('deduction_rates')
+      .update({ rate: body.rate, updated_at: new Date().toISOString(), updated_by: user.id })
+      .eq('key', seg[2]).select().single();
+    if (error) fail(400, error.message);
+    return { rate: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'payroll' && seg[1] === 'paye-bands' && seg.length === 3) {
+    const patch = {};
+    ['minAnnual','maxAnnual','rate'].forEach((k) => {
+      const col = { minAnnual: 'min_annual', maxAnnual: 'max_annual' }[k] || k;
+      if (body[k] !== undefined) patch[col] = body[k];
+    });
+    const { data, error } = await supabase.from('paye_bands').update(patch).eq('id', seg[2]).select().single();
+    if (error) fail(400, error.message);
+    return { band: data };
+  }
+
   // ---- hr (employee directory + org structure) ----
   if (head === 'GET /hr' && seg[1] === 'staff') {
     const { data, error } = await supabase.from('profiles')

@@ -235,6 +235,84 @@ function EmployeesTab({ flash, isPayrollManager }) {
   );
 }
 
+/* ---- RatesTab: PAYE bands + deduction rates, editable, no code deploy needed ------ */
+function RatesTab({ flash, isPayrollManager }) {
+  const [rates, setRates] = useState(null);
+  const [bands, setBands] = useState(null);
+
+  const load = () => P.getRates().then((d) => { setRates(d.deductionRates); setBands(d.payeBands); }).catch((e) => flash(e.message, true));
+  useEffect(load, []); // eslint-disable-line
+
+  const saveRate = async (key, value) => {
+    try { const updated = await P.updateDeductionRate(key, value); setRates((rs) => rs.map((r) => (r.key === updated.key ? updated : r))); flash('Rate updated.'); }
+    catch (e) { flash(e.message, true); }
+  };
+  const saveBand = async (id, patch) => {
+    try { const updated = await P.updatePayeBand(id, patch); setBands((bs) => bs.map((b) => (b.id === updated.id ? updated : b))); flash('Band updated.'); }
+    catch (e) { flash(e.message, true); }
+  };
+
+  if (rates === null) return <div className="suite-loading"><div className="boot-spinner" /></div>;
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div className="callout-hint">
+        These drive every payroll calculation. Editing a rate or band takes effect on the <b>next</b> run generated — it never rewrites a run already created. Verify against current Nigerian tax/statutory guidance before changing.
+      </div>
+
+      <h3 style={{ fontSize: 14, margin: '18px 0 8px' }}>Statutory deduction rates</h3>
+      <div className="table-wrap">
+        <table className="table">
+          <thead><tr><th>Deduction</th><th>Basis</th><th>Rate</th></tr></thead>
+          <tbody>
+            {rates.map((r) => (
+              <tr key={r.key}>
+                <td>{r.label}</td>
+                <td className="muted" style={{ fontSize: 13, textTransform: 'capitalize' }}>{r.basis}</td>
+                <td>
+                  {isPayrollManager ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <input className="input" type="number" step="0.001" min="0" max="1" defaultValue={r.rate}
+                        style={{ width: 90, fontSize: 13, padding: '4px 8px', height: 'auto' }}
+                        onBlur={(e) => Number(e.target.value) !== Number(r.rate) && saveRate(r.key, Number(e.target.value))} />
+                      <span className="muted" style={{ fontSize: 12 }}>({(r.rate * 100).toFixed(1)}%)</span>
+                    </div>
+                  ) : `${(r.rate * 100).toFixed(1)}%`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style={{ fontSize: 14, margin: '22px 0 8px' }}>PAYE bands (annual, graduated)</h3>
+      <div className="table-wrap">
+        <table className="table">
+          <thead><tr><th>From</th><th>To</th><th>Rate</th></tr></thead>
+          <tbody>
+            {bands.map((b) => (
+              <tr key={b.id}>
+                <td className="muted" style={{ fontSize: 13 }}>{P.money(b.min_annual)}</td>
+                <td className="muted" style={{ fontSize: 13 }}>{b.max_annual == null ? 'No limit' : P.money(b.max_annual)}</td>
+                <td>
+                  {isPayrollManager ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <input className="input" type="number" step="0.001" min="0" max="1" defaultValue={b.rate}
+                        style={{ width: 90, fontSize: 13, padding: '4px 8px', height: 'auto' }}
+                        onBlur={(e) => Number(e.target.value) !== Number(b.rate) && saveBand(b.id, { rate: Number(e.target.value) })} />
+                      <span className="muted" style={{ fontSize: 12 }}>({(b.rate * 100).toFixed(1)}%)</span>
+                    </div>
+                  ) : `${(b.rate * 100).toFixed(1)}%`}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* ---- RunDetail ------------------------------------------------------------------- */
 function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager }) {
   const [lines, setLines] = useState(null);
@@ -411,6 +489,7 @@ export default function PayrollApp({ access }) {
       <div className="lv-tabs">
         <button className={`lv-tab ${tab === 'runs' ? 'active' : ''}`} onClick={() => setTab('runs')}>Payroll runs</button>
         <button className={`lv-tab ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>Employees</button>
+        <button className={`lv-tab ${tab === 'rates' ? 'active' : ''}`} onClick={() => setTab('rates')}>Rates</button>
         {isPayrollManager && tab === 'runs' && <button className="btn btn-primary lv-apply" onClick={() => setModal(true)}>{I.add} New run</button>}
       </div>
 
@@ -439,6 +518,7 @@ export default function PayrollApp({ access }) {
       )}
 
       {tab === 'employees' && <EmployeesTab flash={flash} isPayrollManager={isPayrollManager} />}
+      {tab === 'rates' && <RatesTab flash={flash} isPayrollManager={isPayrollManager} />}
 
       {modal && (
         <GenerateModal onClose={() => setModal(false)}

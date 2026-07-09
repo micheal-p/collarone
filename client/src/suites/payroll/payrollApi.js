@@ -20,6 +20,10 @@ export const updateLine = (id, body) => apiPatch(`/payroll/lines/${id}`, body).t
 
 export const getMyPayslips = () => apiGet('/payroll/mypayslips').then((d) => d.payslips);
 
+export const getRates = () => apiGet('/payroll/rates');
+export const updateDeductionRate = (key, rate) => apiPatch(`/payroll/rates/${key}`, { rate }).then((d) => d.rate);
+export const updatePayeBand = (id, body) => apiPatch(`/payroll/paye-bands/${id}`, body).then((d) => d.band);
+
 export const RUN_STATUS = {
   draft:     { label: 'Draft',     cls: 'lc-req-draft' },
   review:    { label: 'In review', cls: 'lc-stage-interview' },
