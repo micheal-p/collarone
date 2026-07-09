@@ -236,7 +236,7 @@ function EmployeesTab({ flash, isPayrollManager }) {
 }
 
 /* ---- RunDetail ------------------------------------------------------------------- */
-function RunDetail({ run, onBack, onUpdated, flash, isPayrollManager }) {
+function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager }) {
   const [lines, setLines] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -262,6 +262,13 @@ function RunDetail({ run, onBack, onUpdated, flash, isPayrollManager }) {
     catch (e) { flash(e.message, true); }
   };
 
+  const removeDraft = async () => {
+    if (!confirm(`Delete the ${P.MONTHS[run.period_month - 1]} ${run.period_year} draft? This can't be undone.`)) return;
+    setBusy(true);
+    try { await P.deleteRun(run.id); onDeleted(run.id); flash('Draft deleted.'); }
+    catch (e) { flash(e.message, true); setBusy(false); }
+  };
+
   const st = P.RUN_STATUS[run.status];
   const editable = isPayrollManager && (run.status === 'draft' || run.status === 'review');
   const missingBank = lines?.filter((l) => !l.bank_snapshot?.accountNumber) || [];
@@ -285,6 +292,9 @@ function RunDetail({ run, onBack, onUpdated, flash, isPayrollManager }) {
           )}
           {isPayrollManager && run.status !== 'draft' && run.status !== 'disbursed' && (
             <button className="btn btn-ghost" disabled={busy} onClick={() => act('reopen')}>Reopen</button>
+          )}
+          {isPayrollManager && run.status === 'draft' && (
+            <button className="btn btn-ghost danger-icon" disabled={busy} onClick={removeDraft}>Delete draft</button>
           )}
         </div>
       </div>
@@ -454,4 +464,6 @@ const PAYROLL_CSS = `
   .lc-checklist-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .lc-interview-card { background:#faf9f8; border:1px solid var(--line); border-radius:6px; padding:10px 12px; margin-top:8px; }
   .callout-hint { background:#fff4e0; border:1px solid #f0bea0; border-radius:6px; padding:10px 14px; font-size:13px; color:#8f3b00; margin:0 0 14px; }
+  .danger-icon { color:#a4262c; }
+  .danger-icon:hover { background:#fde7e9; }
 `;

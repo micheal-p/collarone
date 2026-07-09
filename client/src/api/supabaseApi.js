@@ -287,7 +287,7 @@ export async function supabaseApi(path, opts = {}) {
   if (head === 'GET /payroll' && seg[1] === 'employees') {
     const { data, error } = await supabase.from('profiles')
       .select('id, name, email, status, job_title, state_of_residence, dept:departments(id,name)')
-      .eq('status', 'active').order('name');
+      .eq('status', 'active').neq('role', 'super_admin').order('name');
     if (error) fail(400, error.message);
     return { employees: data.map((p) => ({ id: p.id, name: p.name, email: p.email, jobTitle: p.job_title || '', deptName: p.dept?.name || '', stateOfResidence: p.state_of_residence || '' })) };
   }
@@ -402,7 +402,7 @@ export async function supabaseApi(path, opts = {}) {
   if (head === 'GET /hr' && seg[1] === 'staff') {
     const { data, error } = await supabase.from('profiles')
       .select('*, dept:departments(id,name), manager:profiles!manager_id(id,name,email,job_title)')
-      .order('name');
+      .neq('role', 'super_admin').order('name');
     if (error) fail(400, error.message);
     return { staff: data.map((p) => ({ ...toPublic(p), deptName: p.dept?.name || p.department || '', manager: p.manager ? { id: p.manager.id, name: p.manager.name, email: p.manager.email } : null })) };
   }

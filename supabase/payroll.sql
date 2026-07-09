@@ -313,7 +313,8 @@ begin
 
   period_end := make_date(p_year, p_month, 1) + interval '1 month' - interval '1 day';
 
-  for emp in select * from public.profiles where status = 'active' loop
+  -- super_admin is a system account, not a staff member — never on payroll.
+  for emp in select * from public.profiles where status = 'active' and role <> 'super_admin' loop
     select * into ss from public.salary_structures
       where employee_id = emp.id and effective_date <= period_end
       order by effective_date desc, created_at desc limit 1;
