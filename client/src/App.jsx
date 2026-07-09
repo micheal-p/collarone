@@ -7,11 +7,15 @@ import SuiteShell from './pages/SuiteShell.jsx';
 import AdminUsers from './pages/admin/Users.jsx';
 import AdminDepartments from './pages/admin/Departments.jsx';
 import Profile from './pages/Profile.jsx';
+import CareersIndex from './pages/careers/CareersIndex.jsx';
+import CareersApply from './pages/careers/CareersApply.jsx';
 
 export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/careers" element={<CareersIndex />} />
+      <Route path="/careers/:id" element={<CareersApply />} />
 
       <Route
         path="/change-password"

@@ -4,12 +4,13 @@ import { apiGet } from '../api/client.js';
 import { SUITE_META } from '../config/suites.js';
 import AppLayout from '../components/AppLayout.jsx';
 import SuiteIcon from '../components/SuiteIcon.jsx';
+import HRApp       from '../suites/hr/HRApp.jsx';
 import LeaveApp    from '../suites/leave/LeaveApp.jsx';
 import TasksApp    from '../suites/tasks/TasksApp.jsx';
 import VisitorsApp from '../suites/visitors/VisitorsApp.jsx';
 
 // Suites that have a real app built. Others fall back to the "foundation ready" stub.
-const SUITE_APPS = { leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp };
+const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp };
 
 export default function SuiteShell() {
   const { key } = useParams();

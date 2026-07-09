@@ -26,6 +26,11 @@ const toPublic = (p) => ({
   phone: p.phone || '',
   whatsapp: p.whatsapp || '',
   avatarUrl: p.avatar_url || '',
+  startDate: p.start_date || '',
+  employmentType: p.employment_type || 'full_time',
+  managerId: p.manager_id || null,
+  probationEndDate: p.probation_end_date || '',
+  confirmedAt: p.confirmed_at || null,
 });
 
 async function myProfile() {
@@ -109,6 +114,30 @@ export async function supabaseApi(path, opts = {}) {
     return { suites: tiles(p), isSystemAdmin: p.role === 'super_admin' };
   }
   if (head === 'GET /catalog') return { suites: SUITES };
+
+  // ---- careers: public job board (unauthenticated, anon role) ----
+  if (head === 'GET /careers' && seg[1] === 'postings' && seg.length === 2) {
+    const { data, error } = await supabase.from('public_job_postings').select('*').order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { postings: data };
+  }
+  if (head === 'GET /careers' && seg[1] === 'postings' && seg.length === 3) {
+    const { data, error } = await supabase.from('public_job_postings').select('*').eq('id', seg[2]).maybeSingle();
+    if (error) fail(400, error.message);
+    if (!data) fail(404, 'This role could not be found or is no longer accepting applications.');
+    return { posting: data };
+  }
+  if (head === 'POST /careers' && seg[1] === 'apply') {
+    const { requisitionId, name, email, phone, portfolioUrl, coverLetter, yearsExperience, expectedSalary, resumePath } = body;
+    const { data, error } = await supabase.rpc('public_submit_application', {
+      p_requisition_id: requisitionId, p_name: name, p_email: email, p_phone: phone || '',
+      p_portfolio_url: portfolioUrl || '', p_cover_letter: coverLetter || '',
+      p_years_experience: yearsExperience ?? null, p_expected_salary: expectedSalary ?? null,
+      p_resume_path: resumePath || null,
+    });
+    if (error) fail(400, error.message);
+    return { applicationId: data };
+  }
   if (head === 'GET /departments') {
     const all = path.includes('all=true');
     let q = supabase.from('departments').select('id, name, code, active').order('name');
@@ -251,6 +280,250 @@ export async function supabaseApi(path, opts = {}) {
     const { data, error } = await supabase.from('profiles').select('id, name, email, department_id').eq('status','active').order('name');
     if (error) fail(400, error.message);
     return { staff: data };
+  }
+
+  // ---- hr (employee directory + org structure) ----
+  if (head === 'GET /hr' && seg[1] === 'staff') {
+    const { data, error } = await supabase.from('profiles')
+      .select('*, dept:departments(id,name), manager:profiles!manager_id(id,name,email,job_title)')
+      .order('name');
+    if (error) fail(400, error.message);
+    return { staff: data.map((p) => ({ ...toPublic(p), deptName: p.dept?.name || p.department || '', manager: p.manager ? { id: p.manager.id, name: p.manager.name, email: p.manager.email } : null })) };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'staff' && seg.length === 3) {
+    const { jobTitle, departmentId, managerId, startDate, employmentType } = body;
+    const { data, error } = await supabase.rpc('hr_update_employee', {
+      p_user_id:         seg[2],
+      p_job_title:       jobTitle ?? null,
+      p_department_id:   departmentId ?? null,
+      p_manager_id:      managerId || null,
+      p_start_date:      startDate || null,
+      p_employment_type: employmentType || null,
+    });
+    if (error) fail(400, error.message);
+    return { user: toPublic(data) };
+  }
+
+  // ---- hr: recruitment ----
+  const REQ_SELECT = '*, dept:departments(id,name), hiringManager:profiles!hiring_manager_id(id,name,email)';
+  const APP_SELECT = '*, candidate:candidates(id,name,email,phone,resume_path,source,notes), hiredProfile:profiles!hired_profile_id(id,name)';
+  const INTERVIEW_SELECT = '*, interviewer:profiles!interviewer_id(id,name,email)';
+
+  if (head === 'GET /hr' && seg[1] === 'requisitions' && seg.length === 2) {
+    const { data, error } = await supabase.from('job_requisitions').select(REQ_SELECT).order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { requisitions: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'requisitions' && seg.length === 2) {
+    const { title, departmentId, hiringManagerId, headcount, employmentType, location, description, status, minExperienceYears, salaryMin, salaryMax } = body;
+    if (!title?.trim()) fail(400, 'Title is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('job_requisitions').insert({
+      title: title.trim(), department_id: departmentId || null, hiring_manager_id: hiringManagerId || null,
+      headcount: headcount || 1, employment_type: employmentType || 'full_time', location: location || '',
+      description: description || '', status: status || 'draft', created_by: user.id,
+      min_experience_years: minExperienceYears || null, salary_min: salaryMin || null, salary_max: salaryMax || null,
+    }).select(REQ_SELECT).single();
+    if (error) fail(400, error.message);
+    return { requisition: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'requisitions' && seg.length === 3) {
+    const patch = {};
+    ['title','location','description','status','employmentType','headcount'].forEach((k) => {
+      const col = { employmentType: 'employment_type' }[k] || k;
+      if (body[k] !== undefined) patch[col] = body[k];
+    });
+    if (body.departmentId !== undefined)      patch.department_id       = body.departmentId || null;
+    if (body.hiringManagerId !== undefined)   patch.hiring_manager_id   = body.hiringManagerId || null;
+    if (body.minExperienceYears !== undefined) patch.min_experience_years = body.minExperienceYears || null;
+    if (body.salaryMin !== undefined)          patch.salary_min           = body.salaryMin || null;
+    if (body.salaryMax !== undefined)          patch.salary_max           = body.salaryMax || null;
+    const { data, error } = await supabase.from('job_requisitions').update(patch).eq('id', seg[2]).select(REQ_SELECT).single();
+    if (error) fail(400, error.message);
+    return { requisition: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'requisitions' && seg.length === 3) {
+    const { error } = await supabase.from('job_requisitions').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  if (head === 'GET /hr' && seg[1] === 'requisitions' && seg[3] === 'pipeline') {
+    const { data, error } = await supabase.from('applications').select(APP_SELECT).eq('requisition_id', seg[2]).order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { applications: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'requisitions' && seg[3] === 'pipeline') {
+    const { name, email, phone, source, notes, resumePath } = body;
+    if (!name?.trim() || !email?.trim()) fail(400, 'Candidate name and email are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: candidate, error: candErr } = await supabase.from('candidates').insert({
+      name: name.trim(), email: email.trim(), phone: phone || '', source: source || 'other',
+      notes: notes || '', resume_path: resumePath || null, created_by: user.id,
+    }).select().single();
+    if (candErr) fail(400, candErr.message);
+    const { data, error } = await supabase.from('applications').insert({
+      requisition_id: seg[2], candidate_id: candidate.id, created_by: user.id,
+    }).select(APP_SELECT).single();
+    if (error) fail(400, error.message);
+    return { application: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'candidates' && seg.length === 3) {
+    const patch = {};
+    ['name','email','phone','source','notes'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
+    if (body.resumePath !== undefined) patch.resume_path = body.resumePath || null;
+    const { data, error } = await supabase.from('candidates').update(patch).eq('id', seg[2]).select().single();
+    if (error) fail(400, error.message);
+    return { candidate: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'applications' && seg.length === 3) {
+    const patch = {};
+    ['stage','rating','rejectionReason','offerSalary','offerStartDate','offerStatus','hiredProfileId'].forEach((k) => {
+      const col = { rejectionReason: 'rejection_reason', offerSalary: 'offer_salary', offerStartDate: 'offer_start_date', offerStatus: 'offer_status', hiredProfileId: 'hired_profile_id' }[k] || k;
+      if (body[k] !== undefined) patch[col] = body[k] || null;
+    });
+    const { data, error } = await supabase.from('applications').update(patch).eq('id', seg[2]).select(APP_SELECT).single();
+    if (error) fail(400, error.message);
+    return { application: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'applications' && seg.length === 3) {
+    const { error } = await supabase.from('applications').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  if (head === 'GET /hr' && seg[1] === 'applications' && seg[3] === 'interviews') {
+    const { data, error } = await supabase.from('interviews').select(INTERVIEW_SELECT).eq('application_id', seg[2]).order('scheduled_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { interviews: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'applications' && seg[3] === 'interviews') {
+    const { scheduledAt, interviewerId, mode } = body;
+    if (!scheduledAt || !interviewerId) fail(400, 'Scheduled time and interviewer are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('interviews').insert({
+      application_id: seg[2], scheduled_at: scheduledAt, interviewer_id: interviewerId, mode: mode || 'video', created_by: user.id,
+    }).select(INTERVIEW_SELECT).single();
+    if (error) fail(400, error.message);
+    return { interview: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'interviews' && seg.length === 3) {
+    const patch = {};
+    ['outcome','feedback','mode'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
+    if (body.scheduledAt !== undefined) patch.scheduled_at = body.scheduledAt;
+    const { data, error } = await supabase.from('interviews').update(patch).eq('id', seg[2]).select(INTERVIEW_SELECT).single();
+    if (error) fail(400, error.message);
+    return { interview: data };
+  }
+  if (head === 'GET /hr' && seg[1] === 'myinterviews') {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('interviews')
+      .select(`${INTERVIEW_SELECT}, application:applications(id,candidate:candidates(id,name), requisition:job_requisitions(id,title))`)
+      .eq('interviewer_id', user.id).order('scheduled_at', { ascending: true });
+    if (error) fail(400, error.message);
+    return { interviews: data };
+  }
+
+  // ---- hr: onboarding / offboarding ----
+  if (head === 'GET /hr' && seg[1] === 'templates') {
+    const phase = (path.match(/phase=([^&]*)/) || [])[1];
+    let q = supabase.from('lifecycle_task_templates').select('*').eq('active', true).order('sort_order');
+    if (phase) q = q.eq('phase', phase);
+    const { data, error } = await q;
+    if (error) fail(400, error.message);
+    return { templates: data };
+  }
+  if (head === 'GET /hr' && seg[1] === 'lifecycle-tasks' && seg.length === 2) {
+    const employeeId = (path.match(/employeeId=([^&]*)/) || [])[1];
+    const phase = (path.match(/phase=([^&]*)/) || [])[1];
+    let q = supabase.from('lifecycle_tasks').select('*, completedBy:profiles!completed_by(id,name)').order('due_date');
+    if (employeeId) q = q.eq('employee_id', employeeId);
+    if (phase) q = q.eq('phase', phase);
+    const { data, error } = await q;
+    if (error) fail(400, error.message);
+    return { tasks: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'lifecycle-tasks' && seg.length === 3) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const patch = {};
+    if (body.notes !== undefined) patch.notes = body.notes;
+    if (body.status === 'done') { patch.status = 'done'; patch.completed_by = user.id; patch.completed_at = new Date().toISOString(); }
+    else if (body.status === 'pending') { patch.status = 'pending'; patch.completed_by = null; patch.completed_at = null; }
+    const { data, error } = await supabase.from('lifecycle_tasks').update(patch).eq('id', seg[2]).select('*, completedBy:profiles!completed_by(id,name)').single();
+    if (error) fail(400, error.message);
+    return { task: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'onboarding' && seg[2] === 'generate') {
+    const { employeeId } = body;
+    if (!employeeId) fail(400, 'employeeId is required.');
+    const { data: emp, error: empErr } = await supabase.from('profiles').select('id, start_date').eq('id', employeeId).single();
+    if (empErr) fail(400, empErr.message);
+    if (!emp.start_date) fail(400, "Set the employee's start date before generating onboarding tasks.");
+    const { data: templates, error: tplErr } = await supabase.from('lifecycle_task_templates')
+      .select('*').eq('phase', 'onboarding').eq('active', true).order('sort_order');
+    if (tplErr) fail(400, tplErr.message);
+    const start = new Date(emp.start_date + 'T00:00:00');
+    const rows = templates.map((t) => {
+      const due = new Date(start); due.setDate(due.getDate() + t.offset_days);
+      return { employee_id: employeeId, phase: 'onboarding', title: t.title, category: t.category, due_date: due.toISOString().slice(0, 10) };
+    });
+    const { data, error } = await supabase.from('lifecycle_tasks').insert(rows).select('*, completedBy:profiles!completed_by(id,name)');
+    if (error) fail(400, error.message);
+    return { tasks: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'employees' && seg[3] === 'probation') {
+    const { data, error } = await supabase.rpc('hr_set_probation', { p_employee_id: seg[2], p_probation_end_date: body.probationEndDate || null });
+    if (error) fail(400, error.message);
+    return { user: toPublic(data) };
+  }
+  if (head === 'POST /hr' && seg[1] === 'employees' && seg[3] === 'confirm') {
+    const { data, error } = await supabase.rpc('hr_confirm_employee', { p_employee_id: seg[2] });
+    if (error) fail(400, error.message);
+    return { user: toPublic(data) };
+  }
+
+  const EXIT_SELECT = '*, employee:profiles!employee_id(id,name,email), initiatedBy:profiles!initiated_by(id,name)';
+  if (head === 'GET /hr' && seg[1] === 'exits' && seg.length === 2) {
+    const { data, error } = await supabase.from('exit_records').select(EXIT_SELECT).order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { exits: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'exits' && seg.length === 2) {
+    const { employeeId, reason, reasonNotes, lastWorkingDay } = body;
+    if (!employeeId || !reason || !lastWorkingDay) fail(400, 'Employee, reason and last working day are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: exitRow, error } = await supabase.from('exit_records').insert({
+      employee_id: employeeId, initiated_by: user.id, reason, reason_notes: reasonNotes || '', last_working_day: lastWorkingDay,
+    }).select(EXIT_SELECT).single();
+    if (error) fail(400, error.message);
+    const { data: templates } = await supabase.from('lifecycle_task_templates')
+      .select('*').eq('phase', 'offboarding').eq('active', true).order('sort_order');
+    if (templates?.length) {
+      const lwd = new Date(lastWorkingDay + 'T00:00:00');
+      const rows = templates.map((t) => {
+        const due = new Date(lwd); due.setDate(due.getDate() + t.offset_days);
+        return { employee_id: employeeId, phase: 'offboarding', exit_id: exitRow.id, title: t.title, category: t.category, due_date: due.toISOString().slice(0, 10) };
+      });
+      await supabase.from('lifecycle_tasks').insert(rows);
+    }
+    return { exit: exitRow };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'exits' && seg.length === 3) {
+    const patch = {};
+    ['status','unusedLeaveDays','exitInterviewNotes','rehireEligible','reasonNotes'].forEach((k) => {
+      const col = { unusedLeaveDays: 'unused_leave_days', exitInterviewNotes: 'exit_interview_notes', rehireEligible: 'rehire_eligible', reasonNotes: 'reason_notes' }[k] || k;
+      if (body[k] !== undefined) patch[col] = body[k];
+    });
+    const { data, error } = await supabase.from('exit_records').update(patch).eq('id', seg[2]).select(EXIT_SELECT).single();
+    if (error) fail(400, error.message);
+    return { exit: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'exits' && seg[3] === 'finalize') {
+    const { error } = await supabase.rpc('hr_finalize_exit', { p_exit_id: seg[2] });
+    if (error) fail(400, error.message);
+    const { data, error: getErr } = await supabase.from('exit_records').select(EXIT_SELECT).eq('id', seg[2]).single();
+    if (getErr) fail(400, getErr.message);
+    return { exit: data };
   }
 
   // ---- visitors (person records) ----
