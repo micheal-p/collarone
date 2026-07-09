@@ -240,7 +240,7 @@ function RatesTab({ flash, isPayrollManager }) {
   const [rates, setRates] = useState(null);
   const [bands, setBands] = useState(null);
 
-  const load = () => P.getRates().then((d) => { setRates(d.deductionRates); setBands(d.payeBands); }).catch((e) => flash(e.message, true));
+  const load = () => { P.getRates().then((d) => { setRates(d.deductionRates); setBands(d.payeBands); }).catch((e) => flash(e.message, true)); };
   useEffect(load, []); // eslint-disable-line
 
   const saveRate = async (key, value) => {
@@ -318,7 +318,7 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
   const [lines, setLines] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const load = () => P.getRunLines(run.id).then(setLines).catch((e) => flash(e.message, true));
+  const load = () => { P.getRunLines(run.id).then(setLines).catch((e) => flash(e.message, true)); };
   useEffect(load, [run.id]); // eslint-disable-line
 
   const totals = useMemo(() => {

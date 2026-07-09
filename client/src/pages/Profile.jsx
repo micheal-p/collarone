@@ -306,7 +306,7 @@ function LetterRequests() {
   const [type, setType] = useState('employment_verification');
   const [purpose, setPurpose] = useState('');
 
-  const load = () => L.getLetters().then(setLetters).catch(() => setLetters([]));
+  const load = () => { L.getLetters().then(setLetters).catch(() => setLetters([])); };
   useEffect(load, []);
 
   const submit = async () => {
