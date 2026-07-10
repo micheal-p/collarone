@@ -35,20 +35,24 @@ const dayColor = (pct) => {
 
 export default function Status() {
   const [checks, setChecks] = useState(null);
+  const [live, setLive] = useState(null); // this-instant check, independent of cron history
   const [err, setErr] = useState('');
 
   useEffect(() => {
     apiGet('/status/checks').then((d) => setChecks(d.checks)).catch((e) => setErr(e.message));
+    fetch('/api/health').then((r) => r.json()).then(setLive).catch(() => {});
   }, []);
 
-  const latest = checks?.[0];
   const isMonitoring = checks && checks.length > 0;
   const overallPct = checks?.length ? checks.filter((c) => c.api_ok && c.db_ok).length / checks.length : null;
   const days = checks ? buildDays(checks) : [];
 
-  const state = !isMonitoring ? 'unknown' : latest.api_ok && latest.db_ok ? 'operational' : latest.db_ok ? 'degraded' : 'down';
-  const stateLabel = { operational: 'All systems operational', degraded: 'Degraded performance', down: 'Service disruption', unknown: 'Monitoring not yet recording' }[state];
-  const stateColor = { operational: '#1a7a3e', degraded: '#c8951a', down: '#c02b2b', unknown: 'rgba(10,14,26,0.35)' }[state];
+  // The banner reflects a real check made right now (hits the API + DB live),
+  // not just the daily-cron history — so it reads correctly from the first
+  // page load, not just after the scheduled check has run a few times.
+  const state = live ? live.status : 'checking';
+  const stateLabel = { operational: 'All systems operational', degraded: 'Degraded performance', down: 'Service disruption', checking: 'Checking…' }[state];
+  const stateColor = { operational: '#1a7a3e', degraded: '#c8951a', down: '#c02b2b', checking: 'rgba(10,14,26,0.3)' }[state];
 
   return (
     <div className="lg">
@@ -67,17 +71,17 @@ export default function Status() {
           <span style={{ width: 12, height: 12, borderRadius: '50%', background: stateColor, flexShrink: 0 }} />
           <div>
             <div style={{ fontWeight: 650, fontSize: 15 }}>{stateLabel}</div>
-            {latest && <div style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.5)', marginTop: 2 }}>Last checked {new Date(latest.checked_at).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} · {latest.response_ms}ms response</div>}
+            {live && <div style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.5)', marginTop: 2 }}>Checked just now · {live.responseMs}ms response</div>}
           </div>
           {overallPct !== null && (
             <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
               <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 20, fontWeight: 650 }}>{(overallPct * 100).toFixed(2)}%</div>
-              <div style={{ fontSize: 11, color: 'rgba(10,14,26,0.45)' }}>uptime, all recorded checks</div>
+              <div style={{ fontSize: 11, color: 'rgba(10,14,26,0.45)' }}>uptime, daily checks since monitoring started</div>
             </div>
           )}
         </div>
 
-        {isMonitoring && (
+        {isMonitoring ? (
           <>
             <div style={{ display: 'flex', gap: 3, marginBottom: 8, overflowX: 'auto', paddingBottom: 4 }}>
               {days.map((d) => (
@@ -87,10 +91,8 @@ export default function Status() {
             </div>
             <p style={{ fontSize: 12, color: 'rgba(10,14,26,0.45)', margin: '0 0 32px' }}>Last {days.length} days, most recent on the right</p>
           </>
-        )}
-
-        {!isMonitoring && !err && (
-          <p style={{ fontSize: 13.5, color: 'rgba(10,14,26,0.55)' }}>No health checks recorded yet — monitoring starts once the scheduled check runs for the first time.</p>
+        ) : (
+          !err && <p style={{ fontSize: 13.5, color: 'rgba(10,14,26,0.55)', margin: '0 0 32px' }}>The banner above is live — checked the moment you loaded this page. Daily history builds up starting with today's scheduled check.</p>
         )}
         {err && <p style={{ fontSize: 13.5, color: '#c02b2b' }}>{err}</p>}
 

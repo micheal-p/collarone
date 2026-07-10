@@ -141,6 +141,7 @@ export default function Signup() {
         <img src={logo} alt="" />
         <span>Collar<em>One</em></span>
       </Link>
+      <Link className="su-back" to="/">← Back to homepage</Link>
 
       <div className="su-card">
         <div className="su-steps">

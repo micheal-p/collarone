@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { DEMO } from '../api/client.js';
 import logo from '../assets/collarone-mark.svg';
@@ -115,6 +115,7 @@ export default function Login() {
           </form>
         )}
       </div>
+      <Link to="/" className="login-home-link">← Back to homepage</Link>
       <div className="login-footer">© {new Date().getFullYear()} Collarone</div>
     </div>
   );
