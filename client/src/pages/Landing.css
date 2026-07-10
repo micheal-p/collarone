@@ -196,7 +196,7 @@
 .cl-contact-row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 
 .cl-footer { padding: 64px 0 28px; border-top: 1px solid var(--line); background: var(--bg-tint); }
-.cl-footer-top { display: grid; grid-template-columns: 1.6fr 1fr 1fr; gap: 48px; padding-bottom: 40px; }
+.cl-footer-top { display: grid; grid-template-columns: 1.5fr 0.8fr 0.8fr 0.8fr; gap: 40px; padding-bottom: 40px; }
 @media (max-width: 720px) { .cl-footer-top { grid-template-columns: 1fr; gap: 32px; } }
 .cl-footer-col { display: flex; flex-direction: column; gap: 12px; }
 .cl-footer-col a { font-size: 13.5px; color: var(--text-soft); text-decoration: none; width: fit-content; }

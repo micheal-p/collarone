@@ -42,10 +42,22 @@ async function myProfile() {
   return data;
 }
 
-function tiles(profile) {
+async function myOrg(orgId) {
+  const { data, error } = await supabase.from('organizations')
+    .select('id, name, slug, plan_tier, theme_color, logo_url, status, suites_enabled, website_type').eq('id', orgId).single();
+  if (error || !data) fail(401, 'No organization found for this account.');
+  return data;
+}
+
+const toPublicOrg = (o) => ({
+  id: o.id, name: o.name, slug: o.slug, planTier: o.plan_tier, themeColor: o.theme_color, logoUrl: o.logo_url,
+  status: o.status, suitesEnabled: o.suites_enabled, websiteType: o.website_type,
+});
+
+function tiles(profile, org) {
   return SUITES.map((s) => {
     const grant = (profile.suites || []).find((g) => g.key === s.key);
-    const granted = profile.role === 'super_admin' || Boolean(grant);
+    const granted = (profile.role === 'super_admin' || Boolean(grant)) && (org?.suitesEnabled ?? true);
     return { ...s, granted, suiteRole: profile.role === 'super_admin' ? 'manager' : grant?.role || null, openable: granted && s.status === 'live' };
   });
 }
@@ -78,15 +90,19 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(401, /invalid/i.test(error.message) ? 'Incorrect email or password.' : error.message);
     const profile = await myProfile();
     if (profile.status !== 'active') { await supabase.auth.signOut(); fail(403, 'Your account has been disabled.'); }
+    const org = await myOrg(profile.org_id);
+    if (org.status !== 'active') { await supabase.auth.signOut(); fail(403, "Your organization's account is pending activation. We'll email you once your payment is confirmed."); }
     await supabase.rpc('touch_last_login');
-    return { accessToken: data.session.access_token, user: toPublic(profile) };
+    return { accessToken: data.session.access_token, user: { ...toPublic(profile), org: toPublicOrg(org) } };
   }
   if (head === 'POST /auth' && seg[1] === 'refresh') {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) fail(401, 'No active session.');
     const profile = await myProfile();
     if (profile.status !== 'active') { await supabase.auth.signOut(); fail(401, 'Account is inactive.'); }
-    return { accessToken: session.access_token, user: toPublic(profile) };
+    const org = await myOrg(profile.org_id);
+    if (org.status !== 'active') { await supabase.auth.signOut(); fail(401, "Organization is pending activation."); }
+    return { accessToken: session.access_token, user: { ...toPublic(profile), org: toPublicOrg(org) } };
   }
   if (head === 'POST /auth' && seg[1] === 'logout') { await supabase.auth.signOut(); return { ok: true }; }
   if (head === 'POST /auth' && seg[1] === 'change-password') {
@@ -98,7 +114,11 @@ export async function supabaseApi(path, opts = {}) {
   }
 
   // ---- me / catalog ----
-  if (head === 'GET /me' && !seg[1]) return { user: toPublic(await myProfile()) };
+  if (head === 'GET /me' && !seg[1]) {
+    const profile = await myProfile();
+    const org = await myOrg(profile.org_id);
+    return { user: { ...toPublic(profile), org: toPublicOrg(org) } };
+  }
   if (head === 'PATCH /me' && !seg[1]) {
     const { phone, whatsapp, avatarUrl } = body;
     if (!phone || !phone.trim()) fail(400, 'Phone number is required.');
@@ -108,13 +128,31 @@ export async function supabaseApi(path, opts = {}) {
       p_avatar_url: (avatarUrl || '').trim(),
     });
     if (error) fail(500, error.message);
-    return { user: toPublic(await myProfile()) };
+    const profile2 = await myProfile();
+    const org2 = await myOrg(profile2.org_id);
+    return { user: { ...toPublic(profile2), org: toPublicOrg(org2) } };
   }
   if (head === 'GET /me' && seg[1] === 'suites') {
     const p = await myProfile();
-    return { suites: tiles(p), isSystemAdmin: p.role === 'super_admin' };
+    const org = await myOrg(p.org_id);
+    return { suites: tiles(p, toPublicOrg(org)), isSystemAdmin: p.role === 'super_admin' };
   }
   if (head === 'GET /catalog') return { suites: SUITES };
+
+  // ---- billing (org-scoped by RLS) ----
+  if (head === 'GET /billing' && seg[1] === 'transactions') {
+    const { data, error } = await supabase.from('billing_transactions').select('*').order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { transactions: data };
+  }
+  if (head === 'GET /billing' && seg[1] === 'balance') {
+    const { data, error } = await supabase.from('org_credit_balance').select('balance').maybeSingle();
+    if (error) fail(400, error.message);
+    return { balance: data?.balance || 0 };
+  }
+  if (head === 'POST /billing' && seg[1] === 'purchase-credits') {
+    return callAdmin('purchase-credits', { credits: body.credits });
+  }
 
   // ---- careers: public job board (unauthenticated, anon role) ----
   if (head === 'GET /careers' && seg[1] === 'postings' && seg.length === 2) {

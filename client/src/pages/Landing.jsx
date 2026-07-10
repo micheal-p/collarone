@@ -150,7 +150,7 @@ export default function Landing() {
             <a className="cl-nl cl-hide-sm" href="#about">About</a>
             <a className="cl-nl cl-hide-sm" href="#faq">FAQ</a>
             <Link className="cl-nl" to="/login">Sign in</Link>
-            <a className="cl-btn cl-btn-primary cl-btn-sm" href="#contact">Get started</a>
+            <Link className="cl-btn cl-btn-primary cl-btn-sm" to="/signup">Get started</Link>
           </div>
         </div>
       </nav>
@@ -181,7 +181,7 @@ export default function Landing() {
             <motion.h1 {...heroItemVariants}>Run your whole business.<br /><span className="cl-grad-word">One login.</span></motion.h1>
             <motion.p {...heroItemVariants} className="cl-hero-sub">Your team, leave, tasks and front desk — proven and live today, with customers and your website joining the same space.</motion.p>
             <motion.div {...heroItemVariants} className="cl-hero-ctas">
-              <a className="cl-btn cl-btn-primary" href="#contact">Get started</a>
+              <Link className="cl-btn cl-btn-primary" to="/signup">Get started</Link>
               <a className="cl-btn cl-btn-ghost" href="#platform">See what's inside</a>
             </motion.div>
             <motion.div {...heroItemVariants} className="cl-chip-row">
@@ -281,14 +281,14 @@ export default function Landing() {
               <div className="cl-price-amt">₦10,000<small>/mo</small></div>
               <div className="cl-price-sub">+ ₦1,000 per staff member/mo</div>
               <ul><li>Full People &amp; Operations suite — directory, org chart, self-service</li><li>Leave, tasks &amp; visitor management</li><li>Recruiting &amp; public careers page</li><li>Public website &amp; your own domain</li></ul>
-              <a className="cl-btn cl-btn-ghost" href="#contact">Start your space</a>
+              <Link className="cl-btn cl-btn-ghost" to="/signup?plan=starter">Start your space</Link>
             </Reveal>
             <Reveal className="cl-price-card cl-feat" delay={0.06} hover>
               <div className="cl-price-plan">GROWTH</div>
               <div className="cl-price-amt">₦18,000<small>/mo</small></div>
               <div className="cl-price-sub">+ ₦1,500 per staff member/mo</div>
               <ul><li>Everything in Starter</li><li>Performance reviews &amp; compliance vault</li><li>Customer &amp; sales CRM, once live</li><li>Priority support</li></ul>
-              <a className="cl-btn cl-btn-primary" href="#contact">Get started</a>
+              <Link className="cl-btn cl-btn-primary" to="/signup?plan=growth">Get started</Link>
             </Reveal>
             <Reveal className="cl-price-card" delay={0.12} hover>
               <div className="cl-price-plan">SCALE</div>
@@ -381,6 +381,11 @@ export default function Landing() {
               <a href="#about">About</a>
               <a href="/careers">Careers</a>
               <a href="#contact">Contact us</a>
+            </div>
+            <div className="cl-footer-col">
+              <div className="cl-footer-h">Legal</div>
+              <Link to="/terms">Terms of Service</Link>
+              <Link to="/privacy">Privacy Policy</Link>
             </div>
           </div>
           <div className="cl-footer-bottom">

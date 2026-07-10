@@ -8,9 +8,14 @@ import Launcher from './pages/Launcher.jsx';
 import SuiteShell from './pages/SuiteShell.jsx';
 import AdminUsers from './pages/admin/Users.jsx';
 import AdminDepartments from './pages/admin/Departments.jsx';
+import AdminBilling from './pages/admin/Billing.jsx';
+import AdminWebsite from './pages/admin/Website.jsx';
 import Profile from './pages/Profile.jsx';
 import CareersIndex from './pages/careers/CareersIndex.jsx';
 import CareersApply from './pages/careers/CareersApply.jsx';
+import Terms from './pages/Terms.jsx';
+import Privacy from './pages/Privacy.jsx';
+import Signup from './pages/Signup.jsx';
 
 // "/" is the public marketing page for a signed-out visitor, and the app
 // launcher for a signed-in one — same route, different audience.
@@ -35,6 +40,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route path="/careers" element={<CareersIndex />} />
       <Route path="/careers/:id" element={<CareersApply />} />
 
@@ -63,6 +71,24 @@ export default function App() {
         element={
           <ProtectedRoute requireAdmin>
             <AdminDepartments />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/billing"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminBilling />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/website"
+        element={
+          <ProtectedRoute requireAdmin>
+            <AdminWebsite />
           </ProtectedRoute>
         }
       />

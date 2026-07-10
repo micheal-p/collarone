@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { api, apiPost, setAccessToken, onAuthExpired, bootSession, DEMO } from '../api/client.js';
+import { applyOrgTheme, resetOrgTheme } from '../lib/theme.js';
 
 const AuthCtx = createContext(null);
 export const useAuth = () => useContext(AuthCtx);
@@ -15,7 +16,7 @@ export function AuthProvider({ children }) {
     (async () => {
       try {
         const data = await bootSession();
-        if (data) { setAccessToken(data.accessToken); setUser(data.user); }
+        if (data) { setAccessToken(data.accessToken); setUser(data.user); applyOrgTheme(data.user?.org?.themeColor); }
       } catch { /* no session */ }
       finally { setBooting(false); }
     })();
@@ -23,13 +24,14 @@ export function AuthProvider({ children }) {
     if (!DEMO) {
       import('../lib/supabaseClient.js').then(({ supabase }) => {
         const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
-          if (event === 'SIGNED_OUT' || !session) { setAccessToken(null); setUser(null); return; }
+          if (event === 'SIGNED_OUT' || !session) { setAccessToken(null); setUser(null); resetOrgTheme(); return; }
           if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
             try {
               const { user: profile } = await api('/me');           // trigger created the profile on first login
-              if (profile.status !== 'active') { await supabase.auth.signOut(); setUser(null); return; }
+              if (profile.status !== 'active' || profile.org?.status !== 'active') { await supabase.auth.signOut(); setUser(null); return; }
               setAccessToken(session.access_token);
               setUser(profile);
+              applyOrgTheme(profile.org?.themeColor);
             } catch { /* no profile yet */ }
             finally { setBooting(false); }
           }
@@ -47,6 +49,7 @@ export function AuthProvider({ children }) {
     const data = await apiPost('/auth/login', { email, password });
     setAccessToken(data.accessToken);
     setUser(data.user);
+    applyOrgTheme(data.user?.org?.themeColor);
     return data.user;
   }, []);
 
@@ -64,11 +67,13 @@ export function AuthProvider({ children }) {
     try { await apiPost('/auth/logout'); } catch { /* ignore */ }
     setAccessToken(null);
     setUser(null);
+    resetOrgTheme();
   }, []);
 
   const refreshUser = useCallback(async () => {
     const data = await api('/me');
     setUser(data.user);
+    applyOrgTheme(data.user?.org?.themeColor);
     return data.user;
   }, []);
 
