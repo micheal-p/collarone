@@ -52,23 +52,30 @@ export default async function handler(req, res) {
         email: cleanEmail,
         password,
         email_confirm: true,
-        user_metadata: {
-          signup_type: 'org_owner',
-          name: ownerName.trim(),
-          org_name: orgName.trim(),
-          org_slug: slug,
-          plan_tier: planTier,
-          theme_color: themeColor,
-          logo_url: logoUrl,
-          website_type: websiteType,
-        },
+        user_metadata: { name: ownerName.trim() },
       });
       if (cErr) return json(res, /registered|exists/i.test(cErr.message) ? 409 : 400, { message: cErr.message });
 
-      const { data: org, error: orgErr } = await admin.from('organizations').select('id').eq('created_by', created.user.id).maybeSingle();
+      // Don't rely on the on_auth_user_created trigger reading this request's
+      // metadata reliably at insert time for admin-created users — write the
+      // organization and profile explicitly instead, same pattern as admin.js.
+      const { data: org, error: orgErr } = await admin.from('organizations').insert({
+        name: orgName.trim(), slug, plan_tier: planTier, status: 'pending_payment',
+        theme_color: themeColor, logo_url: logoUrl, website_type: websiteType, created_by: created.user.id,
+      }).select('id').single();
       if (orgErr || !org) {
         await admin.auth.admin.deleteUser(created.user.id);
-        return json(res, 500, { message: 'Could not set up your organization. Please try again.' });
+        return json(res, orgErr?.code === '23505' ? 409 : 500, { message: orgErr?.code === '23505' ? 'That company handle is already taken.' : 'Could not set up your organization. Please try again.' });
+      }
+
+      const { error: profErr } = await admin.from('profiles').upsert({
+        id: created.user.id, email: cleanEmail, name: ownerName.trim(), role: 'super_admin',
+        org_id: org.id, suites: [], status: 'active', must_change_password: false,
+      }, { onConflict: 'id' });
+      if (profErr) {
+        await admin.auth.admin.deleteUser(created.user.id);
+        await admin.from('organizations').delete().eq('id', org.id);
+        return json(res, 500, { message: 'Could not set up your account. Please try again.' });
       }
 
       const amountKobo = PLAN_BASE_FEE_KOBO[planTier];
