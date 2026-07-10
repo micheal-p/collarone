@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { DEMO } from '../api/client.js';
-import logo from '../assets/otg-mark.png';
+import logo from '../assets/collarone-mark.svg';
 
 // Microsoft 4-square logo (SVG, no emoji).
 const MicrosoftLogo = () => (
@@ -60,20 +60,20 @@ export default function Login() {
     <div className="login-bg">
       <div className="login-card">
         <div className="login-logo">
-          <img src={logo} alt="Origin Tech Group" />
+          <img src={logo} alt="Collarone" />
           <div className="ll-text">
-            <div className="login-org">Origin Tech Group</div>
-            <div className="login-sub">Org-Ops Cloud ERP</div>
+            <div className="login-org">Collar<em style={{ fontStyle: 'italic', color: 'var(--brand)' }}>One</em></div>
+            <div className="login-sub">Sign in to your space</div>
           </div>
         </div>
 
         {step === 'email' && (
           <form onSubmit={next} className="login-form">
             <h1 className="login-h">Sign in</h1>
-            <p className="login-p">Use your Origin Tech Group work account.</p>
+            <p className="login-p">Use your work email to sign in.</p>
             <div className="field">
               <input
-                className="input" type="email" autoFocus placeholder="someone@origingroupng.com"
+                className="input" type="email" autoFocus placeholder="you@company.com"
                 value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username"
               />
             </div>
@@ -88,7 +88,7 @@ export default function Login() {
                 <button type="button" className="btn btn-ms" onClick={microsoft}>
                   <MicrosoftLogo /> Sign in with Microsoft
                 </button>
-                <p className="login-note">Staff: use your Origin Tech Group Microsoft account. Suite access is granted by your System Administrator.</p>
+                <p className="login-note">Staff: use your work Microsoft account. Suite access is granted by your administrator.</p>
               </>
             )}
           </form>
@@ -115,7 +115,7 @@ export default function Login() {
           </form>
         )}
       </div>
-      <div className="login-footer">© {new Date().getFullYear()} Origin Tech Group · Org-Ops Cloud ERP</div>
+      <div className="login-footer">© {new Date().getFullYear()} Collarone</div>
     </div>
   );
 }

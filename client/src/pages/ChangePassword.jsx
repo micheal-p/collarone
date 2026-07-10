@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { apiPost } from '../api/client.js';
-import logo from '../assets/otg-mark.png';
+import logo from '../assets/collarone-mark.svg';
 
 export default function ChangePassword() {
   const { user, refreshUser, logout } = useAuth();
@@ -35,10 +35,10 @@ export default function ChangePassword() {
     <div className="login-bg">
       <div className="login-card">
         <div className="login-logo">
-          <img src={logo} alt="Origin Tech Group" />
+          <img src={logo} alt="Collarone" />
           <div className="ll-text">
-            <div className="login-org">Origin Tech Group</div>
-            <div className="login-sub">Org-Ops Cloud ERP</div>
+            <div className="login-org">Collar<em style={{ fontStyle: 'italic', color: 'var(--brand)' }}>One</em></div>
+            <div className="login-sub">Sign in to your space</div>
           </div>
         </div>
         <form onSubmit={submit} className="login-form">

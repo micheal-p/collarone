@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import logo from '../../assets/otg-logo.png';
+import logo from '../../assets/collarone-mark.svg';
 import * as C from './careersApi.js';
 import { CAREERS_CSS } from './CareersIndex.jsx';
 
@@ -18,7 +18,7 @@ export default function CareersApply() {
     <div className="careers-page">
       <style>{CAREERS_CSS}{APPLY_CSS}</style>
       <header className="careers-header">
-        <Link to="/careers"><img src={logo} alt="Origin Tech Group" className="careers-logo" /></Link>
+        <Link to="/careers"><img src={logo} alt="Collarone" className="careers-logo" /></Link>
       </header>
 
       <main className="careers-apply-main">
@@ -34,7 +34,7 @@ export default function CareersApply() {
         {posting && !submitted && (
           <div className="careers-apply-grid">
             <div>
-              <p className="careers-kicker">{posting.department_name || 'Origin Tech Group'}</p>
+              <p className="careers-kicker">{posting.department_name || 'Collarone'}</p>
               <h1 className="careers-apply-title">{posting.title}</h1>
               <p className="careers-card-meta">{posting.location || 'Location on request'} · {C.EMPLOYMENT_TYPE_LABEL[posting.employment_type] || posting.employment_type}</p>
               {C.fmtSalaryRange(posting.salary_min, posting.salary_max) && <p className="careers-card-salary">{C.fmtSalaryRange(posting.salary_min, posting.salary_max)}</p>}
@@ -54,7 +54,9 @@ export default function CareersApply() {
         )}
       </main>
 
-      <footer className="careers-footer">© {new Date().getFullYear()} Origin Tech Group</footer>
+      <footer className="careers-footer">
+        © {new Date().getFullYear()} Collarone
+      </footer>
     </div>
   );
 }

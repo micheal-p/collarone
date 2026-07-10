@@ -1,13 +1,13 @@
-/* ===== Origin Tech Group · Org-Ops — Fluent-inspired design system ===== */
+/* ===== Collarone — Fluent-inspired design system ===== */
 :root {
-  /* Origin Tech Group brand: red + grey (sampled from the official logo) over Fluent neutrals */
-  --brand: #e00303;        /* primary red (logo + site theme-color) */
-  --brand-dark: #b00202;   /* hover/pressed */
-  --brand-700: #c20202;
-  --brand-100: #fdecec;    /* tint */
-  --brand-ink: #7a0202;    /* deep red for text on tint */
-  --gray-brand: #838584;   /* logo grey */
-  --accent: #e00303;
+  /* Collarone brand: bolt orange over warm neutrals */
+  --brand: #FF5B1F;        /* bolt orange (mark + accent) */
+  --brand-dark: #C24614;   /* hover/pressed */
+  --brand-700: #D9501A;
+  --brand-100: #FFF1EA;    /* tint */
+  --brand-ink: #8f3009;    /* deep orange for text on tint */
+  --gray-brand: #6B6558;   /* warm neutral grey */
+  --accent: #FF5B1F;
   --positive: #107c41;     /* M365 green — used only for "active" status */
 
   --bg: #faf9f8;

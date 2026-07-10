@@ -220,7 +220,7 @@
 .grant-role { width: auto; height: 30px; font-size: 12px; padding: 0 6px; flex: none; }
 
 /* ============ Login ============ */
-.login-bg { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(1200px 600px at 70% -10%, #2a2a2c 0%, #1b1a19 45%, #0f0e0e 100%); padding: 24px; }
+.login-bg { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(1200px 600px at 70% -10%, #241f1c 0%, #14110F 45%, #0A0E1A 100%); padding: 24px; }
 .login-card { width: 100%; max-width: 416px; background: var(--surface); border-radius: 8px; box-shadow: var(--shadow-16); padding: 40px 44px; }
 .login-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
 .login-logo img { height: 46px; width: auto; }

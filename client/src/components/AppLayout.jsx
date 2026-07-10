@@ -4,7 +4,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet } from '../api/client.js';
 import { SUITE_META } from '../config/suites.js';
 import SuiteIcon from './SuiteIcon.jsx';
-import logoMark from '../assets/otg-mark.png';
+import logoMark from '../assets/collarone-mark.svg';
 
 const initials = (name = '') =>
   name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
@@ -83,8 +83,8 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
             <Hamburger />
           </button>
           <Link to="/" className="sb-brand">
-            <img src={logoMark} alt="Origin Tech Group" className="sb-logo" />
-            <span className="sb-title">Org-Ops</span>
+            <img src={logoMark} alt="Collarone" className="sb-logo" />
+            <span className="sb-title">Collar<em style={{ fontStyle: 'italic', color: 'var(--brand)' }}>One</em></span>
           </Link>
         </div>
 

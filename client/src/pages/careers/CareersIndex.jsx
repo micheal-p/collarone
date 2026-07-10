@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import logo from '../../assets/otg-logo.png';
+import logo from '../../assets/collarone-mark.svg';
 import * as C from './careersApi.js';
 
 export default function CareersIndex() {
@@ -15,13 +15,13 @@ export default function CareersIndex() {
     <div className="careers-page">
       <style>{CAREERS_CSS}</style>
       <header className="careers-header">
-        <img src={logo} alt="Origin Tech Group" className="careers-logo" />
+        <img src={logo} alt="Collarone" className="careers-logo" />
       </header>
 
       <div className="careers-hero">
         <p className="careers-kicker">Careers</p>
         <h1>Build the future of agri-tech in Nigeria.</h1>
-        <p className="careers-lede">Origin Tech Group runs agricultural operations across 19 states. These are our open roles — apply directly, no account required.</p>
+        <p className="careers-lede">We run agricultural operations across 19 Nigerian states. These are our open roles — apply directly, no account required.</p>
       </div>
 
       <main className="careers-list">
@@ -33,7 +33,7 @@ export default function CareersIndex() {
             <div>
               <h2>{p.title}</h2>
               <p className="careers-card-meta">
-                {p.department_name || 'Origin Tech Group'} · {p.location || 'Location on request'} · {C.EMPLOYMENT_TYPE_LABEL[p.employment_type] || p.employment_type}
+                {p.department_name || 'Collarone'} · {p.location || 'Location on request'} · {C.EMPLOYMENT_TYPE_LABEL[p.employment_type] || p.employment_type}
               </p>
               {C.fmtSalaryRange(p.salary_min, p.salary_max) && <p className="careers-card-salary">{C.fmtSalaryRange(p.salary_min, p.salary_max)}</p>}
             </div>
@@ -42,7 +42,9 @@ export default function CareersIndex() {
         ))}
       </main>
 
-      <footer className="careers-footer">© {new Date().getFullYear()} Origin Tech Group</footer>
+      <footer className="careers-footer">
+        © {new Date().getFullYear()} Collarone
+      </footer>
     </div>
   );
 }
