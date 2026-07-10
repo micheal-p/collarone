@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost } from '../api/client.js';
-import { OTG_ORG_ID } from '../config/org.js';
+import { FOUNDING_ORG_ID } from '../config/org.js';
 import PlatformShell from '../components/PlatformShell.jsx';
 
 const STATUS_LABEL = { pending_payment: 'Pending payment', active: 'Active', suspended: 'Suspended', cancelled: 'Cancelled' };
@@ -177,7 +177,7 @@ export default function PlatformAdmin() {
                   )}
                 </td>
                 <td>
-                  {o.id !== OTG_ORG_ID && (
+                  {o.id !== FOUNDING_ORG_ID && (
                     <button className="btn btn-ghost" style={{ padding: '6px 14px', fontSize: 13, color: '#c02b2b', borderColor: '#e7b8b8' }} onClick={() => setDeleteTarget(o)}>
                       Delete
                     </button>

@@ -12,10 +12,10 @@ const KEYS = SUITES.map((s) => s.key);
 function seed() {
   return {
     users: [
-      mk({ name: 'System Administrator', email: 'admin@origingroupng.com', password: 'ChangeMe!2026', role: 'super_admin', jobTitle: 'System Administrator', department: 'IT' }),
-      mk({ name: 'Amaka Obi', email: 'amaka@origingroupng.com', password: 'Welcome!2026', role: 'staff', jobTitle: 'HR Manager', department: 'People Ops', suites: [{ key: 'hr', role: 'manager' }] }),
-      mk({ name: 'Bola Adeyemi', email: 'bola@origingroupng.com', password: 'Welcome!2026', role: 'manager', jobTitle: 'Operations Lead', department: 'Operations', suites: [{ key: 'tasks', role: 'manager' }, { key: 'visitors', role: 'member' }] }),
-      mk({ name: 'Chidi Okafor', email: 'chidi@origingroupng.com', password: 'Welcome!2026', role: 'staff', jobTitle: 'Field Officer', department: 'Logistics', suites: [{ key: 'leave', role: 'member' }] }),
+      mk({ name: 'System Administrator', email: 'admin@collarone-demo.app', password: 'ChangeMe!2026', role: 'super_admin', jobTitle: 'System Administrator', department: 'IT' }),
+      mk({ name: 'Amaka Obi', email: 'amaka@collarone-demo.app', password: 'Welcome!2026', role: 'staff', jobTitle: 'HR Manager', department: 'People Ops', suites: [{ key: 'hr', role: 'manager' }] }),
+      mk({ name: 'Bola Adeyemi', email: 'bola@collarone-demo.app', password: 'Welcome!2026', role: 'manager', jobTitle: 'Operations Lead', department: 'Operations', suites: [{ key: 'tasks', role: 'manager' }, { key: 'visitors', role: 'member' }] }),
+      mk({ name: 'Chidi Okafor', email: 'chidi@collarone-demo.app', password: 'Welcome!2026', role: 'staff', jobTitle: 'Field Officer', department: 'Logistics', suites: [{ key: 'leave', role: 'member' }] }),
     ],
   };
 }

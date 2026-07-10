@@ -74,14 +74,14 @@ async function myOrgId() {
 
 // The real gate is server-side: enforce_phase1_suite_scope() (organizations.sql
 // / hr_multitenancy.sql) strips any suite key not yet safe for multi-tenant use
-// from a non-OTG org's `suites` array on every write. This mirrors that
+// from a non-founding org's `suites` array on every write. This mirrors that
 // whitelist client-side only to keep a super_admin's "all suites" view honest
 // about what's actually usable — it is not itself a security boundary.
 function tiles(profile, org) {
-  const isOtg = org?.id === '00000000-0000-0000-0000-000000000001';
+  const isFoundingOrg = org?.id === '00000000-0000-0000-0000-000000000001';
   return SUITES.map((s) => {
     const grant = (profile.suites || []).find((g) => g.key === s.key);
-    const safeForOrg = isOtg || MULTI_TENANT_SAFE_SUITES.includes(s.key);
+    const safeForOrg = isFoundingOrg || MULTI_TENANT_SAFE_SUITES.includes(s.key);
     const granted = (profile.role === 'super_admin' ? safeForOrg : Boolean(grant));
     return { ...s, granted, suiteRole: profile.role === 'super_admin' ? 'manager' : grant?.role || null, openable: granted && s.status === 'live' };
   });

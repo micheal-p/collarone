@@ -9,7 +9,7 @@
 -- the Phase-1 guardrail trigger from an all-or-nothing wipe to an expanding
 -- whitelist of suites that have actually been through this treatment — 'hr'
 -- is the first entry. Leave/Tasks/Visitors/Payroll are NOT in the whitelist
--- yet and stay blocked for non-OTG orgs until they get the same pass.
+-- yet and stay blocked for non-founding orgs until they get the same pass.
 --
 -- Also fixes a real regression: hr.sql's profiles_select broadening (HR
 -- managers can read the full staff directory) was silently dropped when
@@ -34,7 +34,7 @@ create policy "departments_admin_write" on public.departments for all
   using (public.is_super_admin() and public.same_org(org_id))
   with check (public.is_super_admin() and public.same_org(org_id));
 
--- Give every non-OTG org the same starter department set OTG has, scoped to
+-- Give every non-founding org the same starter department set the founding org has, scoped to
 -- their own org_id (composite unique key means codes can repeat across orgs).
 insert into public.departments (name, code, org_id)
 select d.name, d.code, o.id
@@ -70,7 +70,7 @@ begin
       t.table_name, t.ref_col
     );
     -- Any row whose referenced profile no longer exists (shouldn't happen —
-    -- FKs are not-null everywhere here) falls back to OTG rather than blocking the migration.
+    -- FKs are not-null everywhere here) falls back to the founding org rather than blocking the migration.
     execute format('update public.%I set org_id = %L where org_id is null', t.table_name, '00000000-0000-0000-0000-000000000001');
     execute format('alter table public.%I alter column org_id set not null', t.table_name);
   end loop;
@@ -250,7 +250,7 @@ create policy "letter_requests_update" on public.letter_requests for update usin
 );
 
 -- ---- Phase 2: widen the guardrail from all-or-nothing to an expanding list ---
--- Non-OTG orgs can now legitimately hold 'hr' suite grants; every other suite
+-- Non-the founding org orgs can now legitimately hold 'hr' suite grants; every other suite
 -- key is still stripped until it gets its own multi-tenancy pass.
 create or replace function public.enforce_phase1_suite_scope() returns trigger
 language plpgsql as $$

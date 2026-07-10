@@ -6,13 +6,13 @@
 -- billing multi-tenant. It does NOT yet make the operational suites (hr, leave,
 -- tasks, visitors, payroll) safe for a second company — those tables still
 -- assume a single tenant. The enforce_phase1_suite_scope trigger below is the
--- guardrail that keeps a non-OTG org's admin from self-granting suite access
+-- guardrail that keeps a non-founding org's admin from self-granting suite access
 -- while that's still true. See supabase/billing.sql for the companion billing
 -- schema, and the project plan (`.claude/plans/inherited-seeking-kahn.md`) for
 -- the full phase breakdown.
 -- ============================================================================
 
--- OTG is tenant #1 — fixed UUID so app code and future migrations can refer to
+-- the founding org is tenant #1 — fixed UUID so app code and future migrations can refer to
 -- it as a constant instead of looking it up.
 -- id: 00000000-0000-0000-0000-000000000001
 
@@ -25,16 +25,16 @@ create table if not exists public.organizations (
   theme_color    text not null default '#FF5B1F',
   logo_url       text not null default '',
   website_type   text not null default 'none' check (website_type in ('none','ecommerce','hr_corporate','job_board')),
-  suites_enabled boolean not null default false,   -- true only for OTG until Phase 2 org-scopes the suite tables
+  suites_enabled boolean not null default false,   -- true only for the founding org until Phase 2 org-scopes the suite tables
   created_by     uuid references auth.users(id) on delete set null,
   created_at     timestamptz not null default now()
 );
 
 alter table public.organizations enable row level security;
 
--- Seed tenant #1 (Origin Tech Group) — safe to re-run.
+-- Seed tenant #1, the founding org — safe to re-run.
 insert into public.organizations (id, name, slug, plan_tier, status, theme_color, suites_enabled)
-values ('00000000-0000-0000-0000-000000000001', 'Origin Tech Group', 'origin-tech-group', 'scale', 'active', '#FF5B1F', true)
+values ('00000000-0000-0000-0000-000000000001', 'Collarone', 'collarone', 'scale', 'active', '#FF5B1F', true)
 on conflict (id) do nothing;
 
 -- ---- profiles.org_id --------------------------------------------------------
@@ -111,10 +111,10 @@ create policy "profiles_update_admin" on public.profiles for update
     or public.is_platform_admin()
   );
 
--- ---- Phase 1 guardrail: non-OTG orgs cannot hold suite grants ---------------
+-- ---- Phase 1 guardrail: non-founding orgs cannot hold suite grants ---------------
 -- Closes the self-grant loophole at the DB layer, independent of UI state: a
--- non-OTG super_admin could otherwise set their own suites to [{"key":"hr"}]
--- and, because hr.sql's RLS isn't org-aware yet, see OTG's real HR data.
+-- non-founding super_admin could otherwise set their own suites to [{"key":"hr"}]
+-- and, because hr.sql's RLS isn't org-aware yet, see the founding org's real HR data.
 -- Drop this trigger in Phase 2 once every operational-suite table carries a
 -- real org_id and org-scoped RLS.
 create or replace function public.enforce_phase1_suite_scope()

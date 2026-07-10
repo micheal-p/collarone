@@ -58,7 +58,7 @@ create or replace view public.org_credit_balance as
 grant select on public.org_credit_balance to authenticated;
 alter view public.org_credit_balance set (security_invoker = true);
 
--- OTG isn't credit-gated — seed a large adjustment so today's usage (admin.js
+-- the founding org isn't credit-gated — seed a large adjustment so today's usage (admin.js
 -- create-user flow) isn't affected by the new credit check.
 insert into public.org_credit_ledger (org_id, delta, reason)
 select '00000000-0000-0000-0000-000000000001', 999999, 'adjustment'

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { apiGet, apiPost, apiPatch, apiPut } from '../../api/client.js';
 import { SUITE_META, SUITE_ROLES, MULTI_TENANT_SAFE_SUITES } from '../../config/suites.js';
-import { OTG_ORG_ID } from '../../config/org.js';
+import { FOUNDING_ORG_ID } from '../../config/org.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import AppLayout from '../../components/AppLayout.jsx';
 import SuiteIcon from '../../components/SuiteIcon.jsx';
@@ -90,14 +90,14 @@ const EMPTY = { name: '', email: '', password: '', role: 'staff', jobTitle: '', 
 
 export default function AdminUsers() {
   const { user: me } = useAuth();
-  const isOtgOrg = me?.org?.id === OTG_ORG_ID;
+  const isFoundingOrg = me?.org?.id === FOUNDING_ORG_ID;
   const [searchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [catalog, setCatalog] = useState([]);
-  // Suites not yet safe for multi-tenant use are hidden from non-OTG grant
+  // Suites not yet safe for multi-tenant use are hidden from non-founding grant
   // pickers — showing a checkbox the server will silently strip is worse
   // than not offering it.
-  const grantableCatalog = isOtgOrg ? catalog : catalog.filter((s) => MULTI_TENANT_SAFE_SUITES.includes(s.key));
+  const grantableCatalog = isFoundingOrg ? catalog : catalog.filter((s) => MULTI_TENANT_SAFE_SUITES.includes(s.key));
   const [departments, setDepartments] = useState([]);
   const [q, setQ] = useState(searchParams.get('q') || '');
   const [roleFilter, setRoleFilter] = useState('');
@@ -246,9 +246,9 @@ export default function AdminUsers() {
         </table>
       </div>
 
-      {createOpen && <CreateUserModal catalog={grantableCatalog} departments={departments} isOtgOrg={isOtgOrg} onClose={() => setCreateOpen(false)}
+      {createOpen && <CreateUserModal catalog={grantableCatalog} departments={departments} onClose={() => setCreateOpen(false)}
         onCreated={(u) => { setUsers((l) => [u, ...l]); setCreateOpen(false); flash(`${u.name} created.`); }} onError={(m) => flash(m, true)} />}
-      {manage && <EditUserModal user={manage} catalog={grantableCatalog} departments={departments} isOtgOrg={isOtgOrg} onClose={() => setManage(null)}
+      {manage && <EditUserModal user={manage} catalog={grantableCatalog} departments={departments} onClose={() => setManage(null)}
         onSaved={(u) => { replace(u); setManage(null); flash('Access updated.'); }} onError={(m) => flash(m, true)} />}
       {viewUser && <ProfileModal user={viewUser} catalog={catalog} departments={departments} onClose={() => setViewUser(null)}
         onManage={() => { setViewUser(null); setManage(viewUser); }} />}
@@ -362,15 +362,7 @@ function DeptSelect({ departments, value, onChange }) {
   );
 }
 
-// The shared `departments` table isn't org-scoped yet (Phase 1 accepted gap —
-// see plan), so every org besides OTG gets a free-text field instead of the
-// picker to avoid reading OTG's department list.
-function DeptField({ isOtgOrg, departments, value, onChange, freeText, onFreeTextChange }) {
-  if (isOtgOrg) return <DeptSelect departments={departments} value={value} onChange={onChange} />;
-  return <input className="input" value={freeText} onChange={(e) => onFreeTextChange(e.target.value)} placeholder="e.g. Operations" />;
-}
-
-function CreateUserModal({ catalog, departments, isOtgOrg, onClose, onCreated, onError }) {
+function CreateUserModal({ catalog, departments, onClose, onCreated, onError }) {
   const [f, setF] = useState(EMPTY); const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const isAdmin = f.role === 'super_admin';
@@ -394,8 +386,7 @@ function CreateUserModal({ catalog, departments, isOtgOrg, onClose, onCreated, o
           <div className="field"><label>Work email</label><input className="input" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} required /></div>
           <div className="field"><label>Job title</label><input className="input" value={f.jobTitle} onChange={(e) => set('jobTitle', e.target.value)} /></div>
           <div className="field"><label>Department</label>
-            <DeptField isOtgOrg={isOtgOrg} departments={departments} value={f.departmentId} onChange={pickDept}
-              freeText={f.department} onFreeTextChange={(v) => set('department', v)} />
+            <DeptSelect departments={departments} value={f.departmentId} onChange={pickDept} />
           </div>
           <div className="field"><label>Temporary password</label><input className="input" value={f.password} onChange={(e) => set('password', e.target.value)} required placeholder="Min 8 characters" /></div>
           <div className="field"><label>System role</label>
@@ -416,11 +407,10 @@ function CreateUserModal({ catalog, departments, isOtgOrg, onClose, onCreated, o
   );
 }
 
-function EditUserModal({ user, catalog, departments, isOtgOrg, onClose, onSaved, onError }) {
+function EditUserModal({ user, catalog, departments, onClose, onSaved, onError }) {
   const [grants, setGrants] = useState(user.suites);
   const [role, setRole] = useState(user.role);
   const [deptId, setDeptId] = useState(user.departmentId ? String(user.departmentId) : '');
-  const [deptFreeText, setDeptFreeText] = useState(user.department || '');
   const [busy, setBusy] = useState(false);
 
   const pickDept = (id) => setDeptId(id);
@@ -432,8 +422,8 @@ function EditUserModal({ user, catalog, departments, isOtgOrg, onClose, onSaved,
       const [profileRes] = await Promise.all([
         apiPatch(`/users/${user.id}`, {
           role,
-          departmentId: isOtgOrg ? (deptId ? Number(deptId) : null) : null,
-          department: isOtgOrg ? (dept?.name || '') : deptFreeText,
+          departmentId: deptId ? Number(deptId) : null,
+          department: dept?.name || '',
         }),
       ]);
       const suitesRes = await apiPut(`/users/${user.id}/suites`, { suites: grants });
@@ -455,8 +445,7 @@ function EditUserModal({ user, catalog, departments, isOtgOrg, onClose, onSaved,
           </select>
         </div>
         <div className="field"><label>Department</label>
-          <DeptField isOtgOrg={isOtgOrg} departments={departments} value={deptId} onChange={pickDept}
-            freeText={deptFreeText} onFreeTextChange={setDeptFreeText} />
+          <DeptSelect departments={departments} value={deptId} onChange={pickDept} />
         </div>
       </div>
       <div className="field">

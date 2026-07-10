@@ -8,7 +8,7 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 const json = (res, status, obj) => res.status(status).json(obj);
 
-const OTG_ORG_ID = '00000000-0000-0000-0000-000000000001';
+const FOUNDING_ORG_ID = '00000000-0000-0000-0000-000000000001';
 const PLAN_SEAT_KOBO = { starter: 100000, growth: 150000, scale: 200000 }; // NGN 1,000 / 1,500 / 2,000
 
 export default async function handler(req, res) {
@@ -43,9 +43,9 @@ export default async function handler(req, res) {
       if (password.length < 8) return json(res, 400, { message: 'Temporary password must be at least 8 characters.' });
       const cleanEmail = email.toLowerCase().trim();
 
-      // Non-OTG orgs are seat-credit gated — one credit is consumed per new
+      // Non-founding orgs are seat-credit gated — one credit is consumed per new
       // staff account, so an org doesn't pay per-hire on top of its plan fee.
-      if (caller.org_id !== OTG_ORG_ID) {
+      if (caller.org_id !== FOUNDING_ORG_ID) {
         const { data: bal } = await admin.from('org_credit_balance').select('balance').eq('org_id', caller.org_id).maybeSingle();
         if (!bal || bal.balance <= 0) return json(res, 402, { message: 'No seat credits remaining — buy more credits before adding staff.' });
       }
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
       const { data: profile, error: pErr } = await admin.from('profiles').upsert(row, { onConflict: 'id' }).select().single();
       if (pErr) { await admin.auth.admin.deleteUser(created.user.id); return json(res, 400, { message: pErr.message }); }
 
-      if (caller.org_id !== OTG_ORG_ID) {
+      if (caller.org_id !== FOUNDING_ORG_ID) {
         await admin.from('org_credit_ledger').insert({
           org_id: caller.org_id, delta: -1, reason: 'staff_created', related_profile_id: profile.id, created_by: user.id,
         });
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
 
       const { orgId } = body;
       if (!orgId) return json(res, 400, { message: 'orgId is required.' });
-      if (orgId === OTG_ORG_ID) return json(res, 400, { message: 'Tenant #1 cannot be deleted.' });
+      if (orgId === FOUNDING_ORG_ID) return json(res, 400, { message: 'Tenant #1 cannot be deleted.' });
 
       const { data: org } = await admin.from('organizations').select('name, slug').eq('id', orgId).maybeSingle();
       const { data: members } = await admin.from('profiles').select('id').eq('org_id', orgId);

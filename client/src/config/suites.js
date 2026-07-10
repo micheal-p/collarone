@@ -37,7 +37,8 @@ export const SUITE_META = {
 export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
 
 // Suites that have been through the per-org data-isolation pass (Stage 2 of
-// the roadmap) and are safe to grant to a non-OTG organization. Everything
+// the roadmap) and are safe to grant to an organization other than the
+// founding one. Everything
 // else is enforced server-side too (enforce_phase1_suite_scope() strips any
 // other key on write) — this list just keeps the UI honest about it.
 export const MULTI_TENANT_SAFE_SUITES = ['hr'];
