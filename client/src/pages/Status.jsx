@@ -7,13 +7,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 function dayKey(d) { return new Date(d).toISOString().slice(0, 10); }
 
-function buildDays(checks, count = 60) {
+function buildDays(checks, count = 90) {
   const byDay = {};
   checks.forEach((c) => {
     const k = dayKey(c.checked_at);
-    if (!byDay[k]) byDay[k] = { total: 0, ok: 0 };
+    if (!byDay[k]) byDay[k] = { total: 0, ok: 0, down: 0 };
     byDay[k].total += 1;
     if (c.api_ok && c.db_ok) byDay[k].ok += 1;
+    else if (!c.db_ok) byDay[k].down += 1;
   });
   const days = [];
   const today = new Date();
@@ -21,16 +22,16 @@ function buildDays(checks, count = 60) {
     const d = new Date(today.getTime() - i * DAY_MS);
     const k = dayKey(d);
     const rec = byDay[k];
-    days.push({ key: k, pct: rec ? rec.ok / rec.total : null });
+    days.push({ key: k, pct: rec ? rec.ok / rec.total : null, hadOutage: rec ? rec.down > 0 : false });
   }
   return days;
 }
 
-const dayColor = (pct) => {
-  if (pct === null) return 'rgba(10,14,26,0.06)';
-  if (pct >= 0.99) return '#1a7a3e';
-  if (pct >= 0.9) return '#c8951a';
-  return '#c02b2b';
+const dayColor = (d) => {
+  if (d.pct === null) return '#E4E1D8';
+  if (d.hadOutage) return '#c94f3d';
+  if (d.pct >= 0.99) return '#5a9c4a';
+  return '#d9a441';
 };
 
 export default function Status() {
@@ -67,32 +68,39 @@ export default function Status() {
         <h1 className="lg-h1">Collarone status</h1>
         <p className="lg-updated">Real health checks, run automatically — not a hand-typed page.</p>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '18px 20px', border: '1px solid rgba(10,14,26,0.1)', borderRadius: 12, margin: '24px 0' }}>
-          <span style={{ width: 12, height: 12, borderRadius: '50%', background: stateColor, flexShrink: 0 }} />
-          <div>
-            <div style={{ fontWeight: 650, fontSize: 15 }}>{stateLabel}</div>
-            {live && <div style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.5)', marginTop: 2 }}>Checked just now · {live.responseMs}ms response</div>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <span style={{ width: 9, height: 9, borderRadius: '50%', background: stateColor, flexShrink: 0 }} />
+          <span style={{ fontSize: 14, fontWeight: 600 }}>{stateLabel}</span>
+          {live && <span style={{ fontSize: 12, color: 'rgba(10,14,26,0.4)' }}>· checked just now, {live.responseMs}ms</span>}
+        </div>
+        <p style={{ fontSize: 13, color: 'rgba(10,14,26,0.5)', margin: '0 0 20px' }}>Uptime over the past {days.length} days.</p>
+
+        <div style={{ border: '1px solid rgba(10,14,26,0.1)', borderRadius: 14, padding: '20px 22px 18px', marginBottom: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
+            <span style={{ fontSize: 16, fontWeight: 650 }}>Collarone</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: stateColor }}>{state === 'operational' ? 'Operational' : state === 'checking' ? '—' : stateLabel}</span>
           </div>
-          {overallPct !== null && (
-            <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-              <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 20, fontWeight: 650 }}>{(overallPct * 100).toFixed(2)}%</div>
-              <div style={{ fontSize: 11, color: 'rgba(10,14,26,0.45)' }}>uptime, daily checks since monitoring started</div>
-            </div>
-          )}
+
+          <div style={{ display: 'flex', gap: 2, marginBottom: 12, overflowX: 'auto' }}>
+            {days.map((d) => (
+              <div key={d.key} title={`${d.key}: ${d.pct === null ? 'no data' : (d.pct * 100).toFixed(0) + '% uptime'}`}
+                style={{ width: 8, height: 46, borderRadius: 1.5, background: dayColor(d), flexShrink: 0 }} />
+            ))}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12.5, color: 'rgba(10,14,26,0.45)' }}>
+            <span>{days.length} days ago</span>
+            <span style={{ flex: 1, height: 1, background: 'rgba(10,14,26,0.12)' }} />
+            <span style={{ color: 'rgba(10,14,26,0.65)', fontWeight: 500 }}>
+              {overallPct !== null ? `${(overallPct * 100).toFixed(2)}% uptime` : 'No history yet'}
+            </span>
+            <span style={{ flex: 1, height: 1, background: 'rgba(10,14,26,0.12)' }} />
+            <span>Today</span>
+          </div>
         </div>
 
-        {isMonitoring ? (
-          <>
-            <div style={{ display: 'flex', gap: 3, marginBottom: 8, overflowX: 'auto', paddingBottom: 4 }}>
-              {days.map((d) => (
-                <div key={d.key} title={`${d.key}: ${d.pct === null ? 'no data' : (d.pct * 100).toFixed(0) + '% uptime'}`}
-                  style={{ width: 10, height: 28, borderRadius: 2, background: dayColor(d.pct), flexShrink: 0 }} />
-              ))}
-            </div>
-            <p style={{ fontSize: 12, color: 'rgba(10,14,26,0.45)', margin: '0 0 32px' }}>Last {days.length} days, most recent on the right</p>
-          </>
-        ) : (
-          !err && <p style={{ fontSize: 13.5, color: 'rgba(10,14,26,0.55)', margin: '0 0 32px' }}>The banner above is live — checked the moment you loaded this page. Daily history builds up starting with today's scheduled check.</p>
+        {!isMonitoring && !err && (
+          <p style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.45)', margin: '0 0 32px' }}>The bars fill in as daily checks run — today's is the first. The status above is still live, checked the moment you loaded this page.</p>
         )}
         {err && <p style={{ fontSize: 13.5, color: '#c02b2b' }}>{err}</p>}
 
