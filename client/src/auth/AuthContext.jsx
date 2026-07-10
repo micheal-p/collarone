@@ -26,13 +26,15 @@ export function AuthProvider({ children }) {
         const { data: sub } = supabase.auth.onAuthStateChange(async (event, session) => {
           if (event === 'SIGNED_OUT' || !session) { setAccessToken(null); setUser(null); resetOrgTheme(); return; }
           if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+            console.log('[DEBUG listener] fired', event);
             try {
               const { user: profile } = await api('/me');           // trigger created the profile on first login
+              console.log('[DEBUG listener] /me resolved', profile.status, profile.org?.status);
               if (profile.status !== 'active' || profile.org?.status !== 'active') { await supabase.auth.signOut(); setUser(null); return; }
               setAccessToken(session.access_token);
               setUser(profile);
               applyOrgTheme(profile.org?.themeColor);
-            } catch { /* no profile yet */ }
+            } catch (e) { console.log('[DEBUG listener] /me threw', e.message); }
             finally { setBooting(false); }
           }
         });

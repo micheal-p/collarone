@@ -91,7 +91,12 @@ export async function supabaseApi(path, opts = {}) {
     const profile = await myProfile();
     if (profile.status !== 'active') { await supabase.auth.signOut(); fail(403, 'Your account has been disabled.'); }
     const org = await myOrg(profile.org_id);
-    if (org.status !== 'active') { await supabase.auth.signOut(); fail(403, "Your organization's account is pending activation. We'll email you once your payment is confirmed."); }
+    if (org.status !== 'active') {
+      console.log('[DEBUG login] org pending, signing out', org.status);
+      await supabase.auth.signOut();
+      console.log('[DEBUG login] signOut done, about to fail with pending message');
+      fail(403, "Your organization's account is pending activation. We'll email you once your payment is confirmed.");
+    }
     await supabase.rpc('touch_last_login');
     return { accessToken: data.session.access_token, user: { ...toPublic(profile), org: toPublicOrg(org) } };
   }
