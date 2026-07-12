@@ -22,7 +22,7 @@ function buildDays(checks, count = 90) {
     const d = new Date(today.getTime() - i * DAY_MS);
     const k = dayKey(d);
     const rec = byDay[k];
-    days.push({ key: k, pct: rec ? rec.ok / rec.total : null, hadOutage: rec ? rec.down > 0 : false });
+    days.push({ key: k, pct: rec ? rec.ok / rec.total : null, hadOutage: rec ? rec.down > 0 : false, total: rec ? rec.total : 0 });
   }
   return days;
 }
@@ -52,6 +52,7 @@ export default function Status() {
   const [incidents, setIncidents] = useState([]);
   const [live, setLive] = useState(null); // this-instant check, independent of cron history
   const [err, setErr] = useState('');
+  const [hover, setHover] = useState(null); // { i, d } — hovered day bar
 
   useEffect(() => {
     apiGet('/status/checks').then((d) => setChecks(d.checks)).catch((e) => setErr(e.message));
@@ -61,14 +62,7 @@ export default function Status() {
 
   const isMonitoring = checks && checks.length > 0;
   const overallPct = checks?.length ? checks.filter((c) => c.api_ok && c.db_ok).length / checks.length : null;
-  // Show real history length, not a fixed 90-day claim — a single true
-  // "today" bar reads as broken sitting next to 89 "no data" bars, and this
-  // page exists specifically to not fake anything (see status_checks.sql).
-  // The window grows one real day at a time as monitoring actually runs.
-  const historyDays = checks?.length
-    ? Math.min(90, Math.floor((Date.now() - Math.min(...checks.map((c) => new Date(c.checked_at).getTime()))) / DAY_MS) + 1)
-    : 1;
-  const days = checks ? buildDays(checks, historyDays) : [];
+  const days = checks ? buildDays(checks) : [];
 
   // The banner reflects a real check made right now (hits the API + DB live),
   // not just the daily-cron history — so it reads correctly from the first
@@ -95,7 +89,7 @@ export default function Status() {
           <span style={{ fontSize: 14, fontWeight: 600 }}>{stateLabel}</span>
           {live && <span style={{ fontSize: 12, color: 'rgba(10,14,26,0.4)' }}>· checked just now, {live.responseMs}ms</span>}
         </div>
-        <p style={{ fontSize: 13, color: 'rgba(10,14,26,0.5)', margin: '0 0 20px' }}>Uptime over the past {days.length} day{days.length === 1 ? '' : 's'}.</p>
+        <p style={{ fontSize: 13, color: 'rgba(10,14,26,0.5)', margin: '0 0 20px' }}>Uptime over the past {days.length} days. Hover a bar for that day's detail.</p>
 
         <div style={{ border: '1px solid rgba(10,14,26,0.1)', borderRadius: 14, padding: '20px 22px 18px', marginBottom: 32 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -103,15 +97,58 @@ export default function Status() {
             <span style={{ fontSize: 14, fontWeight: 600, color: stateColor }}>{state === 'operational' ? 'Operational' : state === 'checking' ? '—' : stateLabel}</span>
           </div>
 
-          <div style={{ display: 'flex', gap: 2, marginBottom: 12, overflowX: 'auto' }}>
-            {days.map((d) => (
-              <div key={d.key} title={`${d.key}: ${d.pct === null ? 'no data' : (d.pct * 100).toFixed(0) + '% uptime'}`}
-                style={{ width: 8, height: 46, borderRadius: 1.5, background: dayColor(d), flexShrink: 0 }} />
-            ))}
+          <div style={{ position: 'relative' }} onMouseLeave={() => setHover(null)}>
+            <div style={{ display: 'flex', gap: 3, marginBottom: 12 }}>
+              {days.map((d, i) => (
+                <div key={d.key} onMouseEnter={() => setHover({ i, d })}
+                  style={{
+                    flex: 1, minWidth: 3, height: 46, borderRadius: 2, background: dayColor(d), cursor: 'pointer',
+                    transition: 'transform .12s ease, opacity .12s ease',
+                    ...(hover && hover.i === i ? { transform: 'scaleY(1.14)' } : hover ? { opacity: 0.55 } : {}),
+                  }} />
+              ))}
+            </div>
+            {hover && (() => {
+              const d = hover.d;
+              const dayIncs = incidents.filter((x) => dayKey(x.started_at) === d.key);
+              const leftPct = Math.min(82, Math.max(18, ((hover.i + 0.5) / days.length) * 100));
+              return (
+                <div style={{
+                  position: 'absolute', top: 56, left: `${leftPct}%`, transform: 'translateX(-50%)', width: 260, zIndex: 5, pointerEvents: 'none',
+                  background: '#fff', border: '1px solid rgba(10,14,26,0.12)', borderRadius: 12,
+                  boxShadow: '0 14px 40px rgba(10,14,26,0.16)', padding: '14px 16px',
+                }}>
+                  <div style={{ position: 'absolute', top: -6, left: '50%', width: 10, height: 10, background: '#fff', borderLeft: '1px solid rgba(10,14,26,0.12)', borderTop: '1px solid rgba(10,14,26,0.12)', transform: 'translateX(-50%) rotate(45deg)' }} />
+                  <div style={{ fontSize: 13.5, fontWeight: 700, marginBottom: 6 }}>
+                    {new Date(`${d.key}T00:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </div>
+                  {d.pct === null && (
+                    <div style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.5)', lineHeight: 1.5 }}>No data — monitoring hadn't started yet on this day.</div>
+                  )}
+                  {d.pct !== null && dayIncs.length === 0 && (
+                    <div style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.6)', lineHeight: 1.5 }}>
+                      No downtime recorded on this day.
+                      <div style={{ marginTop: 4, color: 'rgba(10,14,26,0.4)' }}>{d.total} check{d.total === 1 ? '' : 's'} · {(d.pct * 100).toFixed(0)}% healthy</div>
+                    </div>
+                  )}
+                  {dayIncs.map((inc) => (
+                    <div key={inc.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#FDF1EC', borderRadius: 8, padding: '8px 10px', marginTop: 4 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: inc.resolved_at ? '#d9a441' : '#c02b2b', flexShrink: 0 }} />
+                      <div style={{ fontSize: 12.5 }}>
+                        <strong>{INCIDENT_LABEL[inc.kind] || inc.kind}</strong>
+                        <span style={{ color: 'rgba(10,14,26,0.5)', marginLeft: 6 }}>
+                          {inc.resolved_at ? fmtDuration(inc.duration_sec) : 'ongoing'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12.5, color: 'rgba(10,14,26,0.45)' }}>
-            <span>{days.length === 1 ? 'Started today' : `${days.length} days ago`}</span>
+            <span>{days.length} days ago</span>
             <span style={{ flex: 1, height: 1, background: 'rgba(10,14,26,0.12)' }} />
             <span style={{ color: 'rgba(10,14,26,0.65)', fontWeight: 500 }}>
               {overallPct !== null ? `${(overallPct * 100).toFixed(2)}% uptime` : 'No history yet'}
