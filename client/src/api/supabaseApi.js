@@ -1393,5 +1393,62 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
 
+  // ---- inventory ----
+  if (head === 'GET /inventory' && seg[1] === 'warehouses') {
+    const { data, error } = await supabase.from('warehouses').select('*').order('name');
+    if (error) fail(400, error.message);
+    return { warehouses: data };
+  }
+  if (head === 'POST /inventory' && seg[1] === 'warehouses') {
+    const { name, location } = body;
+    if (!name?.trim()) fail(400, 'Warehouse name is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('warehouses').insert({
+      name: name.trim(), location: location || '', created_by: user.id, org_id: await myOrgId(),
+    }).select().single();
+    if (error) fail(400, error.message);
+    return { warehouse: data };
+  }
+
+  if (head === 'GET /inventory' && seg[1] === 'items') {
+    const { data, error } = await supabase.from('stock_items').select('*, levels:stock_levels(warehouse_id, quantity)').order('name');
+    if (error) fail(400, error.message);
+    return { items: data };
+  }
+  if (head === 'POST /inventory' && seg[1] === 'items') {
+    const { sku, name, unit, category, reorderLevel, notes } = body;
+    if (!sku?.trim() || !name?.trim()) fail(400, 'SKU and name are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('stock_items').insert({
+      sku: sku.trim(), name: name.trim(), unit: unit || 'unit', category: category || '',
+      reorder_level: reorderLevel || 0, notes: notes || '', created_by: user.id, org_id: await myOrgId(),
+    }).select().single();
+    if (error) fail(400, /unique/i.test(error.message) ? 'That SKU is already in use.' : error.message);
+    return { item: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'inventory' && seg[1] === 'items' && seg.length === 3) {
+    const { error } = await supabase.from('stock_items').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  if (head === 'GET /inventory' && seg[1] === 'movements') {
+    const { data, error } = await supabase.from('stock_movements')
+      .select('*, item:stock_items(id,name,sku,unit), warehouse:warehouses!warehouse_id(id,name), toWarehouse:warehouses!to_warehouse_id(id,name), author:profiles!created_by(id,name)')
+      .order('created_at', { ascending: false }).limit(100);
+    if (error) fail(400, error.message);
+    return { movements: data };
+  }
+  if (head === 'POST /inventory' && seg[1] === 'movements') {
+    const { itemId, warehouseId, type, quantity, toWarehouseId, reference, notes } = body;
+    if (!itemId || !warehouseId || !type || !quantity) fail(400, 'Item, warehouse, type and quantity are required.');
+    const { data, error } = await supabase.rpc('record_stock_movement', {
+      p_item_id: itemId, p_warehouse_id: warehouseId, p_type: type, p_quantity: quantity,
+      p_to_warehouse_id: toWarehouseId || null, p_reference: reference || '', p_notes: notes || '',
+    });
+    if (error) fail(400, error.message);
+    return { movement: data };
+  }
+
   return fail(404, `No Supabase route for ${method} ${path}`);
 }
