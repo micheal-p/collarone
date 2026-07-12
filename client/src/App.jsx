@@ -47,8 +47,9 @@ export default function App() {
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/status" element={<Status />} />
-      <Route path="/careers" element={<CareersIndex />} />
-      <Route path="/careers/:id" element={<CareersApply />} />
+      <Route path="/careers" element={<Navigate to="/careers/collarone" replace />} />
+      <Route path="/careers/:orgSlug" element={<CareersIndex />} />
+      <Route path="/careers/:orgSlug/:id" element={<CareersApply />} />
       <Route path="/site/:slug" element={<PublicSite />} />
 
       <Route

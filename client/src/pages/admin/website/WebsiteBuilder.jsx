@@ -437,6 +437,12 @@ export default function AdminWebsite() {
     catch (e) { flash(e.message, true); }
   };
 
+  const removeSite = async () => {
+    if (!window.confirm('Bring down and delete your website? This removes all pages, blocks and products, and cannot be undone. Are you sure?')) return;
+    try { await W.deleteSite(); flash('Website deleted.'); setSite(null); setTab('settings'); }
+    catch (e) { flash(e.message, true); }
+  };
+
   if (site === undefined) return <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Website' }]}><div className="suite-loading"><div className="boot-spinner" /></div></AppLayout>;
 
   return (
@@ -465,6 +471,10 @@ export default function AdminWebsite() {
                 <br />(Will move to <strong>{org?.slug}.collarone.app</strong> once wildcard subdomains are wired up.)
               </p>
               <button className="btn btn-primary" onClick={togglePublish}>{site.published ? 'Unpublish site' : 'Publish site'}</button>
+              <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--line)' }}>
+                <p className="muted" style={{ fontSize: 13, marginBottom: 10 }}>Starting over or shutting this site down for good?</p>
+                <button className="btn btn-ghost" style={{ color: '#a4262c' }} onClick={removeSite}>Delete website</button>
+              </div>
             </div>
           )}
         </>

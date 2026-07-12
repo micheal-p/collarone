@@ -1,39 +1,45 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import logo from '../../assets/collarone-mark.svg';
 import * as C from './careersApi.js';
 
 export default function CareersIndex() {
+  const { orgSlug } = useParams();
+  const [org, setOrg] = useState(null);
   const [postings, setPostings] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    C.getPostings().then(setPostings).catch((e) => setError(e.message));
-  }, []);
+    Promise.all([C.getOrgInfo(orgSlug), C.getPostings(orgSlug)])
+      .then(([o, p]) => { setOrg(o); setPostings(p); })
+      .catch((e) => setError(e.message));
+  }, [orgSlug]);
+
+  const companyName = org?.name || 'This company';
 
   return (
     <div className="careers-page">
       <style>{CAREERS_CSS}</style>
       <header className="careers-header">
-        <img src={logo} alt="Collarone" className="careers-logo" />
+        {org?.logoUrl ? <img src={org.logoUrl} alt={companyName} className="careers-logo" /> : <img src={logo} alt="Collarone" className="careers-logo" />}
       </header>
 
       <div className="careers-hero">
         <p className="careers-kicker">Careers</p>
-        <h1>Build the future of agri-tech in Nigeria.</h1>
-        <p className="careers-lede">We run agricultural operations across 19 Nigerian states. These are our open roles — apply directly, no account required.</p>
+        <h1>Join {companyName}.</h1>
+        <p className="careers-lede">These are {companyName}'s open roles — apply directly, no account required.</p>
       </div>
 
       <main className="careers-list">
-        {error && <p className="careers-empty">Couldn't load open roles right now. Please try again shortly.</p>}
+        {error && <p className="careers-empty">{error === 'This company page could not be found.' ? error : "Couldn't load open roles right now. Please try again shortly."}</p>}
         {postings === null && !error && <div className="boot-spinner" style={{ margin: '40px auto' }} />}
         {postings && postings.length === 0 && <p className="careers-empty">No open roles right now — check back soon.</p>}
         {postings && postings.map((p) => (
-          <Link key={p.id} to={`/careers/${p.id}`} className="careers-card">
+          <Link key={p.id} to={`/careers/${orgSlug}/${p.id}`} className="careers-card">
             <div>
               <h2>{p.title}</h2>
               <p className="careers-card-meta">
-                {p.department_name || 'Collarone'} · {p.location || 'Location on request'} · {C.EMPLOYMENT_TYPE_LABEL[p.employment_type] || p.employment_type}
+                {p.department_name || companyName} · {p.location || 'Location on request'} · {C.EMPLOYMENT_TYPE_LABEL[p.employment_type] || p.employment_type}
               </p>
               {C.fmtSalaryRange(p.salary_min, p.salary_max) && <p className="careers-card-salary">{C.fmtSalaryRange(p.salary_min, p.salary_max)}</p>}
             </div>
@@ -43,7 +49,7 @@ export default function CareersIndex() {
       </main>
 
       <footer className="careers-footer">
-        © {new Date().getFullYear()} Collarone
+        © {new Date().getFullYear()} {companyName} · Powered by Collarone
       </footer>
     </div>
   );

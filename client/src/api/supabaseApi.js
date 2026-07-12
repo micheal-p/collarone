@@ -222,13 +222,19 @@ export async function supabaseApi(path, opts = {}) {
   }
 
   // ---- careers: public job board (unauthenticated, anon role) ----
-  if (head === 'GET /careers' && seg[1] === 'postings' && seg.length === 2) {
-    const { data, error } = await supabase.from('public_job_postings').select('*').order('created_at', { ascending: false });
+  if (head === 'GET /careers' && seg[1] === 'org') {
+    const { data, error } = await supabase.rpc('public_get_careers_org', { p_slug: seg[2] });
+    if (error) fail(400, error.message);
+    if (!data) fail(404, 'This company page could not be found.');
+    return { org: data };
+  }
+  if (head === 'GET /careers' && seg[1] === 'postings' && seg.length === 3) {
+    const { data, error } = await supabase.from('public_job_postings').select('*').eq('org_slug', seg[2]).order('created_at', { ascending: false });
     if (error) fail(400, error.message);
     return { postings: data };
   }
-  if (head === 'GET /careers' && seg[1] === 'postings' && seg.length === 3) {
-    const { data, error } = await supabase.from('public_job_postings').select('*').eq('id', seg[2]).maybeSingle();
+  if (head === 'GET /careers' && seg[1] === 'postings' && seg.length === 4) {
+    const { data, error } = await supabase.from('public_job_postings').select('*').eq('org_slug', seg[2]).eq('id', seg[3]).maybeSingle();
     if (error) fail(400, error.message);
     if (!data) fail(404, 'This role could not be found or is no longer accepting applications.');
     return { posting: data };

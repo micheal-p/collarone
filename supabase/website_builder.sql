@@ -239,6 +239,24 @@ end;
 $$;
 grant execute on function public.set_site_published(boolean) to authenticated;
 
+-- ---- full teardown: "bring down" / delete the site entirely -----------------
+-- site_pages/site_products reference organizations(id), not org_sites(org_id),
+-- so deleting the org_sites row alone would leave orphaned pages/blocks/
+-- products behind — this tears down everything for the caller's own org.
+create or replace function public.delete_org_site()
+returns boolean language plpgsql security definer set search_path = public as $$
+declare v_org_id uuid;
+begin
+  if not public.is_super_admin() then raise exception 'Not authorised'; end if;
+  v_org_id := public.my_org_id();
+  delete from public.site_products where org_id = v_org_id;
+  delete from public.site_pages where org_id = v_org_id; -- cascades to site_blocks
+  delete from public.org_sites where org_id = v_org_id;
+  return true;
+end;
+$$;
+grant execute on function public.delete_org_site() to authenticated;
+
 -- ============================================================================
 -- Public rendering RPC — the ONLY anon-facing surface for site content.
 -- Returns null if the org/slug has no published site (caller shows a 404).

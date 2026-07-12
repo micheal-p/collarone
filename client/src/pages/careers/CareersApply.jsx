@@ -5,27 +5,27 @@ import * as C from './careersApi.js';
 import { CAREERS_CSS } from './CareersIndex.jsx';
 
 export default function CareersApply() {
-  const { id } = useParams();
+  const { orgSlug, id } = useParams();
   const [posting, setPosting] = useState(null);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    C.getPosting(id).then(setPosting).catch((e) => setError(e.message));
-  }, [id]);
+    C.getPosting(orgSlug, id).then(setPosting).catch((e) => setError(e.message));
+  }, [orgSlug, id]);
 
   return (
     <div className="careers-page">
       <style>{CAREERS_CSS}{APPLY_CSS}</style>
       <header className="careers-header">
-        <Link to="/careers"><img src={logo} alt="Collarone" className="careers-logo" /></Link>
+        <Link to={`/careers/${orgSlug}`}><img src={logo} alt="Collarone" className="careers-logo" /></Link>
       </header>
 
       <main className="careers-apply-main">
         {error && (
           <div className="careers-apply-card">
             <p className="careers-empty">{error}</p>
-            <Link to="/careers" className="btn btn-ghost">← See open roles</Link>
+            <Link to={`/careers/${orgSlug}`} className="btn btn-ghost">← See open roles</Link>
           </div>
         )}
 
@@ -34,7 +34,7 @@ export default function CareersApply() {
         {posting && !submitted && (
           <div className="careers-apply-grid">
             <div>
-              <p className="careers-kicker">{posting.department_name || 'Collarone'}</p>
+              <p className="careers-kicker">{posting.department_name || posting.org_name}</p>
               <h1 className="careers-apply-title">{posting.title}</h1>
               <p className="careers-card-meta">{posting.location || 'Location on request'} · {C.EMPLOYMENT_TYPE_LABEL[posting.employment_type] || posting.employment_type}</p>
               {C.fmtSalaryRange(posting.salary_min, posting.salary_max) && <p className="careers-card-salary">{C.fmtSalaryRange(posting.salary_min, posting.salary_max)}</p>}
@@ -48,14 +48,14 @@ export default function CareersApply() {
         {submitted && (
           <div className="careers-apply-card careers-success">
             <h1 style={{ fontSize: 22, margin: '0 0 8px' }}>Application received</h1>
-            <p style={{ color: 'var(--text-2)' }}>Thanks for applying to <b>{posting.title}</b>. Our HR team will review your application and reach out if there's a fit.</p>
-            <Link to="/careers" className="btn btn-primary" style={{ marginTop: 16 }}>See other open roles</Link>
+            <p style={{ color: 'var(--text-2)' }}>Thanks for applying to <b>{posting.title}</b>. {posting.org_name}'s team will review your application and reach out if there's a fit.</p>
+            <Link to={`/careers/${orgSlug}`} className="btn btn-primary" style={{ marginTop: 16 }}>See other open roles</Link>
           </div>
         )}
       </main>
 
       <footer className="careers-footer">
-        © {new Date().getFullYear()} Collarone
+        © {new Date().getFullYear()} {posting?.org_name || 'Collarone'} · Powered by Collarone
       </footer>
     </div>
   );

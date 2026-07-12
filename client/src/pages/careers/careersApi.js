@@ -1,8 +1,9 @@
 import { apiGet, apiPost } from '../../api/client.js';
 import { supabase } from '../../lib/supabaseClient.js';
 
-export const getPostings = () => apiGet('/careers/postings').then((d) => d.postings);
-export const getPosting  = (id) => apiGet(`/careers/postings/${id}`).then((d) => d.posting);
+export const getOrgInfo = (orgSlug) => apiGet(`/careers/org/${orgSlug}`).then((d) => d.org);
+export const getPostings = (orgSlug) => apiGet(`/careers/postings/${orgSlug}`).then((d) => d.postings);
+export const getPosting  = (orgSlug, id) => apiGet(`/careers/postings/${orgSlug}/${id}`).then((d) => d.posting);
 
 export const submitApplication = (body) => apiPost('/careers/apply', body).then((d) => d.applicationId);
 

@@ -32,6 +32,11 @@ export const setPublished = async (published) => {
   return data;
 };
 
+export const deleteSite = async () => {
+  const { error } = await supabase.rpc('delete_org_site');
+  if (error) throw new Error(error.message);
+};
+
 export const getPages = async (orgId) => {
   const { data, error } = await supabase.from('site_pages').select('*').eq('org_id', orgId).order('sort_order');
   if (error) throw new Error(error.message);

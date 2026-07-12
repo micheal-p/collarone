@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as L from './lifecycleApi.js';
+import { useAuth } from '../../auth/AuthContext.jsx';
 
 const I = {
   add:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
@@ -446,6 +447,7 @@ export function MyInterviewsView({ myId, flash }) {
 
 /* ---- Main RecruitingApp ----------------------------------------------------------- */
 export default function RecruitingApp({ access, departments, staff, myId }) {
+  const { user } = useAuth();
   const isHrManager = access?.role === 'manager';
   const [reqs, setReqs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -493,7 +495,7 @@ export default function RecruitingApp({ access, departments, staff, myId }) {
                     <td>
                       {r.status === 'open' && (
                         <button className="iconbtn" title="Copy public apply link" onClick={() => {
-                          navigator.clipboard.writeText(`${window.location.origin}/careers/${r.id}`);
+                          navigator.clipboard.writeText(`${window.location.origin}/careers/${user.org.slug}/${r.id}`);
                           flash('Apply link copied.');
                         }}>{I.link}</button>
                       )}
