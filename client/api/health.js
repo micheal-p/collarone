@@ -1,23 +1,25 @@
 // Vercel serverless function — real health check, not a fabricated status.
-// GET is safe to call anytime (used by the public /status page indirectly,
-// and by anyone spot-checking). It only WRITES a row to status_checks when
-// called with the header Vercel automatically attaches to Cron-triggered
-// requests (Authorization: Bearer $CRON_SECRET) — set CRON_SECRET in the
-// Vercel project env vars and configure the cron schedule in vercel.json for
-// this to actually start recording history.
+// GET is safe to call anytime: the /status page, the Platform Admin
+// dashboard, and Vercel's own once-a-day cron (vercel.json) all hit this.
+//
+// A once-a-day cron alone is too sparse to ever build a useful 90-day
+// history or catch a same-day outage, and Vercel Cron only runs that
+// infrequently on this plan — so every call to this endpoint opportunistically
+// logs a row too, throttled to at most one every 5 minutes so normal traffic
+// (not a script hammering this URL) is what drives the write rate.
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const CRON_SECRET = process.env.CRON_SECRET;
+const THROTTLE_MS = 5 * 60 * 1000;
 
 export default async function handler(req, res) {
   const startedAt = Date.now();
   let dbOk = false;
+  const admin = SERVICE_KEY ? createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } }) : null;
 
   try {
-    if (SERVICE_KEY) {
-      const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+    if (admin) {
       const { error } = await admin.from('organizations').select('id').limit(1);
       dbOk = !error;
     }
@@ -29,10 +31,14 @@ export default async function handler(req, res) {
   const apiOk = true; // this function executed, so the API itself is up
   const status = apiOk && dbOk ? 'operational' : dbOk ? 'degraded' : 'down';
 
-  const isCron = CRON_SECRET && req.headers.authorization === `Bearer ${CRON_SECRET}`;
-  if (isCron && SERVICE_KEY) {
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
-    await admin.from('status_checks').insert({ api_ok: apiOk, db_ok: dbOk, response_ms: responseMs });
+  if (admin) {
+    try {
+      const { data: last } = await admin.from('status_checks').select('checked_at').order('checked_at', { ascending: false }).limit(1).maybeSingle();
+      const dueForCheck = !last || Date.now() - new Date(last.checked_at).getTime() > THROTTLE_MS;
+      if (dueForCheck) await admin.from('status_checks').insert({ api_ok: apiOk, db_ok: dbOk, response_ms: responseMs });
+    } catch {
+      // never let logging history block reporting live status
+    }
   }
 
   return res.status(200).json({ status, apiOk, dbOk, responseMs, checkedAt: new Date().toISOString() });

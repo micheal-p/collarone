@@ -61,7 +61,14 @@ export default function Status() {
 
   const isMonitoring = checks && checks.length > 0;
   const overallPct = checks?.length ? checks.filter((c) => c.api_ok && c.db_ok).length / checks.length : null;
-  const days = checks ? buildDays(checks) : [];
+  // Show real history length, not a fixed 90-day claim — a single true
+  // "today" bar reads as broken sitting next to 89 "no data" bars, and this
+  // page exists specifically to not fake anything (see status_checks.sql).
+  // The window grows one real day at a time as monitoring actually runs.
+  const historyDays = checks?.length
+    ? Math.min(90, Math.floor((Date.now() - Math.min(...checks.map((c) => new Date(c.checked_at).getTime()))) / DAY_MS) + 1)
+    : 1;
+  const days = checks ? buildDays(checks, historyDays) : [];
 
   // The banner reflects a real check made right now (hits the API + DB live),
   // not just the daily-cron history — so it reads correctly from the first
@@ -88,7 +95,7 @@ export default function Status() {
           <span style={{ fontSize: 14, fontWeight: 600 }}>{stateLabel}</span>
           {live && <span style={{ fontSize: 12, color: 'rgba(10,14,26,0.4)' }}>· checked just now, {live.responseMs}ms</span>}
         </div>
-        <p style={{ fontSize: 13, color: 'rgba(10,14,26,0.5)', margin: '0 0 20px' }}>Uptime over the past {days.length} days.</p>
+        <p style={{ fontSize: 13, color: 'rgba(10,14,26,0.5)', margin: '0 0 20px' }}>Uptime over the past {days.length} day{days.length === 1 ? '' : 's'}.</p>
 
         <div style={{ border: '1px solid rgba(10,14,26,0.1)', borderRadius: 14, padding: '20px 22px 18px', marginBottom: 32 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -104,7 +111,7 @@ export default function Status() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12.5, color: 'rgba(10,14,26,0.45)' }}>
-            <span>{days.length} days ago</span>
+            <span>{days.length === 1 ? 'Started today' : `${days.length} days ago`}</span>
             <span style={{ flex: 1, height: 1, background: 'rgba(10,14,26,0.12)' }} />
             <span style={{ color: 'rgba(10,14,26,0.65)', fontWeight: 500 }}>
               {overallPct !== null ? `${(overallPct * 100).toFixed(2)}% uptime` : 'No history yet'}
