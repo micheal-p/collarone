@@ -413,7 +413,7 @@ export async function supabaseApi(path, opts = {}) {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('salary_structures').insert({
       employee_id: employeeId, basic: basic || 0, housing: housing || 0, transport: transport || 0,
-      other_allowances: otherAllowances || 0, effective_date: effectiveDate || new Date().toISOString().slice(0, 10), created_by: user.id,
+      other_allowances: otherAllowances || 0, effective_date: effectiveDate || new Date().toISOString().slice(0, 10), created_by: user.id, org_id: await myOrgId(),
     }).select().single();
     if (error) fail(400, error.message);
     return { structure: data };
@@ -431,7 +431,7 @@ export async function supabaseApi(path, opts = {}) {
     if (isPrimary !== false) await supabase.from('bank_accounts').update({ is_primary: false }).eq('employee_id', employeeId);
     const { data, error } = await supabase.from('bank_accounts').insert({
       employee_id: employeeId, bank_name: bankName, bank_code: bankCode || '', account_number: accountNumber,
-      account_name: accountName, is_primary: isPrimary !== false, created_by: user.id,
+      account_name: accountName, is_primary: isPrimary !== false, created_by: user.id, org_id: await myOrgId(),
     }).select().single();
     if (error) fail(400, error.message);
     return { account: data };
