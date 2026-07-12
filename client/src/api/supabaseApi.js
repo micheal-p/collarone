@@ -222,6 +222,11 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { checks: data };
   }
+  if (head === 'GET /status' && seg[1] === 'incidents') {
+    const { data, error } = await supabase.from('status_incidents').select('*').order('started_at', { ascending: false }).limit(50);
+    if (error) fail(400, error.message);
+    return { incidents: data };
+  }
 
   // ---- careers: public job board (unauthenticated, anon role) ----
   if (head === 'GET /careers' && seg[1] === 'org') {

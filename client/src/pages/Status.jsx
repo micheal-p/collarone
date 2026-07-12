@@ -34,13 +34,28 @@ const dayColor = (d) => {
   return '#d9a441';
 };
 
+const INCIDENT_LABEL = { api_down: 'API unreachable', db_down: 'Database unreachable', degraded: 'Degraded performance' };
+
+function fmtDuration(sec) {
+  if (sec == null) return null;
+  if (sec < 60) return `${sec}s`;
+  if (sec < 3600) return `${Math.round(sec / 60)}m`;
+  return `${Math.floor(sec / 3600)}h ${Math.round((sec % 3600) / 60)}m`;
+}
+
+function fmtWhen(d) {
+  return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 export default function Status() {
   const [checks, setChecks] = useState(null);
+  const [incidents, setIncidents] = useState([]);
   const [live, setLive] = useState(null); // this-instant check, independent of cron history
   const [err, setErr] = useState('');
 
   useEffect(() => {
     apiGet('/status/checks').then((d) => setChecks(d.checks)).catch((e) => setErr(e.message));
+    apiGet('/status/incidents').then((d) => setIncidents(d.incidents)).catch(() => {});
     fetch('/api/health').then((r) => r.json()).then(setLive).catch(() => {});
   }, []);
 
@@ -103,6 +118,29 @@ export default function Status() {
           <p style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.45)', margin: '0 0 32px' }}>The bars fill in as daily checks run — today's is the first. The status above is still live, checked the moment you loaded this page.</p>
         )}
         {err && <p style={{ fontSize: 13.5, color: '#c02b2b' }}>{err}</p>}
+
+        <h2>Incident history</h2>
+        {incidents.length === 0 ? (
+          <p style={{ fontSize: 13.5, color: 'rgba(10,14,26,0.5)' }}>No incidents recorded — every scheduled check has come back healthy.</p>
+        ) : (
+          <div style={{ marginBottom: 8 }}>
+            {incidents.map((inc) => (
+              <div key={inc.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 0', borderTop: '1px solid rgba(10,14,26,0.08)' }}>
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: inc.resolved_at ? '#5a9c4a' : '#c02b2b', marginTop: 5, flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>
+                    {INCIDENT_LABEL[inc.kind] || inc.kind}
+                    {!inc.resolved_at && <span style={{ color: '#c02b2b', marginLeft: 8, fontSize: 12.5, fontWeight: 700 }}>ONGOING</span>}
+                  </div>
+                  <div style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.5)', marginTop: 2 }}>
+                    Started {fmtWhen(inc.started_at)}
+                    {inc.resolved_at && <> · resolved {fmtWhen(inc.resolved_at)} · back up in {fmtDuration(inc.duration_sec)}</>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         <h2>What's monitored</h2>
         <p>A scheduled check hits the Collarone API and database directly, on a fixed interval — this page reads the real results, it doesn't assume anything is fine.</p>
