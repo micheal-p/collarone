@@ -4,11 +4,16 @@ import { supabase } from '../lib/supabaseClient.js';
 import logo from '../assets/collarone-mark.svg';
 import './Signup.css';
 
-const PLANS = [
-  { key: 'starter', name: 'Starter', price: '₦10,000/mo + ₦1,000 per staff' },
-  { key: 'growth', name: 'Growth', price: '₦18,000/mo + ₦1,500 per staff' },
-  { key: 'scale', name: 'Scale', price: '₦30,000/mo + ₦2,000 per staff' },
+// Every tier is à la carte — pick whichever suites you need on any of them.
+// Tiers differ in included-suite count, base fee, support level and
+// contract terms, not in which suites you're allowed to use.
+export const PER_STAFF_FEE = 2000;
+export const PLANS = [
+  { key: 'startup',    name: 'Startup',    baseFee: 15000, includedSuites: 3, extraSuiteFee: 8000, price: '₦15,000/mo · 3 suites incl., ₦8,000/extra suite, ₦2,000/staff' },
+  { key: 'standard',   name: 'Standard',   baseFee: 25000, includedSuites: 5, extraSuiteFee: 6000, price: '₦25,000/mo · 5 suites incl., ₦6,000/extra suite, ₦2,000/staff' },
+  { key: 'enterprise', name: 'Enterprise', baseFee: 45000, includedSuites: 8, extraSuiteFee: 4000, price: '₦45,000/mo · 8 suites incl., ₦4,000/extra suite, ₦2,000/staff' },
 ];
+export const ANNUAL_DISCOUNT = 0.15;
 
 const SWATCHES = ['#FF5B1F', '#C2410C', '#0F766E', '#1D4ED8', '#7C3AED', '#BE185D', '#0A0E1A', '#166534'];
 
@@ -43,7 +48,7 @@ export default function Signup() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const [planTier, setPlanTier] = useState(PLANS.some((p) => p.key === params.get('plan')) ? params.get('plan') : 'starter');
+  const [planTier, setPlanTier] = useState(PLANS.some((p) => p.key === params.get('plan')) ? params.get('plan') : 'startup');
   const [orgName, setOrgName] = useState('');
   const [orgSlug, setOrgSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);

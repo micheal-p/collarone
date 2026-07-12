@@ -60,6 +60,70 @@ function Marquee({ items }) {
 
 const marqueeItems = ['Staff Directory', 'Leave Management', 'Task Tracking', 'Visitor Sign-in', 'Recruiting & Careers', 'Onboarding', 'Performance Reviews', 'Compliance Vault', 'Payroll — PAYE · Pension · NHF', 'Customer CRM', 'Website Builder'];
 
+const PRICE_TIERS = [
+  { key: 'startup', name: 'Startup', baseFee: 15000, included: 3, extraFee: 8000 },
+  { key: 'standard', name: 'Standard', baseFee: 25000, included: 5, extraFee: 6000 },
+  { key: 'enterprise', name: 'Enterprise', baseFee: 45000, included: 8, extraFee: 4000 },
+];
+const TOTAL_SUITES = 14;
+const ANNUAL_DISCOUNT = 0.15;
+const PER_STAFF_FEE = 2000;
+const naira = (n) => `₦${Math.round(n).toLocaleString('en-NG')}`;
+
+function PriceCalculator() {
+  const [tierKey, setTierKey] = useState('standard');
+  const [suiteCount, setSuiteCount] = useState(5);
+  const [staffCount, setStaffCount] = useState(10);
+  const [yearly, setYearly] = useState(false);
+  const tier = PRICE_TIERS.find((t) => t.key === tierKey);
+  const extra = Math.max(0, suiteCount - tier.included);
+  const monthly = tier.baseFee + extra * tier.extraFee + staffCount * PER_STAFF_FEE;
+  const total = yearly ? monthly * 12 * (1 - ANNUAL_DISCOUNT) : monthly;
+
+  const pickTier = (key) => {
+    setTierKey(key);
+    setSuiteCount(PRICE_TIERS.find((t) => t.key === key).included);
+  };
+
+  return (
+    <Reveal className="cl-calc" delay={0.1}>
+      <h3 className="cl-calc-h">Estimate your price</h3>
+      <div className="cl-calc-row">
+        <div className="cl-calc-tiers">
+          {PRICE_TIERS.map((t) => (
+            <button key={t.key} type="button" className={`cl-calc-tier ${tierKey === t.key ? 'on' : ''}`} onClick={() => pickTier(t.key)}>{t.name}</button>
+          ))}
+        </div>
+        <label className="cl-calc-toggle">
+          <input type="checkbox" checked={yearly} onChange={(e) => setYearly(e.target.checked)} />
+          Bill yearly <span className="cl-calc-save">(save 15%)</span>
+        </label>
+      </div>
+      <div className="cl-calc-row">
+        <label className="cl-calc-slider-label">
+          How many suites do you need? <strong>{suiteCount}</strong> of {TOTAL_SUITES}
+        </label>
+        <input type="range" min={1} max={TOTAL_SUITES} value={suiteCount} onChange={(e) => setSuiteCount(Number(e.target.value))} className="cl-calc-slider" />
+      </div>
+      <div className="cl-calc-row">
+        <label className="cl-calc-slider-label">
+          How many staff? <strong>{staffCount}</strong>
+        </label>
+        <input type="range" min={1} max={200} value={staffCount} onChange={(e) => setStaffCount(Number(e.target.value))} className="cl-calc-slider" />
+      </div>
+      <div className="cl-calc-result">
+        <div>
+          <div className="cl-calc-total">{naira(total)}<small>{yearly ? '/yr' : '/mo'}</small></div>
+          <div className="cl-calc-sub">
+            {tier.name} — {tier.included} included{extra > 0 ? ` + ${extra} extra suite${extra === 1 ? '' : 's'} at ${naira(tier.extraFee)} each` : ''} + {staffCount} staff at {naira(PER_STAFF_FEE)} each
+          </div>
+        </div>
+        <Link className="cl-btn cl-btn-primary" to={`/signup?plan=${tierKey}`}>Start with {tier.name}</Link>
+      </div>
+    </Reveal>
+  );
+}
+
 const heroStagger = {
   hidden: {},
   show: { transition: { staggerChildren: 0.11, delayChildren: 0.05 } },
@@ -271,34 +335,35 @@ export default function Landing() {
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">Pricing</p>
-            <h2 className="cl-sec-h">A base fee for your space, plus your team</h2>
-            <p className="cl-sec-lede">One low monthly base for your workspace, then a flat per-staff rate. No forex markup, no dollar pricing — and your rate is locked in at sign-up for as long as you stay.</p>
+            <h2 className="cl-sec-h">Pick your suites. Pick your tier.</h2>
+            <p className="cl-sec-lede">Every tier is à la carte — choose exactly the suites your business needs on any of them. Tiers differ in how many suites are included, your base fee, and support level, not in what you're allowed to use. No forex markup, no dollar pricing, and your rate locks in at sign-up.</p>
           </Reveal>
           <div className="cl-grid3">
             <Reveal className="cl-price-card" hover>
-              <span className="cl-price-badge">Founding rate</span>
-              <div className="cl-price-plan">STARTER</div>
-              <div className="cl-price-amt">₦10,000<small>/mo</small></div>
-              <div className="cl-price-sub">+ ₦1,000 per staff member/mo</div>
-              <ul><li>Full People &amp; Operations suite — directory, org chart, self-service</li><li>Leave, tasks &amp; visitor management</li><li>Recruiting &amp; public careers page</li><li>Public website &amp; your own domain</li></ul>
-              <Link className="cl-btn cl-btn-ghost" to="/signup?plan=starter">Start your space</Link>
+              <div className="cl-price-plan">STARTUP</div>
+              <div className="cl-price-amt">₦15,000<small>/mo</small></div>
+              <div className="cl-price-sub">3 suites included · +₦8,000/extra suite · +₦2,000/staff</div>
+              <ul><li>Any 3 suites of your choice</li><li>Standard support</li><li>Add more suites anytime</li></ul>
+              <Link className="cl-btn cl-btn-ghost" to="/signup?plan=startup">Start your space</Link>
             </Reveal>
             <Reveal className="cl-price-card cl-feat" delay={0.06} hover>
-              <div className="cl-price-plan">GROWTH</div>
-              <div className="cl-price-amt">₦18,000<small>/mo</small></div>
-              <div className="cl-price-sub">+ ₦1,500 per staff member/mo</div>
-              <ul><li>Everything in Starter</li><li>Performance reviews &amp; compliance vault</li><li>Customer &amp; sales CRM, once live</li><li>Priority support</li></ul>
-              <Link className="cl-btn cl-btn-primary" to="/signup?plan=growth">Get started</Link>
+              <span className="cl-price-badge">What most companies need</span>
+              <div className="cl-price-plan">STANDARD</div>
+              <div className="cl-price-amt">₦25,000<small>/mo</small></div>
+              <div className="cl-price-sub">5 suites included · +₦6,000/extra suite · +₦2,000/staff</div>
+              <ul><li>Any 5 suites of your choice</li><li>Priority support</li><li>Add more suites anytime</li></ul>
+              <Link className="cl-btn cl-btn-primary" to="/signup?plan=standard">Get started</Link>
             </Reveal>
             <Reveal className="cl-price-card" delay={0.12} hover>
-              <div className="cl-price-plan">SCALE</div>
-              <div className="cl-price-amt">₦30,000<small>/mo</small></div>
-              <div className="cl-price-sub">+ ₦2,000 per staff member/mo</div>
-              <ul><li>Everything in Growth</li><li>Payroll — PAYE, Pension, NHF, NSITF — as it opens to pilots</li><li>Dedicated onboarding &amp; support</li></ul>
+              <div className="cl-price-plan">ENTERPRISE</div>
+              <div className="cl-price-amt">₦45,000<small>/mo</small></div>
+              <div className="cl-price-sub">8 suites included · +₦4,000/extra suite · +₦2,000/staff</div>
+              <ul><li>Any 8 suites of your choice</li><li>Dedicated onboarding &amp; support</li><li>Request custom work — we'll scope and quote it</li></ul>
               <a className="cl-btn cl-btn-ghost" href="#contact">Talk to us</a>
             </Reveal>
           </div>
-          <p className="cl-price-note">Every plan bundles whole suites, not pieces of one — People &amp; Operations ships complete from Starter, so you're never missing the one feature you actually need. Your base fee and per-seat rate are both locked in at sign-up.</p>
+          <PriceCalculator />
+          <p className="cl-price-note">Pay yearly and save 15% off the total. Your base fee and per-suite rate both lock in at sign-up — they don't change later even if our published prices do.</p>
         </div>
       </section>
 
