@@ -46,7 +46,6 @@ export default function PlatformShell({ title, children }) {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <Link to="/workspace" style={{ fontSize: 13, color: 'rgba(244,241,234,0.6)', textDecoration: 'none' }}>← Your organization's workspace</Link>
           <span style={{ fontSize: 13, color: 'rgba(244,241,234,0.85)' }}>{user?.name}</span>
           <button
             onClick={() => logout()}

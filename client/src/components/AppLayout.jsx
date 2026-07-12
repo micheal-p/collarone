@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { apiGet } from '../api/client.js';
+import { apiGet, apiPost } from '../api/client.js';
 import { SUITE_META } from '../config/suites.js';
 import SuiteIcon from './SuiteIcon.jsx';
 import logoMark from '../assets/collarone-mark.svg';
@@ -73,6 +73,17 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
     apiGet('/me/suites').then((d) => setSuites(d.suites)).catch(() => {});
   }, []);
 
+  // Org-wide notices pushed from Platform Admin (e.g. "your payment is still
+  // pending"). Shown until someone in the org dismisses them.
+  const [notices, setNotices] = useState([]);
+  useEffect(() => {
+    apiGet('/me/notices').then((d) => setNotices(d.notices || [])).catch(() => {});
+  }, []);
+  const dismissNotice = async (id) => {
+    setNotices((l) => l.filter((n) => n.id !== id));
+    try { await apiPost(`/notices/${id}/dismiss`); } catch { /* banner is already gone locally */ }
+  };
+
   const isAdmin = user?.role === 'super_admin';
   const openable = suites.filter((s) => s.openable);
 
@@ -111,6 +122,17 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
           </button>
         </div>
       )}
+      {notices.map((n) => (
+        <div key={n.id} style={{
+          background: '#78350F', color: '#FDF3E0', fontSize: 13, fontWeight: 600,
+          padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, textAlign: 'center',
+        }}>
+          <span>⚠️ {n.message}</span>
+          <button onClick={() => dismissNotice(n.id)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', borderRadius: 100, padding: '3px 12px', fontSize: 12, cursor: 'pointer', fontWeight: 700, flexShrink: 0 }}>
+            Dismiss
+          </button>
+        </div>
+      ))}
       {/* ---------- Suite bar ---------- */}
       <header className="suitebar">
         <div className="sb-left">

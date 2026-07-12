@@ -13,6 +13,16 @@ const PLAN_BASE_FEE_KOBO = { startup: 1500000, standard: 2500000, enterprise: 45
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+async function findValidPromo(admin, rawCode) {
+  const code = (rawCode || '').trim().toUpperCase();
+  if (!code) return null;
+  const { data: promo } = await admin.from('promo_codes').select('*').eq('code', code).eq('active', true).maybeSingle();
+  if (!promo) return null;
+  if (promo.expires_at && new Date(promo.expires_at) < new Date()) return null;
+  if (promo.max_uses != null && promo.uses >= promo.max_uses) return null;
+  return promo;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { message: 'Method not allowed' });
   if (!SERVICE_KEY) return json(res, 500, { message: 'Server not configured: SUPABASE_SERVICE_KEY missing.' });
@@ -30,10 +40,18 @@ export default async function handler(req, res) {
       return json(res, 200, { available: !data });
     }
 
+    // Validate (but don't redeem) a promo code — used live in the signup form.
+    // Redemption only happens inside 'create', after the account really exists.
+    if (action === 'check-promo') {
+      const promo = await findValidPromo(admin, body.code);
+      if (!promo) return json(res, 200, { valid: false, reason: 'That code is invalid or has expired.' });
+      return json(res, 200, { valid: true, percentOff: promo.percent_off });
+    }
+
     if (action === 'create') {
       const {
         planTier, orgName, orgSlug, themeColor = '#FF5B1F', logoUrl = '', websiteType = 'none', country = 'NG',
-        ownerName, email, password,
+        ownerName, email, password, promoCode = '',
       } = body;
 
       if (!['startup', 'standard', 'enterprise'].includes(planTier)) return json(res, 400, { message: 'Choose a plan.' });
@@ -78,14 +96,27 @@ export default async function handler(req, res) {
         return json(res, 500, { message: 'Could not set up your account. Please try again.' });
       }
 
-      const amountKobo = PLAN_BASE_FEE_KOBO[planTier];
+      // Promo codes knock a percentage off the activation fee. A 100%-off
+      // code activates the organization immediately — no transfer to wait on.
+      const promo = await findValidPromo(admin, promoCode);
+      const baseKobo = PLAN_BASE_FEE_KOBO[planTier];
+      const amountKobo = promo ? Math.round(baseKobo * (100 - promo.percent_off) / 100) : baseKobo;
+      const isFree = amountKobo <= 0;
       const reference = `CO-${slug.slice(0, 12).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
       const { error: txErr } = await admin.from('billing_transactions').insert({
-        org_id: org.id, type: 'activation_fee', amount_kobo: amountKobo, reference, method: 'manual_transfer', status: 'pending',
+        org_id: org.id, type: 'activation_fee', amount_kobo: amountKobo, reference,
+        method: 'manual_transfer', status: isFree ? 'confirmed' : 'pending', promo_code: promo?.code || null,
       });
       if (txErr) return json(res, 500, { message: 'Account created, but we could not generate a payment reference. Contact us on WhatsApp with your company name.' });
 
-      return json(res, 201, { orgId: org.id, reference, amountKobo, email: cleanEmail });
+      if (promo) await admin.from('promo_codes').update({ uses: promo.uses + 1 }).eq('id', promo.id);
+      if (isFree) await admin.from('organizations').update({ status: 'active' }).eq('id', org.id);
+
+      return json(res, 201, {
+        orgId: org.id, reference, amountKobo, email: cleanEmail,
+        promoApplied: promo ? { code: promo.code, percentOff: promo.percent_off, baseKobo } : null,
+        activated: isFree,
+      });
     }
 
     return json(res, 400, { message: `Unknown action: ${action}` });

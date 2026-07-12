@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { apiGet, apiPost } from '../api/client.js';
+import { apiGet, apiPost, apiPatch } from '../api/client.js';
+import { supabase } from '../lib/supabaseClient.js';
 import { FOUNDING_ORG_ID } from '../config/org.js';
 import PlatformShell from '../components/PlatformShell.jsx';
+
+const GUEST_KEY = 'collarone_guest_mode';
 
 const STATUS_LABEL = { pending_payment: 'Pending payment', active: 'Active', suspended: 'Suspended', cancelled: 'Cancelled' };
 const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', delete_org: 'Deleted organization', impersonate: 'Impersonated admin (retired)', guest_mode: 'Guested into organization' };
@@ -55,6 +58,103 @@ function StatusWidget() {
       </div>
       <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.4)' }}>Full status page →</span>
     </motion.a>
+  );
+}
+
+function PromoCodesPanel({ flash }) {
+  const [codes, setCodes] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ code: '', percentOff: 100, expiresAt: '', maxUses: '' });
+  const [busy, setBusy] = useState(false);
+
+  const load = () => apiGet('/platform/promo-codes').then((d) => setCodes(d.promoCodes)).catch(() => {});
+  useEffect(load, []);
+
+  const create = async (e) => {
+    e.preventDefault();
+    if (!form.code.trim()) return flash('Enter a code.', true);
+    setBusy(true);
+    try {
+      await apiPost('/platform/promo-codes', {
+        code: form.code, percentOff: Number(form.percentOff),
+        expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T23:59:59`).toISOString() : null,
+        maxUses: form.maxUses ? Number(form.maxUses) : null,
+      });
+      flash(`Code ${form.code.toUpperCase()} created.`);
+      setForm({ code: '', percentOff: 100, expiresAt: '', maxUses: '' });
+      setOpen(false);
+      load();
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
+  const toggle = async (c) => {
+    try {
+      await apiPatch(`/platform/promo-codes/${c.id}`, { active: !c.active });
+      load();
+    } catch (e2) { flash(e2.message, true); }
+  };
+
+  const expired = (c) => c.expires_at && new Date(c.expires_at) < new Date();
+  const inputStyle = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(244,241,234,0.15)', borderRadius: 8, padding: '9px 12px', color: '#F4F1EA', fontSize: 13.5 };
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <h2 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '.02em', margin: 0, color: '#F4F1EA' }}>PROMO CODES</h2>
+        <button onClick={() => setOpen((v) => !v)}
+          style={{ background: 'rgba(255,91,31,0.12)', border: '1px solid rgba(255,91,31,0.3)', color: '#FF9457', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
+          {open ? 'Cancel' : '+ New code'}
+        </button>
+      </div>
+
+      <AnimatePresence>
+        {open && (
+          <motion.form onSubmit={create} initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            style={{ ...glass, overflow: 'hidden', marginBottom: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.8fr 1fr 0.8fr auto', gap: 10, padding: 16, alignItems: 'end' }}>
+              <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>CODE
+                <input value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="LAUNCH100" style={{ ...inputStyle, textTransform: 'uppercase' }} />
+              </label>
+              <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>% OFF
+                <input type="number" min={1} max={100} value={form.percentOff} onChange={(e) => setForm((f) => ({ ...f, percentOff: e.target.value }))} style={inputStyle} />
+              </label>
+              <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>EXPIRES
+                <input type="date" value={form.expiresAt} onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))} style={{ ...inputStyle, colorScheme: 'dark' }} />
+              </label>
+              <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>MAX USES
+                <input type="number" min={1} value={form.maxUses} onChange={(e) => setForm((f) => ({ ...f, maxUses: e.target.value }))} placeholder="∞" style={inputStyle} />
+              </label>
+              <button disabled={busy} style={{ background: '#FF5B1F', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                {busy ? '…' : 'Create'}
+              </button>
+            </div>
+            <p style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.4)', margin: 0, padding: '0 16px 14px' }}>
+              A 100% code activates the workspace instantly at signup — no transfer needed. Anything less discounts the activation fee.
+            </p>
+          </motion.form>
+        )}
+      </AnimatePresence>
+
+      {codes.length === 0 && !open && (
+        <div style={{ ...glass, padding: 18, fontSize: 13, color: 'rgba(244,241,234,0.5)' }}>No promo codes yet — create one to let new businesses try Collarone.</div>
+      )}
+      {codes.map((c) => (
+        <div key={c.id} style={{ ...glass, display: 'flex', alignItems: 'center', gap: 16, padding: '13px 18px', marginBottom: 8, opacity: c.active && !expired(c) ? 1 : 0.55 }}>
+          <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, fontSize: 14.5, color: '#F4F1EA', width: 150 }}>{c.code}</span>
+          <span style={{ fontSize: 13, color: '#7fd67f', fontWeight: 600, width: 70 }}>{c.percent_off}% off</span>
+          <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.55)', width: 150 }}>
+            {c.expires_at ? `Expires ${fmtDate(c.expires_at)}` : 'No expiry'}{expired(c) && ' · expired'}
+          </span>
+          <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.55)', flex: 1 }}>
+            Used {c.uses}{c.max_uses ? ` of ${c.max_uses}` : ''} time{c.uses === 1 ? '' : 's'}
+          </span>
+          <button onClick={() => toggle(c)}
+            style={{ background: 'transparent', border: '1px solid rgba(244,241,234,0.2)', color: 'rgba(244,241,234,0.7)', borderRadius: 8, padding: '6px 13px', fontSize: 12, cursor: 'pointer' }}>
+            {c.active ? 'Deactivate' : 'Reactivate'}
+          </button>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -230,13 +330,34 @@ export default function PlatformAdmin() {
   // Real login as the org's own admin, for actually clicking through and
   // unit-testing a suite — audited, and the landed session shows a
   // persistent "guest mode" banner the whole time (see AppLayout.jsx).
+  // The token is redeemed right here with verifyOtp (no redirect link — see
+  // admin.js), which swaps this browser's session to the org's admin; the
+  // full-page navigation reboots the app under that new identity.
   const guestIntoOrg = async (org) => {
     setGuestingOrg(org.id);
     try {
       const d = await apiPost('/platform/guest-mode', { orgId: org.id });
-      flash(`Opening ${org.name} as ${d.name}…`);
-      window.open(d.actionLink, '_blank', 'noopener');
-    } catch (e) { flash(e.message, true); } finally { setGuestingOrg(null); }
+      const { error } = await supabase.auth.verifyOtp({ type: 'magiclink', token_hash: d.tokenHash });
+      if (error) throw new Error(error.message);
+      sessionStorage.setItem(GUEST_KEY, JSON.stringify({ orgId: org.id, orgName: d.orgName, startedAt: Date.now() }));
+      window.location.href = '/workspace';
+    } catch (e) { flash(e.message, true); setGuestingOrg(null); }
+  };
+
+  // Pushes an in-app banner to everyone in that org (org_notices) telling
+  // them their payment is still pending — the "pay to keep using the
+  // platform" nudge, without needing an email service.
+  const [reminding, setReminding] = useState(null);
+  const remindOrg = async (t) => {
+    setReminding(t.id);
+    try {
+      const kind = t.type === 'activation_fee' ? 'activation fee' : 'seat credits';
+      await apiPost('/platform/remind-payment', {
+        orgId: t.org_id,
+        message: `Reminder: your ${kind} payment of ${naira(t.amount_kobo)} (ref ${t.reference}) is still pending. Complete the transfer to keep your Collarone workspace active — WhatsApp us the reference on 0814 812 8551 once sent.`,
+      });
+      flash(`Reminder sent to ${orgName(t.org_id)}.`);
+    } catch (e) { flash(e.message, true); } finally { setReminding(null); }
   };
 
   const deleteOrg = async () => {
@@ -276,6 +397,10 @@ export default function PlatformAdmin() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: '#F4F1EA' }}>{naira(t.amount_kobo)}</span>
+                <button onClick={() => remindOrg(t)} disabled={reminding === t.id}
+                  style={{ background: 'rgba(234,179,8,0.12)', border: '1px solid rgba(234,179,8,0.35)', color: '#eab308', borderRadius: 8, padding: '8px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
+                  {reminding === t.id ? '…' : 'Send reminder'}
+                </button>
                 <button onClick={() => confirmPayment(t.id)} disabled={confirming === t.id}
                   style={{ background: '#FF5B1F', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
                   {confirming === t.id ? '…' : <>{I.check} Confirm</>}
@@ -285,6 +410,8 @@ export default function PlatformAdmin() {
           ))}
         </div>
       )}
+
+      <PromoCodesPanel flash={flash} />
 
       <h2 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '.02em', margin: '0 0 14px', color: '#F4F1EA' }}>ORGANIZATIONS</h2>
       <div style={{ marginBottom: 32 }}>

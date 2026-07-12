@@ -74,7 +74,29 @@ export default function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const [result, setResult] = useState(null); // { reference, amountKobo }
+  const [promoCode, setPromoCode] = useState('');
+  const [promoStatus, setPromoStatus] = useState({ state: 'idle', percentOff: 0, msg: '' });
+
+  const [result, setResult] = useState(null); // { reference, amountKobo, promoApplied, activated }
+
+  // Live promo validation, debounced — redemption itself only happens
+  // server-side at create time (see api/signup.js).
+  useEffect(() => {
+    const code = promoCode.trim();
+    if (!code) { setPromoStatus({ state: 'idle', percentOff: 0, msg: '' }); return; }
+    setPromoStatus({ state: 'checking', percentOff: 0, msg: '' });
+    const t = setTimeout(async () => {
+      try {
+        const d = await callSignup('check-promo', { code });
+        setPromoStatus(d.valid
+          ? { state: 'ok', percentOff: d.percentOff, msg: d.percentOff === 100 ? 'This code makes your first activation free.' : `${d.percentOff}% off your activation fee.` }
+          : { state: 'bad', percentOff: 0, msg: d.reason });
+      } catch (e2) {
+        setPromoStatus({ state: 'bad', percentOff: 0, msg: e2.message });
+      }
+    }, 450);
+    return () => clearTimeout(t);
+  }, [promoCode]);
 
   useEffect(() => {
     if (!slugTouched) setOrgSlug(slugify(orgName));
@@ -138,7 +160,7 @@ export default function Signup() {
     try {
       const d = await callSignup('create', {
         planTier, orgName: orgName.trim(), orgSlug, themeColor, websiteType, logoUrl, country,
-        ownerName: ownerName.trim(), email, password,
+        ownerName: ownerName.trim(), email, password, promoCode: promoStatus.state === 'ok' ? promoCode.trim() : '',
       });
       setResult(d);
       setStepIdx(STEPS.indexOf('payment'));
@@ -279,6 +301,13 @@ export default function Signup() {
               <label>Password</label>
               <input className="su-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 8 characters" />
             </div>
+            <div className="su-field">
+              <label>Promo code <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional)</span></label>
+              <input className="su-input" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} placeholder="Got a code? Enter it here" style={{ textTransform: 'uppercase' }} />
+              {promoStatus.state === 'checking' && <p style={{ fontSize: 12.5, margin: '6px 0 0', opacity: 0.6 }}>Checking…</p>}
+              {promoStatus.state === 'ok' && <p style={{ fontSize: 12.5, margin: '6px 0 0', color: '#1F6D45', fontWeight: 600 }}>✓ {promoStatus.msg}</p>}
+              {promoStatus.state === 'bad' && <p style={{ fontSize: 12.5, margin: '6px 0 0', color: '#c02b2b' }}>{promoStatus.msg}</p>}
+            </div>
             <p className="su-sub" style={{ marginBottom: 0, fontSize: 12.5 }}>
               By continuing you agree to Collarone's <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>.
             </p>
@@ -289,12 +318,37 @@ export default function Signup() {
           </form>
         )}
 
-        {step === 'payment' && result && (
+        {step === 'payment' && result && result.activated && (
+          <>
+            <p className="su-kicker">🎉 You're in</p>
+            <h1 className="su-h">{orgName} is live</h1>
+            <div className="su-pay-ref">
+              <div className="su-pay-amt" style={{ color: '#1F6D45' }}>₦0</div>
+              <div className="su-pay-ref-code">Code {result.promoApplied?.code} applied — activation on us.</div>
+              <p className="su-pay-note">
+                Your workspace is active right now — nothing to pay, nothing to wait for. Sign in with {email} and start setting up your team.
+              </p>
+            </div>
+            <div className="su-actions" style={{ justifyContent: 'center' }}>
+              <button type="button" className="su-btn su-btn-primary" onClick={() => nav('/login')}>Sign in to your workspace</button>
+            </div>
+          </>
+        )}
+
+        {step === 'payment' && result && !result.activated && (
           <>
             <p className="su-kicker">You're almost in</p>
             <h1 className="su-h">Activate {orgName}</h1>
             <div className="su-pay-ref">
-              <div className="su-pay-amt">₦{(result.amountKobo / 100).toLocaleString()}</div>
+              {result.promoApplied ? (
+                <div className="su-pay-amt">
+                  <span style={{ textDecoration: 'line-through', opacity: 0.35, fontSize: '0.6em', marginRight: 10 }}>₦{(result.promoApplied.baseKobo / 100).toLocaleString()}</span>
+                  ₦{(result.amountKobo / 100).toLocaleString()}
+                </div>
+              ) : (
+                <div className="su-pay-amt">₦{(result.amountKobo / 100).toLocaleString()}</div>
+              )}
+              {result.promoApplied && <div style={{ fontSize: 13, color: '#1F6D45', fontWeight: 600, marginBottom: 6 }}>Code {result.promoApplied.code} — {result.promoApplied.percentOff}% off applied</div>}
               <div className="su-pay-ref-code">Reference: {result.reference}</div>
               <p className="su-pay-note">
                 During early access, we confirm payments personally — WhatsApp us your reference and we'll send transfer details and activate your space the same day. Once active, sign in with {email} to reach your dashboard.

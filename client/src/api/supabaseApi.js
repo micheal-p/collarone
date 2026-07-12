@@ -169,6 +169,18 @@ export async function supabaseApi(path, opts = {}) {
   }
   if (head === 'GET /catalog') return { suites: SUITES };
 
+  // ---- org notices (payment reminders etc — RLS scopes reads to own org) ----
+  if (head === 'GET /me' && seg[1] === 'notices') {
+    const { data, error } = await supabase.from('org_notices').select('*').is('dismissed_at', null).order('created_at', { ascending: false }).limit(3);
+    if (error) fail(400, error.message);
+    return { notices: data };
+  }
+  if (method === 'POST' && seg[0] === 'notices' && seg[2] === 'dismiss') {
+    const { error } = await supabase.from('org_notices').update({ dismissed_at: new Date().toISOString() }).eq('id', seg[1]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
   // ---- billing (org-scoped by RLS) ----
   if (head === 'GET /billing' && seg[1] === 'transactions') {
     const { data, error } = await supabase.from('billing_transactions').select('*').order('created_at', { ascending: false });
@@ -224,6 +236,39 @@ export async function supabaseApi(path, opts = {}) {
     const { data, error } = await supabase.from('page_views').select('path, country, created_at').gte('created_at', since).order('created_at', { ascending: false }).limit(20000);
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { pageViews: data };
+  }
+  // Promo codes + payment reminders — plain RLS writes: the promo_codes and
+  // org_notices policies only admit is_platform_admin(), so no service-role
+  // hop is needed for platform-admin CRUD here.
+  if (head === 'GET /platform' && seg[1] === 'promo-codes') {
+    const { data, error } = await supabase.from('promo_codes').select('*').order('created_at', { ascending: false });
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { promoCodes: data };
+  }
+  if (head === 'POST /platform' && seg[1] === 'promo-codes') {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('promo_codes').insert({
+      code: (body.code || '').trim().toUpperCase(),
+      percent_off: body.percentOff,
+      expires_at: body.expiresAt || null,
+      max_uses: body.maxUses || null,
+      created_by: user?.id,
+    }).select().single();
+    if (error) fail(error.code === '23505' ? 409 : 400, error.code === '23505' ? 'That code already exists.' : error.message);
+    return { promoCode: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'platform' && seg[1] === 'promo-codes' && seg[2]) {
+    const { data, error } = await supabase.from('promo_codes').update({ active: body.active }).eq('id', seg[2]).select().single();
+    if (error) fail(400, error.message);
+    return { promoCode: data };
+  }
+  if (head === 'POST /platform' && seg[1] === 'remind-payment') {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('org_notices').insert({
+      org_id: body.orgId, kind: 'payment_reminder', message: body.message, created_by: user?.id,
+    });
+    if (error) fail(400, error.message);
+    return { ok: true };
   }
 
   // ---- status: public health-check history (unauthenticated, anon role) ----

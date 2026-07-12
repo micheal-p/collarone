@@ -62,6 +62,12 @@ function HomeRoute() {
   );
 }
 
+function WorkspaceRoute() {
+  const { user } = useAuth();
+  if (user?.isPlatformAdmin) return <Navigate to="/platform-admin" replace />;
+  return <Launcher />;
+}
+
 export default function App() {
   usePageViewTracking();
   return (
@@ -88,11 +94,14 @@ export default function App() {
 
       <Route path="/" element={<HomeRoute />} />
 
+      {/* A platform admin has no organization workspace of their own — the
+          only way into a tenant view is the audited guest mode, where the
+          session belongs to that org's admin (so isPlatformAdmin is false). */}
       <Route
         path="/workspace"
         element={
           <ProtectedRoute>
-            <Launcher />
+            <WorkspaceRoute />
           </ProtectedRoute>
         }
       />

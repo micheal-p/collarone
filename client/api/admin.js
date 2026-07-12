@@ -141,10 +141,13 @@ export default async function handler(req, res) {
 
     // 'guest-mode' — explicitly re-requested by the user after the earlier
     // "test suites" count-only check: they want to actually click through a
-    // real org's UI to unit-test it, not just see row counts. Real magic-link
-    // login as that org's own super_admin, heavily audited, redirected with
-    // a ?guest=1 marker so the app can show a persistent "TEST MODE" banner
-    // and an explicit exit action for the whole session (see AppLayout.jsx).
+    // real org's UI to unit-test it, not see row counts. Real login as that
+    // org's own super_admin, heavily audited, with a persistent "guest mode"
+    // banner for the whole session (see AppLayout.jsx). Returns the magic
+    // link's hashed token for the browser to redeem via verifyOtp() — NOT a
+    // redirect link, because redirect URLs must be pre-allowlisted in the
+    // Supabase auth config and an unlisted one silently bounces to the site
+    // root without logging in (which is exactly how this "wasn't working").
     if (action === 'guest-mode') {
       await requirePlatformAdmin();
 
@@ -155,15 +158,11 @@ export default async function handler(req, res) {
         .eq('org_id', orgId).eq('role', 'super_admin').limit(1).maybeSingle();
       if (!target) return json(res, 404, { message: 'This organization has no admin account to guest into.' });
 
-      const origin = req.headers.origin || 'https://collarone.vercel.app';
-      const { data: link, error: linkErr } = await admin.auth.admin.generateLink({
-        type: 'magiclink', email: target.email,
-        options: { redirectTo: `${origin}/?guest=1&guestOrgId=${orgId}&guestOrgName=${encodeURIComponent(org?.name || '')}` },
-      });
+      const { data: link, error: linkErr } = await admin.auth.admin.generateLink({ type: 'magiclink', email: target.email });
       if (linkErr) return json(res, 400, { message: linkErr.message });
 
       await logAudit('guest_mode', orgId, { targetProfileId: target.id, targetEmail: target.email });
-      return json(res, 200, { actionLink: link.properties.action_link, name: target.name, email: target.email });
+      return json(res, 200, { tokenHash: link.properties.hashed_token, name: target.name, email: target.email, orgName: org?.name || 'this organization' });
     }
 
     // Payroll runs Nigerian PAYE/pension/NHF only — it isn't built for any
