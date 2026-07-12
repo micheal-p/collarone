@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { apiGet, apiPost } from '../api/client.js';
 import { FOUNDING_ORG_ID } from '../config/org.js';
 import PlatformShell from '../components/PlatformShell.jsx';
@@ -11,40 +12,117 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-dig
 const fmtDateTime = (d) => d ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const cardStyle = { padding: 20, background: '#14161c', border: '1px solid rgba(244,241,234,0.10)', borderRadius: 14 };
-const labelStyle = { fontSize: 11.5, fontWeight: 600, color: 'rgba(244,241,234,0.5)', textTransform: 'uppercase', letterSpacing: '.05em' };
+const I = {
+  org:  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="3" y="8" width="18" height="13" rx="1.5" /><path d="M8 21V8M16 21V8M3 13h18M3 17h18" /><path d="M9 4h6v4H9z" /></svg>,
+  users: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="9" cy="8" r="3.2" /><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" /><path d="M16 6.5a3 3 0 0 1 0 5.6M17 14c2.5.4 4 2.3 4 5" /></svg>,
+  pulse: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M3 12h4l2 7 4-14 2 7h6" /></svg>,
+  coin: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><ellipse cx="9" cy="7" rx="5.5" ry="2.6" /><path d="M3.5 7v5c0 1.4 2.5 2.6 5.5 2.6s5.5-1.2 5.5-2.6V7" /><path d="M14.5 12.5c2.6.2 5 1.3 5 2.8 0 1.4-2.5 2.6-5.5 2.6-1.4 0-2.7-.3-3.6-.7" /></svg>,
+  chev: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>,
+  check: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12l4 4 10-10" /></svg>,
+  close: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>,
+};
+
+const glass = { background: 'rgba(20,22,30,0.55)', border: '1px solid rgba(244,241,234,0.10)', borderRadius: 16, backdropFilter: 'blur(14px)' };
+
+function StatCard({ icon, label, value, accent, delay }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay, ease: [0.2, 0.7, 0.3, 1] }}
+      whileHover={{ y: -3 }}
+      style={{ ...glass, padding: '20px 22px', position: 'relative', overflow: 'hidden' }}
+    >
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${accent}, transparent)` }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <span style={{ width: 34, height: 34, borderRadius: 10, background: `${accent}22`, color: accent, display: 'grid', placeItems: 'center' }}>{icon}</span>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: 'rgba(244,241,234,0.5)', textTransform: 'uppercase', letterSpacing: '.05em' }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 30, fontWeight: 700, fontFamily: 'ui-monospace, monospace', color: '#F4F1EA' }}>{value}</div>
+    </motion.div>
+  );
+}
 
 function DeleteOrgModal({ org, onClose, onConfirm, busy }) {
   const [text, setText] = useState('');
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Delete {org.name}</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'grid', placeItems: 'center', zIndex: 100 }} onMouseDown={onClose}>
+      <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+        style={{ ...glass, background: '#14161c', width: 420, padding: 26 }} onMouseDown={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+          <h2 style={{ fontSize: 17, margin: 0, color: '#F4F1EA' }}>Delete {org.name}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.5)', cursor: 'pointer' }}>{I.close}</button>
+        </div>
+        <p style={{ fontSize: 13.5, color: 'rgba(244,241,234,0.6)', lineHeight: 1.6 }}>
+          This permanently deletes {org.name} — every staff account, the organization record, and its billing history. This cannot be undone.
+        </p>
+        <label style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.5)', display: 'block', margin: '16px 0 6px' }}>Type <strong style={{ color: '#F4F1EA' }}>{org.slug}</strong> to confirm</label>
+        <input value={text} onChange={(e) => setText(e.target.value)} placeholder={org.slug}
+          style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(244,241,234,0.15)', borderRadius: 8, padding: '10px 12px', color: '#F4F1EA', fontSize: 14 }} />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 22 }}>
+          <button onClick={onClose} style={{ background: 'transparent', border: '1px solid rgba(244,241,234,0.18)', color: '#F4F1EA', borderRadius: 8, padding: '9px 18px', cursor: 'pointer', fontSize: 13.5 }}>Cancel</button>
+          <button disabled={text !== org.slug || busy} onClick={onConfirm}
+            style={{ background: '#c02b2b', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: text !== org.slug ? 'not-allowed' : 'pointer', opacity: text !== org.slug ? 0.5 : 1, fontSize: 13.5, fontWeight: 600 }}>
+            {busy ? '…' : 'Delete permanently'}
           </button>
         </div>
-        <div className="modal-body">
-          <p style={{ fontSize: 13.5, color: 'var(--text-2)' }}>
-            This permanently deletes {org.name} — every staff account, the organization record, and its billing history. This cannot be undone.
-          </p>
-          <div className="field">
-            <label>Type <strong>{org.slug}</strong> to confirm</label>
-            <input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder={org.slug} />
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn" style={{ background: '#c02b2b', color: '#fff' }} disabled={text !== org.slug || busy} onClick={onConfirm}>
-              {busy ? <span className="spinner" /> : 'Delete permanently'}
-            </button>
-          </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function OrgRow({ org, staffCount, testingOrg, suiteResults, onTest, onDelete, index, reduce }) {
+  const [expanded, setExpanded] = useState(false);
+  const results = suiteResults[org.id];
+
+  return (
+    <motion.div
+      initial={reduce ? {} : { opacity: 0, x: -12 }} animate={reduce ? {} : { opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: index * 0.05 }}
+      style={{ ...glass, marginBottom: 10, overflow: 'hidden' }}
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 0.9fr 1fr 0.6fr 1fr auto auto', gap: 12, alignItems: 'center', padding: '16px 18px' }}>
+        <div style={{ fontWeight: 600, color: '#F4F1EA', fontSize: 14.5 }}>{org.name}</div>
+        <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5, color: 'rgba(244,241,234,0.55)' }}>{org.slug}</div>
+        <div style={{ fontSize: 13, textTransform: 'capitalize', color: 'rgba(244,241,234,0.75)' }}>{org.plan_tier}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: 'rgba(244,241,234,0.75)' }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: org.status === 'active' ? '#5fbf5f' : 'rgba(244,241,234,0.3)', boxShadow: org.status === 'active' ? '0 0 6px #5fbf5f' : 'none' }} />
+          {STATUS_LABEL[org.status] || org.status}
         </div>
+        <div style={{ fontSize: 13, color: 'rgba(244,241,234,0.75)' }}>{staffCount || 0}</div>
+        <div style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.5)' }}>{fmtDate(org.created_at)}</div>
+        <button
+          onClick={() => { onTest(org); setExpanded(true); }} disabled={testingOrg === org.id || org.status !== 'active'}
+          style={{ background: 'rgba(255,91,31,0.12)', border: '1px solid rgba(255,91,31,0.3)', color: '#FF9457', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', opacity: org.status !== 'active' ? 0.4 : 1 }}
+        >
+          {testingOrg === org.id ? '…' : 'Test suites'}
+        </button>
+        {org.id !== FOUNDING_ORG_ID ? (
+          <button onClick={() => onDelete(org)} style={{ background: 'transparent', border: '1px solid rgba(224,54,54,0.35)', color: '#e05555', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, cursor: 'pointer' }}>Delete</button>
+        ) : <span />}
       </div>
-    </div>
+      <AnimatePresence>
+        {results && expanded && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }}
+            style={{ borderTop: '1px solid rgba(244,241,234,0.08)', padding: '14px 18px', background: 'rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {results.map((r) => (
+                <span key={r.key} style={{
+                  fontSize: 11.5, padding: '4px 10px', borderRadius: 100, fontWeight: 600,
+                  background: r.ok ? 'rgba(95,191,95,0.15)' : 'rgba(224,85,85,0.15)', color: r.ok ? '#7fd67f' : '#e88a8a',
+                }}>
+                  {r.key}: {r.ok ? `OK (${r.count})` : 'Error'}
+                </span>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: 'rgba(244,241,234,0.35)', margin: '10px 0 0' }}>Row counts only — no customer data is ever shown here.</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
 export default function PlatformAdmin() {
+  const reduce = useReducedMotion();
   const [orgs, setOrgs] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -115,134 +193,75 @@ export default function PlatformAdmin() {
     } catch (e) { flash(e.message, true); } finally { setDeleting(false); }
   };
 
-  const stat = (label, value) => (
-    <div style={cardStyle}>
-      <div style={labelStyle}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 650, fontFamily: 'ui-monospace, monospace', marginTop: 6, color: '#F4F1EA' }}>{value}</div>
-    </div>
-  );
-
   return (
     <PlatformShell title="Platform Admin">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
-        {stat('Organizations', orgs.length)}
-        {stat('Signed-up users', profiles.length)}
-        {stat('Active in last 24h', activeLast24h)}
-        {stat('Pending payments', pendingTx.length)}
+        <StatCard icon={I.org} label="Organizations" value={orgs.length} accent="#FF5B1F" delay={0} />
+        <StatCard icon={I.users} label="Signed-up users" value={profiles.length} accent="#3b82f6" delay={0.05} />
+        <StatCard icon={I.pulse} label="Active in last 24h" value={activeLast24h} accent="#22c55e" delay={0.1} />
+        <StatCard icon={I.coin} label="Pending payments" value={pendingTx.length} accent="#eab308" delay={0.15} />
       </div>
-      <p style={{ fontSize: 12, color: 'rgba(244,241,234,0.4)', marginBottom: 28 }}>
+      <p style={{ fontSize: 12, color: 'rgba(244,241,234,0.4)', marginBottom: 32 }}>
         "Active in last 24h" is from real sign-in timestamps, not live presence. Page-visitor analytics live in Vercel's dashboard for this project — real uptime monitoring is a separate concern, see <a href="/status" style={{ color: '#FF9457' }}>the status page</a>.
       </p>
 
       {pendingTx.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          <h2 style={{ fontSize: 15, margin: '0 0 12px', color: '#F4F1EA' }}>Pending payments</h2>
-          <div className="table-wrap">
-            <table className="table">
-              <thead><tr><th>Organization</th><th>Type</th><th>Reference</th><th>Amount</th><th>Date</th><th></th></tr></thead>
-              <tbody>
-                {pendingTx.map((t) => (
-                  <tr key={t.id}>
-                    <td>{orgName(t.org_id)}</td>
-                    <td>{t.type === 'activation_fee' ? 'Activation fee' : 'Seat credits'}</td>
-                    <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5 }}>{t.reference}</td>
-                    <td>{naira(t.amount_kobo)}</td>
-                    <td>{fmtDate(t.created_at)}</td>
-                    <td>
-                      <button className="btn btn-primary" style={{ padding: '6px 14px', fontSize: 13 }} disabled={confirming === t.id} onClick={() => confirmPayment(t.id)}>
-                        {confirming === t.id ? <span className="spinner" /> : 'Confirm'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div style={{ marginBottom: 32 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '.02em', margin: '0 0 14px', color: '#F4F1EA' }}>PENDING PAYMENTS</h2>
+          {pendingTx.map((t, i) => (
+            <motion.div key={t.id} initial={reduce ? {} : { opacity: 0, y: 8 }} animate={reduce ? {} : { opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+              style={{ ...glass, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', marginBottom: 8 }}>
+              <div>
+                <div style={{ fontWeight: 600, color: '#F4F1EA', fontSize: 14 }}>{orgName(t.org_id)}</div>
+                <div style={{ fontSize: 12, color: 'rgba(244,241,234,0.5)', marginTop: 2 }}>
+                  {t.type === 'activation_fee' ? 'Activation fee' : 'Seat credits'} · <span style={{ fontFamily: 'ui-monospace, monospace' }}>{t.reference}</span> · {fmtDate(t.created_at)}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, color: '#F4F1EA' }}>{naira(t.amount_kobo)}</span>
+                <button onClick={() => confirmPayment(t.id)} disabled={confirming === t.id}
+                  style={{ background: '#FF5B1F', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {confirming === t.id ? '…' : <>{I.check} Confirm</>}
+                </button>
+              </div>
+            </motion.div>
+          ))}
         </div>
       )}
 
-      <h2 style={{ fontSize: 15, margin: '0 0 12px', color: '#F4F1EA' }}>Organizations</h2>
-      <div className="table-wrap" style={{ marginBottom: 28 }}>
-        <table className="table">
-          <thead><tr><th>Name</th><th>Handle</th><th>Plan</th><th>Status</th><th>Staff</th><th>Created</th><th colSpan={2}></th></tr></thead>
-          <tbody>
-            {loading && <tr><td colSpan={8} className="td-empty">Loading…</td></tr>}
-            {!loading && orgs.length === 0 && <tr><td colSpan={8} className="td-empty">No organizations yet.</td></tr>}
-            {!loading && orgs.map((o) => (
-              <>
-                <tr key={o.id}>
-                  <td>{o.name}</td>
-                  <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5 }}>{o.slug}</td>
-                  <td style={{ textTransform: 'capitalize' }}>{o.plan_tier}</td>
-                  <td><span className={`status-dot ${o.status === 'active' ? 'active' : 'disabled'}`} />{STATUS_LABEL[o.status] || o.status}</td>
-                  <td>{staffCountByOrg[o.id] || 0}</td>
-                  <td>{fmtDate(o.created_at)}</td>
-                  <td>
-                    {o.status === 'active' && (
-                      <button className="btn btn-ghost" style={{ padding: '6px 14px', fontSize: 13 }} disabled={testingOrg === o.id} onClick={() => testSuites(o)}>
-                        {testingOrg === o.id ? <span className="spinner" /> : 'Test suites'}
-                      </button>
-                    )}
-                  </td>
-                  <td>
-                    {o.id !== FOUNDING_ORG_ID && (
-                      <button className="btn btn-ghost" style={{ padding: '6px 14px', fontSize: 13, color: '#c02b2b', borderColor: '#e7b8b8' }} onClick={() => setDeleteTarget(o)}>
-                        Delete
-                      </button>
-                    )}
-                  </td>
-                </tr>
-                {suiteResults[o.id] && (
-                  <tr key={`${o.id}-results`}>
-                    <td colSpan={8} style={{ background: '#14161c', padding: '10px 14px' }}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                        {suiteResults[o.id].map((r) => (
-                          <span key={r.key} style={{
-                            fontSize: 11.5, padding: '3px 9px', borderRadius: 12,
-                            background: r.ok ? 'rgba(26,106,26,0.18)' : 'rgba(164,38,44,0.18)',
-                            color: r.ok ? '#5fbf5f' : '#e77b7f',
-                          }}>
-                            {r.key}: {r.ok ? `OK (${r.count})` : `Error`}
-                          </span>
-                        ))}
-                      </div>
-                      <p style={{ fontSize: 11, color: 'rgba(244,241,234,0.4)', margin: '8px 0 0' }}>
-                        Row counts only — no customer data is ever shown here.
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </>
-            ))}
-          </tbody>
-        </table>
+      <h2 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '.02em', margin: '0 0 14px', color: '#F4F1EA' }}>ORGANIZATIONS</h2>
+      <div style={{ marginBottom: 32 }}>
+        {loading && <p style={{ color: 'rgba(244,241,234,0.5)', fontSize: 13.5 }}>Loading…</p>}
+        {!loading && orgs.length === 0 && <p style={{ color: 'rgba(244,241,234,0.5)', fontSize: 13.5 }}>No organizations yet.</p>}
+        {!loading && orgs.map((o, i) => (
+          <OrgRow key={o.id} org={o} staffCount={staffCountByOrg[o.id]} testingOrg={testingOrg} suiteResults={suiteResults}
+            onTest={testSuites} onDelete={setDeleteTarget} index={i} reduce={reduce} />
+        ))}
       </div>
 
-      <h2 style={{ fontSize: 15, margin: '0 0 12px', color: '#F4F1EA' }}>Audit log</h2>
-      <div className="table-wrap">
-        <table className="table">
-          <thead><tr><th>When</th><th>Action</th><th>Organization</th><th>Detail</th></tr></thead>
-          <tbody>
-            {!loading && auditLog.length === 0 && <tr><td colSpan={4} className="td-empty">No sensitive actions taken yet.</td></tr>}
-            {auditLog.map((e) => (
-              <tr key={e.id}>
-                <td>{fmtDateTime(e.created_at)}</td>
-                <td>{AUDIT_LABEL[e.action] || e.action}</td>
-                <td>{orgName(e.target_org_id)}</td>
-                <td style={{ fontSize: 12, color: 'var(--text-2)' }}>
-                  {e.action === 'confirm_payment' && `${e.details?.type} · ${naira(e.details?.amountKobo || 0)}`}
-                  {e.action === 'delete_org' && `${e.details?.memberCount ?? 0} staff account${e.details?.memberCount === 1 ? '' : 's'} removed`}
-                  {e.action === 'impersonate' && e.details?.targetEmail}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <h2 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '.02em', margin: '0 0 14px', color: '#F4F1EA' }}>AUDIT LOG</h2>
+      <div style={{ ...glass, padding: auditLog.length ? '6px 18px' : '18px' }}>
+        {!loading && auditLog.length === 0 && <p style={{ color: 'rgba(244,241,234,0.5)', fontSize: 13.5, margin: 0 }}>No sensitive actions taken yet.</p>}
+        {auditLog.map((e, i) => (
+          <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 0', borderTop: i > 0 ? '1px solid rgba(244,241,234,0.06)' : 'none' }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF5B1F', flexShrink: 0 }} />
+            <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.45)', width: 130, flexShrink: 0 }}>{fmtDateTime(e.created_at)}</span>
+            <span style={{ fontSize: 13.5, color: '#F4F1EA', width: 170, flexShrink: 0 }}>{AUDIT_LABEL[e.action] || e.action}</span>
+            <span style={{ fontSize: 13, color: 'rgba(244,241,234,0.6)', width: 140, flexShrink: 0 }}>{orgName(e.target_org_id)}</span>
+            <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.4)' }}>
+              {e.action === 'confirm_payment' && `${e.details?.type} · ${naira(e.details?.amountKobo || 0)}`}
+              {e.action === 'delete_org' && `${e.details?.memberCount ?? 0} staff account${e.details?.memberCount === 1 ? '' : 's'} removed`}
+              {e.action === 'impersonate' && e.details?.targetEmail}
+            </span>
+          </div>
+        ))}
       </div>
 
-      {deleteTarget && (
-        <DeleteOrgModal org={deleteTarget} busy={deleting} onClose={() => setDeleteTarget(null)} onConfirm={deleteOrg} />
-      )}
+      <AnimatePresence>
+        {deleteTarget && (
+          <DeleteOrgModal org={deleteTarget} busy={deleting} onClose={() => setDeleteTarget(null)} onConfirm={deleteOrg} />
+        )}
+      </AnimatePresence>
       {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
     </PlatformShell>
   );

@@ -19,7 +19,10 @@ export default function PlatformShell({ title, children }) {
   const { user, logout } = useAuth();
 
   return (
-    <div style={{ minHeight: '100%', background: '#0A0E1A', color: '#F4F1EA' }}>
+    <div style={{
+      minHeight: '100%', color: '#F4F1EA',
+      background: 'radial-gradient(1100px 480px at 15% -10%, rgba(255,91,31,0.10), transparent 60%), radial-gradient(900px 500px at 100% 10%, rgba(59,130,246,0.06), transparent 60%), #0A0E1A',
+    }}>
       <header style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '16px 28px', borderBottom: '1px solid rgba(244,241,234,0.12)',
