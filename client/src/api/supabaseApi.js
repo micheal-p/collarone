@@ -337,7 +337,7 @@ export async function supabaseApi(path, opts = {}) {
       if (!reportBody?.trim()) fail(400, 'Report body is required.');
       const { data: { user } } = await supabase.auth.getUser();
       const { data, error } = await supabase.from('task_reports')
-        .insert({ task_id: seg[1], author_id: user.id, body: reportBody.trim(), attachments: attachments || [] })
+        .insert({ task_id: seg[1], author_id: user.id, body: reportBody.trim(), attachments: attachments || [], org_id: await myOrgId() })
         .select('*, author:profiles!author_id(id,name,email)').single();
       if (error) fail(400, error.message);
       return { report: data };
@@ -345,7 +345,7 @@ export async function supabaseApi(path, opts = {}) {
     const { title, description, departmentId, assignedTo, priority, dueDate } = body;
     if (!title) fail(400, 'Title is required.');
     const { data: { user } } = await supabase.auth.getUser();
-    const row = { title, description: description || '', created_by: user.id };
+    const row = { title, description: description || '', created_by: user.id, org_id: await myOrgId() };
     if (departmentId) row.department_id = departmentId;
     if (assignedTo)   row.assigned_to   = assignedTo;
     if (priority)     row.priority      = priority;
@@ -962,7 +962,7 @@ export async function supabaseApi(path, opts = {}) {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('visitors').insert({
       name: name.trim(), company: (company || '').trim(),
-      phone: phone.trim(), email: (email || '').trim(), created_by: user.id,
+      phone: phone.trim(), email: (email || '').trim(), created_by: user.id, org_id: await myOrgId(),
     }).select().single();
     if (error) fail(400, error.message);
     return { visitor: data };
@@ -1030,7 +1030,7 @@ export async function supabaseApi(path, opts = {}) {
       const { data: vis, error: visErr } = await supabase.from('visitors').insert({
         name: visitorName.trim(), company: (visitorCompany || '').trim(),
         phone: visitorPhone.trim(), email: (visitorEmail || '').trim(),
-        created_by: user.id,
+        created_by: user.id, org_id: await myOrgId(),
       }).select().single();
       if (visErr) fail(400, visErr.message);
       resolvedVisitorId = vis.id;
