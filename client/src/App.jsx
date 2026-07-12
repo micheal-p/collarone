@@ -9,8 +9,9 @@ import SuiteShell from './pages/SuiteShell.jsx';
 import AdminUsers from './pages/admin/Users.jsx';
 import AdminDepartments from './pages/admin/Departments.jsx';
 import AdminBilling from './pages/admin/Billing.jsx';
-import AdminWebsite from './pages/admin/Website.jsx';
+import AdminWebsite from './pages/admin/website/WebsiteBuilder.jsx';
 import PlatformAdmin from './pages/PlatformAdmin.jsx';
+import PublicSite from './pages/site/PublicSite.jsx';
 import Profile from './pages/Profile.jsx';
 import CareersIndex from './pages/careers/CareersIndex.jsx';
 import CareersApply from './pages/careers/CareersApply.jsx';
@@ -48,6 +49,7 @@ export default function App() {
       <Route path="/status" element={<Status />} />
       <Route path="/careers" element={<CareersIndex />} />
       <Route path="/careers/:id" element={<CareersApply />} />
+      <Route path="/site/:slug" element={<PublicSite />} />
 
       <Route
         path="/change-password"
