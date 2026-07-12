@@ -1176,5 +1176,31 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
 
+  // ---- attendance ----
+  const ATT_SELECT = '*, employee:profiles!employee_id(id,name,email)';
+  if (head === 'GET /attendance' && seg[1] === 'records') {
+    const { data, error } = await supabase.from('attendance_records').select(ATT_SELECT).order('clock_in_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { records: data };
+  }
+  if (head === 'GET /attendance' && seg[1] === 'mine') {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('attendance_records').select('*').eq('employee_id', user.id).order('clock_in_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { records: data };
+  }
+  if (head === 'POST /attendance' && seg[1] === 'clockin') {
+    const { lat, lng } = body;
+    const { data, error } = await supabase.rpc('attendance_clock_in', { p_lat: lat ?? null, p_lng: lng ?? null });
+    if (error) fail(400, error.message);
+    return { record: data };
+  }
+  if (head === 'POST /attendance' && seg[1] === 'clockout') {
+    const { lat, lng } = body;
+    const { data, error } = await supabase.rpc('attendance_clock_out', { p_lat: lat ?? null, p_lng: lng ?? null });
+    if (error) fail(400, error.message);
+    return { record: data };
+  }
+
   return fail(404, `No Supabase route for ${method} ${path}`);
 }

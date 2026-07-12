@@ -7,7 +7,7 @@ export const SUITES = [
   { key: 'visitors',    name: 'Visitor Management', tier: 'core',     status: 'live', desc: 'Front-desk check-in, host alerts, visitor logs.' },
   { key: 'payroll',     name: 'Payroll',            tier: 'core',     status: 'live', desc: 'Salary structures, payroll runs, statutory deductions, payslips.' },
   { key: 'crm',         name: 'CRM',                tier: 'core',     status: 'live', desc: 'Companies, contacts and a WhatsApp-first activity log.' },
-  { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'soon', desc: 'Clock-in/out, timesheets, overtime.' },
+  { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'live', desc: 'Geo-tagged clock-in/out, timesheets, overtime.' },
   { key: 'benefits',    name: 'Benefits',           tier: 'extended', status: 'soon', desc: 'HMO, group life, pension/PFA tracking.' },
   { key: 'it-assets',   name: 'IT Assets',          tier: 'extended', status: 'soon', desc: 'Asset tracking, assignment and lifecycle.' },
   { key: 'procurement', name: 'Procurement',        tier: 'extended', status: 'soon', desc: 'Purchase requests, vendors and approvals.' },
@@ -43,7 +43,7 @@ export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
 // founding one. Everything
 // else is enforced server-side too (enforce_phase1_suite_scope() strips any
 // other key on write) — this list just keeps the UI honest about it.
-export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm'];
+export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance'];
 
 // Per-suite role options shown in the admin grant picker.
 // Suites not listed here get the default Member / Manager pair.
