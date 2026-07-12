@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet } from '../api/client.js';
 import { SUITE_META, tierLabel } from '../config/suites.js';
@@ -13,12 +14,18 @@ const greeting = () => {
   return 'Good evening';
 };
 
-function SuiteTile({ s, onOpen }) {
+function SuiteTile({ s, onOpen, index, reduce }) {
   const meta = SUITE_META[s.key] || {};
   const locked = !s.granted;
   const soon = s.granted && s.status === 'soon';
   return (
-    <button className={`tile ${locked ? 'tile-locked' : ''} ${soon ? 'tile-soon' : ''}`}
+    <motion.button
+      className={`tile ${locked ? 'tile-locked' : ''} ${soon ? 'tile-soon' : ''}`}
+      initial={reduce ? false : { opacity: 0, y: 18 }}
+      animate={reduce ? {} : { opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay: index * 0.04, ease: [0.2, 0.7, 0.3, 1] }}
+      whileHover={s.openable && !reduce ? { y: -5, transition: { duration: 0.2 } } : undefined}
+      whileTap={s.openable ? { scale: 0.97 } : undefined}
       onClick={() => s.openable && onOpen(s)} disabled={!s.openable}
       title={locked ? 'You have not been granted access to this suite' : soon ? 'Coming soon' : `Open ${s.name}`}>
       <span className="tile-icon" style={{ background: locked ? '#c8c6c4' : meta.tint || 'var(--brand)' }}>
@@ -34,13 +41,14 @@ function SuiteTile({ s, onOpen }) {
         {s.openable && s.suiteRole === 'manager' && <span className="badge badge-core">Manager</span>}
         {s.openable && s.suiteRole === 'member' && <span className="badge badge-admin">Member</span>}
       </span>
-    </button>
+    </motion.button>
   );
 }
 
 export default function Launcher() {
   const { user } = useAuth();
   const nav = useNavigate();
+  const reduce = useReducedMotion();
   const [suites, setSuites] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -59,7 +67,12 @@ export default function Launcher() {
 
   return (
     <AppLayout breadcrumb={[{ label: 'Home' }]}>
-      <div className="home-hero">
+      <motion.div
+        className="home-hero"
+        initial={reduce ? false : { opacity: 0, y: 14 }}
+        animate={reduce ? {} : { opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, ease: [0.2, 0.7, 0.3, 1] }}
+      >
         <p className="hk">{greeting()},</p>
         <h1>{user?.name?.split(' ')[0] || 'there'}</h1>
         <p>
@@ -67,7 +80,7 @@ export default function Launcher() {
             ? 'You have full access as System Administrator. Pick a suite or open the Admin Center.'
             : `You have access to ${grantedCount} suite${grantedCount === 1 ? '' : 's'}. Pick one to get started.`}
         </p>
-      </div>
+      </motion.div>
 
       {err && <div className="error-text">{err}</div>}
       {loading ? (
@@ -76,11 +89,11 @@ export default function Launcher() {
         <>
           <div className="suite-group">
             <div className="group-head"><h2>{tierLabel.core}</h2><span className="group-line" /></div>
-            <div className="tile-grid">{core.map((s) => <SuiteTile key={s.key} s={s} onOpen={(x) => nav(`/suite/${x.key}`)} />)}</div>
+            <div className="tile-grid">{core.map((s, i) => <SuiteTile key={s.key} s={s} index={i} reduce={reduce} onOpen={(x) => nav(`/suite/${x.key}`)} />)}</div>
           </div>
           <div className="suite-group">
             <div className="group-head"><h2>{tierLabel.extended}</h2><span className="group-line" /></div>
-            <div className="tile-grid">{extended.map((s) => <SuiteTile key={s.key} s={s} onOpen={(x) => nav(`/suite/${x.key}`)} />)}</div>
+            <div className="tile-grid">{extended.map((s, i) => <SuiteTile key={s.key} s={s} index={core.length + i} reduce={reduce} onOpen={(x) => nav(`/suite/${x.key}`)} />)}</div>
           </div>
         </>
       )}

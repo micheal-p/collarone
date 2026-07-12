@@ -75,6 +75,7 @@
 .cl-marquee-item { display: inline-flex; align-items: center; gap: 18px; font-size: 12.5px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; color: var(--text-faint); padding: 0 18px; white-space: nowrap; }
 .cl-marquee-dot { color: var(--accent); font-size: 10px; }
 @keyframes cl-marquee-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.cl-marquee:hover .cl-marquee-track { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) { .cl-marquee-track { animation: none; } }
 
 .cl-hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; }
@@ -88,7 +89,11 @@
 .cl-kicker .cl-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 .cl-hero h1 { font-size: clamp(36px, 4.6vw, 58px); line-height: 1.06; letter-spacing: -.03em; }
-.cl-grad-word { background: linear-gradient(100deg, var(--accent) 0%, #FF9457 50%, var(--accent) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.cl-grad-word { background: linear-gradient(100deg, var(--accent) 0%, #FF9457 35%, #FFC29E 55%, var(--accent) 80%);
+  background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: cl-grad-shift 5.5s ease-in-out infinite; }
+@keyframes cl-grad-shift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+@media (prefers-reduced-motion: reduce) { .cl-grad-word { animation: none; } }
 .cl-hero-sub { font-size: 18px; line-height: 1.6; color: var(--text-soft); max-width: 46ch; margin: 24px 0 36px; }
 @media (max-width: 940px) { .cl-hero-sub { margin: 24px auto 36px; } }
 .cl-hero-ctas { display: flex; gap: 12px; justify-content: flex-start; flex-wrap: wrap; }
@@ -99,8 +104,25 @@
 .cl-chip { font-size: 13.5px; color: var(--text-soft); background: var(--surface); border: 1px solid var(--line-strong);
   padding: 9px 16px; border-radius: 100px; box-shadow: var(--shadow-sm); display: inline-flex; align-items: center; gap: 7px; }
 
-.cl-hero-shot { border-radius: 20px; overflow: hidden;
+.cl-hero-shot-wrap { position: relative; }
+.cl-hero-shot { border-radius: 20px; overflow: hidden; will-change: transform;
   box-shadow: var(--shadow-lg); border: 1px solid var(--line); background: var(--surface); }
+
+/* floating notification toasts over the hero mock */
+.cl-float-toast { position: absolute; display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.92); backdrop-filter: blur(12px);
+  border: 1px solid var(--line); border-radius: 14px; padding: 10px 16px 10px 10px;
+  box-shadow: var(--shadow-md); z-index: 2; animation: cl-float 5s ease-in-out infinite; }
+.cl-float-toast strong { display: block; font-size: 12.5px; letter-spacing: -.01em; }
+.cl-float-toast small { display: block; font-size: 11px; color: var(--text-faint); margin-top: 1px; }
+.cl-toast-ic { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 14px; font-weight: 800; flex: none; }
+.cl-toast-ic.ok { background: #DCEFE2; color: #1F6D45; }
+.cl-toast-ic.pay { background: var(--accent-soft); color: var(--accent-ink); }
+.cl-toast-a { left: -34px; bottom: 42px; }
+.cl-toast-b { right: -20px; top: 34px; animation-delay: 2.2s; }
+@keyframes cl-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@media (max-width: 940px) { .cl-toast-a { left: 8px; } .cl-toast-b { right: 8px; } }
+@media (prefers-reduced-motion: reduce) { .cl-float-toast { animation: none; } }
 .cl-browser-bar { display: flex; align-items: center; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--bg-tint); }
 .cl-dotb { width: 10px; height: 10px; border-radius: 50%; }
 .cl-dotb.r { background: #FF6259; } .cl-dotb.y { background: #FFBD2E; } .cl-dotb.g { background: #28C840; }
@@ -130,6 +152,42 @@
 /* ---- sections ---- */
 .cl-sec { padding: 92px 0; }
 .cl-sec.cl-tint { background: var(--bg-tint); }
+
+/* dark statement section — same glass-on-navy language as Platform Control */
+.cl-sec.cl-dark {
+  background:
+    radial-gradient(1000px 460px at 12% -8%, rgba(255,91,31,0.14), transparent 60%),
+    radial-gradient(800px 420px at 100% 15%, rgba(59,130,246,0.09), transparent 60%),
+    var(--ink);
+  color: var(--paper);
+}
+.cl-dark .cl-sec-h { color: var(--paper); }
+.cl-dark .cl-eyebrow { color: #FF9457; }
+.cl-dark .cl-sec-lede { color: rgba(244,241,234,0.6); }
+.cl-dark .cl-gallery-shot { background: rgba(20,22,30,0.55); border-color: rgba(244,241,234,0.12);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.45); backdrop-filter: blur(14px); }
+.cl-dark .cl-gallery-shot:hover { border-color: rgba(255,148,87,0.4); box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
+.cl-dark .cl-browser-bar { background: rgba(255,255,255,0.04); border-color: rgba(244,241,234,0.09); }
+.cl-dark .cl-url { color: rgba(244,241,234,0.45); }
+.cl-dark .cl-mtitle { color: var(--paper); }
+.cl-dark .cl-mc { background: rgba(255,255,255,0.045); border-color: rgba(244,241,234,0.09); }
+.cl-dark .cl-mc .cl-mv { color: var(--paper); }
+.cl-dark .cl-mc .cl-ml { color: rgba(244,241,234,0.5); }
+.cl-dark .cl-mock-table { border-color: rgba(244,241,234,0.1); }
+.cl-dark .cl-mock-row { border-color: rgba(244,241,234,0.07); color: rgba(244,241,234,0.6); }
+.cl-dark .cl-mock-bar { background: rgba(244,241,234,0.16); }
+
+/* dark closing CTA card */
+.cl-contact-card.cl-dark-card {
+  background:
+    radial-gradient(700px 320px at 18% 0%, rgba(255,91,31,0.2), transparent 60%),
+    radial-gradient(560px 300px at 95% 100%, rgba(59,130,246,0.1), transparent 60%),
+    var(--ink);
+  color: var(--paper); border-color: rgba(244,241,234,0.1);
+}
+.cl-contact-card.cl-dark-card p { color: rgba(244,241,234,0.68); }
+.cl-dark-card .cl-btn-ghost { background: transparent; color: var(--paper); border-color: rgba(244,241,234,0.3); }
+.cl-dark-card .cl-btn-ghost:hover { border-color: var(--paper); }
 .cl-eyebrow { font-size: 13px; font-weight: 700; color: var(--accent-ink); margin: 0 0 12px; }
 .cl-sec-h { font-size: clamp(28px, 3.6vw, 42px); margin-bottom: 16px; }
 .cl-sec-lede { font-size: 17px; color: var(--text-soft); max-width: 58ch; line-height: 1.6; margin: 0 0 48px; }

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
+import { motion, animate, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
 import { SUITES, SUITE_META } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 import './Landing.css';
@@ -45,6 +45,28 @@ function Reveal({ children, delay = 0, className, hover = false }) {
     >
       {children}
     </motion.div>
+  );
+}
+
+// Numbers that count up from 0 the first time they scroll into view.
+function CountUp({ to, suffix = '' }) {
+  const ref = useRef(null);
+  const reduce = useReducedMotion();
+  return (
+    <motion.span
+      ref={ref}
+      viewport={{ once: true, margin: '-40px' }}
+      onViewportEnter={() => {
+        if (!ref.current) return;
+        if (reduce) { ref.current.textContent = `${to}${suffix}`; return; }
+        animate(0, to, {
+          duration: 1.6, ease: [0.2, 0.7, 0.3, 1],
+          onUpdate: (v) => { if (ref.current) ref.current.textContent = `${Math.round(v)}${suffix}`; },
+        });
+      }}
+    >
+      0{suffix}
+    </motion.span>
   );
 }
 
@@ -211,12 +233,20 @@ export default function Landing() {
   const my = useMotionValue(0);
   const gx = useSpring(mx, { stiffness: 110, damping: 22, mass: 0.5 });
   const gy = useSpring(my, { stiffness: 110, damping: 22, mass: 0.5 });
+  // The hero mock leans gently toward the cursor — same mouse listener as the glow.
+  const tiltX = useMotionValue(0);
+  const tiltY = useMotionValue(0);
+  const rx = useSpring(tiltX, { stiffness: 140, damping: 20, mass: 0.6 });
+  const ry = useSpring(tiltY, { stiffness: 140, damping: 20, mass: 0.6 });
   const handleHeroMove = (e) => {
     if (reduce || !heroRef.current) return;
     const rect = heroRef.current.getBoundingClientRect();
     mx.set(e.clientX - rect.left);
     my.set(e.clientY - rect.top);
+    tiltX.set(-((e.clientY - rect.top) / rect.height - 0.5) * 7);
+    tiltY.set(((e.clientX - rect.left) / rect.width - 0.5) * 7);
   };
+  const handleHeroLeave = () => { setGlowOn(false); tiltX.set(0); tiltY.set(0); };
 
   const { scrollYProgress: heroProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const o1y = useTransform(heroProgress, [0, 1], [0, -70]);
@@ -248,7 +278,7 @@ export default function Landing() {
         ref={heroRef}
         onMouseMove={handleHeroMove}
         onMouseEnter={() => setGlowOn(true)}
-        onMouseLeave={() => setGlowOn(false)}
+        onMouseLeave={handleHeroLeave}
       >
         <div className="cl-orb-field" aria-hidden="true">
           <motion.div className="cl-orb o1" style={reduce ? undefined : { y: o1y }} />
@@ -279,25 +309,45 @@ export default function Landing() {
             </motion.div>
           </motion.div>
 
-          <motion.div className="cl-hero-shot" {...heroShotProps}>
-            <div className="cl-browser-bar">
-              <span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" />
-              <span className="cl-url">collarone.app/home</span>
-            </div>
-            <div className="cl-mock">
-              <div className="cl-mtitle">Good morning, Amaka</div>
-              <div className="cl-mock-cards">
-                <div className="cl-mc"><div className="cl-mv">248</div><div className="cl-ml">Active staff</div></div>
-                <div className="cl-mc"><div className="cl-mv">12</div><div className="cl-ml">On leave</div></div>
-                <div className="cl-mc"><div className="cl-mv">5</div><div className="cl-ml">Visitors today</div></div>
+          <div className="cl-hero-shot-wrap" style={{ perspective: 1100 }}>
+            <motion.div className="cl-hero-shot" {...heroShotProps} style={reduce ? undefined : { rotateX: rx, rotateY: ry }}>
+              <div className="cl-browser-bar">
+                <span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" />
+                <span className="cl-url">collarone.app/home</span>
               </div>
-              <div className="cl-mock-table">
-                <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" /><span className="cl-mock-badge">Approved</span></div>
-                <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" style={{ maxWidth: 90 }} /><span className="cl-mock-badge">Approved</span></div>
-                <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" style={{ maxWidth: 110 }} /><span className="cl-mock-badge">Approved</span></div>
+              <div className="cl-mock">
+                <div className="cl-mtitle">Good morning, Amaka</div>
+                <div className="cl-mock-cards">
+                  <div className="cl-mc"><div className="cl-mv"><CountUp to={248} /></div><div className="cl-ml">Active staff</div></div>
+                  <div className="cl-mc"><div className="cl-mv"><CountUp to={12} /></div><div className="cl-ml">On leave</div></div>
+                  <div className="cl-mc"><div className="cl-mv"><CountUp to={5} /></div><div className="cl-ml">Visitors today</div></div>
+                </div>
+                <div className="cl-mock-table">
+                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" /><span className="cl-mock-badge">Approved</span></div>
+                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" style={{ maxWidth: 90 }} /><span className="cl-mock-badge">Approved</span></div>
+                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" style={{ maxWidth: 110 }} /><span className="cl-mock-badge">Approved</span></div>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+            <motion.div
+              className="cl-float-toast cl-toast-a"
+              initial={reduce ? false : { opacity: 0, y: 16, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: 1.15, duration: 0.55, ease: [0.16, 0.8, 0.2, 1] }}
+            >
+              <span className="cl-toast-ic ok">✓</span>
+              <span><strong>Leave approved</strong><small>Bola A. · just now</small></span>
+            </motion.div>
+            <motion.div
+              className="cl-float-toast cl-toast-b"
+              initial={reduce ? false : { opacity: 0, y: 16, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ delay: 1.5, duration: 0.55, ease: [0.16, 0.8, 0.2, 1] }}
+            >
+              <span className="cl-toast-ic pay">₦</span>
+              <span><strong>July payroll ready</strong><small>42 staff · ₦4.2M net</small></span>
+            </motion.div>
+          </div>
         </div>
       </header>
 
@@ -349,7 +399,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec" id="gallery">
+      <section className="cl-sec cl-dark" id="gallery">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">See it, don't just take our word for it</p>
@@ -414,8 +464,8 @@ export default function Landing() {
           </Reveal>
           <Reveal className="cl-stat-band">
             <div className="cl-stat-cell"><div className="cl-val">₦</div><div className="cl-lbl">Priced and billed in naira, no card from abroad required</div></div>
-            <div className="cl-stat-cell"><div className="cl-val">36+1</div><div className="cl-lbl">Built to work the same in every Nigerian state, Lagos to Maiduguri</div></div>
-            <div className="cl-stat-cell"><div className="cl-val">24/7</div><div className="cl-lbl">Your team, leave and front desk, live and checkable from your phone</div></div>
+            <div className="cl-stat-cell"><div className="cl-val"><CountUp to={36} suffix="+1" /></div><div className="cl-lbl">Built to work the same in every Nigerian state, Lagos to Maiduguri</div></div>
+            <div className="cl-stat-cell"><div className="cl-val"><CountUp to={24} suffix="/7" /></div><div className="cl-lbl">Your team, leave and front desk, live and checkable from your phone</div></div>
             <div className="cl-stat-cell"><div className="cl-val">🇳🇬</div><div className="cl-lbl">Designed, built and supported in Nigeria, for Nigerian business hours</div></div>
           </Reveal>
         </div>
@@ -498,7 +548,7 @@ export default function Landing() {
 
       <section className="cl-sec" id="contact" style={{ paddingTop: 0 }}>
         <div className="cl-wrap">
-          <Reveal className="cl-contact-card">
+          <Reveal className="cl-contact-card cl-dark-card">
             <h2>Let's get your business on Collarone.</h2>
             <p>Tell us about your business and we'll set up your space personally — no queue during early access.</p>
             <div className="cl-contact-row">
