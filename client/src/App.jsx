@@ -20,6 +20,7 @@ import Privacy from './pages/Privacy.jsx';
 import Signup from './pages/Signup.jsx';
 import Status from './pages/Status.jsx';
 import EmbedContactForm from './pages/embed/EmbedContactForm.jsx';
+import Help from './pages/Help.jsx';
 
 // "/" is the public marketing page for a signed-out visitor, and the app
 // launcher for a signed-in one — same route, different audience.
@@ -124,6 +125,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/help"
+        element={
+          <ProtectedRoute>
+            <Help />
           </ProtectedRoute>
         }
       />

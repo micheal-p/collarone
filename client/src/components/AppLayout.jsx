@@ -198,6 +198,9 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
                   <Link to="/change-password" onClick={() => setMenu(false)} className="um-link">
                     <SuiteIcon name="lock" size={16} color="#605e5c" /> Change password
                   </Link>
+                  <Link to="/help" onClick={() => setMenu(false)} className="um-link">
+                    <SuiteIcon name="grid" size={16} color="#605e5c" /> How to use Collarone
+                  </Link>
                   <button className="um-link" onClick={() => logout()}>
                     <SignOutIcon /> Sign out
                   </button>
