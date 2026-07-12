@@ -134,7 +134,7 @@ function BarRows({ rows, reduce }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {rows.map((r, i) => (
         <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 108, fontSize: 12.5, color: 'rgba(244,241,234,0.75)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div title={r.label} style={{ width: 130, fontSize: 12.5, color: 'rgba(244,241,234,0.75)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {r.icon && <span>{r.icon}</span>}{r.label}
           </div>
           <div style={{ flex: 1, height: 10, background: 'rgba(244,241,234,0.06)', borderRadius: 5, overflow: 'hidden' }}>
@@ -165,22 +165,45 @@ export default function PlatformAnalytics() {
   const [orgs, setOrgs] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [pageViews, setPageViews] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([apiGet('/platform/organizations'), apiGet('/platform/profiles'), apiGet('/platform/transactions')])
-      .then(([o, p, t]) => { setOrgs(o.organizations); setProfiles(p.profiles); setTransactions(t.transactions); })
+    Promise.all([apiGet('/platform/organizations'), apiGet('/platform/profiles'), apiGet('/platform/transactions'), apiGet('/platform/page-views')])
+      .then(([o, p, t, v]) => { setOrgs(o.organizations); setProfiles(p.profiles); setTransactions(t.transactions); setPageViews(v.pageViews); })
       .finally(() => setLoading(false));
   }, []);
+
+  // Fixed-order categorical rows from a { code: count } map — shared by the
+  // org-signup and page-visitor country breakdowns so their color slots mean
+  // the same thing (identity, not rank) in both places.
+  const countryBreakdown = (counts) => {
+    const known = COUNTRY_ORDER.filter((c) => counts[c]).map((c, i) => ({ label: c, icon: COUNTRY_FLAG[c], value: counts[c], color: CAT[i % CAT.length] }));
+    const otherCount = Object.keys(counts).filter((c) => !COUNTRY_ORDER.includes(c) && c !== 'XX').reduce((s, c) => s + counts[c], 0);
+    if (otherCount > 0) known.push({ label: 'Other', icon: '🌍', value: otherCount, color: CAT[known.length % CAT.length] });
+    return [...known].sort((a, b) => b.value - a.value);
+  };
 
   const countryRows = useMemo(() => {
     const counts = {};
     orgs.forEach((o) => { const c = o.country || 'NG'; counts[c] = (counts[c] || 0) + 1; });
-    const known = COUNTRY_ORDER.filter((c) => counts[c]).map((c, i) => ({ label: c, icon: COUNTRY_FLAG[c], value: counts[c], color: CAT[i % CAT.length] }));
-    const otherCount = Object.keys(counts).filter((c) => !COUNTRY_ORDER.includes(c)).reduce((s, c) => s + counts[c], 0);
-    if (otherCount > 0) known.push({ label: 'Other', icon: '🌍', value: otherCount, color: CAT[known.length % CAT.length] });
-    return [...known].sort((a, b) => b.value - a.value);
+    return countryBreakdown(counts);
   }, [orgs]);
+
+  const visitorCountryRows = useMemo(() => {
+    const counts = {};
+    pageViews.forEach((v) => { counts[v.country] = (counts[v.country] || 0) + 1; });
+    return countryBreakdown(counts);
+  }, [pageViews]);
+
+  const visitorStats = useMemo(() => {
+    const now = Date.now();
+    const within = (h) => pageViews.filter((v) => now - new Date(v.created_at).getTime() < h * 60 * 60 * 1000).length;
+    const byPath = {};
+    pageViews.forEach((v) => { byPath[v.path] = (byPath[v.path] || 0) + 1; });
+    const topPaths = Object.entries(byPath).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([label, value], i) => ({ label, value, color: CAT[i % CAT.length] }));
+    return { last24h: within(24), last7d: within(24 * 7), last30d: within(24 * 30), topPaths };
+  }, [pageViews]);
 
   const planRows = useMemo(() => {
     const counts = {};
@@ -225,7 +248,7 @@ export default function PlatformAnalytics() {
         <GrowthChart orgs={orgs} reduce={reduce} />
       </Panel>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8 }}>
         <Panel title="WHERE THEY REGISTERED FROM">
           {countryRows.length === 0
             ? <p style={{ color: 'rgba(244,241,234,0.45)', fontSize: 13 }}>No organizations yet.</p>
@@ -235,6 +258,28 @@ export default function PlatformAnalytics() {
           {planRows.length === 0
             ? <p style={{ color: 'rgba(244,241,234,0.45)', fontSize: 13 }}>No organizations yet.</p>
             : <div style={{ ...glass, padding: 18 }}><BarRows rows={planRows} reduce={reduce} /></div>}
+        </Panel>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 16 }}>
+        <StatTile label="Page views, 24h" value={visitorStats.last24h} accent="#3987e5" />
+        <StatTile label="Page views, 7d" value={visitorStats.last7d} />
+        <StatTile label="Page views, 30d" value={visitorStats.last30d} />
+      </div>
+      <p style={{ fontSize: 12, color: 'rgba(244,241,234,0.4)', marginBottom: 16 }}>
+        Anonymous — no cookies or visitor IDs, just a path, country and timestamp per page load.
+      </p>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <Panel title="VISITOR LOCATIONS">
+          {visitorCountryRows.length === 0
+            ? <p style={{ color: 'rgba(244,241,234,0.45)', fontSize: 13 }}>No page views recorded yet.</p>
+            : <div style={{ ...glass, padding: 18 }}><BarRows rows={visitorCountryRows} reduce={reduce} /></div>}
+        </Panel>
+        <Panel title="MOST VISITED PAGES">
+          {visitorStats.topPaths.length === 0
+            ? <p style={{ color: 'rgba(244,241,234,0.45)', fontSize: 13 }}>No page views recorded yet.</p>
+            : <div style={{ ...glass, padding: 18 }}><BarRows rows={visitorStats.topPaths} reduce={reduce} /></div>}
         </Panel>
       </div>
     </PlatformShell>

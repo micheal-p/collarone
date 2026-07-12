@@ -55,10 +55,16 @@ export default async function handler(req, res) {
       });
       if (cErr) return json(res, /registered|exists/i.test(cErr.message) ? 409 : 400, { message: cErr.message });
 
+      // Same Nigeria-only payroll gate as grant-suites, checked against the
+      // creating admin's real IP (see the grant-suites action below).
+      const ipCountry = (req.headers['x-vercel-ip-country'] || '').toUpperCase();
+      let grantedSuites = role === 'super_admin' ? [] : (Array.isArray(suites) ? suites : []);
+      if (ipCountry && ipCountry !== 'NG') grantedSuites = grantedSuites.filter((s) => s.key !== 'payroll');
+
       const row = {
         id: created.user.id, email: cleanEmail, name: name.trim(), job_title: jobTitle, department,
         department_id: departmentId || null, org_id: caller.org_id,
-        role, suites: role === 'super_admin' ? [] : (Array.isArray(suites) ? suites : []),
+        role, suites: grantedSuites,
         status: 'active', must_change_password: true,
       };
       // Upsert: a DB trigger may have already created a default profile on user insert.
@@ -70,7 +76,8 @@ export default async function handler(req, res) {
           org_id: caller.org_id, delta: -1, reason: 'staff_created', related_profile_id: profile.id, created_by: user.id,
         });
       }
-      return json(res, 201, profile);
+      const payrollDropped = (suites || []).some((s) => s.key === 'payroll') && !grantedSuites.some((s) => s.key === 'payroll');
+      return json(res, 201, payrollDropped ? { ...profile, warning: 'Payroll can only be enabled from a Nigerian IP address — it was left out for this account.' } : profile);
     }
 
     if (action === 'purchase-credits') {
@@ -157,6 +164,34 @@ export default async function handler(req, res) {
 
       await logAudit('guest_mode', orgId, { targetProfileId: target.id, targetEmail: target.email });
       return json(res, 200, { actionLink: link.properties.action_link, name: target.name, email: target.email });
+    }
+
+    // Payroll runs Nigerian PAYE/pension/NHF only — it isn't built for any
+    // other country's statutory regime. Gating on the org's self-reported
+    // `country` field isn't enough (that's just a form field at signup), so
+    // this checks the real IP of whoever is granting it, via Vercel's edge
+    // geolocation header — the same signal used for page-view geography.
+    // This runs through the service role (not the browser's direct RLS
+    // update) specifically so it has a request to read that header from.
+    if (action === 'grant-suites') {
+      const { id, suites } = body;
+      if (!id || !Array.isArray(suites)) return json(res, 400, { message: 'id and suites are required.' });
+
+      const { data: target } = await admin.from('profiles').select('id, org_id').eq('id', id).maybeSingle();
+      if (!target || target.org_id !== caller.org_id) return json(res, 404, { message: 'User not found in your organization.' });
+
+      const wantsPayroll = suites.some((s) => s.key === 'payroll');
+      const ipCountry = (req.headers['x-vercel-ip-country'] || '').toUpperCase();
+      const finalSuites = (wantsPayroll && ipCountry && ipCountry !== 'NG')
+        ? suites.filter((s) => s.key !== 'payroll')
+        : suites;
+
+      const { data: profile, error } = await admin.from('profiles').update({ suites: finalSuites }).eq('id', id).select().single();
+      if (error) return json(res, 400, { message: error.message });
+      if (wantsPayroll && finalSuites.length !== suites.length) {
+        return json(res, 200, { ...profile, warning: 'Payroll can only be enabled from a Nigerian IP address — it was left out of this grant.' });
+      }
+      return json(res, 200, profile);
     }
 
     if (action === 'reset-password') {

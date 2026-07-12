@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { apiGet, apiPost, apiPatch, apiPut } from '../../api/client.js';
-import { SUITE_META, SUITE_ROLES, MULTI_TENANT_SAFE_SUITES } from '../../config/suites.js';
+import { SUITE_META, SUITE_ROLES, MULTI_TENANT_SAFE_SUITES, suiteAllowedForCountry } from '../../config/suites.js';
 import { FOUNDING_ORG_ID } from '../../config/org.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import AppLayout from '../../components/AppLayout.jsx';
@@ -96,8 +96,10 @@ export default function AdminUsers() {
   const [catalog, setCatalog] = useState([]);
   // Suites not yet safe for multi-tenant use are hidden from non-founding grant
   // pickers — showing a checkbox the server will silently strip is worse
-  // than not offering it.
-  const grantableCatalog = isFoundingOrg ? catalog : catalog.filter((s) => MULTI_TENANT_SAFE_SUITES.includes(s.key));
+  // than not offering it. Same reasoning for country-gated suites (payroll is
+  // Nigeria-only — see config/suites.js).
+  const grantableCatalog = (isFoundingOrg ? catalog : catalog.filter((s) => MULTI_TENANT_SAFE_SUITES.includes(s.key)))
+    .filter((s) => suiteAllowedForCountry(s.key, me?.org?.country));
   const [departments, setDepartments] = useState([]);
   const [q, setQ] = useState(searchParams.get('q') || '');
   const [roleFilter, setRoleFilter] = useState('');
@@ -247,9 +249,9 @@ export default function AdminUsers() {
       </div>
 
       {createOpen && <CreateUserModal catalog={grantableCatalog} departments={departments} onClose={() => setCreateOpen(false)}
-        onCreated={(u) => { setUsers((l) => [u, ...l]); setCreateOpen(false); flash(`${u.name} created.`); }} onError={(m) => flash(m, true)} />}
+        onCreated={(u, warning) => { setUsers((l) => [u, ...l]); setCreateOpen(false); flash(warning || `${u.name} created.`, Boolean(warning)); }} onError={(m) => flash(m, true)} />}
       {manage && <EditUserModal user={manage} catalog={grantableCatalog} departments={departments} onClose={() => setManage(null)}
-        onSaved={(u) => { replace(u); setManage(null); flash('Access updated.'); }} onError={(m) => flash(m, true)} />}
+        onSaved={(u, warning) => { replace(u); setManage(null); flash(warning || 'Access updated.', Boolean(warning)); }} onError={(m) => flash(m, true)} />}
       {viewUser && <ProfileModal user={viewUser} catalog={catalog} departments={departments} onClose={() => setViewUser(null)}
         onManage={() => { setViewUser(null); setManage(viewUser); }} />}
       {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
@@ -374,7 +376,7 @@ function CreateUserModal({ catalog, departments, onClose, onCreated, onError }) 
     e.preventDefault(); setBusy(true);
     try {
       const d = await apiPost('/users', { ...f, departmentId: f.departmentId || null, suites: isAdmin ? [] : f.suites });
-      onCreated(d.user);
+      onCreated(d.user, d.warning);
     }
     catch (e2) { onError(e2.message); } finally { setBusy(false); }
   };
@@ -427,7 +429,7 @@ function EditUserModal({ user, catalog, departments, onClose, onSaved, onError }
         }),
       ]);
       const suitesRes = await apiPut(`/users/${user.id}/suites`, { suites: grants });
-      onSaved({ ...profileRes.user, suites: suitesRes.user.suites });
+      onSaved({ ...profileRes.user, suites: suitesRes.user.suites }, suitesRes.warning);
     }
     catch (e) { onError(e.message); } finally { setBusy(false); }
   };

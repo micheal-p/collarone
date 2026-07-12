@@ -6,7 +6,7 @@
 // Vercel /api/admin function which holds the service key.
 // ---------------------------------------------------------------------------
 import { supabase } from '../lib/supabaseClient.js';
-import { SUITES, MULTI_TENANT_SAFE_SUITES } from '../config/suites.js';
+import { SUITES, MULTI_TENANT_SAFE_SUITES, suiteAllowedForCountry } from '../config/suites.js';
 
 const fail = (status, message) => { const e = new Error(message); e.status = status; e.code = 'supabase'; throw e; };
 
@@ -44,7 +44,7 @@ async function myProfile() {
 
 async function myOrg(orgId) {
   const { data, error } = await supabase.from('organizations')
-    .select('id, name, slug, plan_tier, theme_color, logo_url, status, suites_enabled, website_type, external_website_url').eq('id', orgId).single();
+    .select('id, name, slug, plan_tier, theme_color, logo_url, status, suites_enabled, website_type, external_website_url, country').eq('id', orgId).single();
   if (error || !data) fail(401, 'No organization found for this account.');
   return data;
 }
@@ -52,6 +52,7 @@ async function myOrg(orgId) {
 const toPublicOrg = (o) => ({
   id: o.id, name: o.name, slug: o.slug, planTier: o.plan_tier, themeColor: o.theme_color, logoUrl: o.logo_url,
   status: o.status, suitesEnabled: o.suites_enabled, websiteType: o.website_type, externalWebsiteUrl: o.external_website_url || '',
+  country: o.country || 'NG',
 });
 
 // RLS on platform_admins is `using (is_platform_admin())` — a non-admin's
@@ -81,8 +82,8 @@ function tiles(profile, org) {
   const isFoundingOrg = org?.id === '00000000-0000-0000-0000-000000000001';
   return SUITES.map((s) => {
     const grant = (profile.suites || []).find((g) => g.key === s.key);
-    const safeForOrg = isFoundingOrg || MULTI_TENANT_SAFE_SUITES.includes(s.key);
-    const granted = (profile.role === 'super_admin' ? safeForOrg : Boolean(grant));
+    const safeForOrg = (isFoundingOrg || MULTI_TENANT_SAFE_SUITES.includes(s.key)) && suiteAllowedForCountry(s.key, org?.country);
+    const granted = (profile.role === 'super_admin' ? safeForOrg : Boolean(grant) && suiteAllowedForCountry(s.key, org?.country));
     return { ...s, granted, suiteRole: profile.role === 'super_admin' ? 'manager' : grant?.role || null, openable: granted && s.status === 'live' };
   });
 }
@@ -218,6 +219,12 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { entries: data };
   }
+  if (head === 'GET /platform' && seg[1] === 'page-views') {
+    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await supabase.from('page_views').select('path, country, created_at').gte('created_at', since).order('created_at', { ascending: false }).limit(20000);
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { pageViews: data };
+  }
 
   // ---- status: public health-check history (unauthenticated, anon role) ----
   if (head === 'GET /status' && seg[1] === 'checks') {
@@ -294,6 +301,8 @@ export async function supabaseApi(path, opts = {}) {
     const p = await myProfile();
     const meta = SUITES.find((s) => s.key === seg[1]);
     if (!meta) fail(404, 'Unknown suite.');
+    const org = await myOrg(p.org_id);
+    if (!suiteAllowedForCountry(seg[1], org.country)) fail(403, 'Payroll is only available to organizations registered in Nigeria.');
     const grant = (p.suites || []).find((g) => g.key === seg[1]);
     if (p.role !== 'super_admin' && !grant) fail(403, 'You have not been granted access to this suite.');
     return { suite: meta, access: { role: p.role === 'super_admin' ? 'manager' : grant?.role || 'member', enteredBy: p.email } };
@@ -305,7 +314,10 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { users: data.map(toPublic) };
   }
-  if (head === 'POST /users') return { user: toPublic(await callAdmin('create', body)) };
+  if (head === 'POST /users') {
+    const created = await callAdmin('create', body);
+    return { user: toPublic(created), warning: created.warning };
+  }
 
   if (method === 'PATCH' && seg[0] === 'users' && seg.length === 2) {
     const patch = {};
@@ -318,9 +330,10 @@ export async function supabaseApi(path, opts = {}) {
     return { user: toPublic(data) };
   }
   if (method === 'PUT' && seg[0] === 'users' && seg[2] === 'suites') {
-    const { data, error } = await supabase.from('profiles').update({ suites: body.suites || [] }).eq('id', seg[1]).select().single();
-    if (error) fail(400, error.message);
-    return { user: toPublic(data) };
+    // Routed through /api/admin (not a direct RLS update) so a payroll grant
+    // can be checked against the granting admin's real IP — see admin.js.
+    const result = await callAdmin('grant-suites', { id: seg[1], suites: body.suites || [] });
+    return { user: toPublic(result), warning: result.warning };
   }
   if (method === 'PATCH' && seg[0] === 'users' && seg[2] === 'status') {
     return { user: toPublic(await callAdmin('set-status', { id: seg[1], status: body.status })) };

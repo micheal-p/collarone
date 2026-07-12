@@ -45,6 +45,13 @@ export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
 // other key on write) — this list just keeps the UI honest about it.
 export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents'];
 
+// Payroll runs Nigerian statutory deductions (PAYE, pension, NHF) — it isn't
+// built for any other country's tax/pension regime yet, so it's gated to
+// orgs registered in Nigeria. Enforced here for the UI and again in Postgres
+// (enforce_payroll_country_scope trigger) so it can't be bypassed client-side.
+export const COUNTRY_ONLY_SUITES = { payroll: ['NG'] };
+export const suiteAllowedForCountry = (key, country) => !COUNTRY_ONLY_SUITES[key] || COUNTRY_ONLY_SUITES[key].includes(country || 'NG');
+
 // Per-suite role options shown in the admin grant picker.
 // Suites not listed here get the default Member / Manager pair.
 export const SUITE_ROLES = {

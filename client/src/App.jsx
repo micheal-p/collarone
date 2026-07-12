@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Login from './pages/Login.jsx';
@@ -29,6 +30,20 @@ import Help from './pages/Help.jsx';
 // they're a different kind of account entirely, not "the founding org's
 // admin who also happens to run the platform." /workspace is the conscious,
 // explicit way to still reach the tenant view when they need it.
+// One beacon per navigation, app-wide — powers the "page visitors" panel on
+// Platform Admin's analytics page. No cookies, no ids; see api/track.js.
+function usePageViewTracking() {
+  const location = useLocation();
+  useEffect(() => {
+    fetch('/api/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: location.pathname }),
+      keepalive: true,
+    }).catch(() => {});
+  }, [location.pathname]);
+}
+
 function HomeRoute() {
   const { user, booting } = useAuth();
   if (booting) {
@@ -48,6 +63,7 @@ function HomeRoute() {
 }
 
 export default function App() {
+  usePageViewTracking();
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
