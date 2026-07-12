@@ -28,18 +28,26 @@ function useThemeVars(theme) {
 function Block({ block, site }) {
   const c = block.content || {};
   switch (block.type) {
-    case 'hero':
+    case 'hero': {
+      const hasImg = Boolean(c.image_url);
       return (
-        <section style={{ padding: '72px 24px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: 40, margin: '0 0 14px', fontFamily: 'var(--site-font)' }}>{c.heading}</h1>
-          {c.subheading && <p style={{ fontSize: 18, color: 'var(--site-muted)', maxWidth: 560, margin: '0 auto 24px' }}>{c.subheading}</p>}
+        <section style={{
+          padding: hasImg ? 'clamp(90px, 16vw, 150px) 24px' : 'clamp(56px, 10vw, 84px) 24px', textAlign: 'center',
+          ...(hasImg ? {
+            backgroundImage: `linear-gradient(rgba(8,10,16,0.52), rgba(8,10,16,0.62)), url(${c.image_url})`,
+            backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff',
+          } : {}),
+        }}>
+          <h1 style={{ fontSize: 'clamp(28px, 6vw, 44px)', lineHeight: 1.12, margin: '0 0 14px', fontFamily: 'var(--site-font)', ...(hasImg ? { textShadow: '0 2px 18px rgba(0,0,0,0.35)' } : {}) }}>{c.heading}</h1>
+          {c.subheading && <p style={{ fontSize: 'clamp(15px, 2.4vw, 18px)', color: hasImg ? 'rgba(255,255,255,0.88)' : 'var(--site-muted)', maxWidth: 560, margin: '0 auto 26px', lineHeight: 1.6 }}>{c.subheading}</p>}
           {c.button_text && (
-            <a href={c.button_link || '#'} style={{ display: 'inline-block', padding: '12px 28px', background: 'var(--site-accent)', color: '#fff', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
+            <a href={c.button_link || '#'} style={{ display: 'inline-block', padding: '13px 30px', background: 'var(--site-accent)', color: '#fff', borderRadius: 8, textDecoration: 'none', fontWeight: 600, boxShadow: hasImg ? '0 8px 24px rgba(0,0,0,0.3)' : 'none' }}>
               {c.button_text}
             </a>
           )}
         </section>
       );
+    }
     case 'text':
       return (
         <section style={{ padding: '48px 24px', maxWidth: 720, margin: '0 auto' }}>
@@ -178,12 +186,12 @@ function EcommerceSite({ data, activeSlug, setActiveSlug }) {
   const shop = data.pages.find((p) => p.slug === 'shop');
   return (
     <div style={{ ...vars, background: 'var(--site-bg)', color: 'var(--site-fg)', minHeight: '100vh', fontFamily: 'var(--site-font)' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--site-line)' }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--site-line)', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: 17 }}>
           {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 30, height: 30, borderRadius: 6, objectFit: 'cover' }} />}
           {data.siteName || data.orgName}
         </div>
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
           {data.pages.filter((p) => p.slug !== 'shop').map((p) => (
             <a key={p.slug} href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }}
               style={{ fontSize: 14, color: page?.slug === p.slug ? 'var(--site-accent)' : 'var(--site-fg)', textDecoration: 'none' }}>{p.title}</a>
@@ -241,12 +249,12 @@ function CompanySite({ data, activeSlug, setActiveSlug }) {
           {data.contactEmail && <span>{data.contactEmail}</span>}
         </div>
       )}
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--site-line)' }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--site-line)', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: 18, fontFamily: 'var(--site-font)' }}>
           {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover' }} />}
           {data.siteName || data.orgName}
         </div>
-        <nav style={{ display: 'flex', gap: 22 }}>
+        <nav style={{ display: 'flex', gap: '10px 22px', flexWrap: 'wrap' }}>
           {data.pages.map((p) => (
             <a key={p.slug} href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }}
               style={{ fontSize: 14, letterSpacing: '.02em', color: page?.slug === p.slug ? 'var(--site-accent)' : 'var(--site-fg)', textDecoration: 'none', fontWeight: page?.slug === p.slug ? 600 : 400 }}>

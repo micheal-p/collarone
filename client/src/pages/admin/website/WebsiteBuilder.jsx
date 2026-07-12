@@ -7,10 +7,21 @@ import { BLOCK_FIELDS, emptyRepeaterItem } from './blockFields.js';
 
 const CATEGORY_LABEL = { ecommerce: 'Online store', landing: 'Landing page', company: 'Company profile' };
 const CATEGORY_BLURB = {
-  ecommerce: 'Sell products — a homepage, a shop grid, and a contact page. You’ll add your product catalog (name, price, photo) after setup.',
-  landing: 'Pitch one product or idea on a single scrolling page — hero, features, FAQ, contact.',
-  company: 'A traditional multi-page company site — home, about, services, team, contact.',
+  ecommerce: 'Sell products — homepage, shop grid and contact page, pre-styled with sample products you just swap out.',
+  landing: 'Pitch one product or idea on a single scrolling page — hero, features, FAQ and contact, already written for you to edit.',
+  company: 'A traditional multi-page company site — home, about, services, team and contact, filled in so you see exactly where everything goes.',
 };
+const CATEGORY_COVER = {
+  ecommerce: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=70',
+  landing: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=70',
+  company: 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=70',
+};
+const CATEGORY_ICON = {
+  ecommerce: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /><path d="M2.5 3.5h3l2.6 12h10.4l2-8.5H6.2" /></svg>,
+  landing: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z" /></svg>,
+  company: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><rect x="3" y="8" width="18" height="13" rx="1.5" /><path d="M8 21V8M16 21V8M3 13h18" /><path d="M9 4h6v4H9z" /></svg>,
+};
+const LinkIcon = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>;
 const SWATCHES = ['#FF5B1F', '#C2410C', '#0F766E', '#1D4ED8', '#7C3AED', '#BE185D', '#0A0E1A', '#166534'];
 
 function Toast({ toast }) { if (!toast) return null; return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>; }
@@ -108,19 +119,33 @@ function SetupWizard({ themes, defaultName, onSetup, onExisting, flash }) {
 
       {step === 'category' && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 14 }}>
             {Object.entries(CATEGORY_LABEL).map(([key, label]) => (
               <button key={key} type="button" onClick={() => { setCategory(key); setStep('theme'); }}
-                style={{ textAlign: 'left', padding: 18, borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer' }}>
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
-                <div style={{ fontSize: 12.5, color: 'var(--text-2)' }}>{CATEGORY_BLURB[key]}</div>
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 14px 32px rgba(10,14,26,0.14)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}
+                style={{ textAlign: 'left', padding: 0, borderRadius: 14, border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer', overflow: 'hidden', transition: 'transform .2s ease, box-shadow .2s ease' }}>
+                <div style={{ height: 110, overflow: 'hidden', position: 'relative' }}>
+                  <img src={CATEGORY_COVER[key]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <span style={{ position: 'absolute', bottom: 8, left: 10, display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(10,14,26,0.72)', color: '#fff', fontSize: 11.5, fontWeight: 700, borderRadius: 100, padding: '5px 12px' }}>
+                    {CATEGORY_ICON[key]}{label}
+                  </span>
+                </div>
+                <div style={{ padding: '13px 15px' }}>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.55 }}>{CATEGORY_BLURB[key]}</div>
+                </div>
               </button>
             ))}
           </div>
           <button type="button" onClick={() => setStep('existing')}
-            style={{ display: 'block', width: '100%', textAlign: 'left', marginTop: 14, padding: 14, borderRadius: 'var(--radius-lg)', border: '1px dashed var(--line)', background: 'transparent', cursor: 'pointer' }}>
-            <span style={{ fontWeight: 600 }}>I already have a website</span>
-            <span style={{ fontSize: 12.5, color: 'var(--text-2)', display: 'block', marginTop: 2 }}>Keep using your existing site — just link it here. You can switch to building one with us anytime.</span>
+            style={{ display: 'flex', alignItems: 'flex-start', gap: 12, width: '100%', textAlign: 'left', marginTop: 14, padding: 16, borderRadius: 14, border: '1px dashed var(--line)', background: 'transparent', cursor: 'pointer' }}>
+            <span style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--surface-2)', display: 'grid', placeItems: 'center', flexShrink: 0, color: 'var(--text-2)' }}>{LinkIcon}</span>
+            <span>
+              <span style={{ fontWeight: 600, display: 'block' }}>I already have a website</span>
+              <span style={{ fontSize: 12.5, color: 'var(--text-2)', display: 'block', marginTop: 2 }}>
+                Keep your site exactly where it is — Collarone plugs into it instead: a careers page link for your menu, and a contact form you paste in so leads land in your CRM.
+              </span>
+            </span>
           </button>
         </>
       )}
@@ -302,10 +327,14 @@ function PagesTab({ orgId, flash }) {
   if (loading) return <div className="suite-loading"><div className="boot-spinner" /></div>;
 
   return (
-    <div style={{ display: 'flex', gap: 24 }}>
-      <div style={{ width: 200, flexShrink: 0 }}>
+    <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+      <div style={{ flex: '1 1 200px', maxWidth: 260, minWidth: 180 }}>
         <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-          <input className="input" placeholder="New page" value={newPageTitle} onChange={(e) => setNewPageTitle(e.target.value)} style={{ fontSize: 13 }} />
+          {/* autoComplete/name/spellCheck attrs stop the browser's autofill
+              popup from covering the page list with old form values */}
+          <input className="input" placeholder="New page" value={newPageTitle} onChange={(e) => setNewPageTitle(e.target.value)}
+            style={{ fontSize: 13 }} autoComplete="off" name="collarone-new-page" spellCheck={false}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addPage(); } }} />
           <button className="btn btn-ghost" style={{ padding: '6px 10px' }} onClick={addPage}>+</button>
         </div>
         {pages.map((p) => (
@@ -316,7 +345,7 @@ function PagesTab({ orgId, flash }) {
         ))}
       </div>
 
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: '999 1 320px', minWidth: 0 }}>
         {blocks.map((b, i) => (
           <div key={b.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid var(--line)', borderRadius: 8, padding: '10px 14px', marginBottom: 8, background: 'var(--surface)' }}>
             <span style={{ fontSize: 13.5, fontWeight: 500 }}>{W.BLOCK_TYPES[b.type] || b.type}</span>
@@ -438,33 +467,68 @@ function ProductsTab({ orgId, flash }) {
   );
 }
 
-/* ---- Share & embed ------------------------------------------------------------ */
+/* ---- "Works with the website you already have" -------------------------------
+   Plain-language integration story. The old version showed a raw iframe
+   snippet in a tiny textarea with zero explanation — reported as confusing.
+   Now: what each thing is, what happens when you use it, one Copy button. */
 function ShareEmbedPanel({ orgSlug }) {
   const [copied, setCopied] = useState('');
   const origin = window.location.origin;
   const careersUrl = `${origin}/careers/${orgSlug}`;
-  const embedSnippet = `<iframe src="${origin}/embed/contact/${orgSlug}" style="width:100%;max-width:420px;height:420px;border:0;" title="Contact us"></iframe>`;
+  const embedUrl = `${origin}/embed/contact/${orgSlug}`;
+  const embedSnippet = `<iframe src="${embedUrl}" style="width:100%;max-width:420px;height:420px;border:0;" title="Contact us"></iframe>`;
 
   const copy = (text, key) => { navigator.clipboard?.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 2000); };
 
-  return (
-    <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--line)', maxWidth: 560 }}>
-      <h3 style={{ fontSize: 14, margin: '0 0 4px' }}>Share &amp; embed</h3>
-      <p className="muted" style={{ fontSize: 12.5, margin: '0 0 14px' }}>Already have your own website? Link or paste these into it — no migration needed.</p>
+  const stepNum = (n) => (
+    <span style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--brand, #FF5B1F)', color: '#fff', fontSize: 12.5, fontWeight: 700, display: 'grid', placeItems: 'center', flexShrink: 0 }}>{n}</span>
+  );
+  const card = { border: '1px solid var(--line)', borderRadius: 12, padding: 16, marginBottom: 12, background: 'var(--surface)' };
 
-      <Field label="Careers page link">
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input className="input" readOnly value={careersUrl} style={{ flex: 1, fontSize: 12.5 }} />
-          <button type="button" className="btn btn-ghost" onClick={() => copy(careersUrl, 'careers')}>{copied === 'careers' ? 'Copied' : 'Copy'}</button>
+  return (
+    <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--line)', maxWidth: 620 }}>
+      <h3 style={{ fontSize: 15, margin: '0 0 4px' }}>Using Collarone with the website you already have</h3>
+      <p className="muted" style={{ fontSize: 13, margin: '0 0 16px', lineHeight: 1.6 }}>
+        You don't need to move or rebuild your website. Your site stays where it is — these two pieces connect it to your Collarone workspace.
+      </p>
+
+      <div style={card}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          {stepNum(1)}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Put your job openings on your site</div>
+            <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px', lineHeight: 1.6 }}>
+              This is a ready-made careers page that always shows your current openings from the HR suite.
+              Ask whoever manages your website to add a menu link called <strong>"Careers"</strong> pointing to this address.
+              Everyone who applies lands directly in your Recruiting pipeline.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input className="input" readOnly value={careersUrl} style={{ flex: '1 1 220px', fontSize: 12.5 }} onFocus={(e) => e.target.select()} />
+              <button type="button" className="btn btn-ghost" onClick={() => copy(careersUrl, 'careers')}>{copied === 'careers' ? 'Copied ✓' : 'Copy link'}</button>
+              <a className="btn btn-ghost" href={careersUrl} target="_blank" rel="noreferrer">See it</a>
+            </div>
+          </div>
         </div>
-      </Field>
-      <Field label="Contact form embed (paste into your site's HTML)">
-        <div style={{ display: 'flex', gap: 8 }}>
-          <textarea className="input" readOnly rows={2} value={embedSnippet} style={{ flex: 1, fontSize: 11.5, fontFamily: 'monospace', resize: 'vertical' }} />
-          <button type="button" className="btn btn-ghost" onClick={() => copy(embedSnippet, 'embed')} style={{ height: 'fit-content' }}>{copied === 'embed' ? 'Copied' : 'Copy'}</button>
+      </div>
+
+      <div style={card}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+          {stepNum(2)}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Catch customer messages from your site</div>
+            <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px', lineHeight: 1.6 }}>
+              This is a small contact form you place on your website. The button below copies a piece of code —
+              you don't need to understand it, just <strong>send it to whoever manages your website</strong> and ask them
+              to paste it where your contact form should appear. Every message a visitor sends lands in your CRM as a contact,
+              with the note saved in Activity.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-primary" onClick={() => copy(embedSnippet, 'embed')}>{copied === 'embed' ? 'Copied ✓' : 'Copy the form code'}</button>
+              <a className="btn btn-ghost" href={embedUrl} target="_blank" rel="noreferrer">See what the form looks like</a>
+            </div>
+          </div>
         </div>
-      </Field>
-      <p className="muted" style={{ fontSize: 12 }}>Submissions land straight in your CRM's Contacts, with a note logged in Activity.</p>
+      </div>
     </div>
   );
 }
@@ -577,10 +641,14 @@ export default function AdminWebsite() {
   if (org?.externalWebsiteUrl) {
     return (
       <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Website' }]} title="Your website">
-        <div style={{ maxWidth: 480 }}>
-          <h2 style={{ fontSize: 18, margin: '0 0 10px' }}>Using your existing website</h2>
+        <div style={{ maxWidth: 620 }}>
+          <h2 style={{ fontSize: 18, margin: '0 0 10px' }}>Your website is connected</h2>
           <p style={{ fontSize: 14, marginBottom: 4 }}>Your site: <a href={org.externalWebsiteUrl} target="_blank" rel="noreferrer">{org.externalWebsiteUrl}</a></p>
-          <p className="muted" style={{ fontSize: 13, marginBottom: 20 }}>Nothing about this site is managed by Collarone — this is just a link on file so your team knows where it lives.</p>
+          <p className="muted" style={{ fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
+            Your website stays yours, hosted wherever it is today — Collarone doesn't touch it.
+            The two connectors below are how it works with your workspace: jobs you post here appear on
+            your careers page, and messages from your site's contact form land in your CRM.
+          </p>
           <button className="btn btn-ghost" onClick={switchToBuilder}>Build a site with Collarone instead</button>
           <ShareEmbedPanel orgSlug={org?.slug} />
         </div>
@@ -595,7 +663,7 @@ export default function AdminWebsite() {
 
       {site && (
         <>
-          <div className="lv-tabs">
+          <div className="lv-tabs" style={{ flexWrap: 'wrap', rowGap: 6 }}>
             <button className={`lv-tab ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>Settings</button>
             <button className={`lv-tab ${tab === 'pages' ? 'active' : ''}`} onClick={() => setTab('pages')}>Pages & content</button>
             {category === 'ecommerce' && <button className={`lv-tab ${tab === 'products' ? 'active' : ''}`} onClick={() => setTab('products')}>Products</button>}

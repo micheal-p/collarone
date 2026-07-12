@@ -11,7 +11,7 @@ const naira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
 // against this app's dark glass-card surface via the dataviz skill's validator.
 const CAT = ['#3987e5', '#199e70', '#c98500', '#008300', '#9085e9', '#e66767', '#d55181', '#d95926'];
 const COUNTRY_ORDER = ['NG', 'GH', 'KE', 'ZA', 'EG', 'GB', 'US'];
-const COUNTRY_FLAG = { NG: '🇳🇬', GH: '🇬🇭', KE: '🇰🇪', ZA: '🇿🇦', EG: '🇪🇬', GB: '🇬🇧', US: '🇺🇸' };
+const COUNTRY_NAME = { NG: 'Nigeria', GH: 'Ghana', KE: 'Kenya', ZA: 'South Africa', EG: 'Egypt', GB: 'United Kingdom', US: 'United States' };
 const PLAN_ORDER = ['startup', 'standard', 'enterprise'];
 const PLAN_LABEL = { startup: 'Startup', standard: 'Standard', enterprise: 'Enterprise' };
 const PLAN_SHADE = ['rgba(57,135,229,0.4)', 'rgba(57,135,229,0.7)', 'rgba(57,135,229,1)']; // ordinal ramp: tier is ordered, not arbitrary categories
@@ -178,9 +178,9 @@ export default function PlatformAnalytics() {
   // org-signup and page-visitor country breakdowns so their color slots mean
   // the same thing (identity, not rank) in both places.
   const countryBreakdown = (counts) => {
-    const known = COUNTRY_ORDER.filter((c) => counts[c]).map((c, i) => ({ label: c, icon: COUNTRY_FLAG[c], value: counts[c], color: CAT[i % CAT.length] }));
+    const known = COUNTRY_ORDER.filter((c) => counts[c]).map((c, i) => ({ label: COUNTRY_NAME[c] || c, value: counts[c], color: CAT[i % CAT.length] }));
     const otherCount = Object.keys(counts).filter((c) => !COUNTRY_ORDER.includes(c) && c !== 'XX').reduce((s, c) => s + counts[c], 0);
-    if (otherCount > 0) known.push({ label: 'Other', icon: '🌍', value: otherCount, color: CAT[known.length % CAT.length] });
+    if (otherCount > 0) known.push({ label: 'Other', value: otherCount, color: CAT[known.length % CAT.length] });
     return [...known].sort((a, b) => b.value - a.value);
   };
 

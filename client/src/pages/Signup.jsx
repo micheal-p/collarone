@@ -320,7 +320,10 @@ export default function Signup() {
 
         {step === 'payment' && result && result.activated && (
           <>
-            <p className="su-kicker">🎉 You're in</p>
+            <p className="su-kicker" style={{ display: 'flex', alignItems: 'center', gap: 7, justifyContent: 'center' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1F6D45" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="9.5" /><path d="M8 12.5l2.7 2.7L16 9.5" /></svg>
+              You're in
+            </p>
             <h1 className="su-h">{orgName} is live</h1>
             <div className="su-pay-ref">
               <div className="su-pay-amt" style={{ color: '#1F6D45' }}>₦0</div>

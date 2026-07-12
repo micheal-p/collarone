@@ -116,7 +116,10 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
           background: '#7C2D12', color: '#FFE8DA', fontSize: 13, fontWeight: 600,
           padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, textAlign: 'center',
         }}>
-          <span>🔍 Guest mode — viewing {guestMode.orgName} as its admin, for testing. Nothing here is your own data.</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+            Guest mode — viewing {guestMode.orgName} as its admin, for testing. Nothing here is your own data.
+          </span>
           <button onClick={exitGuestMode} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', borderRadius: 100, padding: '3px 12px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
             Exit guest mode
           </button>
@@ -127,7 +130,10 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
           background: '#78350F', color: '#FDF3E0', fontSize: 13, fontWeight: 600,
           padding: '8px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, textAlign: 'center',
         }}>
-          <span>⚠️ {n.message}</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></svg>
+            {n.message}
+          </span>
           <button onClick={() => dismissNotice(n.id)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', borderRadius: 100, padding: '3px 12px', fontSize: 12, cursor: 'pointer', fontWeight: 700, flexShrink: 0 }}>
             Dismiss
           </button>

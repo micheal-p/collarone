@@ -17,4 +17,15 @@
 .lg-body ul { margin: 0 0 16px; padding-left: 22px; }
 .lg-body a { color: #C24614; }
 .lg-body strong { color: #0A0E1A; }
-.lg-foot { margin-top: 56px; padding-top: 24px; border-top: 1px solid rgba(10,14,26,0.09); font-size: 13px; color: rgba(10,14,26,0.5); }
+.lg-nav-links { margin-left: auto; display: flex; align-items: center; gap: 22px; }
+.lg-nav-link { font-size: 13.5px; color: rgba(10,14,26,0.65) !important; }
+.lg-nav-link:hover { color: #0A0E1A !important; }
+.lg-nav-cta { font-size: 13px; font-weight: 600; background: #FF5B1F; color: #fff !important; padding: 8px 16px; border-radius: 100px; }
+.lg-nav-cta:hover { background: #E04D18; }
+@media (max-width: 640px) { .lg-nav-links { gap: 12px; } .lg-nav-link:not(:last-child) { display: none; } }
+
+.lg-foot { margin-top: 56px; padding: 28px 24px 40px; border-top: 1px solid rgba(10,14,26,0.09); max-width: 760px; margin-left: auto; margin-right: auto; }
+.lg-foot-links { display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap; }
+.lg-foot-links a { font-size: 13.5px; font-weight: 600; color: #0A0E1A !important; }
+.lg-foot-links a:hover { color: #FF5B1F !important; }
+.lg-foot-copy { font-size: 12.5px; color: rgba(10,14,26,0.45); }

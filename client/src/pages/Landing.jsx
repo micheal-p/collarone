@@ -466,7 +466,17 @@ export default function Landing() {
             <div className="cl-stat-cell"><div className="cl-val">₦</div><div className="cl-lbl">Priced and billed in naira, no card from abroad required</div></div>
             <div className="cl-stat-cell"><div className="cl-val"><CountUp to={36} suffix="+1" /></div><div className="cl-lbl">Built to work the same in every Nigerian state, Lagos to Maiduguri</div></div>
             <div className="cl-stat-cell"><div className="cl-val"><CountUp to={24} suffix="/7" /></div><div className="cl-lbl">Your team, leave and front desk, live and checkable from your phone</div></div>
-            <div className="cl-stat-cell"><div className="cl-val">🇳🇬</div><div className="cl-lbl">Designed, built and supported in Nigeria, for Nigerian business hours</div></div>
+            <div className="cl-stat-cell">
+              <div className="cl-val">
+                <svg width="34" height="24" viewBox="0 0 34 24" style={{ borderRadius: 4, display: 'block' }} aria-label="Nigeria">
+                  <rect width="34" height="24" fill="#fff" />
+                  <rect width="11.33" height="24" fill="#008751" />
+                  <rect x="22.67" width="11.33" height="24" fill="#008751" />
+                  <rect width="34" height="24" fill="none" stroke="rgba(10,14,26,0.12)" strokeWidth="1" rx="3" />
+                </svg>
+              </div>
+              <div className="cl-lbl">Designed, built and supported in Nigeria, for Nigerian business hours</div>
+            </div>
           </Reveal>
         </div>
       </section>

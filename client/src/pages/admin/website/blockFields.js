@@ -2,7 +2,7 @@
 // form in WebsiteBuilder.jsx so adding a new block type later means adding
 // one entry here, not a new modal component.
 export const BLOCK_FIELDS = {
-  hero:     { simple: [['heading', 'Heading', 'text'], ['subheading', 'Subheading', 'textarea'], ['button_text', 'Button text', 'text'], ['button_link', 'Button link', 'text']] },
+  hero:     { simple: [['heading', 'Heading', 'text'], ['subheading', 'Subheading', 'textarea'], ['button_text', 'Button text', 'text'], ['button_link', 'Button link', 'text'], ['image_url', 'Background image', 'image']] },
   text:     { simple: [['heading', 'Heading', 'text'], ['body', 'Body text', 'textarea']] },
   image:    { simple: [['image_url', 'Image', 'image'], ['alt', 'Alt text', 'text'], ['caption', 'Caption', 'text']] },
   cta:      { simple: [['heading', 'Heading', 'text'], ['button_text', 'Button text', 'text'], ['button_link', 'Button link', 'text']] },

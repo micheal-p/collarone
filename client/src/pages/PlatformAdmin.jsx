@@ -10,8 +10,15 @@ const GUEST_KEY = 'collarone_guest_mode';
 const STATUS_LABEL = { pending_payment: 'Pending payment', active: 'Active', suspended: 'Suspended', cancelled: 'Cancelled' };
 const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', delete_org: 'Deleted organization', impersonate: 'Impersonated admin (retired)', guest_mode: 'Guested into organization' };
 const ALL_SUITE_KEYS = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents'];
-const COUNTRY_FLAG = { NG: '🇳🇬', GH: '🇬🇭', KE: '🇰🇪', ZA: '🇿🇦', EG: '🇪🇬', GB: '🇬🇧', US: '🇺🇸' };
-const countryFlag = (code) => COUNTRY_FLAG[code] || '🌍';
+const COUNTRY_NAME = { NG: 'Nigeria', GH: 'Ghana', KE: 'Kenya', ZA: 'South Africa', EG: 'Egypt', GB: 'United Kingdom', US: 'United States' };
+const CountryBadge = ({ code }) => (
+  <span title={COUNTRY_NAME[code] || code} style={{
+    display: 'inline-block', fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em',
+    fontFamily: 'ui-monospace, monospace', color: 'rgba(244,241,234,0.75)',
+    background: 'rgba(244,241,234,0.08)', border: '1px solid rgba(244,241,234,0.15)',
+    borderRadius: 6, padding: '3px 7px',
+  }}>{code || '—'}</span>
+);
 const naira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtDateTime = (d) => d ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -216,7 +223,7 @@ function OrgRow({ org, staffCount, testingOrg, suiteResults, onTest, onDelete, o
       <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 0.5fr 0.9fr 1fr 0.6fr 1fr auto auto auto', gap: 12, alignItems: 'center', padding: '16px 18px' }}>
         <div style={{ fontWeight: 600, color: '#F4F1EA', fontSize: 14.5 }}>{org.name}</div>
         <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5, color: 'rgba(244,241,234,0.55)' }}>{org.slug}</div>
-        <div style={{ fontSize: 16 }} title={org.country}>{countryFlag(org.country)}</div>
+        <div><CountryBadge code={org.country} /></div>
         <div style={{ fontSize: 13, textTransform: 'capitalize', color: 'rgba(244,241,234,0.75)' }}>{org.plan_tier}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: 'rgba(244,241,234,0.75)' }}>
           <span style={{ width: 7, height: 7, borderRadius: '50%', background: org.status === 'active' ? '#5fbf5f' : 'rgba(244,241,234,0.3)', boxShadow: org.status === 'active' ? '0 0 6px #5fbf5f' : 'none' }} />
