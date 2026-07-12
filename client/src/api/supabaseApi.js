@@ -1450,5 +1450,86 @@ export async function supabaseApi(path, opts = {}) {
     return { movement: data };
   }
 
+  // ---- finance ----
+  if (head === 'GET /finance' && seg[1] === 'categories') {
+    const { data, error } = await supabase.from('expense_categories').select('*').order('name');
+    if (error) fail(400, error.message);
+    return { categories: data };
+  }
+  if (head === 'POST /finance' && seg[1] === 'categories') {
+    const { name } = body;
+    if (!name?.trim()) fail(400, 'Category name is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('expense_categories').insert({ name: name.trim(), created_by: user.id, org_id: await myOrgId() }).select().single();
+    if (error) fail(400, /unique/i.test(error.message) ? 'That category already exists.' : error.message);
+    return { category: data };
+  }
+
+  const EXPENSE_SELECT = '*, category:expense_categories(id,name), dept:departments(id,name), submitter:profiles!submitted_by(id,name,email)';
+  if (head === 'GET /finance' && seg[1] === 'expenses') {
+    const { data, error } = await supabase.from('expenses').select(EXPENSE_SELECT).order('expense_date', { ascending: false });
+    if (error) fail(400, error.message);
+    return { expenses: data };
+  }
+  if (head === 'POST /finance' && seg[1] === 'expenses') {
+    const { categoryId, departmentId, vendor, description, amount, vatRate, expenseDate, notes, receiptPath } = body;
+    if (!description?.trim()) fail(400, 'Description is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('expenses').insert({
+      category_id: categoryId || null, department_id: departmentId || null, vendor: vendor || '',
+      description: description.trim(), amount: amount || 0, vat_rate: vatRate ?? 0.075,
+      expense_date: expenseDate || new Date().toISOString().slice(0, 10), notes: notes || '',
+      receipt_path: receiptPath || null, submitted_by: user.id, org_id: await myOrgId(),
+    }).select(EXPENSE_SELECT).single();
+    if (error) fail(400, error.message);
+    return { expense: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'finance' && seg[1] === 'expenses' && seg.length === 3) {
+    const { action } = body;
+    if (action) {
+      const { data, error } = await supabase.rpc('decide_expense', { _id: seg[2], _decision: action });
+      if (error) fail(400, error.message);
+      const { data: full, error: getErr } = await supabase.from('expenses').select(EXPENSE_SELECT).eq('id', data.id).single();
+      if (getErr) fail(400, getErr.message);
+      return { expense: full };
+    }
+    const patch = {};
+    ['vendor','description','amount','vatRate','notes','expenseDate'].forEach((k) => {
+      const col = { vatRate: 'vat_rate', expenseDate: 'expense_date' }[k] || k;
+      if (body[k] !== undefined) patch[col] = body[k];
+    });
+    if (body.categoryId !== undefined) patch.category_id = body.categoryId || null;
+    const { data, error } = await supabase.from('expenses').update(patch).eq('id', seg[2]).select(EXPENSE_SELECT).single();
+    if (error) fail(400, error.message);
+    return { expense: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'finance' && seg[1] === 'expenses' && seg.length === 3) {
+    const { error } = await supabase.from('expenses').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  if (head === 'GET /finance' && seg[1] === 'budgets') {
+    const { data, error } = await supabase.from('budgets').select('*, category:expense_categories(id,name), dept:departments(id,name)').order('period_year', { ascending: false });
+    if (error) fail(400, error.message);
+    return { budgets: data };
+  }
+  if (head === 'POST /finance' && seg[1] === 'budgets') {
+    const { departmentId, categoryId, periodYear, periodMonth, amount, notes } = body;
+    if (!periodYear || !amount) fail(400, 'Period year and amount are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('budgets').insert({
+      department_id: departmentId || null, category_id: categoryId || null, period_year: periodYear,
+      period_month: periodMonth || null, amount, notes: notes || '', created_by: user.id, org_id: await myOrgId(),
+    }).select('*, category:expense_categories(id,name), dept:departments(id,name)').single();
+    if (error) fail(400, error.message);
+    return { budget: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'finance' && seg[1] === 'budgets' && seg.length === 3) {
+    const { error } = await supabase.from('budgets').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
   return fail(404, `No Supabase route for ${method} ${path}`);
 }
