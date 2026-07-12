@@ -205,8 +205,10 @@ export async function supabaseApi(path, opts = {}) {
   if (head === 'POST /platform' && seg[1] === 'delete-org') {
     return callAdmin('delete-org', { orgId: body.orgId });
   }
-  if (head === 'POST /platform' && seg[1] === 'impersonate') {
-    return callAdmin('impersonate', { orgId: body.orgId });
+  if (head === 'POST /platform' && seg[1] === 'test-suite') {
+    const { data, error } = await supabase.rpc('platform_admin_test_suite', { p_org_id: body.orgId, p_suite_key: body.suiteKey });
+    if (error) fail(400, error.message);
+    return { result: data };
   }
   if (head === 'GET /platform' && seg[1] === 'audit-log') {
     const { data, error } = await supabase.from('platform_admin_audit_log').select('*').order('created_at', { ascending: false }).limit(100);

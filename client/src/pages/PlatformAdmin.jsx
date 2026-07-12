@@ -4,7 +4,8 @@ import { FOUNDING_ORG_ID } from '../config/org.js';
 import PlatformShell from '../components/PlatformShell.jsx';
 
 const STATUS_LABEL = { pending_payment: 'Pending payment', active: 'Active', suspended: 'Suspended', cancelled: 'Cancelled' };
-const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', delete_org: 'Deleted organization', impersonate: 'Impersonated admin' };
+const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', delete_org: 'Deleted organization', impersonate: 'Impersonated admin (retired)' };
+const ALL_SUITE_KEYS = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents'];
 const naira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const fmtDateTime = (d) => d ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
@@ -51,7 +52,8 @@ export default function PlatformAdmin() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [confirming, setConfirming] = useState(null);
-  const [impersonating, setImpersonating] = useState(null);
+  const [testingOrg, setTestingOrg] = useState(null);
+  const [suiteResults, setSuiteResults] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -89,13 +91,18 @@ export default function PlatformAdmin() {
     } catch (e) { flash(e.message, true); } finally { setConfirming(null); }
   };
 
-  const impersonate = async (org) => {
-    setImpersonating(org.id);
+  // No real login/impersonation — platform admin must never see a customer's
+  // actual business data. This runs a count-only reachability check per
+  // suite (never row content) so we can confirm "is it working, any errors"
+  // without ever seeing names, amounts, or records.
+  const testSuites = async (org) => {
+    setTestingOrg(org.id);
     try {
-      const d = await apiPost('/platform/impersonate', { orgId: org.id });
-      flash(`Opening ${org.name} as ${d.name}…`);
-      window.open(d.actionLink, '_blank', 'noopener');
-    } catch (e) { flash(e.message, true); } finally { setImpersonating(null); }
+      const results = await Promise.all(
+        ALL_SUITE_KEYS.map((key) => apiPost('/platform/test-suite', { orgId: org.id, suiteKey: key }).then((d) => ({ key, ...d.result })).catch((e) => ({ key, ok: false, error: e.message })))
+      );
+      setSuiteResults((s) => ({ ...s, [org.id]: results }));
+    } catch (e) { flash(e.message, true); } finally { setTestingOrg(null); }
   };
 
   const deleteOrg = async () => {
@@ -162,28 +169,50 @@ export default function PlatformAdmin() {
             {loading && <tr><td colSpan={8} className="td-empty">Loading…</td></tr>}
             {!loading && orgs.length === 0 && <tr><td colSpan={8} className="td-empty">No organizations yet.</td></tr>}
             {!loading && orgs.map((o) => (
-              <tr key={o.id}>
-                <td>{o.name}</td>
-                <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5 }}>{o.slug}</td>
-                <td style={{ textTransform: 'capitalize' }}>{o.plan_tier}</td>
-                <td><span className={`status-dot ${o.status === 'active' ? 'active' : 'disabled'}`} />{STATUS_LABEL[o.status] || o.status}</td>
-                <td>{staffCountByOrg[o.id] || 0}</td>
-                <td>{fmtDate(o.created_at)}</td>
-                <td>
-                  {o.status === 'active' && (
-                    <button className="btn btn-ghost" style={{ padding: '6px 14px', fontSize: 13 }} disabled={impersonating === o.id} onClick={() => impersonate(o)}>
-                      {impersonating === o.id ? <span className="spinner" /> : 'View as admin'}
-                    </button>
-                  )}
-                </td>
-                <td>
-                  {o.id !== FOUNDING_ORG_ID && (
-                    <button className="btn btn-ghost" style={{ padding: '6px 14px', fontSize: 13, color: '#c02b2b', borderColor: '#e7b8b8' }} onClick={() => setDeleteTarget(o)}>
-                      Delete
-                    </button>
-                  )}
-                </td>
-              </tr>
+              <>
+                <tr key={o.id}>
+                  <td>{o.name}</td>
+                  <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5 }}>{o.slug}</td>
+                  <td style={{ textTransform: 'capitalize' }}>{o.plan_tier}</td>
+                  <td><span className={`status-dot ${o.status === 'active' ? 'active' : 'disabled'}`} />{STATUS_LABEL[o.status] || o.status}</td>
+                  <td>{staffCountByOrg[o.id] || 0}</td>
+                  <td>{fmtDate(o.created_at)}</td>
+                  <td>
+                    {o.status === 'active' && (
+                      <button className="btn btn-ghost" style={{ padding: '6px 14px', fontSize: 13 }} disabled={testingOrg === o.id} onClick={() => testSuites(o)}>
+                        {testingOrg === o.id ? <span className="spinner" /> : 'Test suites'}
+                      </button>
+                    )}
+                  </td>
+                  <td>
+                    {o.id !== FOUNDING_ORG_ID && (
+                      <button className="btn btn-ghost" style={{ padding: '6px 14px', fontSize: 13, color: '#c02b2b', borderColor: '#e7b8b8' }} onClick={() => setDeleteTarget(o)}>
+                        Delete
+                      </button>
+                    )}
+                  </td>
+                </tr>
+                {suiteResults[o.id] && (
+                  <tr key={`${o.id}-results`}>
+                    <td colSpan={8} style={{ background: '#14161c', padding: '10px 14px' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {suiteResults[o.id].map((r) => (
+                          <span key={r.key} style={{
+                            fontSize: 11.5, padding: '3px 9px', borderRadius: 12,
+                            background: r.ok ? 'rgba(26,106,26,0.18)' : 'rgba(164,38,44,0.18)',
+                            color: r.ok ? '#5fbf5f' : '#e77b7f',
+                          }}>
+                            {r.key}: {r.ok ? `OK (${r.count})` : `Error`}
+                          </span>
+                        ))}
+                      </div>
+                      <p style={{ fontSize: 11, color: 'rgba(244,241,234,0.4)', margin: '8px 0 0' }}>
+                        Row counts only — no customer data is ever shown here.
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </>
             ))}
           </tbody>
         </table>

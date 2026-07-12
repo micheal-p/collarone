@@ -132,24 +132,11 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true });
     }
 
-    if (action === 'impersonate') {
-      await requirePlatformAdmin();
-
-      const { orgId } = body;
-      if (!orgId) return json(res, 400, { message: 'orgId is required.' });
-      const { data: target } = await admin.from('profiles').select('id, email, name')
-        .eq('org_id', orgId).eq('role', 'super_admin').limit(1).maybeSingle();
-      if (!target) return json(res, 404, { message: 'This organization has no admin account to impersonate.' });
-
-      const { data: link, error: linkErr } = await admin.auth.admin.generateLink({
-        type: 'magiclink', email: target.email,
-        options: { redirectTo: `${req.headers.origin || 'https://collarone.vercel.app'}/` },
-      });
-      if (linkErr) return json(res, 400, { message: linkErr.message });
-
-      await logAudit('impersonate', orgId, { targetProfileId: target.id, targetEmail: target.email });
-      return json(res, 200, { actionLink: link.properties.action_link, name: target.name, email: target.email });
-    }
+    // 'impersonate' (real magic-link login as a customer's own admin) removed
+    // deliberately — platform admin must never see a customer's internal
+    // business data. Replaced by platform_admin_test_suite() (count-only
+    // suite health check, see supabase/platform_suite_test.sql), called
+    // directly from the client via Supabase RPC, not through this function.
 
     if (action === 'reset-password') {
       const { id, password } = body;
