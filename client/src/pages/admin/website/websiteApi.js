@@ -8,6 +8,12 @@ export const getThemes = async () => {
   return data;
 };
 
+// "I already have a website" path — mutually exclusive with the builder.
+export const setExternalWebsite = async (orgId, url) => {
+  const { error } = await supabase.from('organizations').update({ external_website_url: url }).eq('id', orgId);
+  if (error) throw new Error(error.message);
+};
+
 export const getMySite = async (orgId) => {
   const { data, error } = await supabase.from('org_sites').select('*').eq('org_id', orgId).maybeSingle();
   if (error) throw new Error(error.message);

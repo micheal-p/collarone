@@ -75,12 +75,13 @@ function ThemeMockup({ theme }) {
 }
 
 /* ---- Setup wizard ---------------------------------------------------------- */
-function SetupWizard({ themes, defaultName, onSetup, flash }) {
-  const [step, setStep] = useState('category'); // category -> theme -> details
+function SetupWizard({ themes, defaultName, onSetup, onExisting, flash }) {
+  const [step, setStep] = useState('category'); // category -> theme -> details | existing
   const [category, setCategory] = useState(null);
   const [themeKey, setThemeKey] = useState(null);
   const [siteName, setSiteName] = useState(defaultName || '');
   const [tagline, setTagline] = useState('');
+  const [existingUrl, setExistingUrl] = useState('');
   const [busy, setBusy] = useState(false);
 
   const categoryThemes = themes.filter((t) => t.category === category);
@@ -92,21 +93,47 @@ function SetupWizard({ themes, defaultName, onSetup, flash }) {
     catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
 
+  const submitExisting = async (e) => {
+    e.preventDefault();
+    if (!existingUrl.trim()) return flash('Enter your website URL.', true);
+    setBusy(true);
+    try { await onExisting(existingUrl.trim()); }
+    catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
   return (
     <div style={{ maxWidth: 640 }}>
       <h2 style={{ fontSize: 18, margin: '0 0 6px' }}>Set up your public website</h2>
       <p className="muted" style={{ fontSize: 13.5, margin: '0 0 20px' }}>Pick what kind of site you need — each type starts with the right pages already filled in.</p>
 
       {step === 'category' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
-          {Object.entries(CATEGORY_LABEL).map(([key, label]) => (
-            <button key={key} type="button" onClick={() => { setCategory(key); setStep('theme'); }}
-              style={{ textAlign: 'left', padding: 18, borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer' }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
-              <div style={{ fontSize: 12.5, color: 'var(--text-2)' }}>{CATEGORY_BLURB[key]}</div>
-            </button>
-          ))}
-        </div>
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14 }}>
+            {Object.entries(CATEGORY_LABEL).map(([key, label]) => (
+              <button key={key} type="button" onClick={() => { setCategory(key); setStep('theme'); }}
+                style={{ textAlign: 'left', padding: 18, borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer' }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>{label}</div>
+                <div style={{ fontSize: 12.5, color: 'var(--text-2)' }}>{CATEGORY_BLURB[key]}</div>
+              </button>
+            ))}
+          </div>
+          <button type="button" onClick={() => setStep('existing')}
+            style={{ display: 'block', width: '100%', textAlign: 'left', marginTop: 14, padding: 14, borderRadius: 'var(--radius-lg)', border: '1px dashed var(--line)', background: 'transparent', cursor: 'pointer' }}>
+            <span style={{ fontWeight: 600 }}>I already have a website</span>
+            <span style={{ fontSize: 12.5, color: 'var(--text-2)', display: 'block', marginTop: 2 }}>Keep using your existing site — just link it here. You can switch to building one with us anytime.</span>
+          </button>
+        </>
+      )}
+
+      {step === 'existing' && (
+        <form onSubmit={submitExisting}>
+          <button type="button" className="btn btn-ghost" style={{ marginBottom: 14 }} onClick={() => setStep('category')}>&larr; Back</button>
+          <Field label="Your website URL *">
+            <input className="input" type="url" value={existingUrl} onChange={(e) => setExistingUrl(e.target.value)} placeholder="https://yourcompany.com" required autoFocus />
+          </Field>
+          <p className="muted" style={{ fontSize: 12.5, margin: '0 0 14px' }}>This just links out to your real site from Collarone — nothing is imported or migrated. You can switch to the builder later without losing this.</p>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save my website link'}</button>
+        </form>
       )}
 
       {step === 'theme' && (
@@ -501,11 +528,37 @@ export default function AdminWebsite() {
     catch (e) { flash(e.message, true); }
   };
 
+  const doExisting = async (url) => {
+    await W.setExternalWebsite(org.id, url);
+    flash('Website link saved.');
+    await refreshUser();
+  };
+
+  const switchToBuilder = async () => {
+    if (!window.confirm('Switch to building a site with Collarone? Your existing website link will be removed from here (your real site itself is untouched).')) return;
+    try { await W.setExternalWebsite(org.id, ''); await refreshUser(); }
+    catch (e) { flash(e.message, true); }
+  };
+
   if (site === undefined) return <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Website' }]}><div className="suite-loading"><div className="boot-spinner" /></div></AppLayout>;
+
+  if (org?.externalWebsiteUrl) {
+    return (
+      <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Website' }]} title="Your website">
+        <div style={{ maxWidth: 480 }}>
+          <h2 style={{ fontSize: 18, margin: '0 0 10px' }}>Using your existing website</h2>
+          <p style={{ fontSize: 14, marginBottom: 4 }}>Your site: <a href={org.externalWebsiteUrl} target="_blank" rel="noreferrer">{org.externalWebsiteUrl}</a></p>
+          <p className="muted" style={{ fontSize: 13, marginBottom: 20 }}>Nothing about this site is managed by Collarone — this is just a link on file so your team knows where it lives.</p>
+          <button className="btn btn-ghost" onClick={switchToBuilder}>Build a site with Collarone instead</button>
+        </div>
+        <Toast toast={toast} />
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Website' }]} title="Your website">
-      {!site && <SetupWizard themes={themes} defaultName={org?.name} onSetup={doSetup} flash={flash} />}
+      {!site && <SetupWizard themes={themes} defaultName={org?.name} onSetup={doSetup} onExisting={doExisting} flash={flash} />}
 
       {site && (
         <>
