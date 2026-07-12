@@ -1081,5 +1081,100 @@ export async function supabaseApi(path, opts = {}) {
     return { stats: data };
   }
 
+  // ---- crm ----
+  if (head === 'GET /crm' && seg[1] === 'companies') {
+    const { data, error } = await supabase.from('crm_companies').select('*').order('name');
+    if (error) fail(400, error.message);
+    return { companies: data };
+  }
+  if (head === 'POST /crm' && seg[1] === 'companies') {
+    const { name, industry, phone, email, website, address, notes } = body;
+    if (!name?.trim()) fail(400, 'Company name is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('crm_companies').insert({
+      name: name.trim(), industry: industry || '', phone: phone || '', email: email || '',
+      website: website || '', address: address || '', notes: notes || '',
+      created_by: user.id, org_id: await myOrgId(),
+    }).select().single();
+    if (error) fail(400, error.message);
+    return { company: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'crm' && seg[1] === 'companies' && seg.length === 3) {
+    const patch = {};
+    ['name','industry','phone','email','website','address','notes'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
+    const { data, error } = await supabase.from('crm_companies').update(patch).eq('id', seg[2]).select().single();
+    if (error) fail(400, error.message);
+    return { company: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'companies' && seg.length === 3) {
+    const { error } = await supabase.from('crm_companies').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  const CONTACT_SELECT = '*, company:crm_companies(id,name)';
+  if (head === 'GET /crm' && seg[1] === 'contacts') {
+    const { data, error } = await supabase.from('crm_contacts').select(CONTACT_SELECT).order('name');
+    if (error) fail(400, error.message);
+    return { contacts: data };
+  }
+  if (head === 'POST /crm' && seg[1] === 'contacts') {
+    const { name, companyId, jobTitle, email, phone, whatsapp, notes } = body;
+    if (!name?.trim()) fail(400, 'Contact name is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('crm_contacts').insert({
+      name: name.trim(), company_id: companyId || null, job_title: jobTitle || '', email: email || '',
+      phone: phone || '', whatsapp: whatsapp || '', notes: notes || '',
+      created_by: user.id, org_id: await myOrgId(),
+    }).select(CONTACT_SELECT).single();
+    if (error) fail(400, error.message);
+    return { contact: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'crm' && seg[1] === 'contacts' && seg.length === 3) {
+    const patch = {};
+    ['name','jobTitle','email','phone','whatsapp','notes'].forEach((k) => {
+      const col = { jobTitle: 'job_title' }[k] || k;
+      if (body[k] !== undefined) patch[col] = body[k];
+    });
+    if (body.companyId !== undefined) patch.company_id = body.companyId || null;
+    const { data, error } = await supabase.from('crm_contacts').update(patch).eq('id', seg[2]).select(CONTACT_SELECT).single();
+    if (error) fail(400, error.message);
+    return { contact: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'contacts' && seg.length === 3) {
+    const { error } = await supabase.from('crm_contacts').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  const ACTIVITY_SELECT = '*, contact:crm_contacts(id,name), company:crm_companies(id,name), author:profiles!created_by(id,name)';
+  if (head === 'GET /crm' && seg[1] === 'activities') {
+    let q = supabase.from('crm_activities').select(ACTIVITY_SELECT).order('occurred_at', { ascending: false });
+    const contactId = (path.match(/contactId=([^&]*)/) || [])[1];
+    const companyId = (path.match(/companyId=([^&]*)/) || [])[1];
+    if (contactId) q = q.eq('contact_id', contactId);
+    if (companyId) q = q.eq('company_id', companyId);
+    const { data, error } = await q;
+    if (error) fail(400, error.message);
+    return { activities: data };
+  }
+  if (head === 'POST /crm' && seg[1] === 'activities') {
+    const { contactId, companyId, type, notes, occurredAt } = body;
+    if (!contactId && !companyId) fail(400, 'Link this activity to a contact or company.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('crm_activities').insert({
+      contact_id: contactId || null, company_id: companyId || null, type: type || 'note',
+      notes: notes || '', occurred_at: occurredAt || new Date().toISOString(),
+      created_by: user.id, org_id: await myOrgId(),
+    }).select(ACTIVITY_SELECT).single();
+    if (error) fail(400, error.message);
+    return { activity: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'activities' && seg.length === 3) {
+    const { error } = await supabase.from('crm_activities').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
   return fail(404, `No Supabase route for ${method} ${path}`);
 }

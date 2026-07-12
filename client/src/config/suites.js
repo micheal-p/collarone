@@ -6,6 +6,7 @@ export const SUITES = [
   { key: 'tasks',       name: 'Task & Report',      tier: 'core',     status: 'live', desc: 'Assignments, priorities and productivity reports.' },
   { key: 'visitors',    name: 'Visitor Management', tier: 'core',     status: 'live', desc: 'Front-desk check-in, host alerts, visitor logs.' },
   { key: 'payroll',     name: 'Payroll',            tier: 'core',     status: 'live', desc: 'Salary structures, payroll runs, statutory deductions, payslips.' },
+  { key: 'crm',         name: 'CRM',                tier: 'core',     status: 'live', desc: 'Companies, contacts and a WhatsApp-first activity log.' },
   { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'soon', desc: 'Clock-in/out, timesheets, overtime.' },
   { key: 'benefits',    name: 'Benefits',           tier: 'extended', status: 'soon', desc: 'HMO, group life, pension/PFA tracking.' },
   { key: 'it-assets',   name: 'IT Assets',          tier: 'extended', status: 'soon', desc: 'Asset tracking, assignment and lifecycle.' },
@@ -24,6 +25,7 @@ export const SUITE_META = {
   tasks:       { icon: 'check',      tint: '#2b6cb0' },
   visitors:    { icon: 'badge',      tint: '#8a5cf6' },
   payroll:     { icon: 'wallet',     tint: '#b45309' },
+  crm:         { icon: 'contacts',   tint: '#0e7c66' },
   attendance:  { icon: 'clock',      tint: '#0369a1' },
   benefits:    { icon: 'heart',      tint: '#be123c' },
   'it-assets': { icon: 'laptop',     tint: '#0e7490' },
@@ -41,7 +43,7 @@ export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
 // founding one. Everything
 // else is enforced server-side too (enforce_phase1_suite_scope() strips any
 // other key on write) — this list just keeps the UI honest about it.
-export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll'];
+export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm'];
 
 // Per-suite role options shown in the admin grant picker.
 // Suites not listed here get the default Member / Manager pair.
