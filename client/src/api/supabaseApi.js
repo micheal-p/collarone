@@ -1272,5 +1272,60 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
 
+  // ---- it-assets ----
+  const ASSET_SELECT = '*, employee:profiles!assigned_to(id,name,email)';
+  if (head === 'GET /itassets' && seg[1] === 'assets') {
+    const { data, error } = await supabase.from('it_assets').select(ASSET_SELECT).order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { assets: data };
+  }
+  if (head === 'GET /itassets' && seg[1] === 'history') {
+    const { data, error } = await supabase.from('it_asset_history')
+      .select('*, employee:profiles!employee_id(id,name), author:profiles!created_by(id,name)')
+      .eq('asset_id', seg[2]).order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { history: data };
+  }
+  if (head === 'POST /itassets' && seg[1] === 'assets') {
+    const { assetTag, name, category, serialNumber, purchaseDate, purchaseCost } = body;
+    if (!assetTag?.trim() || !name?.trim()) fail(400, 'Asset tag and name are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('it_assets').insert({
+      asset_tag: assetTag.trim(), name: name.trim(), category: category || 'other',
+      serial_number: serialNumber || '', purchase_date: purchaseDate || null, purchase_cost: purchaseCost || null,
+      created_by: user.id, org_id: await myOrgId(),
+    }).select(ASSET_SELECT).single();
+    if (error) fail(400, /unique/i.test(error.message) ? 'That asset tag is already in use.' : error.message);
+    return { asset: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'itassets' && seg[1] === 'assets' && seg.length === 3) {
+    const { action, employeeId, notes, ...rest } = body;
+    const { data: { user } } = await supabase.auth.getUser();
+    const patch = {};
+    ['name','category','serialNumber','purchaseDate','purchaseCost','notes'].forEach((k) => {
+      const col = { serialNumber: 'serial_number', purchaseDate: 'purchase_date', purchaseCost: 'purchase_cost' }[k] || k;
+      if (rest[k] !== undefined) patch[col] = rest[k];
+    });
+    const orgId = await myOrgId();
+    if (action === 'assign')   { patch.status = 'in_use'; patch.assigned_to = employeeId; }
+    if (action === 'return')   { patch.status = 'spare';  patch.assigned_to = null; }
+    if (action === 'repair')   patch.status = 'repair';
+    if (action === 'retire')   { patch.status = 'retired'; patch.assigned_to = null; }
+    const { data, error } = await supabase.from('it_assets').update(patch).eq('id', seg[2]).select(ASSET_SELECT).single();
+    if (error) fail(400, error.message);
+    if (action) {
+      await supabase.from('it_asset_history').insert({
+        asset_id: seg[2], action: { assign: 'assigned', return: 'returned', repair: 'repaired', retire: 'retired' }[action] || 'note',
+        employee_id: employeeId || data.assigned_to || null, notes: notes || '', created_by: user.id, org_id: orgId,
+      });
+    }
+    return { asset: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'itassets' && seg[1] === 'assets' && seg.length === 3) {
+    const { error } = await supabase.from('it_assets').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
   return fail(404, `No Supabase route for ${method} ${path}`);
 }
