@@ -2,8 +2,13 @@
 // Platform Admin analytics page. Deliberately no auth, no cookies, no IP
 // storage: just a path and the country Vercel's edge already resolved for
 // this request (x-vercel-ip-country), which is the only reason this needs
-// to be a function instead of a direct browser->Supabase insert. Fire-and-
-// forget — never let a tracking failure surface to the visitor.
+// to be a function instead of a direct browser->Supabase insert.
+//
+// The insert is awaited before responding — the container can be frozen the
+// instant the response flushes, so anything fired-and-forgotten after
+// res.end() is not reliably delivered. The frontend beacon itself doesn't
+// wait on this either way (see App.jsx's usePageViewTracking), so the extra
+// round-trip here costs the visitor nothing.
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
@@ -11,8 +16,7 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
-  res.status(204).end(); // respond immediately; the visitor never waits on this
-  if (!SERVICE_KEY) return;
+  if (!SERVICE_KEY) return res.status(204).end();
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
     const path = String(body.path || '/').slice(0, 200);
@@ -20,6 +24,7 @@ export default async function handler(req, res) {
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
     await admin.from('page_views').insert({ path, country });
   } catch {
-    // best-effort only
+    // best-effort only — never surface a tracking failure to the visitor
   }
+  return res.status(204).end();
 }
