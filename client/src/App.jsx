@@ -19,6 +19,7 @@ import Terms from './pages/Terms.jsx';
 import Privacy from './pages/Privacy.jsx';
 import Signup from './pages/Signup.jsx';
 import Status from './pages/Status.jsx';
+import EmbedContactForm from './pages/embed/EmbedContactForm.jsx';
 
 // "/" is the public marketing page for a signed-out visitor, and the app
 // launcher for a signed-in one — same route, different audience.
@@ -51,6 +52,7 @@ export default function App() {
       <Route path="/careers/:orgSlug" element={<CareersIndex />} />
       <Route path="/careers/:orgSlug/:id" element={<CareersApply />} />
       <Route path="/site/:slug" element={<PublicSite />} />
+      <Route path="/embed/contact/:orgSlug" element={<EmbedContactForm />} />
 
       <Route
         path="/change-password"

@@ -5,9 +5,9 @@ import { apiGet } from '../../api/client.js';
 function Toast({ toast }) { if (!toast) return null; return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>; }
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 
-function UploadModal({ folders, onClose, onSaved, flash }) {
+function UploadModal({ folders, defaultFolderId, onClose, onSaved, flash }) {
   const [name, setName] = useState('');
-  const [folderId, setFolderId] = useState('');
+  const [folderId, setFolderId] = useState(defaultFolderId || '');
   const [visibility, setVisibility] = useState('org');
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -160,21 +160,57 @@ function PermissionsModal({ doc, onClose, flash }) {
   );
 }
 
-function FolderBar({ folders, onAdd, flash, isManager }) {
+const FOLDER_CSS = `
+  .doc-layout { display: flex; gap: 20px; }
+  .doc-sidebar { width: 200px; flex-shrink: 0; }
+  .doc-folder-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13.5px; margin-bottom: 2px; }
+  .doc-folder-item:hover { background: var(--surface-2); }
+  .doc-folder-item.active { background: var(--surface-2); font-weight: 600; }
+  .doc-folder-count { margin-left: auto; font-size: 11.5px; color: var(--text-2); }
+  .doc-content { flex: 1; min-width: 0; }
+  .doc-icon { flex-shrink: 0; }
+`;
+
+const FolderIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="doc-icon">
+    <path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+  </svg>
+);
+
+function NewFolderForm({ onAdd, flash }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
     if (!name.trim()) return;
     setBusy(true);
-    try { await D.createFolder({ name }); setName(''); flash('Folder added.'); onAdd(); } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+    try { await D.createFolder({ name: name.trim() }); setName(''); flash('Folder added.'); onAdd(); } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
-  if (!isManager) return null;
   return (
-    <form onSubmit={submit} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-      <input className="input" placeholder="New folder name" value={name} onChange={(e) => setName(e.target.value)} style={{ maxWidth: 220 }} />
-      <button className="btn btn-ghost" disabled={busy}>Add folder</button>
+    <form onSubmit={submit} style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+      <input className="input" placeholder="New folder" value={name} onChange={(e) => setName(e.target.value)} style={{ fontSize: 12.5, padding: '6px 8px' }} />
+      <button className="btn btn-ghost" style={{ padding: '4px 10px', fontSize: 12 }} disabled={busy}>+</button>
     </form>
+  );
+}
+
+function FolderSidebar({ folders, docs, activeFolder, onSelect, onAdd, onDelete, flash, isManager }) {
+  const countFor = (folderId) => docs.filter((d) => (d.folder_id || d.folder?.id || null) === folderId).length;
+  return (
+    <div className="doc-sidebar">
+      <div className={`doc-folder-item ${activeFolder === null ? 'active' : ''}`} onClick={() => onSelect(null)}>
+        <FolderIcon /> All documents <span className="doc-folder-count">{docs.length}</span>
+      </div>
+      {folders.map((f) => (
+        <div key={f.id} className={`doc-folder-item ${activeFolder === f.id ? 'active' : ''}`} onClick={() => onSelect(f.id)}>
+          <FolderIcon /> {f.name} <span className="doc-folder-count">{countFor(f.id)}</span>
+          {isManager && (
+            <button className="iconbtn" style={{ marginLeft: 4, fontSize: 10 }} onClick={(e) => { e.stopPropagation(); onDelete(f); }}>&times;</button>
+          )}
+        </div>
+      ))}
+      {isManager && <NewFolderForm onAdd={onAdd} flash={flash} />}
+    </div>
   );
 }
 
@@ -182,6 +218,7 @@ export default function DocumentsApp({ access }) {
   const isManager = access?.role === 'manager';
   const [docs, setDocs] = useState([]);
   const [folders, setFolders] = useState([]);
+  const [activeFolder, setActiveFolder] = useState(null); // null = "All documents"
   const [loading, setLoading] = useState(true);
   const [uploadModal, setUploadModal] = useState(false);
   const [versionDoc, setVersionDoc] = useState(null);
@@ -204,46 +241,58 @@ export default function DocumentsApp({ access }) {
     if (!confirm(`Delete ${doc.name}?`)) return;
     try { await D.deleteDocument(doc.id); flash('Document deleted.'); load(); } catch (e) { flash(e.message, true); }
   };
+  const removeFolder = async (folder) => {
+    if (!confirm(`Delete folder "${folder.name}"? Documents inside move to "All documents", nothing is deleted.`)) return;
+    try { await D.deleteFolder(folder.id); flash('Folder deleted.'); if (activeFolder === folder.id) setActiveFolder(null); load(); }
+    catch (e) { flash(e.message, true); }
+  };
+
+  const visibleDocs = activeFolder === null ? docs : docs.filter((d) => (d.folder?.id || null) === activeFolder);
+  const activeFolderName = activeFolder ? folders.find((f) => f.id === activeFolder)?.name : 'All documents';
 
   return (
     <div className="lv">
+      <style>{FOLDER_CSS}</style>
       <div className="filterbar" style={{ marginTop: 8 }}>
-        <span className="count">{docs.length} document{docs.length === 1 ? '' : 's'}</span>
+        <span className="count">{visibleDocs.length} document{visibleDocs.length === 1 ? '' : 's'} in "{activeFolderName}"</span>
         <button className="btn btn-primary lv-apply" onClick={() => setUploadModal(true)}>Upload document</button>
       </div>
-
-      <FolderBar folders={folders} onAdd={load} flash={flash} isManager={isManager} />
 
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
 
       {!loading && (
-        <div className="table-wrap">
-          <table className="table">
-            <thead><tr><th>Name</th><th>Folder</th><th>Version</th><th>Size</th><th>Visibility</th><th>Updated</th><th></th></tr></thead>
-            <tbody>
-              {docs.length === 0 && <tr><td colSpan={7} className="td-empty">No documents yet.</td></tr>}
-              {docs.map((d) => (
-                <tr key={d.id}>
-                  <td style={{ fontWeight: 500 }}>{d.name}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{d.folder?.name || '—'}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>v{d.current_version}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{D.fmtBytes(d.file_size)}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{d.visibility === 'restricted' ? 'Restricted' : 'Org'}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{D.fmtDt(d.updated_at)}</td>
-                  <td style={{ whiteSpace: 'nowrap' }}>
-                    <button className="iconbtn" onClick={() => download(d)}>Download</button>
-                    <button className="iconbtn" onClick={() => setVersionDoc(d)}>Versions</button>
-                    {d.visibility === 'restricted' && <button className="iconbtn" onClick={() => setPermDoc(d)}>Access</button>}
-                    <button className="iconbtn" onClick={() => remove(d)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="doc-layout">
+          <FolderSidebar folders={folders} docs={docs} activeFolder={activeFolder} onSelect={setActiveFolder}
+            onAdd={load} onDelete={removeFolder} flash={flash} isManager={isManager} />
+          <div className="doc-content">
+            <div className="table-wrap">
+              <table className="table">
+                <thead><tr><th>Name</th><th>Version</th><th>Size</th><th>Visibility</th><th>Updated</th><th></th></tr></thead>
+                <tbody>
+                  {visibleDocs.length === 0 && <tr><td colSpan={6} className="td-empty">No documents in this folder yet.</td></tr>}
+                  {visibleDocs.map((d) => (
+                    <tr key={d.id}>
+                      <td style={{ fontWeight: 500 }}>{d.name}</td>
+                      <td className="muted" style={{ fontSize: 13 }}>v{d.current_version}</td>
+                      <td className="muted" style={{ fontSize: 13 }}>{D.fmtBytes(d.file_size)}</td>
+                      <td className="muted" style={{ fontSize: 13 }}>{d.visibility === 'restricted' ? 'Restricted' : 'Org'}</td>
+                      <td className="muted" style={{ fontSize: 13 }}>{D.fmtDt(d.updated_at)}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <button className="iconbtn" onClick={() => download(d)}>Download</button>
+                        <button className="iconbtn" onClick={() => setVersionDoc(d)}>Versions</button>
+                        {d.visibility === 'restricted' && <button className="iconbtn" onClick={() => setPermDoc(d)}>Access</button>}
+                        <button className="iconbtn" onClick={() => remove(d)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
-      {uploadModal && <UploadModal folders={folders} onClose={() => setUploadModal(false)} onSaved={load} flash={flash} />}
+      {uploadModal && <UploadModal folders={folders} defaultFolderId={activeFolder} onClose={() => setUploadModal(false)} onSaved={load} flash={flash} />}
       {versionDoc && <VersionModal doc={versionDoc} onClose={() => { setVersionDoc(null); load(); }} flash={flash} />}
       {permDoc && <PermissionsModal doc={permDoc} onClose={() => setPermDoc(null)} flash={flash} />}
       <Toast toast={toast} />

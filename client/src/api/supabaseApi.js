@@ -1765,5 +1765,14 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
 
+  if (head === 'POST /embed' && seg[1] === 'lead') {
+    const { orgSlug, name, email, phone, message } = body;
+    const { error } = await supabase.rpc('public_submit_lead', {
+      p_org_slug: orgSlug, p_name: name, p_email: email || '', p_phone: phone || '', p_message: message || '',
+    });
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
   return fail(404, `No Supabase route for ${method} ${path}`);
 }

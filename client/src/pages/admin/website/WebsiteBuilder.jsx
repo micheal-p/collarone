@@ -438,8 +438,39 @@ function ProductsTab({ orgId, flash }) {
   );
 }
 
+/* ---- Share & embed ------------------------------------------------------------ */
+function ShareEmbedPanel({ orgSlug }) {
+  const [copied, setCopied] = useState('');
+  const origin = window.location.origin;
+  const careersUrl = `${origin}/careers/${orgSlug}`;
+  const embedSnippet = `<iframe src="${origin}/embed/contact/${orgSlug}" style="width:100%;max-width:420px;height:420px;border:0;" title="Contact us"></iframe>`;
+
+  const copy = (text, key) => { navigator.clipboard?.writeText(text); setCopied(key); setTimeout(() => setCopied(''), 2000); };
+
+  return (
+    <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--line)', maxWidth: 560 }}>
+      <h3 style={{ fontSize: 14, margin: '0 0 4px' }}>Share &amp; embed</h3>
+      <p className="muted" style={{ fontSize: 12.5, margin: '0 0 14px' }}>Already have your own website? Link or paste these into it — no migration needed.</p>
+
+      <Field label="Careers page link">
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input className="input" readOnly value={careersUrl} style={{ flex: 1, fontSize: 12.5 }} />
+          <button type="button" className="btn btn-ghost" onClick={() => copy(careersUrl, 'careers')}>{copied === 'careers' ? 'Copied' : 'Copy'}</button>
+        </div>
+      </Field>
+      <Field label="Contact form embed (paste into your site's HTML)">
+        <div style={{ display: 'flex', gap: 8 }}>
+          <textarea className="input" readOnly rows={2} value={embedSnippet} style={{ flex: 1, fontSize: 11.5, fontFamily: 'monospace', resize: 'vertical' }} />
+          <button type="button" className="btn btn-ghost" onClick={() => copy(embedSnippet, 'embed')} style={{ height: 'fit-content' }}>{copied === 'embed' ? 'Copied' : 'Copy'}</button>
+        </div>
+      </Field>
+      <p className="muted" style={{ fontSize: 12 }}>Submissions land straight in your CRM's Contacts, with a note logged in Activity.</p>
+    </div>
+  );
+}
+
 /* ---- Settings tab ------------------------------------------------------------- */
-function SettingsTab({ site, orgId, onSave, flash }) {
+function SettingsTab({ site, orgId, orgSlug, onSave, flash }) {
   const [f, setF] = useState({ siteName: site.site_name, tagline: site.tagline, contactEmail: site.contact_email, contactPhone: site.contact_phone, contactWhatsapp: site.contact_whatsapp, accentColor: site.accent_color, logoUrl: site.logo_url });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -487,6 +518,7 @@ function SettingsTab({ site, orgId, onSave, flash }) {
       <Field label="Contact phone"><input className="input" value={f.contactPhone} onChange={(e) => set('contactPhone', e.target.value)} /></Field>
       <Field label="WhatsApp"><input className="input" value={f.contactWhatsapp} onChange={(e) => set('contactWhatsapp', e.target.value)} placeholder="+234..." /></Field>
       <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? <span className="spinner" /> : 'Save settings'}</button>
+      <ShareEmbedPanel orgSlug={orgSlug} />
     </div>
   );
 }
@@ -550,6 +582,7 @@ export default function AdminWebsite() {
           <p style={{ fontSize: 14, marginBottom: 4 }}>Your site: <a href={org.externalWebsiteUrl} target="_blank" rel="noreferrer">{org.externalWebsiteUrl}</a></p>
           <p className="muted" style={{ fontSize: 13, marginBottom: 20 }}>Nothing about this site is managed by Collarone — this is just a link on file so your team knows where it lives.</p>
           <button className="btn btn-ghost" onClick={switchToBuilder}>Build a site with Collarone instead</button>
+          <ShareEmbedPanel orgSlug={org?.slug} />
         </div>
         <Toast toast={toast} />
       </AppLayout>
@@ -570,7 +603,7 @@ export default function AdminWebsite() {
             <a className="btn btn-ghost lv-apply" href={`/site/${org?.slug}?preview=1`} target="_blank" rel="noreferrer">Preview site</a>
           </div>
 
-          {tab === 'settings' && <SettingsTab site={site} orgId={org.id} onSave={load} flash={flash} />}
+          {tab === 'settings' && <SettingsTab site={site} orgId={org.id} orgSlug={org.slug} onSave={load} flash={flash} />}
           {tab === 'pages' && <PagesTab orgId={org.id} flash={flash} />}
           {tab === 'products' && category === 'ecommerce' && <ProductsTab orgId={org.id} flash={flash} />}
           {tab === 'publish' && (
