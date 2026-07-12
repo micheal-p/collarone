@@ -1327,5 +1327,71 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
 
+  // ---- procurement ----
+  if (head === 'GET /procurement' && seg[1] === 'vendors') {
+    const { data, error } = await supabase.from('vendors').select('*').order('name');
+    if (error) fail(400, error.message);
+    return { vendors: data };
+  }
+  if (head === 'POST /procurement' && seg[1] === 'vendors') {
+    const { name, contactName, phone, email, address, notes } = body;
+    if (!name?.trim()) fail(400, 'Vendor name is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('vendors').insert({
+      name: name.trim(), contact_name: contactName || '', phone: phone || '', email: email || '',
+      address: address || '', notes: notes || '', created_by: user.id, org_id: await myOrgId(),
+    }).select().single();
+    if (error) fail(400, error.message);
+    return { vendor: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'procurement' && seg[1] === 'vendors' && seg.length === 3) {
+    const { error } = await supabase.from('vendors').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  const PR_SELECT = '*, requester:profiles!requested_by(id,name,email), vendor:vendors(id,name), dept:departments(id,name)';
+  if (head === 'GET /procurement' && seg[1] === 'requests') {
+    const { data, error } = await supabase.from('purchase_requests').select(PR_SELECT).order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { requests: data };
+  }
+  if (head === 'POST /procurement' && seg[1] === 'requests') {
+    const { departmentId, vendorId, itemDescription, quantity, unitCost, vatRate, notes } = body;
+    if (!itemDescription?.trim()) fail(400, 'Item description is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('purchase_requests').insert({
+      requested_by: user.id, department_id: departmentId || null, vendor_id: vendorId || null,
+      item_description: itemDescription.trim(), quantity: quantity || 1, unit_cost: unitCost || 0,
+      vat_rate: vatRate ?? 0.075, notes: notes || '', org_id: await myOrgId(),
+    }).select(PR_SELECT).single();
+    if (error) fail(400, error.message);
+    return { request: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'procurement' && seg[1] === 'requests' && seg.length === 3) {
+    const { action } = body;
+    if (action) {
+      const { data, error } = await supabase.rpc('decide_purchase_request', { _id: seg[2], _decision: action });
+      if (error) fail(400, error.message);
+      const { data: full, error: getErr } = await supabase.from('purchase_requests').select(PR_SELECT).eq('id', data.id).single();
+      if (getErr) fail(400, getErr.message);
+      return { request: full };
+    }
+    const patch = {};
+    ['itemDescription','quantity','unitCost','vatRate','notes'].forEach((k) => {
+      const col = { itemDescription: 'item_description', unitCost: 'unit_cost', vatRate: 'vat_rate' }[k] || k;
+      if (body[k] !== undefined) patch[col] = body[k];
+    });
+    if (body.vendorId !== undefined) patch.vendor_id = body.vendorId || null;
+    const { data, error } = await supabase.from('purchase_requests').update(patch).eq('id', seg[2]).select(PR_SELECT).single();
+    if (error) fail(400, error.message);
+    return { request: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'procurement' && seg[1] === 'requests' && seg.length === 3) {
+    const { error } = await supabase.from('purchase_requests').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
   return fail(404, `No Supabase route for ${method} ${path}`);
 }
