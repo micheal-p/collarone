@@ -64,7 +64,13 @@ function HomeRoute() {
 
 function WorkspaceRoute() {
   const { user } = useAuth();
-  if (user?.isPlatformAdmin) return <Navigate to="/platform-admin" replace />;
+  // The founding org's admin account is also the platform admin, so guesting
+  // into Collarone itself lands here still flagged isPlatformAdmin — the
+  // sessionStorage guest marker (set only by the audited guest-in flow) is
+  // what distinguishes "deliberately testing a tenant view" from wandering in.
+  let guesting = false;
+  try { guesting = Boolean(sessionStorage.getItem('collarone_guest_mode')); } catch { /* no sessionStorage */ }
+  if (user?.isPlatformAdmin && !guesting) return <Navigate to="/platform-admin" replace />;
   return <Launcher />;
 }
 
