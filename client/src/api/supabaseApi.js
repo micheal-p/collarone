@@ -1653,5 +1653,111 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
 
+  // ---- documents ----
+  if (head === 'GET /docfolders') {
+    const { data, error } = await supabase.from('doc_folders').select('*').order('name');
+    if (error) fail(400, error.message);
+    return { folders: data };
+  }
+  if (head === 'POST /docfolders') {
+    const { name, parentFolderId } = body;
+    if (!name?.trim()) fail(400, 'Folder name is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('doc_folders').insert({
+      name: name.trim(), parent_folder_id: parentFolderId || null, created_by: user.id, org_id: await myOrgId(),
+    }).select().single();
+    if (error) fail(400, error.message);
+    return { folder: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'docfolders' && seg.length === 2) {
+    const { error } = await supabase.from('doc_folders').delete().eq('id', seg[1]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  const DOC_SELECT = '*, folder:doc_folders(id,name), author:profiles!created_by(id,name,email)';
+  if (head === 'GET /documents' && seg.length === 1) {
+    const { data, error } = await supabase.from('documents').select(DOC_SELECT).order('updated_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { documents: data };
+  }
+  if (head === 'POST /documents' && seg.length === 1) {
+    const { name, folderId, filePath, fileSize, visibility } = body;
+    if (!name?.trim() || !filePath) fail(400, 'Name and file are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const orgId = await myOrgId();
+    const { data, error } = await supabase.from('documents').insert({
+      name: name.trim(), folder_id: folderId || null, file_path: filePath, file_size: fileSize || null,
+      visibility: visibility || 'org', created_by: user.id, org_id: orgId,
+    }).select(DOC_SELECT).single();
+    if (error) fail(400, error.message);
+    await supabase.from('document_versions').insert({
+      document_id: data.id, version: 1, file_path: filePath, file_size: fileSize || null, uploaded_by: user.id, org_id: orgId,
+    });
+    return { document: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'documents' && seg.length === 2) {
+    const { name, folderId, visibility } = body;
+    const patch = { updated_at: new Date().toISOString() };
+    if (name !== undefined) patch.name = name;
+    if (folderId !== undefined) patch.folder_id = folderId || null;
+    if (visibility !== undefined) patch.visibility = visibility;
+    const { data, error } = await supabase.from('documents').update(patch).eq('id', seg[1]).select(DOC_SELECT).single();
+    if (error) fail(400, error.message);
+    return { document: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'documents' && seg.length === 2) {
+    const { error } = await supabase.from('documents').delete().eq('id', seg[1]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  if (head === 'POST /documents' && seg[2] === 'versions') {
+    const { filePath, fileSize, notes } = body;
+    if (!filePath) fail(400, 'File is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const orgId = await myOrgId();
+    const { data: doc, error: docErr } = await supabase.from('documents').select('current_version').eq('id', seg[1]).single();
+    if (docErr) fail(400, docErr.message);
+    const nextVersion = (doc.current_version || 1) + 1;
+    const { error: vErr } = await supabase.from('document_versions').insert({
+      document_id: seg[1], version: nextVersion, file_path: filePath, file_size: fileSize || null,
+      notes: notes || '', uploaded_by: user.id, org_id: orgId,
+    });
+    if (vErr) fail(400, vErr.message);
+    const { data, error } = await supabase.from('documents')
+      .update({ file_path: filePath, file_size: fileSize || null, current_version: nextVersion, updated_at: new Date().toISOString() })
+      .eq('id', seg[1]).select(DOC_SELECT).single();
+    if (error) fail(400, error.message);
+    return { document: data };
+  }
+  if (head === 'GET /documents' && seg[2] === 'versions') {
+    const { data, error } = await supabase.from('document_versions')
+      .select('*, uploader:profiles!uploaded_by(id,name)').eq('document_id', seg[1]).order('version', { ascending: false });
+    if (error) fail(400, error.message);
+    return { versions: data };
+  }
+
+  if (head === 'GET /documents' && seg[2] === 'permissions') {
+    const { data, error } = await supabase.from('document_permissions').select('*, user:profiles!user_id(id,name,email)').eq('document_id', seg[1]);
+    if (error) fail(400, error.message);
+    return { permissions: data };
+  }
+  if (head === 'POST /documents' && seg[2] === 'permissions') {
+    const { userId } = body;
+    if (!userId) fail(400, 'userId is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('document_permissions').insert({
+      document_id: seg[1], user_id: userId, granted_by: user.id, org_id: await myOrgId(),
+    }).select('*, user:profiles!user_id(id,name,email)').single();
+    if (error) fail(400, /unique/i.test(error.message) ? 'That person already has access.' : error.message);
+    return { permission: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'documents' && seg[2] === 'permissions' && seg.length === 4) {
+    const { error } = await supabase.from('document_permissions').delete().eq('document_id', seg[1]).eq('user_id', seg[3]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
   return fail(404, `No Supabase route for ${method} ${path}`);
 }
