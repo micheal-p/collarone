@@ -537,6 +537,19 @@ export async function supabaseApi(path, opts = {}) {
     return { band: data };
   }
 
+  if (head === 'GET /payroll' && seg[1] === 'bankwall') {
+    const { data, error } = await supabase.from('payroll_bank_actions')
+      .select('*, employee:profiles!employee_id(id,name,email), run:payroll_runs!payroll_run_id(id,period_month,period_year), actionedBy:profiles!actioned_by(id,name)')
+      .order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { actions: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'payroll' && seg[1] === 'bankwall' && seg.length === 3) {
+    const { data, error } = await supabase.rpc('mark_bank_action', { p_id: seg[2], p_status: body.status });
+    if (error) fail(400, error.message);
+    return { action: data };
+  }
+
   // ---- hr (employee directory + org structure) ----
   if (head === 'GET /hr' && seg[1] === 'staff') {
     const { data, error } = await supabase.from('profiles')

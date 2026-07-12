@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as P from './payrollApi.js';
+import { useAuth } from '../../auth/AuthContext.jsx';
 
 const I = {
   add:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
@@ -13,6 +14,7 @@ const NG_STATES = ['Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Be
 
 /* ---- SalaryModal ------------------------------------------------------------- */
 function SalaryModal({ employee, onClose, onSaved, onError }) {
+  const { user } = useAuth();
   const [f, setF] = useState({ basic:'', housing:'', transport:'', otherAllowances:'', effectiveDate: new Date().toISOString().slice(0,10) });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -22,10 +24,17 @@ function SalaryModal({ employee, onClose, onSaved, onError }) {
     e.preventDefault();
     setBusy(true);
     try {
-      const saved = await P.addSalaryStructure({
+      const body = {
         employeeId: employee.id, basic: Number(f.basic) || 0, housing: Number(f.housing) || 0,
         transport: Number(f.transport) || 0, otherAllowances: Number(f.otherAllowances) || 0, effectiveDate: f.effectiveDate,
-      });
+      };
+      const saved = await P.addSalaryStructure(body);
+      // Every salary agreement generates a real contract document, filed
+      // into the company's Documents — best-effort, never blocks the save.
+      P.generateContractDocument({
+        employeeId: employee.id, employeeName: employee.name, companyName: user?.org?.name || 'Collarone',
+        jobTitle: employee.jobTitle, ...body,
+      }).catch(() => {});
       onSaved(saved);
     } catch (e2) { onError(e2.message); } finally { setBusy(false); }
   };
@@ -460,6 +469,65 @@ function GenerateModal({ onClose, onSaved, onError }) {
   );
 }
 
+/* ---- Banking Wall ------------------------------------------------------------------- */
+// A running feed so whoever liaises with the bank always knows: which
+// employees are newly added to payroll (bank needs their details for the
+// first time) and which runs just got approved (ready to hand to the bank).
+function BankWallTab({ flash }) {
+  const [actions, setActions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('pending');
+
+  const load = () => { setLoading(true); P.getBankWall().then(setActions).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); };
+  useEffect(load, []); // eslint-disable-line
+
+  const mark = async (a, status) => {
+    try { await P.markBankAction(a.id, status); flash(status === 'actioned' ? 'Marked as actioned.' : 'Reopened.'); load(); }
+    catch (e) { flash(e.message, true); }
+  };
+
+  const view = filter === 'all' ? actions : actions.filter((a) => a.status === filter);
+
+  return (
+    <>
+      <div className="lv-tabs" style={{ marginTop: 8 }}>
+        <button className={`lv-tab ${filter === 'pending' ? 'active' : ''}`} onClick={() => setFilter('pending')}>Pending</button>
+        <button className={`lv-tab ${filter === 'actioned' ? 'active' : ''}`} onClick={() => setFilter('actioned')}>Actioned</button>
+        <button className={`lv-tab ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>All</button>
+      </div>
+      {loading ? <div className="suite-loading"><div className="boot-spinner" /></div> : (
+        <div className="table-wrap" style={{ marginTop: 8 }}>
+          <table className="table">
+            <thead><tr><th>Type</th><th>Who / What</th><th>Logged</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {view.length === 0 && <tr><td colSpan={5} className="td-empty">Nothing here.</td></tr>}
+              {view.map((a) => (
+                <tr key={a.id}>
+                  <td>{a.action_type === 'new_employee' ? 'New payroll addition' : 'Run approved'}</td>
+                  <td style={{ fontWeight: 500 }}>
+                    {a.action_type === 'new_employee' ? a.employee?.name : `${P.MONTHS[(a.run?.period_month || 1) - 1]} ${a.run?.period_year}`}
+                  </td>
+                  <td className="muted" style={{ fontSize: 13 }}>{P.fmtDt(a.created_at)}</td>
+                  <td>
+                    <span className={`lc-badge ${a.status === 'actioned' ? 'lc-req-filled' : 'lc-req-draft'}`}>
+                      {a.status === 'actioned' ? `Actioned by ${a.actionedBy?.name || ''}` : 'Pending'}
+                    </span>
+                  </td>
+                  <td>
+                    {a.status === 'pending'
+                      ? <button className="iconbtn" onClick={() => mark(a, 'actioned')}>Mark actioned</button>
+                      : <button className="iconbtn" onClick={() => mark(a, 'pending')}>Reopen</button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+}
+
 /* ---- Main PayrollApp ---------------------------------------------------------------- */
 export default function PayrollApp({ access }) {
   const isPayrollManager = access?.role === 'manager';
@@ -490,6 +558,7 @@ export default function PayrollApp({ access }) {
         <button className={`lv-tab ${tab === 'runs' ? 'active' : ''}`} onClick={() => setTab('runs')}>Payroll runs</button>
         <button className={`lv-tab ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>Employees</button>
         <button className={`lv-tab ${tab === 'rates' ? 'active' : ''}`} onClick={() => setTab('rates')}>Rates</button>
+        {isPayrollManager && <button className={`lv-tab ${tab === 'bankwall' ? 'active' : ''}`} onClick={() => setTab('bankwall')}>Banking Wall</button>}
         {isPayrollManager && tab === 'runs' && <button className="btn btn-primary lv-apply" onClick={() => setModal(true)}>{I.add} New run</button>}
       </div>
 
@@ -519,6 +588,7 @@ export default function PayrollApp({ access }) {
 
       {tab === 'employees' && <EmployeesTab flash={flash} isPayrollManager={isPayrollManager} />}
       {tab === 'rates' && <RatesTab flash={flash} isPayrollManager={isPayrollManager} />}
+      {tab === 'bankwall' && isPayrollManager && <BankWallTab flash={flash} />}
 
       {modal && (
         <GenerateModal onClose={() => setModal(false)}
