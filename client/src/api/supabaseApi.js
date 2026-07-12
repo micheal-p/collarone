@@ -1202,5 +1202,75 @@ export async function supabaseApi(path, opts = {}) {
     return { record: data };
   }
 
+  // ---- benefits ----
+  if (head === 'GET /benefits' && seg[1] === 'plans') {
+    const { data, error } = await supabase.from('benefit_plans').select('*').order('name');
+    if (error) fail(400, error.message);
+    return { plans: data };
+  }
+  if (head === 'POST /benefits' && seg[1] === 'plans') {
+    const { name, type, provider, notes } = body;
+    if (!name?.trim()) fail(400, 'Plan name is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('benefit_plans').insert({
+      name: name.trim(), type: type || 'hmo', provider: provider || '', notes: notes || '',
+      created_by: user.id, org_id: await myOrgId(),
+    }).select().single();
+    if (error) fail(400, error.message);
+    return { plan: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'benefits' && seg[1] === 'plans' && seg.length === 3) {
+    const patch = {};
+    ['name','type','provider','notes','active'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
+    const { data, error } = await supabase.from('benefit_plans').update(patch).eq('id', seg[2]).select().single();
+    if (error) fail(400, error.message);
+    return { plan: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'benefits' && seg[1] === 'plans' && seg.length === 3) {
+    const { error } = await supabase.from('benefit_plans').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  const ENROLL_SELECT = '*, employee:profiles!employee_id(id,name,email), plan:benefit_plans(id,name,type,provider)';
+  if (head === 'GET /benefits' && seg[1] === 'enrollments') {
+    const { data, error } = await supabase.from('employee_benefits').select(ENROLL_SELECT).order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { enrollments: data };
+  }
+  if (head === 'GET /benefits' && seg[1] === 'mine') {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('employee_benefits').select(ENROLL_SELECT).eq('employee_id', user.id);
+    if (error) fail(400, error.message);
+    return { enrollments: data };
+  }
+  if (head === 'POST /benefits' && seg[1] === 'enrollments') {
+    const { employeeId, planId, enrollmentDate, memberId, pfaName, pfaPin, notes } = body;
+    if (!employeeId || !planId) fail(400, 'Employee and plan are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('employee_benefits').insert({
+      employee_id: employeeId, plan_id: planId, enrollment_date: enrollmentDate || new Date().toISOString().slice(0, 10),
+      member_id: memberId || '', pfa_name: pfaName || '', pfa_pin: pfaPin || '', notes: notes || '',
+      created_by: user.id, org_id: await myOrgId(),
+    }).select(ENROLL_SELECT).single();
+    if (error) fail(400, /unique/i.test(error.message) ? 'Employee is already enrolled in this plan.' : error.message);
+    return { enrollment: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'benefits' && seg[1] === 'enrollments' && seg.length === 3) {
+    const patch = {};
+    ['status','memberId','pfaName','pfaPin','notes'].forEach((k) => {
+      const col = { memberId: 'member_id', pfaName: 'pfa_name', pfaPin: 'pfa_pin' }[k] || k;
+      if (body[k] !== undefined) patch[col] = body[k];
+    });
+    const { data, error } = await supabase.from('employee_benefits').update(patch).eq('id', seg[2]).select(ENROLL_SELECT).single();
+    if (error) fail(400, error.message);
+    return { enrollment: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'benefits' && seg[1] === 'enrollments' && seg.length === 3) {
+    const { error } = await supabase.from('employee_benefits').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
   return fail(404, `No Supabase route for ${method} ${path}`);
 }

@@ -11,9 +11,10 @@ import VisitorsApp from '../suites/visitors/VisitorsApp.jsx';
 import PayrollApp  from '../suites/payroll/PayrollApp.jsx';
 import CRMApp        from '../suites/crm/CRMApp.jsx';
 import AttendanceApp  from '../suites/attendance/AttendanceApp.jsx';
+import BenefitsApp    from '../suites/benefits/BenefitsApp.jsx';
 
 // Suites that have a real app built. Others fall back to the "foundation ready" stub.
-const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp, payroll: PayrollApp, crm: CRMApp, attendance: AttendanceApp };
+const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp, payroll: PayrollApp, crm: CRMApp, attendance: AttendanceApp, benefits: BenefitsApp };
 
 export default function SuiteShell() {
   const { key } = useParams();
