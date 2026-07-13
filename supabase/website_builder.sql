@@ -347,3 +347,10 @@ create policy "site_assets_write" on storage.objects
   for all to authenticated
   using  (bucket_id = 'site-assets')
   with check (bucket_id = 'site-assets');
+
+-- Platform admin can see which orgs have sites (name/theme/published state
+-- surface in Platform Admin) — content editing stays org-scoped as before.
+drop policy if exists "org_sites_select" on public.org_sites;
+create policy "org_sites_select" on public.org_sites for select using (
+  public.same_org(org_id) or public.is_platform_admin()
+);

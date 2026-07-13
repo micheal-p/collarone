@@ -4,6 +4,7 @@ import { apiGet, apiPost, apiPatch } from '../api/client.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { FOUNDING_ORG_ID } from '../config/org.js';
 import PlatformShell from '../components/PlatformShell.jsx';
+import ThemeMockup from '../components/ThemeMockup.jsx';
 
 const GUEST_KEY = 'collarone_guest_mode';
 
@@ -226,7 +227,31 @@ function DeleteOrgModal({ org, onClose, onConfirm, busy }) {
   );
 }
 
-function OrgRow({ org, staffCount, testingOrg, suiteResults, onTest, onDelete, onGuest, guestingOrg, index, reduce }) {
+function OrgSiteCell({ org, site, themes }) {
+  const themeName = site && (themes.find((t) => t.key === site.theme_key)?.name || site.theme_key);
+  if (site) {
+    return site.published ? (
+      <a href={`/site/${org.slug}`} target="_blank" rel="noreferrer" title={`"${site.site_name}" — ${themeName} theme`}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, color: '#7fd67f', textDecoration: 'none' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#5fbf5f' }} />Live site
+      </a>
+    ) : (
+      <span title={`"${site.site_name}" — ${themeName} theme, not published yet`}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'rgba(244,241,234,0.55)' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(244,241,234,0.3)' }} />Draft site
+      </span>
+    );
+  }
+  if (org.external_website_url) {
+    return (
+      <a href={org.external_website_url} target="_blank" rel="noreferrer" title={org.external_website_url}
+        style={{ fontSize: 12.5, fontWeight: 600, color: '#7fb2ff', textDecoration: 'none' }}>External site</a>
+    );
+  }
+  return <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.3)' }}>No website</span>;
+}
+
+function OrgRow({ org, site, themes, staffCount, testingOrg, suiteResults, onTest, onDelete, onGuest, guestingOrg, index, reduce }) {
   const [expanded, setExpanded] = useState(false);
   const results = suiteResults[org.id];
 
@@ -235,7 +260,7 @@ function OrgRow({ org, staffCount, testingOrg, suiteResults, onTest, onDelete, o
       initial={reduce ? {} : { opacity: 0, x: -12 }} animate={reduce ? {} : { opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: index * 0.05 }}
       style={{ ...glass, marginBottom: 10, overflow: 'hidden' }}
     >
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 0.5fr 0.9fr 1fr 0.6fr 1fr auto auto auto', gap: 12, alignItems: 'center', padding: '16px 18px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 0.9fr 0.5fr 0.8fr 0.9fr 0.5fr 0.9fr 0.9fr auto auto auto', gap: 12, alignItems: 'center', padding: '16px 18px' }}>
         <div style={{ fontWeight: 600, color: '#F4F1EA', fontSize: 14.5 }}>{org.name}</div>
         <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5, color: 'rgba(244,241,234,0.55)' }}>{org.slug}</div>
         <div><CountryBadge code={org.country} /></div>
@@ -245,6 +270,7 @@ function OrgRow({ org, staffCount, testingOrg, suiteResults, onTest, onDelete, o
           {STATUS_LABEL[org.status] || org.status}
         </div>
         <div style={{ fontSize: 13, color: 'rgba(244,241,234,0.75)' }}>{staffCount || 0}</div>
+        <div><OrgSiteCell org={org} site={site} themes={themes} /></div>
         <div style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.5)' }}>{fmtDate(org.created_at)}</div>
         <button
           onClick={() => { onTest(org); setExpanded(true); }} disabled={testingOrg === org.id || org.status !== 'active'}
@@ -304,15 +330,25 @@ export default function PlatformAdmin() {
   const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3200); };
 
   const [adminIds, setAdminIds] = useState([]);
+  const [sites, setSites] = useState([]);
+  const [themes, setThemes] = useState([]);
 
   const load = () => {
     setLoading(true);
-    Promise.all([apiGet('/platform/organizations'), apiGet('/platform/profiles'), apiGet('/platform/transactions'), apiGet('/platform/audit-log'), apiGet('/platform/admin-ids')])
-      .then(([o, p, t, a, ai]) => { setOrgs(o.organizations); setProfiles(p.profiles); setTransactions(t.transactions); setAuditLog(a.entries); setAdminIds(ai.adminIds); })
+    Promise.all([
+      apiGet('/platform/organizations'), apiGet('/platform/profiles'), apiGet('/platform/transactions'),
+      apiGet('/platform/audit-log'), apiGet('/platform/admin-ids'), apiGet('/platform/sites'), apiGet('/platform/site-themes'),
+    ])
+      .then(([o, p, t, a, ai, s, th]) => {
+        setOrgs(o.organizations); setProfiles(p.profiles); setTransactions(t.transactions);
+        setAuditLog(a.entries); setAdminIds(ai.adminIds); setSites(s.sites); setThemes(th.themes);
+      })
       .catch((e) => flash(e.message, true))
       .finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  const siteByOrg = useMemo(() => Object.fromEntries(sites.map((s) => [s.org_id, s])), [sites]);
 
   // Platform admins are operators of Collarone itself, not customers —
   // they never count as "users" anywhere on this page.
@@ -446,9 +482,36 @@ export default function PlatformAdmin() {
         {loading && <p style={{ color: 'rgba(244,241,234,0.5)', fontSize: 13.5 }}>Loading…</p>}
         {!loading && orgs.length === 0 && <p style={{ color: 'rgba(244,241,234,0.5)', fontSize: 13.5 }}>No organizations yet.</p>}
         {!loading && orgs.map((o, i) => (
-          <OrgRow key={o.id} org={o} staffCount={staffCountByOrg[o.id]} testingOrg={testingOrg} guestingOrg={guestingOrg} suiteResults={suiteResults}
+          <OrgRow key={o.id} org={o} site={siteByOrg[o.id]} themes={themes} staffCount={staffCountByOrg[o.id]} testingOrg={testingOrg} guestingOrg={guestingOrg} suiteResults={suiteResults}
             onTest={testSuites} onGuest={guestIntoOrg} onDelete={setDeleteTarget} index={i} reduce={reduce} />
         ))}
+      </div>
+
+      <h2 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '.02em', margin: '0 0 14px', color: '#F4F1EA' }}>WEBSITE THEMES</h2>
+      <p style={{ fontSize: 12, color: 'rgba(244,241,234,0.4)', margin: '0 0 14px' }}>
+        The catalog customers pick from in the website builder, and how many live/draft sites use each.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12, marginBottom: 32 }}>
+        {themes.map((t, i) => {
+          const usedBy = sites.filter((s) => s.theme_key === t.key).length;
+          return (
+            <motion.div key={t.key}
+              initial={reduce ? {} : { opacity: 0, y: 10 }} animate={reduce ? {} : { opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: i * 0.03 }}
+              whileHover={reduce ? undefined : { y: -3 }}
+              style={{ ...glass, padding: 12 }}>
+              <ThemeMockup theme={t} height={96} />
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 650, color: '#F4F1EA' }}>{t.name}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(244,241,234,0.45)', textTransform: 'capitalize' }}>{t.category === 'ecommerce' ? 'Online store' : t.category === 'landing' ? 'Landing page' : 'Company profile'}</div>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: usedBy ? '#7fd67f' : 'rgba(244,241,234,0.35)', background: 'rgba(244,241,234,0.06)', borderRadius: 100, padding: '3px 9px' }}>
+                  {usedBy} site{usedBy === 1 ? '' : 's'}
+                </span>
+              </div>
+            </motion.div>
+          );
+        })}
       </div>
 
       <h2 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '.02em', margin: '0 0 14px', color: '#F4F1EA' }}>AUDIT LOG</h2>

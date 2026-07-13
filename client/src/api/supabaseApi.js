@@ -269,6 +269,16 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { promoCode: data };
   }
+  if (head === 'GET /platform' && seg[1] === 'sites') {
+    const { data, error } = await supabase.from('org_sites').select('org_id, site_name, theme_key, published');
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { sites: data };
+  }
+  if (head === 'GET /platform' && seg[1] === 'site-themes') {
+    const { data, error } = await supabase.from('site_themes').select('*').order('sort_order');
+    if (error) fail(400, error.message);
+    return { themes: data };
+  }
   if (head === 'GET /platform' && seg[1] === 'admin-ids') {
     // Which profiles are platform admins — used to keep them out of the
     // "signed-up users" numbers ("platform admin is not part of the users").

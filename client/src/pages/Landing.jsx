@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, animate, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
+import { motion, animate, AnimatePresence, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
 import { SUITES, SUITE_META } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 import './Landing.css';
@@ -70,15 +70,42 @@ function CountUp({ to, suffix = '' }) {
   );
 }
 
-function Marquee({ items }) {
+function Marquee({ items, dark }) {
   return (
-    <div className="cl-marquee">
+    <div className={`cl-marquee${dark ? ' cl-marquee-dark' : ''}`}>
       <div className="cl-marquee-track">
         {[...items, ...items].map((t, i) => (
           <span className="cl-marquee-item" key={i}>{t}<span className="cl-marquee-dot">•</span></span>
         ))}
       </div>
     </div>
+  );
+}
+
+// The headline's moving part — cycles what "your whole business" actually
+// means, one suite at a time.
+const ROTATE_WORDS = ['whole business.', 'payroll.', 'front desk.', 'customers.', 'people.', 'projects.'];
+function RotatingWord() {
+  const reduce = useReducedMotion();
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    if (reduce) return undefined;
+    const t = setInterval(() => setI((x) => (x + 1) % ROTATE_WORDS.length), 2400);
+    return () => clearInterval(t);
+  }, [reduce]);
+  if (reduce) return <span className="cl-grad-word">whole business.</span>;
+  return (
+    <span className="cl-rotate-wrap">
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.span
+          key={ROTATE_WORDS[i]} className="cl-grad-word cl-rotate-word"
+          initial={{ y: '85%', opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: '-70%', opacity: 0 }}
+          transition={{ duration: 0.4, ease: [0.2, 0.7, 0.3, 1] }}
+        >
+          {ROTATE_WORDS[i]}
+        </motion.span>
+      </AnimatePresence>
+    </span>
   );
 }
 
@@ -224,8 +251,9 @@ export default function Landing() {
       };
 
   const [scrolled, setScrolled] = useState(false);
+  const [pastHero, setPastHero] = useState(false);
   const { scrollY } = useScroll();
-  useMotionValueEvent(scrollY, 'change', (v) => setScrolled(v > 10));
+  useMotionValueEvent(scrollY, 'change', (v) => { setScrolled(v > 10); setPastHero(v > 520); });
 
   const heroRef = useRef(null);
   const [glowOn, setGlowOn] = useState(false);
@@ -255,7 +283,7 @@ export default function Landing() {
 
   return (
     <div className="cl">
-      <nav className={`cl-nav${scrolled ? ' cl-nav-scrolled' : ''}`}>
+      <nav className={`cl-nav${pastHero ? ' cl-nav-scrolled' : ' cl-nav-ondark'}${scrolled && pastHero ? ' cl-nav-scrolled' : ''}`}>
         <div className="cl-wrap">
           <a className="cl-brand" href="#top">
             <Mark size={24} />
@@ -273,7 +301,7 @@ export default function Landing() {
       </nav>
 
       <header
-        className="cl-hero"
+        className="cl-hero cl-dark cl-hero-dark"
         id="top"
         ref={heroRef}
         onMouseMove={handleHeroMove}
@@ -286,6 +314,21 @@ export default function Landing() {
           <motion.div className="cl-orb o3" style={reduce ? undefined : { y: o3y }} />
         </div>
         {!reduce && (
+          <div className="cl-float-suites" aria-hidden="true">
+            {[
+              ['hr', { top: '16%', left: '3.5%' }, 0],
+              ['payroll', { top: '64%', left: '6%' }, 1.3],
+              ['crm', { top: '10%', right: '5%' }, 0.7],
+              ['finance', { top: '42%', right: '2%' }, 2.1],
+              ['tasks', { bottom: '10%', right: '8%' }, 1.7],
+            ].map(([key, pos, delay]) => (
+              <span key={key} className="cl-suite-float" style={{ ...pos, animationDelay: `${delay}s`, background: SUITE_META[key].tint }}>
+                <SuiteIcon name={SUITE_META[key].icon} size={17} color="#fff" />
+              </span>
+            ))}
+          </div>
+        )}
+        {!reduce && (
           <motion.div
             className={`cl-cursor-glow${glowOn ? ' show' : ''}`}
             style={{ left: gx, top: gy }}
@@ -295,7 +338,7 @@ export default function Landing() {
         <div className="cl-wrap cl-hero-grid">
           <motion.div className="cl-hero-inner" {...heroTextProps}>
             <motion.span {...heroItemVariants} className="cl-kicker"><span className="cl-dot" />Now onboarding early businesses</motion.span>
-            <motion.h1 {...heroItemVariants}>Run your whole business.<br /><span className="cl-grad-word">One login.</span></motion.h1>
+            <motion.h1 {...heroItemVariants}>Run your <RotatingWord /><br /><span className="cl-grad-word">One login.</span></motion.h1>
             <motion.p {...heroItemVariants} className="cl-hero-sub">Your team, leave, tasks and front desk — proven and live today, with customers and your website joining the same space.</motion.p>
             <motion.div {...heroItemVariants} className="cl-hero-ctas">
               <Link className="cl-btn cl-btn-primary" to="/signup">Get started</Link>
@@ -351,7 +394,7 @@ export default function Landing() {
         </div>
       </header>
 
-      <Marquee items={marqueeItems} />
+      <Marquee items={marqueeItems} dark />
 
       <section className="cl-sec" id="capabilities">
         <div className="cl-wrap">
