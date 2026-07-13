@@ -45,7 +45,7 @@ export default async function handler(req, res) {
     if (action === 'check-promo') {
       const promo = await findValidPromo(admin, body.code);
       if (!promo) return json(res, 200, { valid: false, reason: 'That code is invalid or has expired.' });
-      return json(res, 200, { valid: true, percentOff: promo.percent_off });
+      return json(res, 200, { valid: true, percentOff: promo.percent_off, trialDays: promo.trial_days || null, grantCredits: promo.grant_credits || 0 });
     }
 
     if (action === 'create') {
@@ -96,12 +96,16 @@ export default async function handler(req, res) {
         return json(res, 500, { message: 'Could not set up your account. Please try again.' });
       }
 
-      // Promo codes knock a percentage off the activation fee. A 100%-off
-      // code activates the organization immediately — no transfer to wait on.
+      // Promo codes are the owner's setup: a % off the activation fee, an
+      // optional bundle of free seat credits, and an optional trial window
+      // ("free for 3 days / 1 month"). A 100%-off code activates the org
+      // immediately — permanently if no trial_days, otherwise until
+      // trial_ends_at, which client/api/health.js enforces by suspending.
       const promo = await findValidPromo(admin, promoCode);
       const baseKobo = PLAN_BASE_FEE_KOBO[planTier];
       const amountKobo = promo ? Math.round(baseKobo * (100 - promo.percent_off) / 100) : baseKobo;
       const isFree = amountKobo <= 0;
+      const trialDays = promo?.trial_days || null;
       const reference = `CO-${slug.slice(0, 12).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
       const { error: txErr } = await admin.from('billing_transactions').insert({
         org_id: org.id, type: 'activation_fee', amount_kobo: amountKobo, reference,
@@ -109,12 +113,24 @@ export default async function handler(req, res) {
       });
       if (txErr) return json(res, 500, { message: 'Account created, but we could not generate a payment reference. Contact us on WhatsApp with your company name.' });
 
-      if (promo) await admin.from('promo_codes').update({ uses: promo.uses + 1 }).eq('id', promo.id);
-      if (isFree) await admin.from('organizations').update({ status: 'active' }).eq('id', org.id);
+      if (promo) {
+        await admin.from('promo_codes').update({ uses: promo.uses + 1 }).eq('id', promo.id);
+        if (promo.grant_credits > 0) {
+          await admin.from('org_credit_ledger').insert({
+            org_id: org.id, delta: promo.grant_credits, reason: 'promo_grant', created_by: created.user.id,
+          });
+        }
+      }
+      if (isFree) {
+        await admin.from('organizations').update({
+          status: 'active',
+          trial_ends_at: trialDays ? new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000).toISOString() : null,
+        }).eq('id', org.id);
+      }
 
       return json(res, 201, {
         orgId: org.id, reference, amountKobo, email: cleanEmail,
-        promoApplied: promo ? { code: promo.code, percentOff: promo.percent_off, baseKobo } : null,
+        promoApplied: promo ? { code: promo.code, percentOff: promo.percent_off, baseKobo, trialDays, grantCredits: promo.grant_credits || 0 } : null,
         activated: isFree,
       });
     }

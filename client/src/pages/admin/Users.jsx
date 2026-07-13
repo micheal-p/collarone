@@ -99,7 +99,8 @@ export default function AdminUsers() {
   // than not offering it. Same reasoning for country-gated suites (payroll is
   // Nigeria-only — see config/suites.js).
   const grantableCatalog = (isFoundingOrg ? catalog : catalog.filter((s) => MULTI_TENANT_SAFE_SUITES.includes(s.key)))
-    .filter((s) => suiteAllowedForCountry(s.key, me?.org?.country));
+    .filter((s) => suiteAllowedForCountry(s.key, me?.org?.country))
+    .filter((s) => s.status !== 'soon'); // nothing to grant on a coming-soon suite
   const [departments, setDepartments] = useState([]);
   const [q, setQ] = useState(searchParams.get('q') || '');
   const [roleFilter, setRoleFilter] = useState('');

@@ -2,7 +2,8 @@
 // landing-hero, company-profile) × each theme's own accent/font/tone tokens
 // is what makes the 10 catalog themes look meaningfully different from each
 // other without hand-building 10 bespoke templates from scratch.
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { apiPost } from '../../api/client.js';
 
 const FONT_STACKS = {
   'sans-clean':    "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
@@ -117,17 +118,7 @@ function Block({ block, site }) {
         </section>
       );
     case 'contact_form':
-      return (
-        <section id="contact" style={{ padding: '48px 24px', maxWidth: 480, margin: '0 auto' }}>
-          <h2 style={{ fontSize: 26, marginBottom: 16, textAlign: 'center', fontFamily: 'var(--site-font)' }}>Get in touch</h2>
-          <div style={{ textAlign: 'center', fontSize: 14.5, lineHeight: 2 }}>
-            {site.contactEmail && <div>Email: <a href={`mailto:${site.contactEmail}`} style={{ color: 'var(--site-accent)' }}>{site.contactEmail}</a></div>}
-            {site.contactPhone && <div>Phone: <a href={`tel:${site.contactPhone}`} style={{ color: 'var(--site-accent)' }}>{site.contactPhone}</a></div>}
-            {site.contactWhatsapp && <div>WhatsApp: <a href={`https://wa.me/${site.contactWhatsapp.replace(/[^0-9]/g, '')}`} style={{ color: 'var(--site-accent)' }}>{site.contactWhatsapp}</a></div>}
-            {!site.contactEmail && !site.contactPhone && !site.contactWhatsapp && <p style={{ color: 'var(--site-muted)' }}>Contact details coming soon.</p>}
-          </div>
-        </section>
-      );
+      return <ContactFormSection site={site} />;
     case 'products':
       return (
         <section style={{ padding: '48px 24px', maxWidth: 1000, margin: '0 auto' }}>
@@ -163,6 +154,66 @@ function Block({ block, site }) {
     default:
       return null;
   }
+}
+
+// A real, working contact form — submissions land in the org's CRM Messages
+// inbox via the same public lead RPC the embed widget uses. Contact details
+// render alongside as secondary channels.
+function ContactFormSection({ site }) {
+  const [f, setF] = useState({ name: '', email: '', phone: '', message: '' });
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const input = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', border: '1px solid var(--site-line)', background: 'var(--site-bg)', color: 'var(--site-fg)' };
+  const label = { display: 'block', fontSize: 12.5, color: 'var(--site-muted)', margin: '0 0 4px' };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!f.name.trim()) return setError('Your name is required.');
+    if (!f.message.trim()) return setError('Write a short message.');
+    setBusy(true); setError('');
+    try {
+      await apiPost('/embed/lead', { orgSlug: site.slug, ...f });
+      setDone(true);
+    } catch (e2) { setError(e2.message); } finally { setBusy(false); }
+  };
+
+  return (
+    <section id="contact" style={{ padding: '48px 24px', maxWidth: 520, margin: '0 auto' }}>
+      <h2 style={{ fontSize: 26, marginBottom: 6, textAlign: 'center', fontFamily: 'var(--site-font)' }}>Get in touch</h2>
+      <p style={{ fontSize: 14, color: 'var(--site-muted)', textAlign: 'center', margin: '0 0 22px' }}>Send a message and we'll get back to you.</p>
+
+      {done ? (
+        <div style={{ textAlign: 'center', padding: '26px 16px', background: 'var(--site-surface)', border: '1px solid var(--site-line)', borderRadius: 12 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Message sent</div>
+          <div style={{ fontSize: 13.5, color: 'var(--site-muted)' }}>Thanks {f.name.split(' ')[0]} — we've received it and will reply shortly.</div>
+        </div>
+      ) : (
+        <form onSubmit={submit} style={{ background: 'var(--site-surface)', border: '1px solid var(--site-line)', borderRadius: 12, padding: 20 }}>
+          <div style={{ marginBottom: 12 }}><span style={label}>Your name *</span><input style={input} value={f.name} onChange={(e) => set('name', e.target.value)} required /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div><span style={label}>Email</span><input style={input} type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></div>
+            <div><span style={label}>Phone / WhatsApp</span><input style={input} value={f.phone} onChange={(e) => set('phone', e.target.value)} /></div>
+          </div>
+          <div style={{ marginBottom: 14 }}><span style={label}>Message *</span><textarea style={{ ...input, resize: 'vertical' }} rows={4} value={f.message} onChange={(e) => set('message', e.target.value)} required /></div>
+          {error && <p style={{ color: '#c0392b', fontSize: 13, margin: '0 0 10px' }}>{error}</p>}
+          <button disabled={busy} style={{ width: '100%', padding: '12px 0', borderRadius: 8, border: 'none', background: 'var(--site-accent)', color: '#fff', fontWeight: 700, fontSize: 14.5, cursor: 'pointer', opacity: busy ? 0.7 : 1 }}>
+            {busy ? 'Sending…' : 'Send message'}
+          </button>
+        </form>
+      )}
+
+      {(site.contactEmail || site.contactPhone || site.contactWhatsapp) && (
+        <div style={{ textAlign: 'center', fontSize: 13.5, lineHeight: 2, marginTop: 18, color: 'var(--site-muted)' }}>
+          {site.contactEmail && <span style={{ margin: '0 10px' }}>Email: <a href={`mailto:${site.contactEmail}`} style={{ color: 'var(--site-accent)' }}>{site.contactEmail}</a></span>}
+          {site.contactPhone && <span style={{ margin: '0 10px' }}>Phone: <a href={`tel:${site.contactPhone}`} style={{ color: 'var(--site-accent)' }}>{site.contactPhone}</a></span>}
+          {site.contactWhatsapp && <span style={{ margin: '0 10px' }}>WhatsApp: <a href={`https://wa.me/${site.contactWhatsapp.replace(/[^0-9]/g, '')}`} style={{ color: 'var(--site-accent)' }}>{site.contactWhatsapp}</a></span>}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function SiteFooter({ site }) {

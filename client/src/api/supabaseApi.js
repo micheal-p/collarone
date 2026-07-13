@@ -117,7 +117,12 @@ export async function supabaseApi(path, opts = {}) {
     const profile = await myProfile();
     if (profile.status !== 'active') { await supabase.auth.signOut(); fail(403, 'Your account has been disabled.'); }
     const org = await myOrg(profile.org_id);
-    if (org.status !== 'active') { await supabase.auth.signOut(); fail(403, "Your organization's account is pending activation. We'll email you once your payment is confirmed."); }
+    if (org.status !== 'active') {
+      await supabase.auth.signOut();
+      fail(403, org.status === 'suspended'
+        ? 'Your free trial has ended (or a payment is overdue). Complete your activation payment to continue — WhatsApp us on 0814 812 8551.'
+        : "Your organization's account is pending activation. We'll email you once your payment is confirmed.");
+    }
     await supabase.rpc('touch_last_login');
     const isPlatformAdmin = await amIPlatformAdmin();
     return { accessToken: data.session.access_token, user: { ...toPublic(profile), org: toPublicOrg(org), isPlatformAdmin } };
@@ -252,6 +257,8 @@ export async function supabaseApi(path, opts = {}) {
       percent_off: body.percentOff,
       expires_at: body.expiresAt || null,
       max_uses: body.maxUses || null,
+      trial_days: body.trialDays || null,
+      grant_credits: body.grantCredits || 0,
       created_by: user?.id,
     }).select().single();
     if (error) fail(error.code === '23505' ? 409 : 400, error.code === '23505' ? 'That code already exists.' : error.message);
@@ -261,6 +268,13 @@ export async function supabaseApi(path, opts = {}) {
     const { data, error } = await supabase.from('promo_codes').update({ active: body.active }).eq('id', seg[2]).select().single();
     if (error) fail(400, error.message);
     return { promoCode: data };
+  }
+  if (head === 'GET /platform' && seg[1] === 'admin-ids') {
+    // Which profiles are platform admins — used to keep them out of the
+    // "signed-up users" numbers ("platform admin is not part of the users").
+    const { data, error } = await supabase.from('platform_admins').select('user_id');
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { adminIds: (data || []).map((r) => r.user_id) };
   }
   if (head === 'POST /platform' && seg[1] === 'remind-payment') {
     const { data: { user } } = await supabase.auth.getUser();
@@ -1234,7 +1248,7 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
 
-  const ACTIVITY_SELECT = '*, contact:crm_contacts(id,name), company:crm_companies(id,name), author:profiles!created_by(id,name)';
+  const ACTIVITY_SELECT = '*, contact:crm_contacts(id,name,email,phone,whatsapp), company:crm_companies(id,name), author:profiles!created_by(id,name)';
   if (head === 'GET /crm' && seg[1] === 'activities') {
     let q = supabase.from('crm_activities').select(ACTIVITY_SELECT).order('occurred_at', { ascending: false });
     const contactId = (path.match(/contactId=([^&]*)/) || [])[1];
@@ -1244,6 +1258,13 @@ export async function supabaseApi(path, opts = {}) {
     const { data, error } = await q;
     if (error) fail(400, error.message);
     return { activities: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'crm' && seg[1] === 'activities' && seg[2]) {
+    const patch = {};
+    if (body.replied !== undefined) patch.replied_at = body.replied ? new Date().toISOString() : null;
+    const { data, error } = await supabase.from('crm_activities').update(patch).eq('id', seg[2]).select(ACTIVITY_SELECT).single();
+    if (error) fail(400, error.message);
+    return { activity: data };
   }
   if (head === 'POST /crm' && seg[1] === 'activities') {
     const { contactId, companyId, type, notes, occurredAt } = body;

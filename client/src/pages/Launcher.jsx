@@ -16,8 +16,10 @@ const greeting = () => {
 
 function SuiteTile({ s, onOpen, index, reduce }) {
   const meta = SUITE_META[s.key] || {};
-  const locked = !s.granted;
-  const soon = s.granted && s.status === 'soon';
+  // A coming-soon suite reads "Coming soon" for everyone — access hasn't
+  // been granted to anyone because there's nothing to grant yet.
+  const soon = s.status === 'soon';
+  const locked = !soon && !s.granted;
   return (
     <motion.button
       className={`tile ${locked ? 'tile-locked' : ''} ${soon ? 'tile-soon' : ''}`}

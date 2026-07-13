@@ -15,6 +15,7 @@ export const SUITES = [
   { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'live', desc: 'Expenses, budgets and financial reports.' },
   { key: 'projects',    name: 'Projects',           tier: 'extended', status: 'live', desc: 'Milestones, boards and collaboration.' },
   { key: 'documents',   name: 'Documents',          tier: 'extended', status: 'live', desc: 'Secure storage, versioning, permissions.' },
+  { key: 'automation',  name: 'Automation',         tier: 'extended', status: 'soon', desc: 'Rules that run your busywork — auto-assign tasks, approvals, reminders and alerts.' },
 ];
 
 // Mirrors server/src/config/suites.js for presentation. The SERVER is authoritative
@@ -34,6 +35,7 @@ export const SUITE_META = {
   finance:     { icon: 'coins',      tint: '#2f855a' },
   projects:    { icon: 'kanban',     tint: '#6b46c1' },
   documents:   { icon: 'doc',        tint: '#475569' },
+  automation:  { icon: 'bolt',       tint: '#B45309' },
 };
 
 export const tierLabel = { core: 'MVP Core', extended: 'Extended' };

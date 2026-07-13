@@ -71,7 +71,7 @@ function StatusWidget() {
 function PromoCodesPanel({ flash }) {
   const [codes, setCodes] = useState([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ code: '', percentOff: 100, expiresAt: '', maxUses: '' });
+  const [form, setForm] = useState({ code: '', percentOff: 100, expiresAt: '', maxUses: '', trialDays: '', grantCredits: '' });
   const [busy, setBusy] = useState(false);
 
   const load = () => apiGet('/platform/promo-codes').then((d) => setCodes(d.promoCodes)).catch(() => {});
@@ -86,9 +86,11 @@ function PromoCodesPanel({ flash }) {
         code: form.code, percentOff: Number(form.percentOff),
         expiresAt: form.expiresAt ? new Date(`${form.expiresAt}T23:59:59`).toISOString() : null,
         maxUses: form.maxUses ? Number(form.maxUses) : null,
+        trialDays: form.trialDays ? Number(form.trialDays) : null,
+        grantCredits: form.grantCredits ? Number(form.grantCredits) : 0,
       });
       flash(`Code ${form.code.toUpperCase()} created.`);
-      setForm({ code: '', percentOff: 100, expiresAt: '', maxUses: '' });
+      setForm({ code: '', percentOff: 100, expiresAt: '', maxUses: '', trialDays: '', grantCredits: '' });
       setOpen(false);
       load();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
@@ -118,25 +120,32 @@ function PromoCodesPanel({ flash }) {
         {open && (
           <motion.form onSubmit={create} initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             style={{ ...glass, overflow: 'hidden', marginBottom: 10 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 0.8fr 1fr 0.8fr auto', gap: 10, padding: 16, alignItems: 'end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 0.7fr 0.9fr 0.7fr 0.8fr 0.8fr auto', gap: 10, padding: 16, alignItems: 'end' }}>
               <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>CODE
                 <input value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="LAUNCH100" style={{ ...inputStyle, textTransform: 'uppercase' }} />
               </label>
               <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>% OFF
                 <input type="number" min={1} max={100} value={form.percentOff} onChange={(e) => setForm((f) => ({ ...f, percentOff: e.target.value }))} style={inputStyle} />
               </label>
-              <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>EXPIRES
+              <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>CODE EXPIRES
                 <input type="date" value={form.expiresAt} onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))} style={{ ...inputStyle, colorScheme: 'dark' }} />
               </label>
               <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>MAX USES
                 <input type="number" min={1} value={form.maxUses} onChange={(e) => setForm((f) => ({ ...f, maxUses: e.target.value }))} placeholder="∞" style={inputStyle} />
+              </label>
+              <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>TRIAL DAYS
+                <input type="number" min={1} value={form.trialDays} onChange={(e) => setForm((f) => ({ ...f, trialDays: e.target.value }))} placeholder="forever" style={inputStyle} />
+              </label>
+              <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>FREE CREDITS
+                <input type="number" min={0} value={form.grantCredits} onChange={(e) => setForm((f) => ({ ...f, grantCredits: e.target.value }))} placeholder="0" style={inputStyle} />
               </label>
               <button disabled={busy} style={{ background: '#FF5B1F', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 {busy ? '…' : 'Create'}
               </button>
             </div>
             <p style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.4)', margin: 0, padding: '0 16px 14px' }}>
-              A 100% code activates the workspace instantly at signup — no transfer needed. Anything less discounts the activation fee.
+              A 100% code activates the workspace instantly at signup. Trial days makes that access time-boxed — 3, 30, whatever you set — after
+              which the org is suspended until they pay. Free credits are seat credits granted on signup so they can add staff without buying a pack.
             </p>
           </motion.form>
         )}
@@ -147,9 +156,15 @@ function PromoCodesPanel({ flash }) {
       )}
       {codes.map((c) => (
         <div key={c.id} style={{ ...glass, display: 'flex', alignItems: 'center', gap: 16, padding: '13px 18px', marginBottom: 8, opacity: c.active && !expired(c) ? 1 : 0.55 }}>
-          <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, fontSize: 14.5, color: '#F4F1EA', width: 150 }}>{c.code}</span>
-          <span style={{ fontSize: 13, color: '#7fd67f', fontWeight: 600, width: 70 }}>{c.percent_off}% off</span>
-          <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.55)', width: 150 }}>
+          <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, fontSize: 14.5, color: '#F4F1EA', width: 140 }}>{c.code}</span>
+          <span style={{ fontSize: 13, color: '#7fd67f', fontWeight: 600, width: 66 }}>{c.percent_off}% off</span>
+          <span style={{ fontSize: 12.5, color: '#7fb2ff', fontWeight: 600, width: 94 }}>
+            {c.trial_days ? `${c.trial_days}-day trial` : 'Permanent'}
+          </span>
+          <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.55)', width: 86 }}>
+            {c.grant_credits > 0 ? `+${c.grant_credits} credits` : '—'}
+          </span>
+          <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.55)', width: 140 }}>
             {c.expires_at ? `Expires ${fmtDate(c.expires_at)}` : 'No expiry'}{expired(c) && ' · expired'}
           </span>
           <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.55)', flex: 1 }}>
@@ -288,25 +303,31 @@ export default function PlatformAdmin() {
 
   const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3200); };
 
+  const [adminIds, setAdminIds] = useState([]);
+
   const load = () => {
     setLoading(true);
-    Promise.all([apiGet('/platform/organizations'), apiGet('/platform/profiles'), apiGet('/platform/transactions'), apiGet('/platform/audit-log')])
-      .then(([o, p, t, a]) => { setOrgs(o.organizations); setProfiles(p.profiles); setTransactions(t.transactions); setAuditLog(a.entries); })
+    Promise.all([apiGet('/platform/organizations'), apiGet('/platform/profiles'), apiGet('/platform/transactions'), apiGet('/platform/audit-log'), apiGet('/platform/admin-ids')])
+      .then(([o, p, t, a, ai]) => { setOrgs(o.organizations); setProfiles(p.profiles); setTransactions(t.transactions); setAuditLog(a.entries); setAdminIds(ai.adminIds); })
       .catch((e) => flash(e.message, true))
       .finally(() => setLoading(false));
   };
   useEffect(load, []);
 
+  // Platform admins are operators of Collarone itself, not customers —
+  // they never count as "users" anywhere on this page.
+  const customerProfiles = useMemo(() => profiles.filter((p) => !adminIds.includes(p.id)), [profiles, adminIds]);
+
   const staffCountByOrg = useMemo(() => {
     const m = {};
-    profiles.forEach((p) => { m[p.org_id] = (m[p.org_id] || 0) + 1; });
+    customerProfiles.forEach((p) => { m[p.org_id] = (m[p.org_id] || 0) + 1; });
     return m;
-  }, [profiles]);
+  }, [customerProfiles]);
 
   const activeLast24h = useMemo(() => {
     const cutoff = Date.now() - DAY_MS;
-    return profiles.filter((p) => p.last_login_at && new Date(p.last_login_at).getTime() > cutoff).length;
-  }, [profiles]);
+    return customerProfiles.filter((p) => p.last_login_at && new Date(p.last_login_at).getTime() > cutoff).length;
+  }, [customerProfiles]);
 
   const pendingTx = transactions.filter((t) => t.status === 'pending');
   const orgName = (id) => orgs.find((o) => o.id === id)?.name || (id ? id.slice(0, 8) : '—');
@@ -381,7 +402,7 @@ export default function PlatformAdmin() {
     <PlatformShell title="Platform Admin">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
         <StatCard icon={I.org} label="Organizations" value={orgs.length} accent="#FF5B1F" delay={0} />
-        <StatCard icon={I.users} label="Signed-up users" value={profiles.length} accent="#3b82f6" delay={0.05} />
+        <StatCard icon={I.users} label="Signed-up users" value={customerProfiles.length} accent="#3b82f6" delay={0.05} />
         <StatCard icon={I.pulse} label="Active in last 24h" value={activeLast24h} accent="#22c55e" delay={0.1} />
         <StatCard icon={I.coin} label="Pending payments" value={pendingTx.length} accent="#eab308" delay={0.15} />
       </div>

@@ -88,9 +88,13 @@ export default function Signup() {
     const t = setTimeout(async () => {
       try {
         const d = await callSignup('check-promo', { code });
-        setPromoStatus(d.valid
-          ? { state: 'ok', percentOff: d.percentOff, msg: d.percentOff === 100 ? 'This code makes your first activation free.' : `${d.percentOff}% off your activation fee.` }
-          : { state: 'bad', percentOff: 0, msg: d.reason });
+        if (!d.valid) { setPromoStatus({ state: 'bad', percentOff: 0, msg: d.reason }); return; }
+        const parts = [];
+        parts.push(d.percentOff === 100
+          ? (d.trialDays ? `Free access for ${d.trialDays} day${d.trialDays === 1 ? '' : 's'} — no payment to start.` : 'This code makes your activation free.')
+          : `${d.percentOff}% off your activation fee.`);
+        if (d.grantCredits > 0) parts.push(`Includes ${d.grantCredits} free staff seat${d.grantCredits === 1 ? '' : 's'}.`);
+        setPromoStatus({ state: 'ok', percentOff: d.percentOff, msg: parts.join(' ') });
       } catch (e2) {
         setPromoStatus({ state: 'bad', percentOff: 0, msg: e2.message });
       }
@@ -327,9 +331,14 @@ export default function Signup() {
             <h1 className="su-h">{orgName} is live</h1>
             <div className="su-pay-ref">
               <div className="su-pay-amt" style={{ color: '#1F6D45' }}>₦0</div>
-              <div className="su-pay-ref-code">Code {result.promoApplied?.code} applied — activation on us.</div>
+              <div className="su-pay-ref-code">
+                Code {result.promoApplied?.code} applied
+                {result.promoApplied?.trialDays ? ` — free for ${result.promoApplied.trialDays} day${result.promoApplied.trialDays === 1 ? '' : 's'}` : ' — activation on us'}
+                {result.promoApplied?.grantCredits > 0 && `, with ${result.promoApplied.grantCredits} free staff seat${result.promoApplied.grantCredits === 1 ? '' : 's'}`}.
+              </div>
               <p className="su-pay-note">
-                Your workspace is active right now — nothing to pay, nothing to wait for. Sign in with {email} and start setting up your team.
+                Your workspace is active right now — nothing to pay to start. Sign in with {email} and start setting up your team.
+                {result.promoApplied?.trialDays ? ' When your trial ends, complete the activation payment to keep going.' : ''}
               </p>
             </div>
             <div className="su-actions" style={{ justifyContent: 'center' }}>

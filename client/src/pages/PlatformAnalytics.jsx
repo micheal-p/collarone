@@ -166,13 +166,17 @@ export default function PlatformAnalytics() {
   const [profiles, setProfiles] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [pageViews, setPageViews] = useState([]);
+  const [adminIds, setAdminIds] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([apiGet('/platform/organizations'), apiGet('/platform/profiles'), apiGet('/platform/transactions'), apiGet('/platform/page-views')])
-      .then(([o, p, t, v]) => { setOrgs(o.organizations); setProfiles(p.profiles); setTransactions(t.transactions); setPageViews(v.pageViews); })
+    Promise.all([apiGet('/platform/organizations'), apiGet('/platform/profiles'), apiGet('/platform/transactions'), apiGet('/platform/page-views'), apiGet('/platform/admin-ids')])
+      .then(([o, p, t, v, ai]) => { setOrgs(o.organizations); setProfiles(p.profiles); setTransactions(t.transactions); setPageViews(v.pageViews); setAdminIds(ai.adminIds); })
       .finally(() => setLoading(false));
   }, []);
+
+  // Platform operators aren't customers — keep them out of every user count.
+  const customerProfiles = useMemo(() => profiles.filter((p) => !adminIds.includes(p.id)), [profiles, adminIds]);
 
   // Fixed-order categorical rows from a { code: count } map — shared by the
   // org-signup and page-visitor country breakdowns so their color slots mean
@@ -219,8 +223,8 @@ export default function PlatformAnalytics() {
 
   const activeLast7d = useMemo(() => {
     const cutoff = Date.now() - 7 * DAY_MS;
-    return profiles.filter((p) => p.last_login_at && new Date(p.last_login_at).getTime() > cutoff).length;
-  }, [profiles]);
+    return customerProfiles.filter((p) => p.last_login_at && new Date(p.last_login_at).getTime() > cutoff).length;
+  }, [customerProfiles]);
 
   const newLast30d = useMemo(() => {
     const cutoff = Date.now() - 30 * DAY_MS;
@@ -240,7 +244,7 @@ export default function PlatformAnalytics() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 32 }}>
         <StatTile label="Organizations" value={orgs.length} />
         <StatTile label="New in last 30 days" value={newLast30d} accent="#3987e5" />
-        <StatTile label="Active users, 7d" value={activeLast7d} accent="#22c55e" sub={`of ${profiles.length} signed-up`} />
+        <StatTile label="Active users, 7d" value={activeLast7d} accent="#22c55e" sub={`of ${customerProfiles.length} signed-up`} />
         <StatTile label="Revenue collected" value={naira(revenue.collected)} accent="#0ca30c" sub={revenue.pending > 0 ? `${naira(revenue.pending)} pending` : 'nothing pending'} />
       </div>
 

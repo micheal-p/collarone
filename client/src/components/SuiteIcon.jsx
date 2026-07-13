@@ -20,6 +20,7 @@ const PATHS = {
   heart: <><path d="M12 20s-7.5-4.6-9.7-9.3C.7 6.9 3 3.6 6.4 3.6c2 0 3.5 1.2 5.6 3.8 2.1-2.6 3.6-3.8 5.6-3.8 3.4 0 5.7 3.3 4.1 7.1C19.5 15.4 12 20 12 20z" /></>,
   globe: <><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5a14 14 0 0 1 0 17M12 3.5a14 14 0 0 0 0 17" /></>,
   contacts: <><rect x="4" y="3" width="13" height="18" rx="1.5" /><circle cx="10.5" cy="9.5" r="2.4" /><path d="M7 16c.6-1.8 2-2.7 3.5-2.7s2.9.9 3.5 2.7" /><path d="M19.5 8h1.5M19.5 12h1.5M19.5 16h1.5" /></>,
+  bolt: <><path d="M13 2.5 4.5 13.5H11l-1.5 8 8.5-11H11.5z" /></>,
 };
 
 export default function SuiteIcon({ name, size = 24, color = 'currentColor', strokeWidth = 1.6 }) {

@@ -18,6 +18,17 @@ const CSS = `
   .crm-t-email    { background:#f0e6ff; color:#5a2ca0; }
   .crm-t-meet     { background:#fff4ce; color:#7a5200; }
   .crm-t-note     { background:#f3f2f1; color:#605e5c; }
+  .crm-t-web      { background:#ffe9df; color:#b3400f; }
+  .crm-msg-card { border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:12px; background:var(--surface); }
+  .crm-msg-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+  .crm-msg-body { font-size:14px; line-height:1.6; margin:0 0 12px; white-space:pre-wrap; }
+  .crm-msg-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .crm-reply-btn { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:8px; border:1px solid var(--line); background:var(--surface); cursor:pointer; text-decoration:none; color:var(--text); }
+  .crm-reply-btn.wa { background:#dff6dd; border-color:#b5e3b1; color:#1a6a1a; }
+  .crm-reply-btn.soon { opacity:.55; cursor:not-allowed; }
+  .crm-soon-chip { font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; background:var(--surface-2); border:1px solid var(--line); border-radius:100px; padding:2px 8px; color:var(--text-2); }
+  .crm-replied { font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:100px; background:#dff6dd; color:#1a6a1a; }
+  .crm-awaiting { font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:100px; background:#fff4ce; color:#7a5200; }
 
   .crm-expand-row td { padding:0 16px 16px !important; background:var(--surface); }
   .crm-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px 20px; font-size:13px; margin:10px 0 16px; }
@@ -90,7 +101,7 @@ function LogActivityModal({ contact, company, onClose, onSaved, flash }) {
         <form className="modal-body" onSubmit={submit}>
           <Field label="Type">
             <select className="select" value={type} onChange={(e) => setType(e.target.value)}>
-              {Object.entries(C.ACTIVITY_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              {Object.entries(C.LOGGABLE_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select>
           </Field>
           <Field label="When">
@@ -427,6 +438,89 @@ function ContactsTab({ flash }) {
   );
 }
 
+/* ---- MessagesTab — the website contact-form inbox ----------------------------
+   Every message sent through the built site's contact form or the embed
+   widget lands here (type 'web_message'), newest first, with the sender's
+   details and one-tap replies. WhatsApp replies work today; direct email
+   replies will send over SMTP from the org's own collarone.app mailbox once
+   that's provisioned — shown as coming soon, not hidden. */
+const MsgIcons = {
+  wa: <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.2 14.2c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-3-.9-5-3.6-5.6-4.5-.5-.8-1-1.9-1-2.9 0-1 .5-1.5.7-1.7.3-.3.9-.3 1.1-.2.2 0 .5.1.7.6l.7 1.7c.1.2 0 .5-.1.6l-.5.6c-.1.2-.2.3 0 .6.5.8 1.6 2 3 2.6.3.1.5.1.7-.1l.7-.9c.2-.2.4-.2.6-.1l1.8.8c.3.2.5.3.5.5s0 .8-.2 1.3z"/></svg>,
+  mail: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>,
+  phone: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z" /></svg>,
+  check: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M5 12.5 9.5 17 19 7" /></svg>,
+};
+
+function MessagesTab({ flash }) {
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setMessages((await C.getActivities()).filter((a) => a.type === 'web_message')); }
+    catch (e) { flash(e.message, true); } finally { setLoading(false); }
+  }, [flash]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const toggleReplied = async (m) => {
+    try {
+      const saved = await C.setActivityReplied(m.id, !m.replied_at);
+      setMessages((s) => s.map((x) => (x.id === m.id ? saved : x)));
+    } catch (e) { flash(e.message, true); }
+  };
+
+  const waDigits = (m) => (m.contact?.whatsapp || m.contact?.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '234');
+  const awaiting = messages.filter((m) => !m.replied_at).length;
+
+  return (
+    <>
+      <div className="filterbar" style={{ marginTop: 8 }}>
+        <span className="count">
+          {messages.length} message{messages.length === 1 ? '' : 's'}{awaiting > 0 && ` · ${awaiting} awaiting reply`}
+        </span>
+      </div>
+      {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
+      {!loading && messages.length === 0 && (
+        <div className="crm-activity-empty" style={{ maxWidth: 560 }}>
+          No messages yet. When a visitor fills the contact form on your website (or the embedded form on your own site),
+          their message lands here with their details, ready to reply.
+        </div>
+      )}
+      {!loading && messages.map((m) => (
+        <div className="crm-msg-card" key={m.id} style={{ maxWidth: 720, opacity: m.replied_at ? 0.72 : 1 }}>
+          <div className="crm-msg-head">
+            <strong style={{ fontSize: 14.5 }}>{m.contact?.name || 'Visitor'}</strong>
+            {m.contact?.email && <span className="muted" style={{ fontSize: 12.5 }}>{m.contact.email}</span>}
+            {m.contact?.phone && <span className="muted" style={{ fontSize: 12.5 }}>{m.contact.phone}</span>}
+            <span style={{ flex: 1 }} />
+            {m.replied_at ? <span className="crm-replied">Replied</span> : <span className="crm-awaiting">Awaiting reply</span>}
+          </div>
+          <p className="crm-msg-body">{m.notes}</p>
+          <div className="crm-msg-actions">
+            {waDigits(m) && (
+              <a className="crm-reply-btn wa" target="_blank" rel="noreferrer"
+                href={`https://wa.me/${waDigits(m)}?text=${encodeURIComponent(`Hi ${(m.contact?.name || '').split(' ')[0]}, thanks for reaching out through our website — `)}`}
+                onClick={() => { if (!m.replied_at) toggleReplied(m); }}>
+                {MsgIcons.wa} Reply on WhatsApp
+              </a>
+            )}
+            <button className="crm-reply-btn soon" disabled title="Direct email replies will send from your own collarone.app mailbox — SMTP setup is on the way.">
+              {MsgIcons.mail} Reply by email <span className="crm-soon-chip">Coming soon</span>
+            </button>
+            {m.contact?.phone && <a className="crm-reply-btn" href={`tel:${m.contact.phone}`}>{MsgIcons.phone} Call</a>}
+            <span style={{ flex: 1 }} />
+            <button className="crm-reply-btn" onClick={() => toggleReplied(m)}>
+              {MsgIcons.check} {m.replied_at ? 'Mark as unreplied' : 'Mark as replied'}
+            </button>
+          </div>
+          <div className="crm-activity-meta" style={{ marginTop: 10 }}>Received {C.fmtDt(m.occurred_at || m.created_at)}</div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 /* ---- ActivityTab -------------------------------------------------------------- */
 function ActivityTab({ flash }) {
   const [activities, setActivities] = useState([]);
@@ -473,7 +567,7 @@ function ActivityTab({ flash }) {
    Main CRMApp
    ========================================================================= */
 export default function CRMApp() {
-  const [tab, setTab] = useState('companies');
+  const [tab, setTab] = useState('messages');
   const [toast, setToast] = useState(null);
   const flash = useCallback((msg, isErr = false) => {
     setToast({ msg, isErr });
@@ -481,6 +575,7 @@ export default function CRMApp() {
   }, []);
 
   const TABS = [
+    { key: 'messages',   label: 'Messages' },
     { key: 'companies',  label: 'Companies' },
     { key: 'contacts',   label: 'Contacts' },
     { key: 'activities', label: 'Activity log' },
@@ -492,6 +587,7 @@ export default function CRMApp() {
       <div className="lv-tabs">
         {TABS.map((t) => <button key={t.key} className={`lv-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
       </div>
+      {tab === 'messages'   && <MessagesTab flash={flash} />}
       {tab === 'companies'  && <CompaniesTab flash={flash} />}
       {tab === 'contacts'   && <ContactsTab flash={flash} />}
       {tab === 'activities' && <ActivityTab flash={flash} />}

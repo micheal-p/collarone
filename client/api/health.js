@@ -35,7 +35,24 @@ export default async function handler(req, res) {
     try {
       const { data: last } = await admin.from('status_checks').select('checked_at').order('checked_at', { ascending: false }).limit(1).maybeSingle();
       const dueForCheck = !last || Date.now() - new Date(last.checked_at).getTime() > THROTTLE_MS;
-      if (dueForCheck) await admin.from('status_checks').insert({ api_ok: apiOk, db_ok: dbOk, response_ms: responseMs });
+      if (dueForCheck) {
+        await admin.from('status_checks').insert({ api_ok: apiOk, db_ok: dbOk, response_ms: responseMs });
+        // Piggyback on the same throttle: promo-trial expiry. An org whose
+        // trial window has lapsed gets suspended (blocks login with the
+        // pay-to-continue message) and a payment-reminder banner queued for
+        // when they do pay and come back.
+        const { data: expired } = await admin.from('organizations')
+          .update({ status: 'suspended' })
+          .lt('trial_ends_at', new Date().toISOString())
+          .eq('status', 'active')
+          .select('id, name');
+        for (const org of expired || []) {
+          await admin.from('org_notices').insert({
+            org_id: org.id, kind: 'payment_reminder',
+            message: `Your free trial has ended. Complete your activation payment to keep using Collarone — WhatsApp us on 0814 812 8551.`,
+          });
+        }
+      }
     } catch {
       // never let logging history block reporting live status
     }
