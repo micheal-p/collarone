@@ -484,6 +484,72 @@ function ShareEmbedPanel({ orgSlug }) {
   );
 }
 
+/* ---- Insights tab — the site's own traffic + the leads it produced ---------- */
+const COUNTRY_NAMES = { NG: 'Nigeria', GH: 'Ghana', KE: 'Kenya', ZA: 'South Africa', EG: 'Egypt', GB: 'United Kingdom', US: 'United States', XX: 'Unknown' };
+
+function InsightsTab({ orgId, flash }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    W.getSiteInsights(orgId).then(setData).catch((e) => flash(e.message, true)).finally(() => setLoading(false));
+  }, [orgId]); // eslint-disable-line
+
+  if (loading) return <div className="suite-loading"><div className="boot-spinner" /></div>;
+  if (!data) return null;
+
+  const now = Date.now();
+  const within = (h) => data.visits.filter((x) => now - new Date(x.created_at).getTime() < h * 3600000).length;
+  const agg = (key) => {
+    const m = {};
+    data.visits.forEach((x) => { m[x[key]] = (m[x[key]] || 0) + 1; });
+    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  };
+  const tile = { border: '1px solid var(--line)', borderRadius: 12, padding: '16px 18px', background: 'var(--surface)' };
+  const tileLabel = { fontSize: 11.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--text-2)', marginBottom: 8 };
+  const tileVal = { fontSize: 26, fontWeight: 750 };
+  const bar = (val, max) => ({ height: 8, borderRadius: 4, background: 'var(--brand, #FF5B1F)', width: `${Math.max(6, (val / max) * 100)}%` });
+
+  return (
+    <div style={{ maxWidth: 760 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 8 }}>
+        <div style={tile}><div style={tileLabel}>Visits, 24h</div><div style={tileVal}>{within(24)}</div></div>
+        <div style={tile}><div style={tileLabel}>Visits, 7 days</div><div style={tileVal}>{within(24 * 7)}</div></div>
+        <div style={tile}><div style={tileLabel}>Visits, 30 days</div><div style={tileVal}>{data.visits.length}</div></div>
+        <div style={tile}><div style={tileLabel}>Messages &amp; leads</div><div style={{ ...tileVal, color: '#1a7a3e' }}>{data.leadCount}</div></div>
+      </div>
+      <p className="muted" style={{ fontSize: 12, margin: '0 0 24px' }}>
+        Anonymous visit counts from your public site — no cookies, no visitor IDs. Messages &amp; leads counts everything the site
+        has sent into your CRM: contact-form messages, product enquiries and mailing-list signups. Open the CRM suite's Messages tab to reply.
+      </p>
+
+      {data.visits.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+          {[['Most visited pages', agg('page')], ['Where visitors are', agg('country')]].map(([title, rows]) => (
+            <div key={title}>
+              <h3 style={{ fontSize: 13.5, margin: '0 0 12px' }}>{title}</h3>
+              <div style={{ border: '1px solid var(--line)', borderRadius: 12, padding: 16, background: 'var(--surface)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {rows.map(([label, val]) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ width: 100, fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={label}>
+                      {COUNTRY_NAMES[label] || label}
+                    </span>
+                    <div style={{ flex: 1, background: 'var(--surface-2)', borderRadius: 4 }}><div style={bar(val, rows[0][1])} /></div>
+                    <span style={{ width: 32, textAlign: 'right', fontSize: 12.5, fontWeight: 650 }}>{val}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {data.visits.length === 0 && (
+        <p className="muted" style={{ fontSize: 13 }}>No visits recorded yet — they start counting from the moment your site is published and someone opens it.</p>
+      )}
+    </div>
+  );
+}
+
 /* ---- Settings tab ------------------------------------------------------------- */
 function SettingsTab({ site, orgId, orgSlug, onSave, flash }) {
   const [f, setF] = useState({ siteName: site.site_name, tagline: site.tagline, contactEmail: site.contact_email, contactPhone: site.contact_phone, contactWhatsapp: site.contact_whatsapp, accentColor: site.accent_color, logoUrl: site.logo_url });
@@ -618,6 +684,7 @@ export default function AdminWebsite() {
             <button className={`lv-tab ${tab === 'settings' ? 'active' : ''}`} onClick={() => setTab('settings')}>Settings</button>
             <button className={`lv-tab ${tab === 'pages' ? 'active' : ''}`} onClick={() => setTab('pages')}>Pages & content</button>
             {category === 'ecommerce' && <button className={`lv-tab ${tab === 'products' ? 'active' : ''}`} onClick={() => setTab('products')}>Products</button>}
+            <button className={`lv-tab ${tab === 'insights' ? 'active' : ''}`} onClick={() => setTab('insights')}>Insights</button>
             <button className={`lv-tab ${tab === 'publish' ? 'active' : ''}`} onClick={() => setTab('publish')}>Publish</button>
             <a className="btn btn-ghost lv-apply" href={`/site/${org?.slug}?preview=1`} target="_blank" rel="noreferrer">Preview site</a>
           </div>
@@ -625,6 +692,7 @@ export default function AdminWebsite() {
           {tab === 'settings' && <SettingsTab site={site} orgId={org.id} orgSlug={org.slug} onSave={load} flash={flash} />}
           {tab === 'pages' && <PagesTab orgId={org.id} flash={flash} />}
           {tab === 'products' && category === 'ecommerce' && <ProductsTab orgId={org.id} flash={flash} />}
+          {tab === 'insights' && <InsightsTab orgId={org.id} flash={flash} />}
           {tab === 'publish' && (
             <div style={{ maxWidth: 480 }}>
               <p style={{ fontSize: 14 }}>

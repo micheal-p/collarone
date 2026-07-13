@@ -22,7 +22,15 @@ export default async function handler(req, res) {
     const path = String(body.path || '/').slice(0, 200);
     const country = (req.headers['x-vercel-ip-country'] || 'XX').toString().slice(0, 2).toUpperCase();
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
-    await admin.from('page_views').insert({ path, country });
+
+    if (body.orgSlug) {
+      // a customer's public website page — this is THEIR traffic, org-scoped,
+      // surfaced back to them in the Website builder's Insights tab
+      const { data: org } = await admin.from('organizations').select('id').eq('slug', String(body.orgSlug).slice(0, 60)).maybeSingle();
+      if (org) await admin.from('site_visits').insert({ org_id: org.id, page: path, country });
+    } else {
+      await admin.from('page_views').insert({ path, country });
+    }
   } catch {
     // best-effort only — never surface a tracking failure to the visitor
   }

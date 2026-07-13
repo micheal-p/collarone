@@ -22,6 +22,18 @@ export default function PublicSite() {
     return () => { cancelled = true; };
   }, [slug, isPreview]);
 
+  // Anonymous per-page visit beacon for the org's own Insights tab (page +
+  // country only, resolved server-side). Previews don't count as traffic.
+  useEffect(() => {
+    if (isPreview || !slug || !activeSlug) return;
+    fetch('/api/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orgSlug: slug, path: activeSlug }),
+      keepalive: true,
+    }).catch(() => {});
+  }, [slug, activeSlug, isPreview]);
+
   if (loading) return <div className="full-center"><div className="boot-spinner" /></div>;
 
   if (error || !data) {

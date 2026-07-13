@@ -142,9 +142,22 @@ export const BLOCK_TYPES = {
   testimonials: 'Testimonials',
   faq:          'FAQ',
   contact_form: 'Contact form',
+  subscribe:    'Mailing list signup',
   products:     'Product grid',
   cta:          'Call to action',
   footer:       'Footer note',
+};
+
+// Website insights: this org's own site traffic (site_visits, RLS-scoped)
+// plus how many leads/messages the site has produced.
+export const getSiteInsights = async (orgId) => {
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const [{ data: visits, error: vErr }, { count: leadCount }] = await Promise.all([
+    supabase.from('site_visits').select('page, country, created_at').eq('org_id', orgId).gte('created_at', since).order('created_at', { ascending: false }).limit(10000),
+    supabase.from('crm_activities').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('type', 'web_message'),
+  ]);
+  if (vErr) throw new Error(vErr.message);
+  return { visits: visits || [], leadCount: leadCount || 0 };
 };
 
 export const money = (n) => n == null ? '' : `₦${Number(n).toLocaleString('en-NG')}`;

@@ -58,7 +58,8 @@ begin
         jsonb_build_object('quote', 'Ordered on Monday, it was at my door in Ibadan by Wednesday. Replace this with a real review from one of your customers.', 'author', 'Chiamaka A., Ibadan'),
         jsonb_build_object('quote', 'Genuine products and they actually answer their WhatsApp. Swap this out for your own customer''s words.', 'author', 'Emeka O., Abuja')
       ))),
-      (v_org_id, v_home_id, 'cta', 5, jsonb_build_object('heading', 'Ready to order?', 'button_text', 'Chat with us', 'button_link', '#contact'));
+      (v_org_id, v_home_id, 'cta', 5, jsonb_build_object('heading', 'Ready to order?', 'button_text', 'Chat with us', 'button_link', '#contact')),
+      (v_org_id, v_home_id, 'subscribe', 6, jsonb_build_object('heading', 'Get first pick', 'blurb', 'New arrivals and offers, straight to your inbox — subscribers land in your CRM automatically.', 'button_text', 'Subscribe'));
     insert into public.site_pages (org_id, slug, title, sort_order) values (v_org_id, 'shop', 'Shop', 2) returning id into v_page_id;
     insert into public.site_blocks (org_id, page_id, type, sort_order, content) values
       (v_org_id, v_page_id, 'products', 1, jsonb_build_object('heading', 'All products', 'limit', 0));
@@ -97,7 +98,8 @@ begin
         jsonb_build_object('q', 'What if it doesn''t work for me?', 'a', 'Handle the biggest doubt a buyer has — guarantee, trial period, or refund policy.')
       ))),
       (v_org_id, v_home_id, 'cta', 5, jsonb_build_object('heading', 'Ready when you are.', 'button_text', 'Talk to us', 'button_link', '#contact')),
-      (v_org_id, v_home_id, 'contact_form', 6, '{}'::jsonb);
+      (v_org_id, v_home_id, 'subscribe', 6, jsonb_build_object('heading', 'Not ready yet?', 'blurb', 'Leave your email and we will keep you posted — every subscriber lands in your CRM.', 'button_text', 'Keep me posted')),
+      (v_org_id, v_home_id, 'contact_form', 7, '{}'::jsonb);
 
   else -- company
     insert into public.site_pages (org_id, slug, title, is_home, sort_order) values (v_org_id, 'home', 'Home', true, 1) returning id into v_home_id;

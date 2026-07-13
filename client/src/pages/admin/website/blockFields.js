@@ -8,6 +8,7 @@ export const BLOCK_FIELDS = {
   cta:      { simple: [['heading', 'Heading', 'text'], ['button_text', 'Button text', 'text'], ['button_link', 'Button link', 'text']] },
   products: { simple: [['heading', 'Heading', 'text'], ['limit', 'How many to show (0 = all)', 'number']] },
   contact_form: { simple: [] },
+  subscribe: { simple: [['heading', 'Heading', 'text'], ['blurb', 'Short blurb', 'textarea'], ['button_text', 'Button text', 'text']] },
   footer:   { simple: [['note', 'Footer note', 'text']] },
   features:     { simple: [['heading', 'Heading', 'text']], repeater: { key: 'items', label: 'Feature', fields: [['title', 'Title', 'text'], ['body', 'Description', 'textarea']] } },
   faq:          { simple: [['heading', 'Heading', 'text']], repeater: { key: 'items', label: 'Question', fields: [['q', 'Question', 'text'], ['a', 'Answer', 'textarea']] } },

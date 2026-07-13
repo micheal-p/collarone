@@ -1,21 +1,58 @@
-// Public-site rendering. Three real layout skeletons (ecommerce-grid,
-// landing-hero, company-profile) × each theme's own accent/font/tone tokens
-// is what makes the 10 catalog themes look meaningfully different from each
-// other without hand-building 10 bespoke templates from scratch.
+// Public-site rendering.
+//
+// Every theme used to share three identical skeletons with only the accent
+// colour swapped — ten coats of paint, not ten themes. Each theme now owns a
+// VARIANT: a deliberate set of design decisions (hero composition, card
+// language, button shape, nav treatment, type scale) consumed by every block,
+// so Boutique Noir is an editorial dark boutique, Market Fresh is friendly
+// rounded commerce, Corporate Clean is a conservative firm site — from the
+// same honest renderer the theme previews use.
+//
+// Commercial blocks are wired to the platform: product cards raise CRM
+// enquiries ("[Product enquiry] …" lands in the Messages inbox), the
+// subscribe block captures mailing-list emails as CRM contacts, and the
+// contact form was already a lead. PublicSite beacons per-page site_visits.
 import { useMemo, useState } from 'react';
 import { apiPost } from '../../api/client.js';
 
 const FONT_STACKS = {
   'sans-clean':    "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-  'sans-bold':     "'Poppins', 'Inter', sans-serif",
+  'sans-bold':     "'Inter', 'Poppins', sans-serif",
   'serif-display': "'Georgia', 'Times New Roman', serif",
 };
+
+/* ---- the design decisions each theme owns ------------------------------- */
+const DEFAULT_VARIANT = { hero: 'overlay', card: 'bordered', btnRadius: 8, navCaps: false, narrow: false, display: 1, headingWeight: 700 };
+const VARIANTS = {
+  // ecommerce
+  'storefront-classic':    { hero: 'overlay',   card: 'bordered', btnRadius: 8,   headingWeight: 700 },
+  'boutique-noir':         { hero: 'editorial', card: 'minimal',  btnRadius: 0,   navCaps: true, display: 1.12, headingWeight: 500 },
+  'market-fresh':          { hero: 'split',     card: 'rounded',  btnRadius: 999, display: 1.05, headingWeight: 800 },
+  // landing
+  'launch-bold':           { hero: 'full',      card: 'bordered', btnRadius: 4,   display: 1.3, headingWeight: 800 },
+  'minimal-pitch':         { hero: 'minimal',   card: 'plain',    btnRadius: 8,   narrow: true, display: 0.92, headingWeight: 600 },
+  'startup-gradient':      { hero: 'gradient',  card: 'glass',    btnRadius: 999, display: 1.1, headingWeight: 800 },
+  'feature-focus':         { hero: 'overlay',   card: 'zigzag',   btnRadius: 10,  headingWeight: 700 },
+  // company
+  'corporate-clean':       { hero: 'boxed',     card: 'bordered', btnRadius: 4,   display: 0.9, headingWeight: 700 },
+  'agency-modern':         { hero: 'editorial', card: 'minimal',  btnRadius: 0,   navCaps: true, display: 1.25, headingWeight: 800 },
+  'professional-services': { hero: 'minimal',   card: 'bordered', btnRadius: 8,   display: 0.95, headingWeight: 600 },
+};
+const variantFor = (theme) => ({ ...DEFAULT_VARIANT, ...(VARIANTS[theme?.key] || {}) });
+
+// darken a hex for gradients/hover without a colour library
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (x) => Math.max(0, Math.min(255, Math.round(x * (1 + amt))));
+  return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => f(c).toString(16).padStart(2, '0')).join('')}`;
+}
 
 function useThemeVars(theme) {
   return useMemo(() => {
     const dark = theme.tone === 'dark';
     return {
       '--site-accent': theme.accentColor || theme.accent,
+      '--site-accent-dark': shade(theme.accentColor || theme.accent, -0.25),
       '--site-bg': dark ? '#0d0f14' : '#ffffff',
       '--site-fg': dark ? '#f2f2f2' : '#14161a',
       '--site-muted': dark ? '#a5a5ad' : '#5c5f66',
@@ -26,147 +63,319 @@ function useThemeVars(theme) {
   }, [theme]);
 }
 
-function Block({ block, site }) {
-  const c = block.content || {};
-  switch (block.type) {
-    case 'hero': {
-      const hasImg = Boolean(c.image_url);
-      return (
-        <section style={{
-          padding: hasImg ? 'clamp(90px, 16vw, 150px) 24px' : 'clamp(56px, 10vw, 84px) 24px', textAlign: 'center',
-          ...(hasImg ? {
-            backgroundImage: `linear-gradient(rgba(8,10,16,0.52), rgba(8,10,16,0.62)), url(${c.image_url})`,
-            backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff',
-          } : {}),
-        }}>
-          <h1 style={{ fontSize: 'clamp(28px, 6vw, 44px)', lineHeight: 1.12, margin: '0 0 14px', fontFamily: 'var(--site-font)', ...(hasImg ? { textShadow: '0 2px 18px rgba(0,0,0,0.35)' } : {}) }}>{c.heading}</h1>
-          {c.subheading && <p style={{ fontSize: 'clamp(15px, 2.4vw, 18px)', color: hasImg ? 'rgba(255,255,255,0.88)' : 'var(--site-muted)', maxWidth: 560, margin: '0 auto 26px', lineHeight: 1.6 }}>{c.subheading}</p>}
-          {c.button_text && (
-            <a href={c.button_link || '#'} style={{ display: 'inline-block', padding: '13px 30px', background: 'var(--site-accent)', color: '#fff', borderRadius: 8, textDecoration: 'none', fontWeight: 600, boxShadow: hasImg ? '0 8px 24px rgba(0,0,0,0.3)' : 'none' }}>
-              {c.button_text}
-            </a>
-          )}
-        </section>
-      );
-    }
-    case 'text':
-      return (
-        <section style={{ padding: '48px 24px', maxWidth: 720, margin: '0 auto' }}>
-          {c.heading && <h2 style={{ fontSize: 26, marginBottom: 12, fontFamily: 'var(--site-font)' }}>{c.heading}</h2>}
-          <p style={{ fontSize: 15.5, lineHeight: 1.7, color: 'var(--site-muted)', whiteSpace: 'pre-wrap' }}>{c.body}</p>
-        </section>
-      );
-    case 'image':
-      return c.image_url ? (
-        <section style={{ padding: '24px', textAlign: 'center' }}>
-          <img src={c.image_url} alt={c.alt || ''} style={{ maxWidth: '100%', borderRadius: 10 }} />
-          {c.caption && <p style={{ fontSize: 13, color: 'var(--site-muted)', marginTop: 8 }}>{c.caption}</p>}
-        </section>
-      ) : null;
-    case 'features':
-      return (
-        <section style={{ padding: '48px 24px', maxWidth: 960, margin: '0 auto' }}>
-          {c.heading && <h2 style={{ fontSize: 26, marginBottom: 24, textAlign: 'center', fontFamily: 'var(--site-font)' }}>{c.heading}</h2>}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
-            {(c.items || []).map((it, i) => (
-              <div key={i} style={{ padding: 20, background: 'var(--site-surface)', border: '1px solid var(--site-line)', borderRadius: 10 }}>
-                <h3 style={{ fontSize: 16, margin: '0 0 8px' }}>{it.title}</h3>
-                <p style={{ fontSize: 13.5, color: 'var(--site-muted)', margin: 0 }}>{it.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      );
-    case 'team':
-      return (
-        <section style={{ padding: '48px 24px', maxWidth: 960, margin: '0 auto' }}>
-          {c.heading && <h2 style={{ fontSize: 26, marginBottom: 24, textAlign: 'center', fontFamily: 'var(--site-font)' }}>{c.heading}</h2>}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 20 }}>
-            {(c.items || []).length === 0 && <p style={{ textAlign: 'center', color: 'var(--site-muted)', gridColumn: '1/-1' }}>Team members coming soon.</p>}
-            {(c.items || []).map((it, i) => (
-              <div key={i} style={{ textAlign: 'center' }}>
-                {it.photo_url && <img src={it.photo_url} alt={it.name} style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', margin: '0 auto 10px' }} />}
-                <div style={{ fontWeight: 600 }}>{it.name}</div>
-                <div style={{ fontSize: 13, color: 'var(--site-muted)' }}>{it.role}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      );
-    case 'testimonials':
-      return (
-        <section style={{ padding: '48px 24px', maxWidth: 720, margin: '0 auto' }}>
-          {c.heading && <h2 style={{ fontSize: 26, marginBottom: 24, textAlign: 'center', fontFamily: 'var(--site-font)' }}>{c.heading}</h2>}
-          {(c.items || []).map((it, i) => (
-            <blockquote key={i} style={{ margin: '0 0 20px', padding: '16px 20px', borderLeft: '3px solid var(--site-accent)', background: 'var(--site-surface)' }}>
-              <p style={{ fontStyle: 'italic', margin: '0 0 8px' }}>&ldquo;{it.quote}&rdquo;</p>
-              <footer style={{ fontSize: 13, color: 'var(--site-muted)' }}>— {it.author}</footer>
-            </blockquote>
-          ))}
-        </section>
-      );
-    case 'faq':
-      return (
-        <section style={{ padding: '48px 24px', maxWidth: 640, margin: '0 auto' }}>
-          {c.heading && <h2 style={{ fontSize: 26, marginBottom: 20, textAlign: 'center', fontFamily: 'var(--site-font)' }}>{c.heading}</h2>}
-          {(c.items || []).map((it, i) => (
-            <div key={i} style={{ marginBottom: 14 }}>
-              <div style={{ fontWeight: 600, marginBottom: 4 }}>{it.q}</div>
-              <div style={{ fontSize: 14, color: 'var(--site-muted)' }}>{it.a}</div>
-            </div>
-          ))}
-        </section>
-      );
-    case 'contact_form':
-      return <ContactFormSection site={site} />;
-    case 'products':
-      return (
-        <section style={{ padding: '48px 24px', maxWidth: 1000, margin: '0 auto' }}>
-          {c.heading && <h2 style={{ fontSize: 26, marginBottom: 24, textAlign: 'center', fontFamily: 'var(--site-font)' }}>{c.heading}</h2>}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 18 }}>
-            {(site.products || []).slice(0, c.limit > 0 ? c.limit : undefined).map((p) => (
-              <div key={p.id} style={{ border: '1px solid var(--site-line)', borderRadius: 10, overflow: 'hidden', background: 'var(--site-surface)' }}>
-                <div style={{ aspectRatio: '1/1', background: '#e5e5e5', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                  {p.imageUrl ? <img src={p.imageUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ color: '#999', fontSize: 12 }}>No image</span>}
-                </div>
-                <div style={{ padding: 12 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</div>
-                  {p.price != null && <div style={{ color: 'var(--site-accent)', fontWeight: 700, marginTop: 4 }}>₦{Number(p.price).toLocaleString('en-NG')}</div>}
-                </div>
-              </div>
-            ))}
-            {(site.products || []).length === 0 && <p style={{ gridColumn: '1/-1', textAlign: 'center', color: 'var(--site-muted)' }}>No products listed yet.</p>}
-          </div>
-        </section>
-      );
-    case 'cta':
-      return (
-        <section style={{ padding: '56px 24px', textAlign: 'center', background: 'var(--site-surface)' }}>
-          <h2 style={{ fontSize: 26, marginBottom: 16, fontFamily: 'var(--site-font)' }}>{c.heading}</h2>
-          {c.button_text && (
-            <a href={c.button_link || '#contact'} style={{ display: 'inline-block', padding: '12px 28px', background: 'var(--site-accent)', color: '#fff', borderRadius: 8, textDecoration: 'none', fontWeight: 600 }}>
-              {c.button_text}
-            </a>
-          )}
-        </section>
-      );
-    case 'footer':
-    default:
-      return null;
+const btnStyle = (v, filled = true) => ({
+  display: 'inline-block', padding: '13px 30px', borderRadius: v.btnRadius, textDecoration: 'none',
+  fontWeight: 650, fontSize: 14.5, cursor: 'pointer', border: '1px solid transparent',
+  ...(filled
+    ? { background: 'var(--site-accent)', color: '#fff' }
+    : { background: 'transparent', color: 'var(--site-fg)', borderColor: 'var(--site-line)' }),
+  ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.12em', fontSize: 12.5 } : {}),
+});
+
+const secWidth = (v, base = 960) => (v.narrow ? Math.min(base, 660) : base);
+const H2 = ({ v, children, align = 'center' }) => (
+  <h2 style={{
+    fontSize: `clamp(${22 * v.display}px, ${3 * v.display}vw, ${28 * v.display}px)`, marginBottom: 24,
+    textAlign: align, fontFamily: 'var(--site-font)', fontWeight: v.headingWeight,
+    ...(v.navCaps ? { letterSpacing: '.04em' } : {}),
+  }}>{children}</h2>
+);
+
+/* ---- hero ------------------------------------------------------------------ */
+function Hero({ c, v }) {
+  const img = c.image_url;
+  const h1Size = `clamp(${30 * v.display}px, ${6 * v.display}vw, ${46 * v.display}px)`;
+  const button = c.button_text && (
+    <a href={c.button_link || '#'} style={{ ...btnStyle(v), boxShadow: img || v.hero === 'gradient' ? '0 10px 28px rgba(0,0,0,0.3)' : 'none' }}>{c.button_text}</a>
+  );
+
+  if (v.hero === 'editorial') {
+    return (
+      <section style={{
+        position: 'relative', minHeight: 520, display: 'flex', alignItems: 'flex-end', padding: 'clamp(28px, 5vw, 64px)',
+        ...(img ? { backgroundImage: `linear-gradient(100deg, rgba(6,7,10,0.78) 8%, rgba(6,7,10,0.25) 60%, rgba(6,7,10,0.55)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff' } : { background: 'var(--site-surface)' }),
+      }}>
+        <div style={{ maxWidth: 640 }}>
+          <div style={{ fontSize: 12, letterSpacing: '.34em', textTransform: 'uppercase', color: img ? 'rgba(255,255,255,0.75)' : 'var(--site-accent)', marginBottom: 18 }}>— Est. Lagos</div>
+          <h1 style={{ fontSize: h1Size, lineHeight: 1.05, margin: '0 0 16px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, letterSpacing: '.01em' }}>{c.heading}</h1>
+          {c.subheading && <p style={{ fontSize: 16.5, lineHeight: 1.65, color: img ? 'rgba(255,255,255,0.82)' : 'var(--site-muted)', maxWidth: 480, margin: '0 0 28px' }}>{c.subheading}</p>}
+          {button}
+        </div>
+      </section>
+    );
   }
+
+  if (v.hero === 'split') {
+    return (
+      <section style={{ display: 'grid', gridTemplateColumns: img ? 'minmax(300px, 1fr) minmax(280px, 1fr)' : '1fr', minHeight: 460 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(28px, 5vw, 64px)', background: 'var(--site-surface)' }}>
+          <span style={{ alignSelf: 'flex-start', fontSize: 12.5, fontWeight: 800, background: 'var(--site-accent)', color: '#fff', borderRadius: 999, padding: '6px 16px', marginBottom: 20 }}>Now delivering nationwide</span>
+          <h1 style={{ fontSize: h1Size, lineHeight: 1.08, margin: '0 0 14px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight }}>{c.heading}</h1>
+          {c.subheading && <p style={{ fontSize: 16.5, lineHeight: 1.65, color: 'var(--site-muted)', margin: '0 0 26px', maxWidth: 440 }}>{c.subheading}</p>}
+          <div>{button}</div>
+        </div>
+        {img && <div style={{ backgroundImage: `url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', minHeight: 300 }} />}
+      </section>
+    );
+  }
+
+  if (v.hero === 'gradient') {
+    return (
+      <section style={{
+        padding: 'clamp(80px, 13vw, 130px) 24px', textAlign: 'center', color: '#fff',
+        background: `radial-gradient(700px 340px at 20% 0%, rgba(255,255,255,0.14), transparent 60%), radial-gradient(600px 320px at 90% 100%, rgba(0,0,0,0.25), transparent 60%), linear-gradient(135deg, var(--site-accent) 0%, var(--site-accent-dark) 100%)`,
+      }}>
+        <h1 style={{ fontSize: h1Size, lineHeight: 1.08, margin: '0 0 16px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, textShadow: '0 2px 24px rgba(0,0,0,0.25)' }}>{c.heading}</h1>
+        {c.subheading && <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,0.86)', maxWidth: 560, margin: '0 auto 30px' }}>{c.subheading}</p>}
+        {c.button_text && <a href={c.button_link || '#'} style={{ ...btnStyle(v), background: '#fff', color: 'var(--site-accent-dark)', boxShadow: '0 12px 32px rgba(0,0,0,0.25)' }}>{c.button_text}</a>}
+      </section>
+    );
+  }
+
+  if (v.hero === 'minimal') {
+    return (
+      <section style={{ padding: 'clamp(72px, 11vw, 110px) 24px', textAlign: 'center' }}>
+        <div style={{ width: 34, height: 3, background: 'var(--site-accent)', margin: '0 auto 30px' }} />
+        <h1 style={{ fontSize: h1Size, lineHeight: 1.14, margin: '0 auto 16px', maxWidth: 640, fontFamily: 'var(--site-font)', fontWeight: v.headingWeight }}>{c.heading}</h1>
+        {c.subheading && <p style={{ fontSize: 16.5, lineHeight: 1.7, color: 'var(--site-muted)', maxWidth: 520, margin: '0 auto 30px' }}>{c.subheading}</p>}
+        {button}
+      </section>
+    );
+  }
+
+  if (v.hero === 'boxed') {
+    return (
+      <section style={{ borderBottom: '1px solid var(--site-line)' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', padding: 'clamp(40px, 7vw, 64px) 24px', display: 'grid', gridTemplateColumns: img ? '1.2fr minmax(220px, 0.8fr)' : '1fr', gap: 36, alignItems: 'center' }}>
+          <div>
+            <h1 style={{ fontSize: h1Size, lineHeight: 1.15, margin: '0 0 14px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight }}>{c.heading}</h1>
+            {c.subheading && <p style={{ fontSize: 16, lineHeight: 1.65, color: 'var(--site-muted)', margin: '0 0 24px', maxWidth: 480 }}>{c.subheading}</p>}
+            {button}
+          </div>
+          {img && <img src={img} alt="" style={{ width: '100%', borderRadius: 6, border: '1px solid var(--site-line)', objectFit: 'cover', aspectRatio: '4/3' }} />}
+        </div>
+      </section>
+    );
+  }
+
+  // 'overlay' and 'full'
+  const tall = v.hero === 'full';
+  return (
+    <section style={{
+      padding: img ? `clamp(${tall ? 120 : 90}px, ${tall ? 20 : 16}vw, ${tall ? 200 : 150}px) 24px` : 'clamp(56px, 10vw, 84px) 24px', textAlign: 'center',
+      ...(img ? { backgroundImage: `linear-gradient(rgba(8,10,16,0.52), rgba(8,10,16,0.62)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff' } : {}),
+    }}>
+      <h1 style={{ fontSize: tall ? `clamp(38px, 8vw, 64px)` : h1Size, lineHeight: 1.1, margin: '0 0 14px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, ...(img ? { textShadow: '0 2px 18px rgba(0,0,0,0.35)' } : {}) }}>{c.heading}</h1>
+      {c.subheading && <p style={{ fontSize: 'clamp(15px, 2.4vw, 18px)', color: img ? 'rgba(255,255,255,0.88)' : 'var(--site-muted)', maxWidth: 560, margin: '0 auto 26px', lineHeight: 1.6 }}>{c.subheading}</p>}
+      {button}
+    </section>
+  );
 }
 
-// A real, working contact form — submissions land in the org's CRM Messages
-// inbox via the same public lead RPC the embed widget uses. Contact details
-// render alongside as secondary channels.
-function ContactFormSection({ site }) {
+/* ---- features --------------------------------------------------------------- */
+function Features({ c, v }) {
+  const items = c.items || [];
+  if (v.card === 'zigzag') {
+    return (
+      <section style={{ padding: '56px 24px', maxWidth: 860, margin: '0 auto' }}>
+        {c.heading && <H2 v={v}>{c.heading}</H2>}
+        {items.map((it, i) => (
+          <div key={i} style={{ display: 'flex', gap: 26, alignItems: 'flex-start', flexDirection: i % 2 ? 'row-reverse' : 'row', padding: '26px 0', borderTop: i > 0 ? '1px solid var(--site-line)' : 'none' }}>
+            <div style={{ fontSize: 44, fontWeight: 800, color: 'var(--site-accent)', opacity: 0.25, lineHeight: 1, fontFamily: 'var(--site-font)', flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</div>
+            <div style={{ textAlign: i % 2 ? 'right' : 'left' }}>
+              <h3 style={{ fontSize: 17, margin: '4px 0 8px', fontWeight: 700 }}>{it.title}</h3>
+              <p style={{ fontSize: 14, color: 'var(--site-muted)', margin: 0, lineHeight: 1.65 }}>{it.body}</p>
+            </div>
+          </div>
+        ))}
+      </section>
+    );
+  }
+  const cardStyles = {
+    bordered: { padding: 20, background: 'var(--site-surface)', border: '1px solid var(--site-line)', borderRadius: Math.min(v.btnRadius === 999 ? 18 : v.btnRadius + 6, 18) },
+    rounded: { padding: 24, background: 'var(--site-surface)', borderRadius: 20, boxShadow: '0 10px 30px rgba(20,22,26,0.07)' },
+    glass: { padding: 22, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 16, backdropFilter: 'blur(8px)' },
+    minimal: { padding: '20px 0 0', borderTop: '2px solid var(--site-accent)' },
+    plain: { padding: 0 },
+  };
+  return (
+    <section style={{ padding: '56px 24px', maxWidth: secWidth(v), margin: '0 auto' }}>
+      {c.heading && <H2 v={v}>{c.heading}</H2>}
+      <div style={{ display: 'grid', gridTemplateColumns: v.narrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: v.card === 'minimal' ? 32 : 20 }}>
+        {items.map((it, i) => (
+          <div key={i} style={cardStyles[v.card] || cardStyles.bordered}>
+            <h3 style={{ fontSize: 16, margin: '0 0 8px', fontWeight: 700, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 13.5 } : {}) }}>{it.title}</h3>
+            <p style={{ fontSize: 13.5, color: 'var(--site-muted)', margin: 0, lineHeight: 1.65 }}>{it.body}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ---- products (with CRM enquiry + WhatsApp order) ---------------------------- */
+function ProductsSection({ c, site, v }) {
+  const [enquire, setEnquire] = useState(null); // product | null
+  const products = (site.products || []).slice(0, c.limit > 0 ? c.limit : undefined);
+  const waDigits = (site.contactWhatsapp || '').replace(/[^0-9]/g, '');
+  const money = (n) => `₦${Number(n).toLocaleString('en-NG')}`;
+
+  const cardChrome = {
+    bordered: { border: '1px solid var(--site-line)', borderRadius: 10, overflow: 'hidden', background: 'var(--site-surface)' },
+    rounded: { borderRadius: 20, overflow: 'hidden', background: 'var(--site-surface)', boxShadow: '0 12px 32px rgba(20,22,26,0.08)' },
+    minimal: {},
+    glass: { border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, overflow: 'hidden', background: 'rgba(255,255,255,0.06)' },
+  }[v.card] || {};
+  const imgRadius = v.card === 'minimal' ? 2 : 0;
+
+  return (
+    <section style={{ padding: '56px 24px', maxWidth: 1000, margin: '0 auto' }}>
+      {c.heading && <H2 v={v}>{c.heading}</H2>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: v.card === 'minimal' ? 28 : 18 }}>
+        {products.map((p) => (
+          <div key={p.id} style={cardChrome}>
+            <div style={{ aspectRatio: v.card === 'minimal' ? '4/5' : '1/1', background: 'var(--site-surface)', overflow: 'hidden', borderRadius: imgRadius }}>
+              {p.imageUrl
+                ? <img src={p.imageUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                : <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--site-muted)', fontSize: 12 }}>No image</div>}
+            </div>
+            <div style={{ padding: v.card === 'minimal' ? '12px 0 0' : 14 }}>
+              <div style={{ fontWeight: 650, fontSize: 14, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.06em', fontSize: 12.5 } : {}) }}>{p.name}</div>
+              {p.price != null && (
+                v.card === 'rounded'
+                  ? <span style={{ display: 'inline-block', marginTop: 8, background: 'var(--site-accent)', color: '#fff', fontWeight: 700, fontSize: 12.5, borderRadius: 999, padding: '4px 12px' }}>{money(p.price)}</span>
+                  : <div style={{ color: v.card === 'minimal' ? 'var(--site-muted)' : 'var(--site-accent)', fontWeight: v.card === 'minimal' ? 500 : 700, marginTop: 5, fontSize: 13.5 }}>{money(p.price)}</div>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                <button onClick={() => setEnquire(p)} style={{ ...btnStyle(v, false), padding: '8px 14px', fontSize: 12.5, flex: 1, textAlign: 'center', color: 'var(--site-accent)', borderColor: 'var(--site-accent)' }}>
+                  Enquire
+                </button>
+                {waDigits && (
+                  <a target="_blank" rel="noreferrer" title="Order on WhatsApp"
+                    href={`https://wa.me/${waDigits}?text=${encodeURIComponent(`Hello ${site.siteName || site.orgName}, I want to order: ${p.name}${p.price != null ? ` (${money(p.price)})` : ''}`)}`}
+                    style={{ ...btnStyle(v), padding: '8px 12px', fontSize: 12.5, background: '#1FAF54', display: 'inline-flex', alignItems: 'center' }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.2 14.2c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-3-.9-5-3.6-5.6-4.5-.5-.8-1-1.9-1-2.9 0-1 .5-1.5.7-1.7.3-.3.9-.3 1.1-.2.2 0 .5.1.7.6l.7 1.7c.1.2 0 .5-.1.6l-.5.6c-.1.2-.2.3 0 .6.5.8 1.6 2 3 2.6.3.1.5.1.7-.1l.7-.9c.2-.2.4-.2.6-.1l1.8.8c.3.2.5.3.5.5s0 .8-.2 1.3z"/></svg>
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+        {products.length === 0 && <p style={{ gridColumn: '1/-1', textAlign: 'center', color: 'var(--site-muted)' }}>No products listed yet.</p>}
+      </div>
+      {enquire && <EnquiryModal product={enquire} site={site} v={v} onClose={() => setEnquire(null)} />}
+    </section>
+  );
+}
+
+// Product enquiry → lands in the business's CRM Messages inbox with the
+// product named, via the same public lead RPC as the contact form.
+function EnquiryModal({ product, site, v, onClose }) {
+  const [f, setF] = useState({ name: '', phone: '', email: '', message: `I'm interested in ${product.name}. Is it available?` });
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+  const set = (k, val) => setF((s) => ({ ...s, [k]: val }));
+  const input = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', border: '1px solid #dcdce0', background: '#fff', color: '#14161a' };
+  const label = { display: 'block', fontSize: 12.5, color: '#5c5f66', margin: '0 0 4px' };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!f.name.trim()) return setError('Your name is required.');
+    setBusy(true); setError('');
+    try {
+      const price = product.price != null ? ` (₦${Number(product.price).toLocaleString('en-NG')})` : '';
+      await apiPost('/embed/lead', {
+        orgSlug: site.slug, name: f.name, email: f.email, phone: f.phone,
+        message: `[Product enquiry] ${product.name}${price} — ${f.message}`,
+      });
+      setDone(true);
+    } catch (e2) { setError(e2.message); } finally { setBusy(false); }
+  };
+
+  return (
+    <div onMouseDown={onClose} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(10,12,18,0.6)', display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onMouseDown={(e) => e.stopPropagation()} style={{ width: 'min(430px, 100%)', background: '#fff', color: '#14161a', borderRadius: 14, padding: 22, boxShadow: '0 30px 80px rgba(0,0,0,0.4)' }}>
+        {done ? (
+          <div style={{ textAlign: 'center', padding: '18px 4px' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Enquiry sent</div>
+            <div style={{ fontSize: 13.5, color: '#5c5f66', lineHeight: 1.6 }}>Thanks {f.name.split(' ')[0]} — {site.siteName || site.orgName} has received your enquiry about {product.name} and will get back to you.</div>
+            <button onClick={onClose} style={{ ...btnStyle(v), marginTop: 18 }}>Done</button>
+          </div>
+        ) : (
+          <form onSubmit={submit}>
+            <div style={{ fontWeight: 700, fontSize: 15.5, marginBottom: 2 }}>Enquire about {product.name}</div>
+            <p style={{ fontSize: 12.5, color: '#5c5f66', margin: '0 0 16px' }}>Send your details — the team replies on WhatsApp, call or email.</p>
+            <div style={{ marginBottom: 10 }}><span style={label}>Your name *</span><input style={input} value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+              <div><span style={label}>Phone / WhatsApp</span><input style={input} value={f.phone} onChange={(e) => set('phone', e.target.value)} /></div>
+              <div><span style={label}>Email</span><input style={input} type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></div>
+            </div>
+            <div style={{ marginBottom: 14 }}><span style={label}>Message</span><textarea style={{ ...input, resize: 'vertical' }} rows={3} value={f.message} onChange={(e) => set('message', e.target.value)} /></div>
+            {error && <p style={{ color: '#c0392b', fontSize: 13, margin: '0 0 10px' }}>{error}</p>}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" onClick={onClose} style={{ ...btnStyle(v, false), color: '#14161a' }}>Cancel</button>
+              <button disabled={busy} style={{ ...btnStyle(v), opacity: busy ? 0.7 : 1 }}>{busy ? 'Sending…' : 'Send enquiry'}</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---- mailing-list signup → CRM contact ---------------------------------------- */
+function SubscribeSection({ c, site, v }) {
+  const [email, setEmail] = useState('');
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setError('Enter a valid email address.');
+    setBusy(true); setError('');
+    try {
+      await apiPost('/embed/lead', {
+        orgSlug: site.slug, name: email.split('@')[0], email, phone: '',
+        message: '[Mailing list] Subscribed through the website.',
+      });
+      setDone(true);
+    } catch (e2) { setError(e2.message); } finally { setBusy(false); }
+  };
+
+  return (
+    <section style={{ padding: '52px 24px', background: v.hero === 'gradient' ? 'transparent' : 'var(--site-surface)' }}>
+      <div style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
+        <H2 v={v}>{c.heading || 'Stay in the loop'}</H2>
+        <p style={{ fontSize: 14.5, color: 'var(--site-muted)', margin: '-10px 0 22px', lineHeight: 1.6 }}>
+          {c.blurb || 'New arrivals, offers and updates — straight to your inbox. No spam.'}
+        </p>
+        {done ? (
+          <div style={{ fontSize: 14.5, fontWeight: 650, color: 'var(--site-accent)' }}>You're on the list — thank you.</div>
+        ) : (
+          <form onSubmit={submit} style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required
+              style={{ flex: '1 1 220px', maxWidth: 320, boxSizing: 'border-box', padding: '12px 14px', borderRadius: v.btnRadius === 999 ? 999 : Math.max(v.btnRadius, 4), fontSize: 14, fontFamily: 'inherit', border: '1px solid var(--site-line)', background: 'var(--site-bg)', color: 'var(--site-fg)' }} />
+            <button disabled={busy} style={{ ...btnStyle(v), opacity: busy ? 0.7 : 1 }}>{busy ? 'Joining…' : (c.button_text || 'Subscribe')}</button>
+          </form>
+        )}
+        {error && <p style={{ color: '#c0392b', fontSize: 13, marginTop: 10 }}>{error}</p>}
+      </div>
+    </section>
+  );
+}
+
+/* ---- contact form (lead capture) ---------------------------------------------- */
+function ContactFormSection({ site, v }) {
   const [f, setF] = useState({ name: '', email: '', phone: '', message: '' });
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
-  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  const set = (k, val) => setF((s) => ({ ...s, [k]: val }));
 
-  const input = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', border: '1px solid var(--site-line)', background: 'var(--site-bg)', color: 'var(--site-fg)' };
+  const input = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: Math.max(v.btnRadius === 999 ? 10 : v.btnRadius, 2), fontSize: 14, fontFamily: 'inherit', border: '1px solid var(--site-line)', background: 'var(--site-bg)', color: 'var(--site-fg)' };
   const label = { display: 'block', fontSize: 12.5, color: 'var(--site-muted)', margin: '0 0 4px' };
 
   const submit = async (e) => {
@@ -182,8 +391,8 @@ function ContactFormSection({ site }) {
 
   return (
     <section id="contact" style={{ padding: '48px 24px', maxWidth: 520, margin: '0 auto' }}>
-      <h2 style={{ fontSize: 26, marginBottom: 6, textAlign: 'center', fontFamily: 'var(--site-font)' }}>Get in touch</h2>
-      <p style={{ fontSize: 14, color: 'var(--site-muted)', textAlign: 'center', margin: '0 0 22px' }}>Send a message and we'll get back to you.</p>
+      <H2 v={v}>Get in touch</H2>
+      <p style={{ fontSize: 14, color: 'var(--site-muted)', textAlign: 'center', margin: '-10px 0 22px' }}>Send a message and we'll get back to you.</p>
 
       {done ? (
         <div style={{ textAlign: 'center', padding: '26px 16px', background: 'var(--site-surface)', border: '1px solid var(--site-line)', borderRadius: 12 }}>
@@ -199,7 +408,7 @@ function ContactFormSection({ site }) {
           </div>
           <div style={{ marginBottom: 14 }}><span style={label}>Message *</span><textarea style={{ ...input, resize: 'vertical' }} rows={4} value={f.message} onChange={(e) => set('message', e.target.value)} required /></div>
           {error && <p style={{ color: '#c0392b', fontSize: 13, margin: '0 0 10px' }}>{error}</p>}
-          <button disabled={busy} style={{ width: '100%', padding: '12px 0', borderRadius: 8, border: 'none', background: 'var(--site-accent)', color: '#fff', fontWeight: 700, fontSize: 14.5, cursor: 'pointer', opacity: busy ? 0.7 : 1 }}>
+          <button disabled={busy} style={{ ...btnStyle(v), width: '100%', textAlign: 'center', opacity: busy ? 0.7 : 1 }}>
             {busy ? 'Sending…' : 'Send message'}
           </button>
         </form>
@@ -216,6 +425,102 @@ function ContactFormSection({ site }) {
   );
 }
 
+/* ---- block dispatcher --------------------------------------------------------- */
+function Block({ block, site, v }) {
+  const c = block.content || {};
+  switch (block.type) {
+    case 'hero':
+      return <Hero c={c} v={v} />;
+    case 'text':
+      return (
+        <section style={{ padding: '48px 24px', maxWidth: secWidth(v, 720), margin: '0 auto' }}>
+          {c.heading && <H2 v={v} align="left">{c.heading}</H2>}
+          <p style={{ fontSize: 15.5, lineHeight: 1.75, color: 'var(--site-muted)', whiteSpace: 'pre-wrap' }}>{c.body}</p>
+        </section>
+      );
+    case 'image':
+      return c.image_url ? (
+        <section style={{ padding: '24px', textAlign: 'center', maxWidth: secWidth(v, 1000), margin: '0 auto' }}>
+          <img src={c.image_url} alt={c.alt || ''} style={{ maxWidth: '100%', borderRadius: v.card === 'minimal' ? 0 : 10 }} />
+          {c.caption && <p style={{ fontSize: 13, color: 'var(--site-muted)', marginTop: 8 }}>{c.caption}</p>}
+        </section>
+      ) : null;
+    case 'features':
+      return <Features c={c} v={v} />;
+    case 'team':
+      return (
+        <section style={{ padding: '48px 24px', maxWidth: secWidth(v), margin: '0 auto' }}>
+          {c.heading && <H2 v={v}>{c.heading}</H2>}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 20 }}>
+            {(c.items || []).length === 0 && <p style={{ textAlign: 'center', color: 'var(--site-muted)', gridColumn: '1/-1' }}>Team members coming soon.</p>}
+            {(c.items || []).map((it, i) => (
+              <div key={i} style={{ textAlign: 'center' }}>
+                {it.photo_url && <img src={it.photo_url} alt={it.name} style={{ width: 96, height: 96, borderRadius: v.card === 'minimal' ? 4 : '50%', objectFit: 'cover', margin: '0 auto 10px' }} />}
+                <div style={{ fontWeight: 600 }}>{it.name}</div>
+                <div style={{ fontSize: 13, color: 'var(--site-muted)' }}>{it.role}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      );
+    case 'testimonials':
+      return (
+        <section style={{ padding: '48px 24px', maxWidth: secWidth(v, 720), margin: '0 auto' }}>
+          {c.heading && <H2 v={v}>{c.heading}</H2>}
+          {(c.items || []).map((it, i) => (
+            <blockquote key={i} style={{
+              margin: '0 0 20px', padding: '16px 20px',
+              ...(v.card === 'minimal'
+                ? { borderLeft: 'none', textAlign: 'center', fontSize: 17, fontFamily: 'var(--site-font)' }
+                : { borderLeft: '3px solid var(--site-accent)', background: 'var(--site-surface)', borderRadius: v.card === 'rounded' ? 14 : 0 }),
+            }}>
+              <p style={{ fontStyle: 'italic', margin: '0 0 8px', lineHeight: 1.65 }}>&ldquo;{it.quote}&rdquo;</p>
+              <footer style={{ fontSize: 13, color: 'var(--site-muted)' }}>— {it.author}</footer>
+            </blockquote>
+          ))}
+        </section>
+      );
+    case 'faq':
+      return (
+        <section style={{ padding: '48px 24px', maxWidth: secWidth(v, 640), margin: '0 auto' }}>
+          {c.heading && <H2 v={v}>{c.heading}</H2>}
+          {(c.items || []).map((it, i) => (
+            <div key={i} style={{ marginBottom: 14, ...(v.card === 'bordered' ? { padding: '14px 16px', border: '1px solid var(--site-line)', borderRadius: 10, background: 'var(--site-surface)' } : {}) }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>{it.q}</div>
+              <div style={{ fontSize: 14, color: 'var(--site-muted)', lineHeight: 1.6 }}>{it.a}</div>
+            </div>
+          ))}
+        </section>
+      );
+    case 'contact_form':
+      return <ContactFormSection site={site} v={v} />;
+    case 'subscribe':
+      return <SubscribeSection c={c} site={site} v={v} />;
+    case 'products':
+      return <ProductsSection c={c} site={site} v={v} />;
+    case 'cta':
+      return (
+        <section style={{
+          padding: '56px 24px', textAlign: 'center',
+          background: v.hero === 'gradient'
+            ? `linear-gradient(135deg, var(--site-accent) 0%, var(--site-accent-dark) 100%)`
+            : 'var(--site-surface)',
+          color: v.hero === 'gradient' ? '#fff' : 'inherit',
+        }}>
+          <h2 style={{ fontSize: `clamp(${22 * v.display}px, 3vw, ${28 * v.display}px)`, marginBottom: 16, fontFamily: 'var(--site-font)', fontWeight: v.headingWeight }}>{c.heading}</h2>
+          {c.button_text && (
+            <a href={c.button_link || '#contact'} style={{ ...btnStyle(v), ...(v.hero === 'gradient' ? { background: '#fff', color: 'var(--site-accent-dark)' } : {}) }}>
+              {c.button_text}
+            </a>
+          )}
+        </section>
+      );
+    case 'footer':
+    default:
+      return null;
+  }
+}
+
 function SiteFooter({ site }) {
   return (
     <footer style={{ padding: '24px', textAlign: 'center', fontSize: 12.5, color: 'var(--site-muted)', borderTop: '1px solid var(--site-line)' }}>
@@ -224,97 +529,98 @@ function SiteFooter({ site }) {
   );
 }
 
-function PageBody({ page, site }) {
-  return <main>{(page.blocks || []).map((b, i) => <Block key={i} block={b} site={site} />)}</main>;
+function PageBody({ page, site, v }) {
+  return <main>{(page.blocks || []).map((b, i) => <Block key={i} block={b} site={site} v={v} />)}</main>;
 }
 
-// ---- Ecommerce Grid — multi-page (Home/Shop/Contact), a shop-forward top
-// bar with a persistent "Shop now" pill next to the nav, product-grid blocks
-// get extra visual weight (handled in Block() via the aspect-ratio grid).
+/* ---- shells --------------------------------------------------------------------
+   Nav treatments follow the variant too — caps themes get spaced uppercase
+   links, pill themes get pill CTAs, boxed themes keep the contact strip. */
+const navLink = (v, active) => ({
+  fontSize: v.navCaps ? 12 : 14, textDecoration: 'none',
+  color: active ? 'var(--site-accent)' : 'var(--site-fg)',
+  fontWeight: active ? 650 : 450,
+  ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.16em' } : {}),
+});
+
 function EcommerceSite({ data, activeSlug, setActiveSlug }) {
   const vars = useThemeVars(data.theme);
+  const v = variantFor(data.theme);
   const page = data.pages.find((p) => p.slug === activeSlug) || data.pages.find((p) => p.is_home) || data.pages[0];
   const shop = data.pages.find((p) => p.slug === 'shop');
   return (
     <div style={{ ...vars, background: 'var(--site-bg)', color: 'var(--site-fg)', minHeight: '100vh', fontFamily: 'var(--site-font)' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--site-line)', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: 17 }}>
-          {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 30, height: 30, borderRadius: 6, objectFit: 'cover' }} />}
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: v.navCaps ? '22px 28px' : '16px 24px', borderBottom: '1px solid var(--site-line)', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: v.navCaps ? 15 : 17, ...(v.navCaps ? { letterSpacing: '.22em', textTransform: 'uppercase' } : {}) }}>
+          {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 30, height: 30, borderRadius: v.card === 'minimal' ? 2 : 6, objectFit: 'cover' }} />}
           {data.siteName || data.orgName}
         </div>
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: v.navCaps ? 26 : 18, flexWrap: 'wrap' }}>
           {data.pages.filter((p) => p.slug !== 'shop').map((p) => (
-            <a key={p.slug} href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }}
-              style={{ fontSize: 14, color: page?.slug === p.slug ? 'var(--site-accent)' : 'var(--site-fg)', textDecoration: 'none' }}>{p.title}</a>
+            <a key={p.slug} href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }} style={navLink(v, page?.slug === p.slug)}>{p.title}</a>
           ))}
           {shop && (
             <a href="#shop" onClick={(e) => { e.preventDefault(); setActiveSlug('shop'); }}
-              style={{ fontSize: 13, fontWeight: 700, padding: '7px 16px', borderRadius: 999, background: 'var(--site-accent)', color: '#fff', textDecoration: 'none' }}>
+              style={{ ...btnStyle(v), padding: '8px 18px', fontSize: v.navCaps ? 11.5 : 13, fontWeight: 700 }}>
               Shop now
             </a>
           )}
         </nav>
       </header>
-      {page && <PageBody page={page} site={data} />}
+      {page && <PageBody page={page} site={data} v={v} />}
       <SiteFooter site={data} />
     </div>
   );
 }
 
-// ---- Landing Hero — deliberately single-scrolling-page: a landing site's
-// "pages" collapse into anchor-linked sections of the Home page, sticky nav
-// bar with a CTA button always visible (matches how real product-launch
-// pages behave — no separate multi-page site chrome).
 function LandingSite({ data }) {
   const vars = useThemeVars(data.theme);
+  const v = variantFor(data.theme);
   const home = data.pages.find((p) => p.is_home) || data.pages[0];
   const ctaBlock = (home?.blocks || []).find((b) => b.type === 'cta' || b.type === 'hero');
   return (
     <div style={{ ...vars, background: 'var(--site-bg)', color: 'var(--site-fg)', minHeight: '100vh', fontFamily: 'var(--site-font)' }}>
-      <header style={{ position: 'sticky', top: 0, zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', background: 'var(--site-bg)', borderBottom: '1px solid var(--site-line)' }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', background: v.hero === 'gradient' ? 'rgba(13,15,20,0.6)' : 'var(--site-bg)', backdropFilter: v.hero === 'gradient' ? 'blur(10px)' : 'none', borderBottom: v.hero === 'minimal' ? 'none' : '1px solid var(--site-line)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: 16 }}>
           {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'cover' }} />}
           {data.siteName || data.orgName}
         </div>
-        <a href="#contact" style={{ fontSize: 13, fontWeight: 700, padding: '8px 18px', borderRadius: 8, background: 'var(--site-accent)', color: '#fff', textDecoration: 'none' }}>
+        <a href="#contact" style={{ ...btnStyle(v), padding: '9px 20px', fontSize: 13 }}>
           {ctaBlock?.content?.button_text || 'Get started'}
         </a>
       </header>
-      {home && <PageBody page={home} site={data} />}
+      {home && <PageBody page={home} site={data} v={v} />}
       <SiteFooter site={data} />
     </div>
   );
 }
 
-// ---- Company Profile — traditional multi-page corporate nav (Home/About/
-// Services/Team/Contact), a quieter/smaller hero (text-forward, not a big
-// splash), and a persistent contact strip in the header for trust signal.
 function CompanySite({ data, activeSlug, setActiveSlug }) {
   const vars = useThemeVars(data.theme);
+  const v = variantFor(data.theme);
   const page = data.pages.find((p) => p.slug === activeSlug) || data.pages.find((p) => p.is_home) || data.pages[0];
   return (
     <div style={{ ...vars, background: 'var(--site-bg)', color: 'var(--site-fg)', minHeight: '100vh', fontFamily: 'var(--site-font)' }}>
-      {(data.contactPhone || data.contactEmail) && (
+      {(data.contactPhone || data.contactEmail) && v.hero === 'boxed' && (
         <div style={{ background: 'var(--site-surface)', padding: '6px 24px', fontSize: 12, color: 'var(--site-muted)', textAlign: 'right' }}>
           {data.contactPhone && <span style={{ marginRight: 16 }}>{data.contactPhone}</span>}
           {data.contactEmail && <span>{data.contactEmail}</span>}
         </div>
       )}
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 24px', borderBottom: '1px solid var(--site-line)', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: 18, fontFamily: 'var(--site-font)' }}>
-          {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover' }} />}
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: v.navCaps ? '24px 28px' : '18px 24px', borderBottom: '1px solid var(--site-line)', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: v.navCaps ? 15 : 18, fontFamily: 'var(--site-font)', ...(v.navCaps ? { letterSpacing: '.22em', textTransform: 'uppercase' } : {}) }}>
+          {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 32, height: 32, borderRadius: v.card === 'minimal' ? 2 : 6, objectFit: 'cover' }} />}
           {data.siteName || data.orgName}
         </div>
-        <nav style={{ display: 'flex', gap: '10px 22px', flexWrap: 'wrap' }}>
+        <nav style={{ display: 'flex', gap: v.navCaps ? '10px 28px' : '10px 22px', flexWrap: 'wrap' }}>
           {data.pages.map((p) => (
-            <a key={p.slug} href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }}
-              style={{ fontSize: 14, letterSpacing: '.02em', color: page?.slug === p.slug ? 'var(--site-accent)' : 'var(--site-fg)', textDecoration: 'none', fontWeight: page?.slug === p.slug ? 600 : 400 }}>
+            <a key={p.slug} href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }} style={navLink(v, page?.slug === p.slug)}>
               {p.title}
             </a>
           ))}
         </nav>
       </header>
-      {page && <PageBody page={page} site={data} />}
+      {page && <PageBody page={page} site={data} v={v} />}
       <SiteFooter site={data} />
     </div>
   );
