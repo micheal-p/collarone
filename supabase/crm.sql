@@ -79,7 +79,7 @@ create table if not exists public.crm_activities (
   org_id      uuid not null references public.organizations(id),
   contact_id  uuid references public.crm_contacts(id) on delete cascade,
   company_id  uuid references public.crm_companies(id) on delete cascade,
-  type        text not null default 'note' check (type in ('call','whatsapp','email','meeting','note')),
+  type        text not null default 'note' check (type in ('call','whatsapp','email','meeting','note','web_message')),
   notes       text not null default '',
   occurred_at timestamptz not null default now(),
   created_by  uuid not null references public.profiles(id),
@@ -114,3 +114,16 @@ begin
   return new;
 end;
 $$;
+
+-- Canonical allowed activity types — this is the ONLY file that owns the
+-- crm_activities type CHECK ('web_message' rows also carry a `source`
+-- column, added in funnel_fixes.sql).
+do $$
+declare c text;
+begin
+  select conname into c from pg_constraint
+  where conrelid = 'public.crm_activities'::regclass and contype = 'c' and conname like '%type%';
+  if c is not null then execute format('alter table public.crm_activities drop constraint %I', c); end if;
+end $$;
+alter table public.crm_activities add constraint crm_activities_type_check
+  check (type in ('call','whatsapp','email','meeting','note','web_message'));

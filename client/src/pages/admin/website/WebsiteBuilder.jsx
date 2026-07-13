@@ -4,6 +4,7 @@ import { applyOrgTheme } from '../../../lib/theme.js';
 import AppLayout from '../../../components/AppLayout.jsx';
 import ThemeMockup from '../../../components/ThemeMockup.jsx';
 import ThemePreviewModal from '../../../components/ThemePreview.jsx';
+import { waDigits } from '../../../lib/whatsapp.js';
 import * as W from './websiteApi.js';
 import { BLOCK_FIELDS, emptyRepeaterItem } from './blockFields.js';
 
@@ -539,7 +540,7 @@ function OrdersTab({ orgId, flash }) {
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <a className="btn btn-ghost" style={{ fontSize: 12.5, padding: '6px 14px' }} target="_blank" rel="noreferrer"
-              href={`https://wa.me/${o.phone.replace(/[^0-9]/g, '').replace(/^0/, '234')}?text=${encodeURIComponent(`Hello ${o.customer_name.split(' ')[0]}, about your order ${o.order_no} — `)}`}>
+              href={`https://wa.me/${waDigits(o.phone)}?text=${encodeURIComponent(`Hello ${o.customer_name.split(' ')[0]}, about your order ${o.order_no} — `)}`}>
               WhatsApp customer
             </a>
             {o.status === 'new' && <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '6px 14px' }} onClick={() => setStatus(o, 'confirmed')}>Confirm payment/order</button>}
@@ -569,24 +570,18 @@ function InsightsTab({ orgId, flash }) {
   if (loading) return <div className="suite-loading"><div className="boot-spinner" /></div>;
   if (!data) return null;
 
-  const now = Date.now();
-  const within = (h) => data.visits.filter((x) => now - new Date(x.created_at).getTime() < h * 3600000).length;
-  const agg = (key) => {
-    const m = {};
-    data.visits.forEach((x) => { m[x[key]] = (m[x[key]] || 0) + 1; });
-    return Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, 6);
-  };
   const tile = { border: '1px solid var(--line)', borderRadius: 12, padding: '16px 18px', background: 'var(--surface)' };
   const tileLabel = { fontSize: 11.5, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'var(--text-2)', marginBottom: 8 };
   const tileVal = { fontSize: 26, fontWeight: 750 };
   const bar = (val, max) => ({ height: 8, borderRadius: 4, background: 'var(--brand, #FF5B1F)', width: `${Math.max(6, (val / max) * 100)}%` });
+  const panels = [['Most visited pages', data.topPages || []], ['Where visitors are', data.topCountries || []]];
 
   return (
     <div style={{ maxWidth: 760 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 8 }}>
-        <div style={tile}><div style={tileLabel}>Visits, 24h</div><div style={tileVal}>{within(24)}</div></div>
-        <div style={tile}><div style={tileLabel}>Visits, 7 days</div><div style={tileVal}>{within(24 * 7)}</div></div>
-        <div style={tile}><div style={tileLabel}>Visits, 30 days</div><div style={tileVal}>{data.visits.length}</div></div>
+        <div style={tile}><div style={tileLabel}>Visits, 24h</div><div style={tileVal}>{data.v24}</div></div>
+        <div style={tile}><div style={tileLabel}>Visits, 7 days</div><div style={tileVal}>{data.v7}</div></div>
+        <div style={tile}><div style={tileLabel}>Visits, 30 days</div><div style={tileVal}>{data.v30}</div></div>
         <div style={tile}><div style={tileLabel}>Messages &amp; leads</div><div style={{ ...tileVal, color: '#1a7a3e' }}>{data.leadCount}</div></div>
         <div style={tile}><div style={tileLabel}>Orders</div><div style={{ ...tileVal, color: 'var(--brand, #FF5B1F)' }}>{data.orderCount}</div></div>
       </div>
@@ -595,19 +590,19 @@ function InsightsTab({ orgId, flash }) {
         has sent into your CRM: contact-form messages, product enquiries and mailing-list signups. Open the CRM suite's Messages tab to reply.
       </p>
 
-      {data.visits.length > 0 && (
+      {data.v30 > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
-          {[['Most visited pages', agg('page')], ['Where visitors are', agg('country')]].map(([title, rows]) => (
+          {panels.map(([title, rows]) => (
             <div key={title}>
               <h3 style={{ fontSize: 13.5, margin: '0 0 12px' }}>{title}</h3>
               <div style={{ border: '1px solid var(--line)', borderRadius: 12, padding: 16, background: 'var(--surface)', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {rows.map(([label, val]) => (
-                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ width: 100, fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={label}>
-                      {COUNTRY_NAMES[label] || label}
+                {rows.map((r) => (
+                  <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ width: 100, fontSize: 12.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.label}>
+                      {COUNTRY_NAMES[r.label] || r.label}
                     </span>
-                    <div style={{ flex: 1, background: 'var(--surface-2)', borderRadius: 4 }}><div style={bar(val, rows[0][1])} /></div>
-                    <span style={{ width: 32, textAlign: 'right', fontSize: 12.5, fontWeight: 650 }}>{val}</span>
+                    <div style={{ flex: 1, background: 'var(--surface-2)', borderRadius: 4 }}><div style={bar(r.value, rows[0].value)} /></div>
+                    <span style={{ width: 32, textAlign: 'right', fontSize: 12.5, fontWeight: 650 }}>{r.value}</span>
                   </div>
                 ))}
               </div>
@@ -615,7 +610,7 @@ function InsightsTab({ orgId, flash }) {
           ))}
         </div>
       )}
-      {data.visits.length === 0 && (
+      {data.v30 === 0 && (
         <p className="muted" style={{ fontSize: 13 }}>No visits recorded yet — they start counting from the moment your site is published and someone opens it.</p>
       )}
     </div>

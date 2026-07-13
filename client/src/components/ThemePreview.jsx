@@ -19,7 +19,7 @@ const IMG = {
 
 function samplePayload(t) {
   const base = {
-    orgName: 'Acme Nigeria', siteName: 'Acme Nigeria', tagline: '', logoUrl: '', slug: '', published: true,
+    orgName: 'Acme Nigeria', siteName: 'Acme Nigeria', tagline: '', logoUrl: '', slug: 'preview', published: true, isPreview: true,
     contactEmail: 'hello@acme.ng', contactPhone: '0801 234 5678', contactWhatsapp: '+2348012345678',
     theme: { key: t.key, name: t.name, category: t.category, layoutKey: t.layout_key || t.layoutKey, accent: t.accent, fontPair: t.font_pair || t.fontPair, tone: t.tone, accentColor: '' },
     products: [],

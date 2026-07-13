@@ -27,7 +27,12 @@ export default async function handler(req, res) {
       // a customer's public website page — this is THEIR traffic, org-scoped,
       // surfaced back to them in the Website builder's Insights tab
       const { data: org } = await admin.from('organizations').select('id').eq('slug', String(body.orgSlug).slice(0, 60)).maybeSingle();
-      if (org) await admin.from('site_visits').insert({ org_id: org.id, page: path, country });
+      if (org) {
+        await admin.from('site_visits').insert({ org_id: org.id, page: path, country });
+      } else {
+        // unknown/renamed slug — don't lose the visit entirely
+        await admin.from('page_views').insert({ path: `/site/${String(body.orgSlug).slice(0, 60)}:${path}`.slice(0, 200), country });
+      }
     } else {
       await admin.from('page_views').insert({ path, country });
     }

@@ -14,6 +14,7 @@
 // contact form was already a lead. PublicSite beacons per-page site_visits.
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { apiPost } from '../../api/client.js';
+import { waDigits } from '../../lib/whatsapp.js';
 
 const FONT_STACKS = {
   'sans-clean':    "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
@@ -224,7 +225,7 @@ const fmtN = (n) => `₦${Number(n || 0).toLocaleString('en-NG')}`;
 function CartProvider({ slug, children }) {
   const storageKey = `collarone_cart_${slug}`;
   const [items, setItems] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(storageKey) || '[]'); } catch { return []; }
+    try { const v = JSON.parse(localStorage.getItem(storageKey) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
   });
   const [open, setOpen] = useState(false);
   useEffect(() => { try { localStorage.setItem(storageKey, JSON.stringify(items)); } catch { /* private mode */ } }, [items, storageKey]);
@@ -270,7 +271,7 @@ function CartDrawer({ site, v }) {
     pay.enableTransfer && ['transfer', 'Bank transfer', 'Pay into the store’s account — details shown after you order.'],
     pay.enableCod && ['cod', 'Pay on delivery', 'Pay cash or transfer when your order arrives.'],
   ].filter(Boolean);
-  const waDigits = (site.contactWhatsapp || '').replace(/[^0-9]/g, '');
+  const wa = waDigits(site.contactWhatsapp);
 
   if (!cart || !cart.open) return null;
 
@@ -279,6 +280,7 @@ function CartDrawer({ site, v }) {
 
   const placeOrder = async (e) => {
     e.preventDefault();
+    if (site.isPreview) return setError('This is a preview — ordering switches on when the site is published.');
     if (!f.name.trim()) return setError('Your name is required.');
     if (!f.phone.trim()) return setError('Your phone number is required — it’s how the store reaches you.');
     if (!f.method) return setError('Choose how you want to pay.');
@@ -382,9 +384,9 @@ function CartDrawer({ site, v }) {
                   You'll pay when your order arrives. The store will call <strong>{f.phone}</strong> to confirm delivery.
                 </p>
               )}
-              {waDigits && (
+              {wa && (
                 <a target="_blank" rel="noreferrer"
-                  href={`https://wa.me/${waDigits}?text=${encodeURIComponent(`Hello ${site.siteName || site.orgName}, I just placed order ${receipt.orderNo} for ${fmtN(receipt.total)}${receipt.method === 'transfer' ? ' — I will send my transfer proof here.' : ' (pay on delivery).'}`)}`}
+                  href={`https://wa.me/${wa}?text=${encodeURIComponent(`Hello ${site.siteName || site.orgName}, I just placed order ${receipt.orderNo} for ${fmtN(receipt.total)}${receipt.method === 'transfer' ? ' — I will send my transfer proof here.' : ' (pay on delivery).'}`)}`}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#1FAF54', color: '#fff', borderRadius: 10, padding: '13px 0', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.2 14.2c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-3-.9-5-3.6-5.6-4.5-.5-.8-1-1.9-1-2.9 0-1 .5-1.5.7-1.7.3-.3.9-.3 1.1-.2.2 0 .5.1.7.6l.7 1.7c.1.2 0 .5-.1.6l-.5.6c-.1.2-.2.3 0 .6.5.8 1.6 2 3 2.6.3.1.5.1.7-.1l.7-.9c.2-.2.4-.2.6-.1l1.8.8c.3.2.5.3.5.5s0 .8-.2 1.3z"/></svg>
                   {receipt.method === 'transfer' ? 'Send payment proof on WhatsApp' : 'Confirm your order on WhatsApp'}
@@ -403,10 +405,16 @@ function CartDrawer({ site, v }) {
             {view === 'cart' ? (
               <button onClick={() => setView('checkout')} style={{ ...btnStyle(v), width: '100%', textAlign: 'center', border: 'none' }}>Checkout</button>
             ) : (
+              site.isPreview ? (
+                <div style={{ fontSize: 13, color: '#5c5f66', textAlign: 'center', lineHeight: 1.6, padding: '4px 6px' }}>
+                  Preview mode — the cart works, and ordering switches on the moment this site is published.
+                </div>
+              ) : (
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setView('cart')} style={{ ...btnStyle(v, false), color: '#14161a', flex: '0 0 auto' }}>Back</button>
                 <button form="co-checkout" disabled={busy} style={{ ...btnStyle(v), flex: 1, textAlign: 'center', border: 'none', opacity: busy ? 0.7 : 1 }}>{busy ? 'Placing order…' : `Place order · ${fmtN(cart.total)}`}</button>
               </div>
+              )
             )}
           </div>
         )}
@@ -425,7 +433,7 @@ function ProductsSection({ c, site, v }) {
   const cart = useContext(CartCtx); // present on store sites; null elsewhere → Enquire fallback
   const [enquire, setEnquire] = useState(null); // product | null
   const products = (site.products || []).slice(0, c.limit > 0 ? c.limit : undefined);
-  const waDigits = (site.contactWhatsapp || '').replace(/[^0-9]/g, '');
+  const wa = waDigits(site.contactWhatsapp);
   const money = (n) => `₦${Number(n).toLocaleString('en-NG')}`;
 
   const cardChrome = {
@@ -464,9 +472,9 @@ function ProductsSection({ c, site, v }) {
                     Enquire
                   </button>
                 )}
-                {waDigits && (
+                {wa && (
                   <a target="_blank" rel="noreferrer" title="Order on WhatsApp"
-                    href={`https://wa.me/${waDigits}?text=${encodeURIComponent(`Hello ${site.siteName || site.orgName}, I want to order: ${p.name}${p.price != null ? ` (${money(p.price)})` : ''}`)}`}
+                    href={`https://wa.me/${wa}?text=${encodeURIComponent(`Hello ${site.siteName || site.orgName}, I want to order: ${p.name}${p.price != null ? ` (${money(p.price)})` : ''}`)}`}
                     style={{ ...btnStyle(v), padding: '8px 12px', fontSize: 12.5, background: '#1FAF54', display: 'inline-flex', alignItems: 'center', border: 'none' }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.2 14.2c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-3-.9-5-3.6-5.6-4.5-.5-.8-1-1.9-1-2.9 0-1 .5-1.5.7-1.7.3-.3.9-.3 1.1-.2.2 0 .5.1.7.6l.7 1.7c.1.2 0 .5-.1.6l-.5.6c-.1.2-.2.3 0 .6.5.8 1.6 2 3 2.6.3.1.5.1.7-.1l.7-.9c.2-.2.4-.2.6-.1l1.8.8c.3.2.5.3.5.5s0 .8-.2 1.3z"/></svg>
                   </a>
@@ -501,7 +509,7 @@ function EnquiryModal({ product, site, v, onClose }) {
       const price = product.price != null ? ` (₦${Number(product.price).toLocaleString('en-NG')})` : '';
       await apiPost('/embed/lead', {
         orgSlug: site.slug, name: f.name, email: f.email, phone: f.phone,
-        message: `[Product enquiry] ${product.name}${price} — ${f.message}`,
+        message: `[Product enquiry] ${product.name}${price} — ${f.message}`, source: 'product_enquiry',
       });
       setDone(true);
     } catch (e2) { setError(e2.message); } finally { setBusy(false); }
@@ -552,7 +560,7 @@ function SubscribeSection({ c, site, v }) {
     try {
       await apiPost('/embed/lead', {
         orgSlug: site.slug, name: email.split('@')[0], email, phone: '',
-        message: '[Mailing list] Subscribed through the website.',
+        message: '[Mailing list] Subscribed through the website.', source: 'subscribe',
       });
       setDone(true);
     } catch (e2) { setError(e2.message); } finally { setBusy(false); }
@@ -632,7 +640,7 @@ function ContactFormSection({ site, v }) {
         <div style={{ textAlign: 'center', fontSize: 13.5, lineHeight: 2, marginTop: 18, color: 'var(--site-muted)' }}>
           {site.contactEmail && <span style={{ margin: '0 10px' }}>Email: <a href={`mailto:${site.contactEmail}`} style={{ color: 'var(--site-accent)' }}>{site.contactEmail}</a></span>}
           {site.contactPhone && <span style={{ margin: '0 10px' }}>Phone: <a href={`tel:${site.contactPhone}`} style={{ color: 'var(--site-accent)' }}>{site.contactPhone}</a></span>}
-          {site.contactWhatsapp && <span style={{ margin: '0 10px' }}>WhatsApp: <a href={`https://wa.me/${site.contactWhatsapp.replace(/[^0-9]/g, '')}`} style={{ color: 'var(--site-accent)' }}>{site.contactWhatsapp}</a></span>}
+          {site.contactWhatsapp && <span style={{ margin: '0 10px' }}>WhatsApp: <a href={`https://wa.me/${waDigits(site.contactWhatsapp)}`} style={{ color: 'var(--site-accent)' }}>{site.contactWhatsapp}</a></span>}
         </div>
       )}
     </section>
@@ -730,6 +738,9 @@ function Block({ block, site, v }) {
         </section>
       );
     case 'footer':
+      return c.note ? (
+        <section style={{ padding: '18px 24px', textAlign: 'center', fontSize: 12.5, color: 'var(--site-muted)' }}>{c.note}</section>
+      ) : null;
     default:
       return null;
   }
@@ -818,7 +829,7 @@ function CompanySite({ data, activeSlug, setActiveSlug }) {
   const page = data.pages.find((p) => p.slug === activeSlug) || data.pages.find((p) => p.is_home) || data.pages[0];
   return (
     <div style={{ ...vars, background: 'var(--site-bg)', color: 'var(--site-fg)', minHeight: '100vh', fontFamily: 'var(--site-font)' }}>
-      {(data.contactPhone || data.contactEmail) && v.hero === 'boxed' && (
+      {(data.contactPhone || data.contactEmail) && (
         <div style={{ background: 'var(--site-surface)', padding: '6px 24px', fontSize: 12, color: 'var(--site-muted)', textAlign: 'right' }}>
           {data.contactPhone && <span style={{ marginRight: 16 }}>{data.contactPhone}</span>}
           {data.contactEmail && <span>{data.contactEmail}</span>}

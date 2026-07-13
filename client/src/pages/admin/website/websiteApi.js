@@ -148,17 +148,18 @@ export const BLOCK_TYPES = {
   footer:       'Footer note',
 };
 
-// Website insights: this org's own site traffic (site_visits, RLS-scoped)
-// plus how many leads/messages and orders the site has produced.
+// Website insights — aggregated in Postgres (site_insights RPC), not by
+// shipping thousands of raw visit rows to the browser (which also silently
+// capped the 30-day count for busy stores). Lead count excludes orders,
+// which have their own tile and tab.
 export const getSiteInsights = async (orgId) => {
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const [{ data: visits, error: vErr }, { count: leadCount }, { count: orderCount }] = await Promise.all([
-    supabase.from('site_visits').select('page, country, created_at').eq('org_id', orgId).gte('created_at', since).order('created_at', { ascending: false }).limit(10000),
-    supabase.from('crm_activities').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('type', 'web_message'),
+  const [{ data: agg, error: aErr }, { count: leadCount }, { count: orderCount }] = await Promise.all([
+    supabase.rpc('site_insights', { p_org_id: orgId }),
+    supabase.from('crm_activities').select('id', { count: 'exact', head: true }).eq('org_id', orgId).eq('type', 'web_message').neq('source', 'order'),
     supabase.from('site_orders').select('id', { count: 'exact', head: true }).eq('org_id', orgId),
   ]);
-  if (vErr) throw new Error(vErr.message);
-  return { visits: visits || [], leadCount: leadCount || 0, orderCount: orderCount || 0 };
+  if (aErr) throw new Error(aErr.message);
+  return { ...(agg || { v24: 0, v7: 0, v30: 0, topPages: [], topCountries: [] }), leadCount: leadCount || 0, orderCount: orderCount || 0 };
 };
 
 // Store orders — checkout writes them via public_place_order; the org

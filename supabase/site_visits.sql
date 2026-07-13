@@ -24,13 +24,6 @@ create policy site_visits_org_read on public.site_visits
   for select using (public.same_org(org_id) or public.is_platform_admin());
 -- no anon/authenticated insert policy: service-role writes only
 
--- the mailing-list block is a real block type
-do $$
-declare c text;
-begin
-  select conname into c from pg_constraint
-  where conrelid = 'public.site_blocks'::regclass and contype = 'c' and conname like '%type%';
-  if c is not null then execute format('alter table public.site_blocks drop constraint %I', c); end if;
-end $$;
-alter table public.site_blocks add constraint site_blocks_type_check
-  check (type in ('hero','text','image','features','team','testimonials','faq','contact_form','subscribe','products','cta','footer'));
+-- site_blocks type CHECK is owned by website_builder.sql (canonical) — the
+-- recreate block that lived here was a landmine when files were re-run out
+-- of order.

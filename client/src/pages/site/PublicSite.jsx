@@ -55,7 +55,7 @@ export default function PublicSite() {
           Preview mode — {data.published ? 'this site is live.' : 'not published yet, only you can see this.'}
         </div>
       )}
-      <Layout data={data} activeSlug={activeSlug} setActiveSlug={setActiveSlug} />
+      <Layout data={{ ...data, isPreview }} activeSlug={activeSlug} setActiveSlug={setActiveSlug} />
     </>
   );
 }

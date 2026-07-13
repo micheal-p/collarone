@@ -186,6 +186,16 @@ export async function demoApi(path, opts = {}) {
     }
 
     default:
-      return fail(404, `Demo API has no route for ${route}`);
+      // storefront funnel — demo-safe stubs so a prospect clicking through a
+  // demo store gets believable behaviour instead of a 404
+  if (route === 'POST /site/order') {
+    return { orderNo: `ORD-DEMO${String(Math.floor(Math.random() * 900) + 100)}`, total: (body.items || []).length * 25000, method: body.method || 'transfer',
+      bank: (body.method || 'transfer') === 'transfer' ? { bankName: 'GTBank', accountName: 'Demo Store Ltd', accountNumber: '0123456789', note: 'Demo mode — no real order was placed.' } : null };
+  }
+  if (route === 'POST /embed/lead') return { ok: true };
+  if (route === 'GET /me/notices') return { notices: [] };
+  if (/^POST \/notices\/.+\/dismiss$/.test(route)) return { ok: true };
+
+  return fail(404, `Demo API has no route for ${route}`);
   }
 }

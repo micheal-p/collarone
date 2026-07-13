@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as C from './crmApi.js';
+import { waDigits as normalizeWa } from '../../lib/whatsapp.js';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
@@ -457,7 +458,9 @@ function MessagesTab({ flash }) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { setMessages((await C.getActivities()).filter((a) => a.type === 'web_message')); }
+    // Orders live in the Website builder's Orders tab and mailing-list
+    // signups in Contacts — the inbox is real conversations only.
+    try { setMessages((await C.getActivities()).filter((a) => a.type === 'web_message' && (a.source == null || a.source === 'contact_form' || a.source === 'product_enquiry'))); }
     catch (e) { flash(e.message, true); } finally { setLoading(false); }
   }, [flash]);
 
@@ -470,7 +473,7 @@ function MessagesTab({ flash }) {
     } catch (e) { flash(e.message, true); }
   };
 
-  const waDigits = (m) => (m.contact?.whatsapp || m.contact?.phone || '').replace(/[^0-9]/g, '').replace(/^0/, '234');
+  const waDigits = (m) => normalizeWa(m.contact?.whatsapp || m.contact?.phone || '');
   const awaiting = messages.filter((m) => !m.replied_at).length;
 
   return (

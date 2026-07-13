@@ -304,7 +304,15 @@ begin
     'contactPhone', v_site.contact_phone,
     'contactWhatsapp', v_site.contact_whatsapp,
     'published', v_site.published,
-    'theme', jsonb_build_object('key', v_theme.key, 'name', v_theme.name, 'category', v_theme.category, 'layoutKey', v_theme.layout_key, 'accent', v_theme.accent, 'fontPair', v_theme.font_pair, 'tone', v_theme.tone),
+    'payments', jsonb_build_object(
+      'enableTransfer', v_site.enable_transfer,
+      'enableCod', v_site.enable_cod,
+      'bankName', v_site.bank_name,
+      'accountName', v_site.bank_account_name,
+      'accountNumber', v_site.bank_account_number,
+      'note', v_site.payment_note
+    ),
+    'theme', jsonb_build_object('key', v_theme.key, 'name', v_theme.name, 'category', v_theme.category, 'layoutKey', v_theme.layout_key, 'accent', v_theme.accent, 'fontPair', v_theme.font_pair, 'tone', v_theme.tone, 'accentColor', nullif(v_site.accent_color, '')),
     'pages', v_pages,
     'products', v_products
   );
@@ -354,3 +362,16 @@ drop policy if exists "org_sites_select" on public.org_sites;
 create policy "org_sites_select" on public.org_sites for select using (
   public.same_org(org_id) or public.is_platform_admin()
 );
+
+-- Canonical allowed block types — this is the ONLY file that owns the
+-- site_blocks type CHECK. Add new block types here (and in the renderer +
+-- BLOCK_TYPES) — never in another migration file.
+do $$
+declare c text;
+begin
+  select conname into c from pg_constraint
+  where conrelid = 'public.site_blocks'::regclass and contype = 'c' and conname like '%type%';
+  if c is not null then execute format('alter table public.site_blocks drop constraint %I', c); end if;
+end $$;
+alter table public.site_blocks add constraint site_blocks_type_check
+  check (type in ('hero','text','image','features','team','testimonials','faq','contact_form','subscribe','products','cta','footer'));

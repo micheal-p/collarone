@@ -106,8 +106,8 @@ begin
       values (v_org_id, trim(p_name), coalesce(trim(p_email), ''), trim(p_phone), 'Customer — first ordered through the website.', v_admin_id)
       returning id into v_contact_id;
     end if;
-    insert into public.crm_activities (org_id, contact_id, type, notes, created_by)
-    values (v_org_id, v_contact_id, 'web_message',
+    insert into public.crm_activities (org_id, contact_id, type, source, notes, created_by)
+    values (v_org_id, v_contact_id, 'web_message', 'order',
       '[Order ' || v_order_no || '] ' || jsonb_array_length(v_lines) || ' item(s), ₦' || to_char(v_total, 'FM999,999,999') ||
       ' — ' || case when p_method = 'transfer' then 'paying by bank transfer' else 'pay on delivery' end || '.',
       v_admin_id);
@@ -125,59 +125,6 @@ end;
 $$;
 grant execute on function public.public_place_order(text, text, text, text, text, text, text, jsonb) to anon, authenticated;
 
--- payload now carries checkout/payment config (public by design — it's what
--- a shopper needs to pay), and the accent override inside theme where the
--- renderer actually reads it
-create or replace function public._build_site_payload(v_org_id uuid)
-returns jsonb language plpgsql stable security definer set search_path = public as $$
-declare
-  v_org record;
-  v_site record;
-  v_theme record;
-  v_pages jsonb;
-  v_products jsonb;
-begin
-  select id, name, slug into v_org from public.organizations where id = v_org_id;
-  if v_org.id is null then return null; end if;
-
-  select * into v_site from public.org_sites where org_id = v_org.id;
-  if v_site.org_id is null then return null; end if;
-
-  select * into v_theme from public.site_themes where key = v_site.theme_key;
-
-  select coalesce(jsonb_agg(p order by p.sort_order), '[]'::jsonb) into v_pages
-  from (
-    select pg.slug, pg.title, pg.is_home, pg.sort_order,
-      (select coalesce(jsonb_agg(jsonb_build_object('type', b.type, 'content', b.content) order by b.sort_order), '[]'::jsonb)
-       from public.site_blocks b where b.page_id = pg.id) as blocks
-    from public.site_pages pg where pg.org_id = v_org.id order by pg.sort_order
-  ) p;
-
-  select coalesce(jsonb_agg(jsonb_build_object('id', id, 'name', name, 'description', description, 'price', price, 'imageUrl', image_url) order by sort_order), '[]'::jsonb)
-  into v_products from public.site_products where org_id = v_org.id and active = true;
-
-  return jsonb_build_object(
-    'orgName', v_org.name,
-    'slug', v_org.slug,
-    'siteName', v_site.site_name,
-    'tagline', v_site.tagline,
-    'logoUrl', v_site.logo_url,
-    'accentColor', nullif(v_site.accent_color, ''),
-    'contactEmail', v_site.contact_email,
-    'contactPhone', v_site.contact_phone,
-    'contactWhatsapp', v_site.contact_whatsapp,
-    'published', v_site.published,
-    'payments', jsonb_build_object(
-      'enableTransfer', v_site.enable_transfer,
-      'enableCod', v_site.enable_cod,
-      'bankName', v_site.bank_name,
-      'accountName', v_site.bank_account_name,
-      'accountNumber', v_site.bank_account_number,
-      'note', v_site.payment_note
-    ),
-    'theme', jsonb_build_object('key', v_theme.key, 'name', v_theme.name, 'category', v_theme.category, 'layoutKey', v_theme.layout_key, 'accent', v_theme.accent, 'fontPair', v_theme.font_pair, 'tone', v_theme.tone, 'accentColor', nullif(v_site.accent_color, '')),
-    'pages', v_pages,
-    'products', v_products
-  );
-end;
-$$;
+-- _build_site_payload lives ONLY in website_builder.sql (canonical) — a
+-- second create-or-replace here was a landmine: re-running whichever file
+-- was older silently reverted the payload. See website_builder.sql.
