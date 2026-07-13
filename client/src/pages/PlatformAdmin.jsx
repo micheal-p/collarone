@@ -76,7 +76,11 @@ function PromoCodesPanel({ flash }) {
   const [form, setForm] = useState({ code: '', percentOff: 100, expiresAt: '', maxUses: '', trialDays: '', grantCredits: '' });
   const [busy, setBusy] = useState(false);
 
-  const load = () => apiGet('/platform/promo-codes').then((d) => setCodes(d.promoCodes)).catch(() => {});
+  // Braced body on purpose: a concise arrow here returns the Promise, and
+  // useEffect(load) would hand that Promise to React as the "cleanup
+  // function" — which crashes the whole tree with "destroy is not a
+  // function" the moment this panel unmounts (i.e. navigating to Analytics).
+  const load = () => { apiGet('/platform/promo-codes').then((d) => setCodes(d.promoCodes)).catch(() => {}); };
   useEffect(load, []);
 
   const create = async (e) => {
@@ -106,7 +110,7 @@ function PromoCodesPanel({ flash }) {
   };
 
   const expired = (c) => c.expires_at && new Date(c.expires_at) < new Date();
-  const inputStyle = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(244,241,234,0.15)', borderRadius: 8, padding: '9px 12px', color: '#F4F1EA', fontSize: 13.5 };
+  const inputStyle = { width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(244,241,234,0.15)', borderRadius: 8, padding: '9px 12px', color: '#F4F1EA', fontSize: 13.5 };
 
   return (
     <div style={{ marginBottom: 32 }}>
@@ -122,7 +126,7 @@ function PromoCodesPanel({ flash }) {
         {open && (
           <motion.form onSubmit={create} initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             style={{ ...glass, overflow: 'hidden', marginBottom: 10 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 0.7fr 0.9fr 0.7fr 0.8fr 0.8fr auto', gap: 10, padding: 16, alignItems: 'end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, padding: 16, alignItems: 'end' }}>
               <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>CODE
                 <input value={form.code} onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))} placeholder="LAUNCH100" style={{ ...inputStyle, textTransform: 'uppercase' }} />
               </label>
@@ -141,8 +145,8 @@ function PromoCodesPanel({ flash }) {
               <label style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.5)', display: 'flex', flexDirection: 'column', gap: 5 }}>FREE CREDITS
                 <input type="number" min={0} value={form.grantCredits} onChange={(e) => setForm((f) => ({ ...f, grantCredits: e.target.value }))} placeholder="0" style={inputStyle} />
               </label>
-              <button disabled={busy} style={{ background: '#FF5B1F', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                {busy ? '…' : 'Create'}
+              <button disabled={busy} style={{ background: '#FF5B1F', color: '#fff', border: 'none', borderRadius: 8, padding: '11px 18px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', gridColumn: '1 / -1', marginTop: 4 }}>
+                {busy ? '…' : 'Create promo code'}
               </button>
             </div>
             <p style={{ fontSize: 11.5, color: 'rgba(244,241,234,0.4)', margin: 0, padding: '0 16px 14px' }}>
