@@ -38,6 +38,26 @@ const I = {
 
 const glass = { background: 'rgba(20,22,30,0.55)', border: '1px solid rgba(244,241,234,0.10)', borderRadius: 16, backdropFilter: 'blur(14px)' };
 
+// Inline styles can't carry media queries — the layout-critical containers
+// use these classes so the desktop grid collapses into wrapped cards on
+// phones instead of crushing eleven columns into 390px.
+const PA_CSS = `
+  .pa-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 16px; }
+  .pa-orgrow { display: grid; grid-template-columns: 1.5fr 0.9fr 0.5fr 0.8fr 0.9fr 0.5fr 0.9fr 0.9fr auto auto auto; gap: 12px; align-items: center; padding: 16px 18px; }
+  .pa-payrow, .pa-promorow, .pa-auditrow { display: flex; align-items: center; }
+  .pa-payrow { justify-content: space-between; gap: 12px; }
+  .pa-promorow, .pa-auditrow { gap: 14px; }
+  @media (max-width: 1060px) {
+    .pa-orgrow { display: flex; flex-wrap: wrap; gap: 10px 16px; }
+    .pa-orgrow > div { min-width: 0; }
+  }
+  @media (max-width: 720px) {
+    .pa-payrow, .pa-promorow, .pa-auditrow { flex-wrap: wrap; gap: 8px 14px; }
+    .pa-auditrow > span { width: auto !important; }
+    .pa-promorow > span { width: auto !important; }
+  }
+`;
+
 function StatusWidget() {
   const [live, setLive] = useState(null);
   const [openIncident, setOpenIncident] = useState(null);
@@ -54,7 +74,7 @@ function StatusWidget() {
   return (
     <motion.a href="/status" target="_blank" rel="noreferrer"
       initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} whileHover={{ y: -3 }}
-      style={{ ...glass, padding: '20px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', marginBottom: 32 }}>
+      style={{ ...glass, padding: '20px 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, textDecoration: 'none', marginBottom: 32 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, boxShadow: `0 0 8px ${color}` }} />
         <div>
@@ -161,7 +181,7 @@ function PromoCodesPanel({ flash }) {
         <div style={{ ...glass, padding: 18, fontSize: 13, color: 'rgba(244,241,234,0.5)' }}>No promo codes yet — create one to let new businesses try Collarone.</div>
       )}
       {codes.map((c) => (
-        <div key={c.id} style={{ ...glass, display: 'flex', alignItems: 'center', gap: 16, padding: '13px 18px', marginBottom: 8, opacity: c.active && !expired(c) ? 1 : 0.55 }}>
+        <div key={c.id} className="pa-promorow" style={{ ...glass, padding: '13px 18px', marginBottom: 8, opacity: c.active && !expired(c) ? 1 : 0.55 }}>
           <span style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 700, fontSize: 14.5, color: '#F4F1EA', width: 140 }}>{c.code}</span>
           <span style={{ fontSize: 13, color: '#7fd67f', fontWeight: 600, width: 66 }}>{c.percent_off}% off</span>
           <span style={{ fontSize: 12.5, color: '#7fb2ff', fontWeight: 600, width: 94 }}>
@@ -209,7 +229,7 @@ function DeleteOrgModal({ org, onClose, onConfirm, busy }) {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'grid', placeItems: 'center', zIndex: 100 }} onMouseDown={onClose}>
       <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-        style={{ ...glass, background: '#14161c', width: 420, padding: 26 }} onMouseDown={(e) => e.stopPropagation()}>
+        style={{ ...glass, background: '#14161c', width: 'min(420px, 92vw)', padding: 26 }} onMouseDown={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
           <h2 style={{ fontSize: 17, margin: 0, color: '#F4F1EA' }}>Delete {org.name}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.5)', cursor: 'pointer' }}>{I.close}</button>
@@ -265,7 +285,7 @@ function OrgRow({ org, site, themes, staffCount, testingOrg, suiteResults, onTes
       initial={reduce ? {} : { opacity: 0, x: -12 }} animate={reduce ? {} : { opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: index * 0.05 }}
       style={{ ...glass, marginBottom: 10, overflow: 'hidden' }}
     >
-      <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 0.9fr 0.5fr 0.8fr 0.9fr 0.5fr 0.9fr 0.9fr auto auto auto', gap: 12, alignItems: 'center', padding: '16px 18px' }}>
+      <div className="pa-orgrow">
         <div style={{ fontWeight: 600, color: '#F4F1EA', fontSize: 14.5 }}>{org.name}</div>
         <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5, color: 'rgba(244,241,234,0.55)' }}>{org.slug}</div>
         <div><CountryBadge code={org.country} /></div>
@@ -442,7 +462,8 @@ export default function PlatformAdmin() {
 
   return (
     <PlatformShell title="Platform Admin">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 16 }}>
+      <style>{PA_CSS}</style>
+      <div className="pa-stats">
         <StatCard icon={I.org} label="Organizations" value={orgs.length} accent="#FF5B1F" delay={0} />
         <StatCard icon={I.users} label="Signed-up users" value={customerProfiles.length} accent="#3b82f6" delay={0.05} />
         <StatCard icon={I.pulse} label="Active in last 24h" value={activeLast24h} accent="#22c55e" delay={0.1} />
@@ -458,7 +479,7 @@ export default function PlatformAdmin() {
           <h2 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '.02em', margin: '0 0 14px', color: '#F4F1EA' }}>PENDING PAYMENTS</h2>
           {pendingTx.map((t, i) => (
             <motion.div key={t.id} initial={reduce ? {} : { opacity: 0, y: 8 }} animate={reduce ? {} : { opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-              style={{ ...glass, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', marginBottom: 8 }}>
+              className="pa-payrow" style={{ ...glass, padding: '14px 18px', marginBottom: 8 }}>
               <div>
                 <div style={{ fontWeight: 600, color: '#F4F1EA', fontSize: 14 }}>{orgName(t.org_id)}</div>
                 <div style={{ fontSize: 12, color: 'rgba(244,241,234,0.5)', marginTop: 2 }}>
@@ -529,7 +550,7 @@ export default function PlatformAdmin() {
       <div style={{ ...glass, padding: auditLog.length ? '6px 18px' : '18px' }}>
         {!loading && auditLog.length === 0 && <p style={{ color: 'rgba(244,241,234,0.5)', fontSize: 13.5, margin: 0 }}>No sensitive actions taken yet.</p>}
         {auditLog.map((e, i) => (
-          <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '13px 0', borderTop: i > 0 ? '1px solid rgba(244,241,234,0.06)' : 'none' }}>
+          <div key={e.id} className="pa-auditrow" style={{ padding: '13px 0', borderTop: i > 0 ? '1px solid rgba(244,241,234,0.06)' : 'none' }}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#FF5B1F', flexShrink: 0 }} />
             <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.45)', width: 130, flexShrink: 0 }}>{fmtDateTime(e.created_at)}</span>
             <span style={{ fontSize: 13.5, color: '#F4F1EA', width: 170, flexShrink: 0 }}>{AUDIT_LABEL[e.action] || e.action}</span>

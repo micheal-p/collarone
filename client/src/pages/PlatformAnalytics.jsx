@@ -241,7 +241,7 @@ export default function PlatformAnalytics() {
 
   return (
     <PlatformShell title="Analytics">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 32 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 32 }}>
         <StatTile label="Organizations" value={orgs.length} />
         <StatTile label="New in last 30 days" value={newLast30d} accent="#3987e5" />
         <StatTile label="Active users, 7d" value={activeLast7d} accent="#22c55e" sub={`of ${customerProfiles.length} signed-up`} />
@@ -252,7 +252,7 @@ export default function PlatformAnalytics() {
         <GrowthChart orgs={orgs} reduce={reduce} />
       </Panel>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 24, marginBottom: 8 }}>
         <Panel title="WHERE THEY REGISTERED FROM">
           {countryRows.length === 0
             ? <p style={{ color: 'rgba(244,241,234,0.45)', fontSize: 13 }}>No organizations yet.</p>
@@ -265,7 +265,7 @@ export default function PlatformAnalytics() {
         </Panel>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginBottom: 16 }}>
         <StatTile label="Page views, 24h" value={visitorStats.last24h} accent="#3987e5" />
         <StatTile label="Page views, 7d" value={visitorStats.last7d} />
         <StatTile label="Page views, 30d" value={visitorStats.last30d} />
@@ -274,7 +274,7 @@ export default function PlatformAnalytics() {
         Anonymous — no cookies or visitor IDs, just a path, country and timestamp per page load.
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 24 }}>
         <Panel title="VISITOR LOCATIONS">
           {visitorCountryRows.length === 0
             ? <p style={{ color: 'rgba(244,241,234,0.45)', fontSize: 13 }}>No page views recorded yet.</p>

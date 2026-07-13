@@ -30,8 +30,8 @@ export default function PlatformShell({ title, children }) {
       background: 'radial-gradient(1100px 480px at 15% -10%, rgba(255,91,31,0.10), transparent 60%), radial-gradient(900px 500px at 100% 10%, rgba(59,130,246,0.06), transparent 60%), #0A0E1A',
     }}>
       <header style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 28px', borderBottom: '1px solid rgba(244,241,234,0.12)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10,
+        padding: '14px clamp(14px, 3vw, 28px)', borderBottom: '1px solid rgba(244,241,234,0.12)',
         background: 'rgba(20,17,15,0.6)', position: 'sticky', top: 0, backdropFilter: 'blur(10px)', zIndex: 10,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -56,7 +56,7 @@ export default function PlatformShell({ title, children }) {
         </div>
       </header>
 
-      <nav style={{ display: 'flex', gap: 4, maxWidth: 1080, margin: '0 auto', padding: '14px 28px 0' }}>
+      <nav style={{ display: 'flex', gap: 4, maxWidth: 1080, margin: '0 auto', padding: '14px clamp(14px, 3vw, 28px) 0' }}>
         {TABS.map((t) => {
           const active = pathname === t.to;
           return (
@@ -73,7 +73,7 @@ export default function PlatformShell({ title, children }) {
         })}
       </nav>
 
-      <main style={{ maxWidth: 1080, margin: '0 auto', padding: '36px 28px 80px' }}>
+      <main style={{ maxWidth: 1080, margin: '0 auto', padding: 'clamp(20px, 4vw, 36px) clamp(14px, 3vw, 28px) 80px' }}>
         {title && <h1 style={{ fontSize: 24, fontWeight: 650, letterSpacing: '-.01em', margin: '0 0 24px', color: '#F4F1EA' }}>{title}</h1>}
         {children}
       </main>
