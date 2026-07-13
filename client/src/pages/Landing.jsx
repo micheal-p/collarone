@@ -314,21 +314,6 @@ export default function Landing() {
           <motion.div className="cl-orb o3" style={reduce ? undefined : { y: o3y }} />
         </div>
         {!reduce && (
-          <div className="cl-float-suites" aria-hidden="true">
-            {[
-              ['hr', { top: '16%', left: '3.5%' }, 0],
-              ['payroll', { top: '64%', left: '6%' }, 1.3],
-              ['crm', { top: '10%', right: '5%' }, 0.7],
-              ['finance', { top: '42%', right: '2%' }, 2.1],
-              ['tasks', { bottom: '10%', right: '8%' }, 1.7],
-            ].map(([key, pos, delay]) => (
-              <span key={key} className="cl-suite-float" style={{ ...pos, animationDelay: `${delay}s`, background: SUITE_META[key].tint }}>
-                <SuiteIcon name={SUITE_META[key].icon} size={17} color="#fff" />
-              </span>
-            ))}
-          </div>
-        )}
-        {!reduce && (
           <motion.div
             className={`cl-cursor-glow${glowOn ? ' show' : ''}`}
             style={{ left: gx, top: gy }}
@@ -532,28 +517,47 @@ export default function Landing() {
             <p className="cl-sec-lede">Every tier is à la carte — choose exactly the suites your business needs on any of them. Tiers differ in how many suites are included, your base fee, and support level, not in what you're allowed to use. No forex markup, no dollar pricing, and your rate locks in at sign-up.</p>
           </Reveal>
           <div className="cl-grid3">
-            <Reveal className="cl-price-card" hover>
-              <div className="cl-price-plan">STARTUP</div>
-              <div className="cl-price-amt">₦15,000<small>/mo</small></div>
-              <div className="cl-price-sub">3 suites included · +₦8,000/extra suite · +₦2,000/staff</div>
-              <ul><li>Any 3 suites of your choice</li><li>Standard support</li><li>Add more suites anytime</li></ul>
-              <Link className="cl-btn cl-btn-ghost" to="/signup?plan=startup">Start your space</Link>
-            </Reveal>
-            <Reveal className="cl-price-card cl-feat" delay={0.06} hover>
-              <span className="cl-price-badge">What most companies need</span>
-              <div className="cl-price-plan">STANDARD</div>
-              <div className="cl-price-amt">₦25,000<small>/mo</small></div>
-              <div className="cl-price-sub">5 suites included · +₦6,000/extra suite · +₦2,000/staff</div>
-              <ul><li>Any 5 suites of your choice</li><li>Priority support</li><li>Add more suites anytime</li></ul>
-              <Link className="cl-btn cl-btn-primary" to="/signup?plan=standard">Get started</Link>
-            </Reveal>
-            <Reveal className="cl-price-card" delay={0.12} hover>
-              <div className="cl-price-plan">ENTERPRISE</div>
-              <div className="cl-price-amt">₦45,000<small>/mo</small></div>
-              <div className="cl-price-sub">8 suites included · +₦4,000/extra suite · +₦2,000/staff</div>
-              <ul><li>Any 8 suites of your choice</li><li>Dedicated onboarding &amp; support</li><li>Request custom work — we'll scope and quote it</li></ul>
-              <a className="cl-btn cl-btn-ghost" href="#contact">Talk to us</a>
-            </Reveal>
+            {[
+              {
+                key: 'startup', name: 'Startup', price: '15,000', included: 3, extra: '8,000',
+                pills: ['3 suites included', 'Standard support'],
+                rows: [['Suites of your choice', 'any 3'], ['Extra suite', '₦8,000/mo'], ['Per staff member', '₦2,000/mo'], ['Add more suites', 'anytime']],
+                quote: 'For a small team getting its operations out of spreadsheets and WhatsApp groups.',
+                cta: ['Start your space', '/signup?plan=startup', false],
+              },
+              {
+                key: 'standard', name: 'Standard', price: '25,000', included: 5, extra: '6,000', featured: true,
+                pills: ['5 suites included', 'Priority support'],
+                rows: [['Suites of your choice', 'any 5'], ['Extra suite', '₦6,000/mo'], ['Per staff member', '₦2,000/mo'], ['Add more suites', 'anytime']],
+                quote: 'What most growing companies land on — people, money and customers in one place.',
+                cta: ['Get started', '/signup?plan=standard', true],
+              },
+              {
+                key: 'enterprise', name: 'Enterprise', price: '45,000', included: 8, extra: '4,000',
+                pills: ['8 suites included', 'Dedicated onboarding'],
+                rows: [['Suites of your choice', 'any 8'], ['Extra suite', '₦4,000/mo'], ['Per staff member', '₦2,000/mo'], ['Custom work', 'scoped & quoted']],
+                quote: 'For established businesses standardising how they run across branches and states.',
+                cta: ['Talk to us', '#contact', false],
+              },
+            ].map((p, i) => (
+              <Reveal className={`cl-pc${p.featured ? ' cl-pc-feat' : ''}`} key={p.key} delay={i * 0.06} hover>
+                {p.featured && <span className="cl-pc-badge">What most companies need</span>}
+                <div className="cl-pc-plan">{p.name}</div>
+                <div className="cl-pc-amt">₦{p.price}<span className="cl-pc-per">/mo</span></div>
+                <div className="cl-pc-pills">
+                  {p.pills.map((pill, j) => <span key={pill} className={`cl-pc-pill${j === 0 ? ' solid' : ''}`}>{pill}</span>)}
+                </div>
+                <div className="cl-pc-rows">
+                  {p.rows.map(([label, val]) => (
+                    <div className="cl-pc-row" key={label}><span>{label}</span><em /><strong>{val}</strong></div>
+                  ))}
+                </div>
+                <p className="cl-pc-quote">{p.quote}</p>
+                {p.cta[1].startsWith('#')
+                  ? <a className={`cl-btn cl-pc-btn${p.cta[2] ? ' cl-btn-primary' : ''}`} href={p.cta[1]}>{p.cta[0]}</a>
+                  : <Link className={`cl-btn cl-pc-btn${p.cta[2] ? ' cl-btn-primary' : ''}`} to={p.cta[1]}>{p.cta[0]}</Link>}
+              </Reveal>
+            ))}
           </div>
           <PriceCalculator />
           <p className="cl-price-note">Pay yearly and save 15% off the total. Your base fee and per-suite rate both lock in at sign-up — they don't change later even if our published prices do.</p>

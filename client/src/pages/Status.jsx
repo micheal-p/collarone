@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { apiGet } from '../api/client.js';
+import { LegalNav, LegalFooter } from './LegalChrome.jsx';
 import './Legal.css';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -73,11 +73,7 @@ export default function Status() {
 
   return (
     <div className="lg">
-      <nav className="lg-nav">
-        <div className="lg-nav-wrap">
-          <Link to="/"><span className="lg-wm">Collar<em>One</em></span></Link>
-        </div>
-      </nav>
+      <LegalNav />
 
       <div className="lg-body">
         <p className="lg-kicker">System status</p>
@@ -188,9 +184,8 @@ export default function Status() {
 
         <h2>What's monitored</h2>
         <p>A scheduled check hits the Collarone API and database directly, on a fixed interval — this page reads the real results, it doesn't assume anything is fine.</p>
-
-        <div className="lg-foot">© 2026 Collarone. Made for Nigerian business.</div>
       </div>
+      <LegalFooter />
     </div>
   );
 }

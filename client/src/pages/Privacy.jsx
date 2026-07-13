@@ -1,16 +1,11 @@
 import { Link } from 'react-router-dom';
+import { LegalNav, LegalFooter } from './LegalChrome.jsx';
 import './Legal.css';
 
 export default function Privacy() {
   return (
     <div className="lg">
-      <nav className="lg-nav">
-        <div className="lg-nav-wrap">
-          <Link to="/">
-            <span className="lg-wm">Collar<em>One</em></span>
-          </Link>
-        </div>
-      </nav>
+      <LegalNav />
 
       <div className="lg-body">
         <p className="lg-kicker">Legal</p>
@@ -61,8 +56,8 @@ export default function Privacy() {
 
         <p>See also our <Link to="/terms">Terms of Service</Link>.</p>
 
-        <div className="lg-foot">© 2026 Collarone. Made for Nigerian business.</div>
       </div>
+      <LegalFooter />
     </div>
   );
 }

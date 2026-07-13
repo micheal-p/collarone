@@ -1,11 +1,16 @@
-.su-bg { min-height: 100%; background: linear-gradient(180deg, #FFF8F3 0%, #FFFFFF 40%); display: flex; flex-direction: column; align-items: center; padding: 40px 20px 60px; }
-.su-brand { display: flex; align-items: center; gap: 9px; text-decoration: none; color: #0A0E1A; margin-bottom: 28px; }
+/* same ink + aurora language as the landing hero — the white card floats on it */
+.su-bg { min-height: 100%; display: flex; flex-direction: column; align-items: center; padding: 40px 20px 60px;
+  background:
+    radial-gradient(1000px 520px at 15% -10%, rgba(255,91,31,0.2), transparent 62%),
+    radial-gradient(800px 460px at 100% 12%, rgba(59,130,246,0.1), transparent 60%),
+    #0A0E1A; }
+.su-brand { display: flex; align-items: center; gap: 9px; text-decoration: none; color: #F4F1EA; margin-bottom: 28px; }
 .su-brand img { height: 26px; }
 .su-brand span { font-family: Georgia, "Iowan Old Style", serif; font-size: 19px; }
-.su-brand em { font-style: italic; color: #FF5B1F; }
+.su-brand em { font-style: italic; color: #FF9457; }
 
-.su-back { display: block; text-align: center; font-size: 12.5px; color: rgba(10,14,26,0.45); text-decoration: none; margin: -18px 0 24px; }
-.su-back:hover { color: rgba(10,14,26,0.7); text-decoration: underline; }
+.su-back { display: block; text-align: center; font-size: 12.5px; color: rgba(244,241,234,0.5); text-decoration: none; margin: -18px 0 24px; }
+.su-back:hover { color: rgba(244,241,234,0.85); text-decoration: underline; }
 
 .su-card { width: 100%; max-width: 560px; background: #fff; border: 1px solid rgba(10,14,26,0.09); border-radius: 20px;
   box-shadow: 0 24px 64px rgba(10,14,26,0.10), 0 4px 12px rgba(10,14,26,0.04); padding: 36px 36px 32px; }
@@ -67,8 +72,8 @@
 .su-btn-ghost { background: #fff; color: #0A0E1A; border-color: rgba(10,14,26,0.16); }
 
 .su-err { background: #FDEDED; color: #B4231F; border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; }
-.su-foot { font-size: 12.5px; color: rgba(10,14,26,0.5); text-align: center; margin-top: 18px; }
-.su-foot a { color: #C24614; }
+.su-foot { font-size: 12.5px; color: rgba(244,241,234,0.55); text-align: center; margin-top: 18px; }
+.su-foot a { color: #FF9457; }
 
 .su-pay-ref { background: #FAF9F6; border: 1px solid rgba(10,14,26,0.1); border-radius: 12px; padding: 18px; text-align: center; margin-bottom: 18px; }
 .su-pay-amt { font-family: ui-monospace, monospace; font-size: 26px; font-weight: 650; color: #0A0E1A; }

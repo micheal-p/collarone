@@ -1,12 +1,13 @@
 /* Shared styling for Terms.jsx / Privacy.jsx — reuses the Collarone landing
    palette (.cl tokens) so these pages feel like part of the same site. */
 .lg { min-height: 100%; background: var(--bg, #fff); }
-.lg-nav { position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,0.9); backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(10,14,26,0.09); padding: 18px 0; }
+.lg-nav { position: sticky; top: 0; z-index: 10;
+  background: radial-gradient(700px 200px at 12% -60%, rgba(255,91,31,0.25), transparent 70%), rgba(10,14,26,0.94); backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(244,241,234,0.1); padding: 18px 0; }
 .lg-nav-wrap { max-width: 760px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; gap: 10px; }
-.lg-nav-wrap a { display: flex; align-items: center; gap: 9px; text-decoration: none; color: #0A0E1A; }
+.lg-nav-wrap a { display: flex; align-items: center; gap: 9px; text-decoration: none; color: #F4F1EA; }
 .lg-nav-wrap .lg-wm { font-family: Georgia, "Iowan Old Style", serif; font-size: 17px; }
-.lg-nav-wrap .lg-wm em { font-style: italic; color: #FF5B1F; }
+.lg-nav-wrap .lg-wm em { font-style: italic; color: #FF9457; }
 
 .lg-body { max-width: 720px; margin: 0 auto; padding: 56px 24px 96px; }
 .lg-kicker { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #C24614; margin: 0 0 10px; }
@@ -18,8 +19,8 @@
 .lg-body a { color: #C24614; }
 .lg-body strong { color: #0A0E1A; }
 .lg-nav-links { margin-left: auto; display: flex; align-items: center; gap: 22px; }
-.lg-nav-link { font-size: 13.5px; color: rgba(10,14,26,0.65) !important; }
-.lg-nav-link:hover { color: #0A0E1A !important; }
+.lg-nav-link { font-size: 13.5px; color: rgba(244,241,234,0.65) !important; }
+.lg-nav-link:hover { color: #F4F1EA !important; }
 .lg-nav-cta { font-size: 13px; font-weight: 600; background: #FF5B1F; color: #fff !important; padding: 8px 16px; border-radius: 100px; }
 .lg-nav-cta:hover { background: #E04D18; }
 @media (max-width: 640px) { .lg-nav-links { gap: 12px; } .lg-nav-link:not(:last-child) { display: none; } }
