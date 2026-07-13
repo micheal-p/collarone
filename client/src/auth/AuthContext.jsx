@@ -69,15 +69,10 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Microsoft / Azure Entra ID SSO — redirects to Microsoft, returns to the app.
-  const loginWithMicrosoft = useCallback(async () => {
-    const { supabase } = await import('../lib/supabaseClient.js');
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'azure',
-      options: { scopes: 'openid email profile', redirectTo: window.location.origin },
-    });
-    if (error) throw error;
-  }, []);
+  // Microsoft/Azure SSO removed from the UI for now (was never switched on
+  // in Supabase anyway). The auth-state listener above still handles any
+  // OAuth-style redirect landing, so re-adding a provider later is just a
+  // button + signInWithOAuth call.
 
   const logout = useCallback(async () => {
     try { await apiPost('/auth/logout'); } catch { /* ignore */ }
@@ -94,7 +89,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthCtx.Provider value={{ user, setUser, booting, login, loginWithMicrosoft, logout, refreshUser }}>
+    <AuthCtx.Provider value={{ user, setUser, booting, login, logout, refreshUser }}>
       {children}
     </AuthCtx.Provider>
   );
