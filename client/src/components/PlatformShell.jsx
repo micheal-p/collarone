@@ -48,7 +48,7 @@ export default function PlatformShell({ title, children }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <span style={{ fontSize: 13, color: 'rgba(244,241,234,0.85)' }}>{user?.name}</span>
           <button
-            onClick={() => logout()}
+            onClick={async () => { await logout(); window.location.replace('/'); }}
             style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.6)', background: 'transparent', border: '1px solid rgba(244,241,234,0.18)', borderRadius: 100, padding: '6px 14px', cursor: 'pointer' }}
           >
             Sign out

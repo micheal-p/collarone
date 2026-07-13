@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { motion, animate, AnimatePresence, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
 import { SUITES, SUITE_META } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
+import shotHome from '../assets/shots/home.jpg';
+import shotTasks from '../assets/shots/tasks.jpg';
+import shotCrm from '../assets/shots/crm.jpg';
 import './Landing.css';
 
 const Mark = ({ size = 24 }) => (
@@ -431,54 +434,21 @@ export default function Landing() {
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">See it, don't just take our word for it</p>
-            <h2 className="cl-sec-h">A look inside a few of the suites</h2>
+            <h2 className="cl-sec-h">This is the actual product</h2>
+            <p className="cl-sec-lede">Real screenshots, not mockups — the same screens your team gets on day one.</p>
           </Reveal>
           <div className="cl-grid3">
-            <Reveal className="cl-gallery-shot" hover>
-              <div className="cl-browser-bar"><span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" /><span className="cl-url">Leave Management</span></div>
-              <div className="cl-mock">
-                <div className="cl-mtitle">Leave requests</div>
-                <div className="cl-mock-cards">
-                  <div className="cl-mc"><div className="cl-mv">3</div><div className="cl-ml">Pending</div></div>
-                  <div className="cl-mc"><div className="cl-mv">12</div><div className="cl-ml">Approved</div></div>
-                  <div className="cl-mc"><div className="cl-mv">18</div><div className="cl-ml">Days left</div></div>
-                </div>
-                <div className="cl-mock-table">
-                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" /><span className="cl-mock-badge">Approved</span></div>
-                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" style={{ maxWidth: 90 }} /><span className="cl-mock-badge cl-badge-pending">Pending</span></div>
-                </div>
-              </div>
-            </Reveal>
-            <Reveal className="cl-gallery-shot" delay={0.06} hover>
-              <div className="cl-browser-bar"><span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" /><span className="cl-url">CRM</span></div>
-              <div className="cl-mock">
-                <div className="cl-mtitle">Contacts</div>
-                <div className="cl-mock-cards">
-                  <div className="cl-mc"><div className="cl-mv">24</div><div className="cl-ml">Companies</div></div>
-                  <div className="cl-mc"><div className="cl-mv">8</div><div className="cl-ml">New leads</div></div>
-                  <div className="cl-mc"><div className="cl-mv">5</div><div className="cl-ml">This week</div></div>
-                </div>
-                <div className="cl-mock-table">
-                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" style={{ maxWidth: 110 }} /><span className="cl-mock-badge cl-badge-wa">WhatsApp</span></div>
-                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" /><span className="cl-mock-badge">Email</span></div>
-                </div>
-              </div>
-            </Reveal>
-            <Reveal className="cl-gallery-shot" delay={0.12} hover>
-              <div className="cl-browser-bar"><span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" /><span className="cl-url">Payroll</span></div>
-              <div className="cl-mock">
-                <div className="cl-mtitle">July payroll run</div>
-                <div className="cl-mock-cards">
-                  <div className="cl-mc"><div className="cl-mv">42</div><div className="cl-ml">Staff</div></div>
-                  <div className="cl-mc"><div className="cl-mv">₦4.2M</div><div className="cl-ml">Net pay</div></div>
-                  <div className="cl-mc"><div className="cl-mv">✓</div><div className="cl-ml">Approved</div></div>
-                </div>
-                <div className="cl-mock-table">
-                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" /><span className="cl-mock-badge">₦285,000</span></div>
-                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" style={{ maxWidth: 90 }} /><span className="cl-mock-badge">₦198,500</span></div>
-                </div>
-              </div>
-            </Reveal>
+            {[
+              [shotHome, 'collarone.app/home', 'Your whole workspace, one login', 0],
+              [shotTasks, 'Task & Report', 'Assign work, track it to done', 0.06],
+              [shotCrm, 'CRM — Messages', 'Website messages, answered in one tap', 0.12],
+            ].map(([src, url, caption, delay]) => (
+              <Reveal className="cl-gallery-shot" delay={delay} hover key={url}>
+                <div className="cl-browser-bar"><span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" /><span className="cl-url">{url}</span></div>
+                <img className="cl-shot-img" src={src} alt={caption} loading="lazy" />
+                <div className="cl-shot-caption">{caption}</div>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>

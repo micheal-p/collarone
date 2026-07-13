@@ -3,6 +3,7 @@ import { useAuth } from '../../../auth/AuthContext.jsx';
 import { applyOrgTheme } from '../../../lib/theme.js';
 import AppLayout from '../../../components/AppLayout.jsx';
 import ThemeMockup from '../../../components/ThemeMockup.jsx';
+import ThemePreviewModal from '../../../components/ThemePreview.jsx';
 import * as W from './websiteApi.js';
 import { BLOCK_FIELDS, emptyRepeaterItem } from './blockFields.js';
 
@@ -37,6 +38,7 @@ function SetupWizard({ themes, defaultName, onSetup, onExisting, flash }) {
   const [tagline, setTagline] = useState('');
   const [existingUrl, setExistingUrl] = useState('');
   const [busy, setBusy] = useState(false);
+  const [previewTheme, setPreviewTheme] = useState(null);
 
   const categoryThemes = themes.filter((t) => t.category === category);
 
@@ -109,14 +111,20 @@ function SetupWizard({ themes, defaultName, onSetup, onExisting, flash }) {
           <button className="btn btn-ghost" style={{ marginBottom: 14 }} onClick={() => setStep('category')}>&larr; Back</button>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             {categoryThemes.map((t) => (
-              <button key={t.key} type="button" onClick={() => { setThemeKey(t.key); setStep('details'); }}
-                style={{ textAlign: 'left', padding: 12, borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)', background: 'var(--surface)', cursor: 'pointer' }}>
+              <div key={t.key} style={{ display: 'flex', flexDirection: 'column', padding: 12, borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)', background: 'var(--surface)' }}>
                 <ThemeMockup theme={t} />
                 <div style={{ fontWeight: 700, margin: '10px 0 4px' }}>{t.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{t.description}</div>
-              </button>
+                <div style={{ fontSize: 12, color: 'var(--text-2)', flex: 1 }}>{t.description}</div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <button type="button" className="btn btn-primary" style={{ flex: 1, fontSize: 12.5, padding: '8px 0' }}
+                    onClick={() => { setThemeKey(t.key); setStep('details'); }}>Use this theme</button>
+                  <button type="button" className="btn btn-ghost" style={{ fontSize: 12.5, padding: '8px 12px' }}
+                    onClick={() => setPreviewTheme(t)}>Preview</button>
+                </div>
+              </div>
             ))}
           </div>
+          {previewTheme && <ThemePreviewModal theme={previewTheme} onClose={() => setPreviewTheme(null)} />}
         </>
       )}
 

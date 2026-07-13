@@ -183,6 +183,9 @@
 
 .cl-gallery-shot { border-radius: 18px; overflow: hidden; box-shadow: var(--shadow-sm); border: 1px solid var(--line); background: var(--surface); transition: box-shadow .3s ease, border-color .3s ease; }
 .cl-gallery-shot:hover { box-shadow: var(--shadow-md); border-color: var(--line-strong); }
+.cl-shot-img { display: block; width: 100%; height: auto; }
+.cl-shot-caption { font-size: 12.5px; font-weight: 600; padding: 12px 16px; }
+.cl-dark .cl-shot-caption { color: rgba(244,241,234,0.75); border-top: 1px solid rgba(244,241,234,0.08); }
 .cl-gallery-shot .cl-mock { padding: 18px 18px 22px; }
 .cl-gallery-shot .cl-mtitle { font-size: 13.5px; }
 .cl-gallery-shot .cl-mc { padding: 9px 8px; }
@@ -268,13 +271,13 @@
 
 /* ---- pricing cards — rich dark cards, statement numerals ---- */
 .cl-pc { position: relative; display: flex; flex-direction: column; border-radius: 24px; padding: 30px 28px 26px;
-  background: radial-gradient(480px 260px at 85% -10%, rgba(255,122,61,0.16), transparent 60%), linear-gradient(165deg, #4A1A0B 0%, #35120A 55%, #2A0E08 100%);
+  background: radial-gradient(480px 260px at 85% -10%, rgba(255,91,31,0.18), transparent 60%), radial-gradient(360px 220px at 0% 110%, rgba(59,130,246,0.08), transparent 60%), linear-gradient(165deg, #141B30 0%, #0D1322 55%, var(--ink) 100%);
   border: 1px solid rgba(244,241,234,0.1); color: var(--paper);
-  box-shadow: 0 24px 60px rgba(42,14,8,0.35); transition: box-shadow .3s ease, border-color .3s ease; }
-.cl-pc:hover { box-shadow: 0 34px 80px rgba(42,14,8,0.45); border-color: rgba(255,148,87,0.35); }
+  box-shadow: 0 24px 60px rgba(10,14,26,0.35); transition: box-shadow .3s ease, border-color .3s ease; }
+.cl-pc:hover { box-shadow: 0 34px 80px rgba(10,14,26,0.45); border-color: rgba(255,148,87,0.35); }
 .cl-pc.cl-pc-feat { border: 1.5px solid rgba(255,122,61,0.65);
-  background: radial-gradient(520px 300px at 85% -10%, rgba(255,122,61,0.26), transparent 62%), linear-gradient(165deg, #58200C 0%, #3D150A 55%, #2E1008 100%);
-  box-shadow: 0 30px 72px rgba(42,14,8,0.5), 0 0 0 6px rgba(255,91,31,0.06); }
+  background: radial-gradient(520px 300px at 85% -10%, rgba(255,91,31,0.28), transparent 62%), radial-gradient(360px 220px at 0% 110%, rgba(59,130,246,0.1), transparent 60%), linear-gradient(165deg, #1A2138 0%, #101728 55%, var(--ink) 100%);
+  box-shadow: 0 30px 72px rgba(10,14,26,0.5), 0 0 0 6px rgba(255,91,31,0.07); }
 .cl-pc-badge { position: absolute; top: -13px; left: 26px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; padding: 5px 13px; border-radius: 100px; box-shadow: 0 6px 18px rgba(255,91,31,0.4); }
 .cl-pc-plan { font-size: 11.5px; font-weight: 700; letter-spacing: .28em; text-transform: uppercase; color: rgba(244,241,234,0.5); margin-bottom: 14px; }
 .cl-pc-amt { font-size: clamp(38px, 3.6vw, 48px); font-weight: 800; letter-spacing: -0.03em; line-height: 1; color: #FF8A50; }

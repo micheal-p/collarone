@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import { FOUNDING_ORG_ID } from '../config/org.js';
 import PlatformShell from '../components/PlatformShell.jsx';
 import ThemeMockup from '../components/ThemeMockup.jsx';
+import ThemePreviewModal from '../components/ThemePreview.jsx';
 
 const GUEST_KEY = 'collarone_guest_mode';
 
@@ -332,6 +333,7 @@ export default function PlatformAdmin() {
   const [adminIds, setAdminIds] = useState([]);
   const [sites, setSites] = useState([]);
   const [themes, setThemes] = useState([]);
+  const [previewTheme, setPreviewTheme] = useState(null);
 
   const load = () => {
     setLoading(true);
@@ -509,10 +511,15 @@ export default function PlatformAdmin() {
                   {usedBy} site{usedBy === 1 ? '' : 's'}
                 </span>
               </div>
+              <button onClick={() => setPreviewTheme(t)}
+                style={{ width: '100%', marginTop: 10, background: 'rgba(255,91,31,0.1)', border: '1px solid rgba(255,91,31,0.3)', color: '#FF9457', borderRadius: 8, padding: '7px 0', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                Preview theme
+              </button>
             </motion.div>
           );
         })}
       </div>
+      {previewTheme && <ThemePreviewModal theme={previewTheme} onClose={() => setPreviewTheme(null)} />}
 
       <h2 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '.02em', margin: '0 0 14px', color: '#F4F1EA' }}>AUDIT LOG</h2>
       <div style={{ ...glass, padding: auditLog.length ? '6px 18px' : '18px' }}>
