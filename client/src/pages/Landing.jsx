@@ -112,7 +112,7 @@ function RotatingWord() {
   );
 }
 
-const marqueeItems = ['Staff Directory', 'Leave Management', 'Task Tracking', 'Visitor Sign-in', 'Recruiting & Careers', 'Onboarding', 'Performance Reviews', 'Compliance Vault', 'Payroll — PAYE · Pension · NHF', 'Customer CRM', 'Website Builder'];
+const marqueeItems = ['Staff Directory', 'Leave Management', 'Task Tracking', 'Visitor Sign-in', 'Recruiting & Careers', 'Onboarding', 'Performance Reviews', 'Compliance Vault', 'Payroll — PAYE · Pension · NHF', 'Customer CRM', 'Website Builder', 'Invoicing & GRNs', 'Automation'];
 
 const PRICE_TIERS = [
   { key: 'startup', name: 'Startup', baseFee: 15000, included: 3, extraFee: 8000 },
@@ -211,13 +211,13 @@ const heroItem = {
 const modules = [
   {
     name: 'People & Operations', status: 'live',
-    desc: 'The daily running of a business — directory, leave, tasks, the front desk, and time tracking.',
-    suites: ['hr', 'leave', 'tasks', 'visitors', 'attendance', 'benefits'],
+    desc: 'The daily running of a business — directory, leave, tasks, the front desk, time tracking, and automation that clears the busywork itself.',
+    suites: ['hr', 'leave', 'tasks', 'visitors', 'attendance', 'benefits', 'automation'],
   },
   {
     name: 'Money & Assets', status: 'live',
-    desc: 'Payroll with real Nigerian statutory deductions, plus everything that keeps a business funded and equipped.',
-    suites: ['payroll', 'finance', 'procurement', 'inventory', 'it-assets'],
+    desc: 'Payroll with real Nigerian statutory deductions, invoices and GRNs with your own letterhead, plus everything that keeps a business funded and equipped.',
+    suites: ['payroll', 'finance', 'procurement', 'inventory', 'it-assets', 'trade-docs'],
   },
   {
     name: 'Customers & Growth', status: 'live',
@@ -235,6 +235,7 @@ const faqs = [
   { q: 'Can I manage staff leave and recruiting on Collarone?', a: 'Yes — leave management, task tracking, visitor management, recruiting with a public careers page, onboarding/offboarding, performance reviews and a compliance vault are all live suites you can pick from day one.' },
   { q: 'Is my company’s data secure?', a: 'Every screen checks who’s allowed to see it before showing anything, verified role by role, and every company\'s data is isolated from every other company\'s at the database level — verified directly, not just assumed.' },
   { q: 'What about payroll?', a: 'Payroll is live — Nigerian PAYE, Pension, NHF and NSITF, configurable rate packs, and a Banking Wall so whoever liaises with your bank always knows what\'s new. It never touches your bank account directly — Collarone prepares the disbursement, your bank executes it.' },
+  { q: 'Can I generate invoices and automate follow-ups?', a: 'Yes — Trade Documents generates sequential invoices, receipts, GRNs and stock release passes with your own logo, address and signature on a choice of 6 templates. Automation runs daily checks across your other suites — low-stock alerts, overdue-invoice reminders, new-lead follow-up tasks and more — and can optionally draft the follow-up message for you.' },
   { q: 'How long does it take to get started?', a: 'During early access, we set up your space personally — reach out on WhatsApp or email and we’ll have your business live the same day.' },
   { q: 'Is there a contract or can I cancel anytime?', a: 'Collarone is billed monthly (or yearly, for 15% off) with no long-term contract. Your locked-in rate never changes even if our published prices do.' },
 ];
@@ -375,8 +376,8 @@ export default function Landing() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ delay: 1.5, duration: 0.55, ease: [0.16, 0.8, 0.2, 1] }}
             >
-              <span className="cl-toast-ic pay">₦</span>
-              <span><strong>July payroll ready</strong><small>42 staff · ₦4.2M net</small></span>
+              <span className="cl-toast-ic pay">{I.chat}</span>
+              <span><strong>New lead: Chidinma O.</strong><small>via website · CRM</small></span>
             </motion.div>
           </div>
         </div>
