@@ -21,6 +21,7 @@ const PATHS = {
   globe: <><circle cx="12" cy="12" r="8.5" /><path d="M3.5 12h17M12 3.5a14 14 0 0 1 0 17M12 3.5a14 14 0 0 0 0 17" /></>,
   contacts: <><rect x="4" y="3" width="13" height="18" rx="1.5" /><circle cx="10.5" cy="9.5" r="2.4" /><path d="M7 16c.6-1.8 2-2.7 3.5-2.7s2.9.9 3.5 2.7" /><path d="M19.5 8h1.5M19.5 12h1.5M19.5 16h1.5" /></>,
   bolt: <><path d="M13 2.5 4.5 13.5H11l-1.5 8 8.5-11H11.5z" /></>,
+  receipt: <><path d="M6 3h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z" /><path d="M8.5 8h7M8.5 11.5h7M8.5 15h4" /></>,
 };
 
 export default function SuiteIcon({ name, size = 24, color = 'currentColor', strokeWidth = 1.6 }) {

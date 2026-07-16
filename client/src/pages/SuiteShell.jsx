@@ -18,9 +18,11 @@ import InventoryApp   from '../suites/inventory/InventoryApp.jsx';
 import FinanceApp     from '../suites/finance/FinanceApp.jsx';
 import ProjectsApp    from '../suites/projects/ProjectsApp.jsx';
 import DocumentsApp   from '../suites/documents/DocumentsApp.jsx';
+import TradeDocsApp   from '../suites/tradeDocs/TradeDocsApp.jsx';
+import AutomationApp  from '../suites/automation/AutomationApp.jsx';
 
 // Suites that have a real app built. Others fall back to the "foundation ready" stub.
-const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp, payroll: PayrollApp, crm: CRMApp, attendance: AttendanceApp, benefits: BenefitsApp, 'it-assets': ITAssetsApp, procurement: ProcurementApp, inventory: InventoryApp, finance: FinanceApp, projects: ProjectsApp, documents: DocumentsApp };
+const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp, payroll: PayrollApp, crm: CRMApp, attendance: AttendanceApp, benefits: BenefitsApp, 'it-assets': ITAssetsApp, procurement: ProcurementApp, inventory: InventoryApp, finance: FinanceApp, projects: ProjectsApp, documents: DocumentsApp, 'trade-docs': TradeDocsApp, automation: AutomationApp };
 
 export default function SuiteShell() {
   const { key } = useParams();

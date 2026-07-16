@@ -1578,6 +1578,95 @@ export async function supabaseApi(path, opts = {}) {
     return { movement: data };
   }
 
+  // ---- inventory bookings (stock reservations) ----
+  const RESERVATION_SELECT = '*, item:stock_items(id,name,sku,unit), warehouse:warehouses(id,name), author:profiles!created_by(id,name)';
+  if (head === 'GET /inventory' && seg[1] === 'reservations') {
+    const { data, error } = await supabase.from('stock_reservations').select(RESERVATION_SELECT).order('created_at', { ascending: false }).limit(200);
+    if (error) fail(400, error.message);
+    return { reservations: data };
+  }
+  if (head === 'POST /inventory' && seg[1] === 'reservations') {
+    const { itemId, warehouseId, quantity, reference, notes, holdUntil } = body;
+    if (!itemId || !warehouseId || !quantity) fail(400, 'Item, warehouse and quantity are required.');
+    const { data, error } = await supabase.rpc('reserve_stock', {
+      p_item_id: itemId, p_warehouse_id: warehouseId, p_quantity: quantity,
+      p_reference: reference || '', p_notes: notes || '', p_hold_until: holdUntil || null,
+    });
+    if (error) fail(400, error.message);
+    const { data: full, error: getErr } = await supabase.from('stock_reservations').select(RESERVATION_SELECT).eq('id', data.id).single();
+    if (getErr) fail(400, getErr.message);
+    return { reservation: full };
+  }
+  if (head === 'POST /inventory' && seg[1] === 'reservations' && seg[3] === 'fulfill') {
+    const { data, error } = await supabase.rpc('fulfill_reservation', { p_id: seg[2] });
+    if (error) fail(400, error.message);
+    const { data: full, error: getErr } = await supabase.from('stock_reservations').select(RESERVATION_SELECT).eq('id', data.id).single();
+    if (getErr) fail(400, getErr.message);
+    return { reservation: full };
+  }
+  if (head === 'POST /inventory' && seg[1] === 'reservations' && seg[3] === 'release') {
+    const { data, error } = await supabase.rpc('release_reservation', { p_id: seg[2] });
+    if (error) fail(400, error.message);
+    const { data: full, error: getErr } = await supabase.from('stock_reservations').select(RESERVATION_SELECT).eq('id', data.id).single();
+    if (getErr) fail(400, getErr.message);
+    return { reservation: full };
+  }
+
+  // ---- trade documents (invoice, receipt, GRN, SRP) ----
+  const TRADE_DOC_SELECT = '*, contact:crm_contacts(id,name), vendor:vendors(id,name), warehouse:warehouses(id,name), author:profiles!created_by(id,name)';
+  if (head === 'GET /trade-docs' && seg.length === 1) {
+    const { data, error } = await supabase.from('trade_documents').select(TRADE_DOC_SELECT).order('created_at', { ascending: false }).limit(300);
+    if (error) fail(400, error.message);
+    return { documents: data };
+  }
+  if (head === 'POST /trade-docs' && seg.length === 1) {
+    const { docType, partyName, partyPhone, partyEmail, partyAddress, contactId, vendorId, warehouseId, items, vatRate, dueDate, reference, notes, linkStock } = body;
+    if (!docType) fail(400, 'Document type is required.');
+    if (!items || !items.length) fail(400, 'Add at least one line item.');
+    const { data, error } = await supabase.rpc('create_trade_document', {
+      p_doc_type: docType, p_party_name: partyName || '', p_party_phone: partyPhone || '',
+      p_party_email: partyEmail || '', p_party_address: partyAddress || '',
+      p_contact_id: contactId || null, p_vendor_id: vendorId || null, p_warehouse_id: warehouseId || null,
+      p_items: items, p_vat_rate: vatRate ?? 0.075, p_due_date: dueDate || null,
+      p_reference: reference || '', p_notes: notes || '', p_link_stock: !!linkStock,
+    });
+    if (error) fail(400, error.message);
+    const { data: full, error: getErr } = await supabase.from('trade_documents').select(TRADE_DOC_SELECT).eq('id', data.id).single();
+    if (getErr) fail(400, getErr.message);
+    return { document: full };
+  }
+  if (method === 'PATCH' && seg[0] === 'trade-docs' && seg.length === 2) {
+    const { status } = body;
+    if (!['draft', 'issued', 'paid', 'void'].includes(status)) fail(400, 'Invalid status.');
+    const { data, error } = await supabase.from('trade_documents').update({ status }).eq('id', seg[1]).select(TRADE_DOC_SELECT).single();
+    if (error) fail(400, error.message);
+    return { document: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'trade-docs' && seg.length === 2) {
+    const { error } = await supabase.from('trade_documents').delete().eq('id', seg[1]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  // ---- automation ----
+  if (head === 'GET /automation' && seg[1] === 'settings') {
+    const { data, error } = await supabase.from('automation_settings').select('*');
+    if (error) fail(400, error.message);
+    return { settings: data };
+  }
+  if (head === 'POST /automation' && seg[1] === 'settings') {
+    const { key, enabled, config } = body;
+    if (!key) fail(400, 'Automation key is required.');
+    const { data, error } = await supabase.rpc('upsert_automation_setting', { p_key: key, p_enabled: !!enabled, p_config: config || {} });
+    if (error) fail(400, error.message);
+    return { setting: data };
+  }
+  if (head === 'GET /automation' && seg[1] === 'runs') {
+    const { data, error } = await supabase.from('automation_runs').select('*').order('ran_at', { ascending: false }).limit(60);
+    if (error) fail(400, error.message);
+    return { runs: data };
+  }
+
   // ---- finance ----
   if (head === 'GET /finance' && seg[1] === 'categories') {
     const { data, error } = await supabase.from('expense_categories').select('*').order('name');

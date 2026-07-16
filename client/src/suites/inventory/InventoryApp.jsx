@@ -121,24 +121,70 @@ function MovementModal({ items, warehouses, onClose, onSaved, flash }) {
   );
 }
 
+function ReserveModal({ items, warehouses, onClose, onSaved, flash }) {
+  const [f, setF] = useState({ itemId: items[0]?.id || '', warehouseId: warehouses[0]?.id || '', quantity: '', reference: '', notes: '', holdUntil: '' });
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!f.itemId || !f.warehouseId || !f.quantity) return flash('Item, warehouse and quantity are required.', true);
+    setBusy(true);
+    try { const saved = await INV.reserveStock(f); flash('Stock reserved.'); onSaved(saved); onClose(); }
+    catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="modal-overlay" onMouseDown={onClose}>
+      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="modal-head"><h2>Reserve stock (booking)</h2></div>
+        <form className="modal-body" onSubmit={submit}>
+          <div className="form-grid">
+            <Field label="Item *">
+              <select className="select" value={f.itemId} onChange={(e) => set('itemId', e.target.value)} required>
+                {items.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.sku})</option>)}
+              </select>
+            </Field>
+            <Field label="Warehouse *">
+              <select className="select" value={f.warehouseId} onChange={(e) => set('warehouseId', e.target.value)} required>
+                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Quantity *"><input className="input" type="number" min="0.01" step="0.01" value={f.quantity} onChange={(e) => set('quantity', e.target.value)} required /></Field>
+            <Field label="Hold until"><input className="input" type="date" value={f.holdUntil} onChange={(e) => set('holdUntil', e.target.value)} /></Field>
+            <Field label="Reference"><input className="input" value={f.reference} onChange={(e) => set('reference', e.target.value)} placeholder="Customer name, order number…" /></Field>
+          </div>
+          <Field label="Notes"><textarea className="input" rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Reserve stock'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function InventoryApp({ access }) {
   const isManager = access?.role === 'manager';
   const [items, setItems] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [movements, setMovements] = useState([]);
+  const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('items');
   const [itemModal, setItemModal] = useState(false);
   const [whModal, setWhModal] = useState(false);
   const [moveModal, setMoveModal] = useState(false);
+  const [reserveModal, setReserveModal] = useState(false);
   const [toast, setToast] = useState(null);
   const flash = (msg, isErr = false) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000); };
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [i, w, m] = await Promise.all([INV.getItems(), INV.getWarehouses(), INV.getMovements()]);
-      setItems(i); setWarehouses(w); setMovements(m);
+      const [i, w, m, r] = await Promise.all([INV.getItems(), INV.getWarehouses(), INV.getMovements(), INV.getReservations()]);
+      setItems(i); setWarehouses(w); setMovements(m); setReservations(r);
     } catch (e) { flash(e.message, true); } finally { setLoading(false); }
   }, []);
 
@@ -150,16 +196,31 @@ export default function InventoryApp({ access }) {
   };
 
   const lowStock = items.filter(INV.isLowStock);
+  const heldReservations = reservations.filter((r) => r.status === 'held');
+
+  const fulfill = async (r) => {
+    try { const saved = await INV.fulfillReservation(r.id); flash('Reservation fulfilled — stock moved out.'); setReservations((rs) => rs.map((x) => (x.id === saved.id ? saved : x))); load(); }
+    catch (e) { flash(e.message, true); }
+  };
+  const release = async (r) => {
+    if (!confirm('Release this reservation? The stock becomes available again.')) return;
+    try { const saved = await INV.releaseReservation(r.id); flash('Reservation released.'); setReservations((rs) => rs.map((x) => (x.id === saved.id ? saved : x))); }
+    catch (e) { flash(e.message, true); }
+  };
 
   return (
     <div className="lv">
       <div className="lv-tabs">
         <button className={`lv-tab ${tab === 'items' ? 'active' : ''}`} onClick={() => setTab('items')}>Items</button>
         <button className={`lv-tab ${tab === 'movements' ? 'active' : ''}`} onClick={() => setTab('movements')}>Movements</button>
+        <button className={`lv-tab ${tab === 'bookings' ? 'active' : ''}`} onClick={() => setTab('bookings')}>Bookings{heldReservations.length > 0 ? ` (${heldReservations.length})` : ''}</button>
         <button className={`lv-tab ${tab === 'warehouses' ? 'active' : ''}`} onClick={() => setTab('warehouses')}>Warehouses</button>
         {isManager && tab === 'items' && <button className="btn btn-primary lv-apply" onClick={() => setItemModal(true)}>Add item</button>}
         {isManager && tab === 'movements' && items.length > 0 && warehouses.length > 0 && (
           <button className="btn btn-primary lv-apply" onClick={() => setMoveModal(true)}>Record movement</button>
+        )}
+        {isManager && tab === 'bookings' && items.length > 0 && warehouses.length > 0 && (
+          <button className="btn btn-primary lv-apply" onClick={() => setReserveModal(true)}>Reserve stock</button>
         )}
         {isManager && tab === 'warehouses' && <button className="btn btn-primary lv-apply" onClick={() => setWhModal(true)}>Add warehouse</button>}
       </div>
@@ -175,17 +236,45 @@ export default function InventoryApp({ access }) {
       {!loading && tab === 'items' && (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>On hand</th><th>Reorder level</th>{isManager && <th></th>}</tr></thead>
+            <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>On hand</th><th>Available</th><th>Reorder level</th>{isManager && <th></th>}</tr></thead>
             <tbody>
-              {items.length === 0 && <tr><td colSpan={isManager ? 6 : 5} className="td-empty">No stock items yet.</td></tr>}
+              {items.length === 0 && <tr><td colSpan={isManager ? 7 : 6} className="td-empty">No stock items yet.</td></tr>}
               {items.map((i) => (
                 <tr key={i.id} style={INV.isLowStock(i) ? { background: '#fff8f8' } : {}}>
                   <td className="muted" style={{ fontSize: 13, fontFamily: 'monospace' }}>{i.sku}</td>
                   <td style={{ fontWeight: 500 }}>{i.name}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{i.category || '—'}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{INV.totalQuantity(i)} {i.unit}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{INV.availableQuantity(i, reservations)} {i.unit}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{i.reorder_level}</td>
                   {isManager && <td><button className="iconbtn" onClick={() => removeItem(i)}>Delete</button></td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && tab === 'bookings' && (
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Item</th><th>Warehouse</th><th>Qty</th><th>Reference</th><th>Hold until</th><th>Status</th>{isManager && <th></th>}</tr></thead>
+            <tbody>
+              {reservations.length === 0 && <tr><td colSpan={isManager ? 7 : 6} className="td-empty">No stock reservations yet.</td></tr>}
+              {reservations.map((r) => (
+                <tr key={r.id}>
+                  <td style={{ fontWeight: 500 }}>{r.item?.name}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{r.warehouse?.name}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{r.quantity}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{r.reference || '—'}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{INV.fmtDate(r.hold_until)}</td>
+                  <td><span className="badge">{r.status}</span></td>
+                  {isManager && (
+                    <td style={{ display: 'flex', gap: 6 }}>
+                      {r.status === 'held' && <button className="iconbtn" onClick={() => fulfill(r)}>Fulfil</button>}
+                      {r.status === 'held' && <button className="iconbtn" onClick={() => release(r)}>Release</button>}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -232,6 +321,7 @@ export default function InventoryApp({ access }) {
       {itemModal && <ItemModal onClose={() => setItemModal(false)} onSaved={load} flash={flash} />}
       {whModal && <WarehouseModal onClose={() => setWhModal(false)} onSaved={load} flash={flash} />}
       {moveModal && <MovementModal items={items} warehouses={warehouses} onClose={() => setMoveModal(false)} onSaved={load} flash={flash} />}
+      {reserveModal && <ReserveModal items={items} warehouses={warehouses} onClose={() => setReserveModal(false)} onSaved={(r) => setReservations((rs) => [r, ...rs])} flash={flash} />}
       <Toast toast={toast} />
     </div>
   );

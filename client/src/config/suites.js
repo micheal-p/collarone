@@ -11,11 +11,12 @@ export const SUITES = [
   { key: 'benefits',    name: 'Benefits',           tier: 'extended', status: 'live', desc: 'HMO, group life, pension/PFA tracking.' },
   { key: 'it-assets',   name: 'IT Assets',          tier: 'extended', status: 'live', desc: 'Asset tracking, assignment and lifecycle.' },
   { key: 'procurement', name: 'Procurement',        tier: 'extended', status: 'live', desc: 'Purchase requests, vendors and approvals.' },
-  { key: 'inventory',   name: 'Inventory',          tier: 'extended', status: 'live', desc: 'Stock levels, low-stock alerts, warehouses.' },
+  { key: 'inventory',   name: 'Inventory',          tier: 'extended', status: 'live', desc: 'Stock levels, low-stock alerts, warehouses and bookings.' },
   { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'live', desc: 'Expenses, budgets and financial reports.' },
   { key: 'projects',    name: 'Projects',           tier: 'extended', status: 'live', desc: 'Milestones, boards and collaboration.' },
   { key: 'documents',   name: 'Documents',          tier: 'extended', status: 'live', desc: 'Secure storage, versioning, permissions.' },
-  { key: 'automation',  name: 'Automation',         tier: 'extended', status: 'soon', desc: 'Rules that run your busywork — auto-assign tasks, approvals, reminders and alerts.' },
+  { key: 'trade-docs',  name: 'Trade Documents',    tier: 'extended', status: 'live', desc: 'Generate invoices, receipts, goods-received notes and stock release passes.' },
+  { key: 'automation',  name: 'Automation',         tier: 'extended', status: 'live', desc: 'Rules that run your busywork — auto-assign tasks, approvals, reminders and alerts.' },
 ];
 
 // Mirrors server/src/config/suites.js for presentation. The SERVER is authoritative
@@ -35,7 +36,8 @@ export const SUITE_META = {
   finance:     { icon: 'coins',      tint: '#2f855a' },
   projects:    { icon: 'kanban',     tint: '#6b46c1' },
   documents:   { icon: 'doc',        tint: '#475569' },
-  automation:  { icon: 'bolt',       tint: '#B45309' },
+  'trade-docs':{ icon: 'receipt',    tint: '#7c2d12' },
+  automation:  { icon: 'bolt',       tint: '#b45309' },
 };
 
 export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
@@ -45,7 +47,7 @@ export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
 // founding one. Everything
 // else is enforced server-side too (enforce_phase1_suite_scope() strips any
 // other key on write) — this list just keeps the UI honest about it.
-export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents'];
+export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents', 'trade-docs', 'automation'];
 
 // Payroll runs Nigerian statutory deductions (PAYE, pension, NHF) — it isn't
 // built for any other country's tax/pension regime yet, so it's gated to
