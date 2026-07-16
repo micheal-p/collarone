@@ -86,8 +86,12 @@
    (and the whole hero jump) during the gap between AnimatePresence's exit
    and the next word's enter; matches the h1's own line-height so it reads
    as the same text line, not an extra gap. */
-.cl-rotate-wrap { display: inline-block; overflow: hidden; vertical-align: bottom; height: 1.06em; }
+.cl-rotate-wrap { display: inline-block; overflow: hidden; vertical-align: bottom; height: 1.06em; max-width: 100%; }
 .cl-rotate-word { display: inline-block; white-space: nowrap; }
+/* Safety margin for whichever word is longest — the hero column is much
+   narrower on small phones, and a future wording change shouldn't be able
+   to silently push the whole hero column wider than the viewport again. */
+@media (max-width: 480px) { .cl-rotate-word { font-size: 0.86em; } }
 
 /* nav over the dark hero: transparent, light text */
 .cl-nav.cl-nav-ondark { background: transparent; backdrop-filter: none; border-bottom-color: transparent; box-shadow: none; }

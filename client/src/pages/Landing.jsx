@@ -92,7 +92,7 @@ function Marquee({ items, dark }) {
 
 // The headline's moving part — cycles what "your whole business" actually
 // means, one suite at a time.
-const ROTATE_WORDS = ['whole business.', 'invoicing.', 'front desk.', 'customers.', 'people.', 'projects.'];
+const ROTATE_WORDS = ['whole business.', 'whole organization.', 'HR consultancy.', 'automations.', 'company inventory.'];
 function RotatingWord() {
   const reduce = useReducedMotion();
   const [i, setI] = useState(0);
