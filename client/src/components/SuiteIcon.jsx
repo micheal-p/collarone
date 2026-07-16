@@ -24,10 +24,10 @@ const PATHS = {
   receipt: <><path d="M6 3h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z" /><path d="M8.5 8h7M8.5 11.5h7M8.5 15h4" /></>,
 };
 
-export default function SuiteIcon({ name, size = 24, color = 'currentColor', strokeWidth = 1.6 }) {
+export default function SuiteIcon({ name, size = 24, color = 'currentColor', strokeWidth = 1.6, ...rest }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-      stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" {...rest}>
       {PATHS[name] || PATHS.grid}
     </svg>
   );

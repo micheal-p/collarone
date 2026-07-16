@@ -285,8 +285,12 @@ export default function Landing() {
   const o2y = useTransform(heroProgress, [0, 1], [0, -30]);
   const o3y = useTransform(heroProgress, [0, 1], [0, -120]);
 
+  const { scrollYProgress: pageProgress } = useScroll();
+  const pageProgressSpring = useSpring(pageProgress, { stiffness: 200, damping: 30, mass: 0.3 });
+
   return (
     <div className="cl">
+      {!reduce && <motion.div className="cl-progress" style={{ scaleX: pageProgressSpring }} />}
       <nav className={`cl-nav${pastHero ? ' cl-nav-scrolled' : ' cl-nav-ondark'}${scrolled && pastHero ? ' cl-nav-scrolled' : ''}`}>
         <div className="cl-wrap">
           <a className="cl-brand" href="#top">
@@ -408,25 +412,46 @@ export default function Landing() {
             <h2 className="cl-sec-h">Everything a growing business runs on</h2>
             <p className="cl-sec-lede">Start with what you need today. The rest turns on the moment you're ready — same account, nothing to migrate.</p>
           </Reveal>
-          <div className="cl-grid3">
-            {modules.map((m, i) => (
-              <Reveal className="cl-module-card" key={m.name} delay={i * 0.06} hover>
-                <div className="cl-module-head"><h3>{m.name}</h3><span className={`cl-pill ${m.status}`}>{m.status === 'live' ? 'Live' : 'Coming soon'}</span></div>
-                <p style={{ fontSize: 14, color: 'var(--text-soft)', margin: '0 0 16px' }}>{m.desc}</p>
-                <div className="cl-module-suites">
-                  {m.suites.map((key) => {
-                    const s = SUITES.find((x) => x.key === key);
-                    const meta = SUITE_META[key] || {};
-                    return (
-                      <span className="cl-module-suite" key={key}>
-                        <span className="cl-module-suite-icon" style={{ background: meta.tint }}><SuiteIcon name={meta.icon || 'grid'} size={14} color="#fff" /></span>
-                        {s?.name}
-                      </span>
-                    );
-                  })}
-                </div>
-              </Reveal>
-            ))}
+          <div className="cl-bento">
+            {modules.map((m, i) => {
+              const suiteChips = m.suites.map((key) => {
+                const s = SUITES.find((x) => x.key === key);
+                const meta = SUITE_META[key] || {};
+                return (
+                  <span className="cl-module-suite" key={key}>
+                    <span className="cl-module-suite-icon" style={{ background: meta.tint }}><SuiteIcon name={meta.icon || 'grid'} size={i === 0 ? 15 : 14} color="#fff" /></span>
+                    {s?.name}
+                  </span>
+                );
+              });
+              if (i === 0) {
+                const watermarkMeta = SUITE_META[m.suites[0]] || {};
+                return (
+                  <motion.div
+                    key={m.name} className="cl-bento-feat"
+                    initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-60px' }}
+                    transition={{ duration: 0.6, ease: [0.2, 0.7, 0.3, 1] }}
+                    whileHover={{ y: -4 }}
+                  >
+                    <span className="cl-bento-tag">Most used</span>
+                    <h3>{m.name}</h3>
+                    <p>{m.desc}</p>
+                    <div className="cl-module-suites">{suiteChips}</div>
+                    <SuiteIcon name={watermarkMeta.icon || 'grid'} size={220} color="#F4F1EA" strokeWidth="0.6" style={{ position: 'absolute', right: -30, bottom: -40, opacity: 0.05, pointerEvents: 'none' }} />
+                  </motion.div>
+                );
+              }
+              const watermarkMeta = SUITE_META[m.suites[0]] || {};
+              return (
+                <Reveal className="cl-bento-side" key={m.name} delay={i * 0.08} hover>
+                  <span className="cl-bento-side-icon"><SuiteIcon name={watermarkMeta.icon || 'grid'} size={22} /></span>
+                  <h3>{m.name}</h3>
+                  <p>{m.desc}</p>
+                  <div className="cl-module-suites">{suiteChips}</div>
+                  <SuiteIcon name={watermarkMeta.icon || 'grid'} size={140} color="var(--ink)" strokeWidth="0.6" className="cl-bento-watermark" />
+                </Reveal>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -564,8 +589,9 @@ export default function Landing() {
             <h2 className="cl-sec-h">Everything business owners ask us</h2>
           </Reveal>
           <Reveal className="cl-faq-list">
-            {faqs.map((f) => (
+            {faqs.map((f, i) => (
               <details className="cl-faq-item" key={f.q}>
+                <span className="cl-faq-num">{String(i + 1).padStart(2, '0')}</span>
                 <summary>{f.q}<span className="cl-chev">{I.chev}</span></summary>
                 <div className="cl-faq-a">{f.a}</div>
               </details>
