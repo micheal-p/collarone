@@ -1,77 +1,73 @@
-# Org-Ops Cloud ERP
+# Collarone
 
-Modular, multi-tenant ERP suite platform for **Origin Tech Group** — a Microsoft-365-style
-app launcher where staff sign in and enter only the suites a System Admin has granted them.
+The business platform for Nigerian companies — HR, leave, tasks, visitor management,
+payroll, CRM, finance, projects, documents, trade paperwork and automation, all under one
+login, priced and billed in naira. A company signs up, gets its own workspace, and turns on
+whichever suites it needs — no self-hosting, no per-module install.
 
-> Per the PRD/FRD: React (Vite) front-end · Node/Express API · MongoDB (multi-tenant via
-> `tenantId` discriminator) · JWT auth · granular RBAC · admin-provisioned accounts.
+Public site: [collarone.app](https://collarone.app) · Status: [/status](https://collarone.app/status)
 
 ## Architecture
 
 ```
 org-ops-erp/
-├── server/        Node + Express + Mongoose API (auth, RBAC, tenant scoping, provisioning)
-└── client/        React + Vite SPA (suite launcher, login, admin center, suite shells)
+├── client/            React (Vite) SPA — marketing site, suite launcher, admin center,
+│   ├── src/suites/    every operational suite (hr, leave, tasks, crm, payroll, …)
+│   ├── src/pages/     marketing/auth/platform-admin pages
+│   └── api/           Vercel serverless functions holding the Supabase service-role key
+└── supabase/          Postgres schema, RLS policies and SECURITY DEFINER functions,
+                        run as SQL migration files (one per suite/feature)
 ```
 
-### Suites
-**MVP core:** HR & Staff · Leave · Task & Report · Visitor Management
-**Extended:** IT Assets · Procurement · Inventory · Finance · Projects · Documents
+- **Frontend:** React + Vite, plain CSS/inline styles (no TypeScript, no CSS framework),
+  Framer Motion for the marketing site's motion.
+- **Backend:** Supabase — Postgres, Auth, Storage. Almost all business logic lives in
+  Postgres itself (`supabase/*.sql`) as `SECURITY DEFINER` RPCs, not in application code —
+  e.g. checkout re-reads prices server-side, payroll runs statutory deductions in SQL.
+- **Multi-tenancy:** every business table carries an `org_id`; Row-Level Security
+  (`same_org()`, `is_platform_admin()` helpers) enforces isolation at the database layer,
+  so a frontend bug can't leak one company's data into another's.
+- **Serverless functions** (`client/api/*.js`) hold the one secret the browser can't safely
+  have — the Supabase service-role key — used for things like org signup and the daily
+  automation cron. Everything else talks to Supabase directly from the browser under RLS.
 
-### Access model
-- **No self-signup.** The System Admin creates every staff account.
-- Each user gets a **system role** (`super_admin` / `manager` / `staff`) and a list of
-  **granted suites**, each with a per-suite role (`manager` / `member`).
-- A user can only open a suite they were granted. The launcher greys out the rest, and the
-  API enforces it on every request (`requireSuite`).
+## Suites
+
+**Core:** HR & Staff · Leave · Tasks & Report · Visitor Management · Payroll · CRM
+**Extended:** Attendance · Benefits · IT Assets · Procurement · Inventory · Finance ·
+Projects · Documents · Trade Documents (invoicing/GRN/SRP) · Automation
+
+Each org picks the suites it wants at sign-up and can add more later — access is enforced
+both in the UI and at the database layer (`profiles.suites` + a per-suite RLS check), so a
+suite a company hasn't paid for genuinely can't be reached, not just hidden.
+
+## Access model
+
+- **Self-serve org sign-up** — a company creates its own workspace and becomes its own
+  administrator.
+- Within an org, **staff accounts are admin-provisioned** — no public self-signup for
+  employees. An admin creates each account and grants specific suites.
+- A separate **Platform Admin** role (Collarone's own team) manages organizations,
+  billing confirmation, promo codes and platform-wide status — with no visibility into any
+  tenant's actual business data.
 
 ## Local setup
 
 ```bash
-# 1. Install deps (root installs both workspaces)
+cd client
 npm install
-
-# 2. Start MongoDB locally
-brew services start mongodb-community@8.0     # or: mongod --config /usr/local/etc/mongod.conf
-
-# 3. Configure env
-cp server/.env.example server/.env            # defaults work for local
-
-# 4. Seed the tenant + System Admin account
-npm run seed
-
-# 5. Run API + web together
-npm run dev
+cp .env.example .env      # Supabase URL + anon key for your own Supabase project
+npm run dev                # http://localhost:5173
 ```
 
-- API: http://localhost:4000
-- Web: http://localhost:5173
+Running against a real backend needs a Supabase project with the schema in `supabase/`
+applied — run the `.sql` files in that folder in order (each one documents its own
+dependencies at the top). See `ops/hostinger/README.md` for self-hosting Supabase instead
+of using Supabase Cloud.
 
-### Default System Admin (from seed)
-```
-admin@origingroupng.com  /  ChangeMe!2026
-```
-Change this immediately after first login.
+## Deployment
 
-## Deployment — Vercel (frontend) + Render (backend)
-
-The frontend is a static Vite SPA (Vercel); the backend is a long-running Express server
-(Render) connected to Mongo Atlas. Vercel proxies `/api/*` to Render so the auth refresh
-cookie stays same-origin (avoids cross-site cookie blocking on Safari/iOS).
-
-### Backend → Render
-1. **New → Blueprint**, connect this repo (Render reads `render.yaml`). Or create a Web Service
-   manually with: Root Dir `server`, Build `npm install --no-workspaces`, Start `npm start`.
-2. Set these env vars (secrets) in the Render dashboard:
-   `MONGO_URI` (Atlas, incl. `/org_ops_erp`), `JWT_SECRET`, `JWT_REFRESH_SECRET`,
-   `CLIENT_ORIGIN` (your Vercel URL).
-3. In **Atlas → Network Access**, allow `0.0.0.0/0` (Render free tier has no static outbound IP).
-4. Note the service URL, e.g. `https://originerp-api.onrender.com`.
-
-### Frontend → Vercel
-1. Project **Settings → Root Directory = `client`** (framework auto-detects as Vite).
-2. Edit `client/vercel.json` → set the `/api` rewrite destination to your Render URL.
-3. Deploy. The SPA calls `/api/...` on the Vercel domain → Vercel proxies to Render.
-
-> Atlas is already seeded (tenant + System Admin), so no seeding step is needed on Render.
-> Only the **server's** host needs Atlas allowlisting — end users never touch Atlas directly.
+Vercel only — the React SPA and the serverless functions in `client/api/` deploy together
+from this repo. Supabase (cloud or self-hosted) is configured entirely through environment
+variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_URL`,
+`SUPABASE_SERVICE_KEY`) — no code changes needed to point at a different Supabase instance.

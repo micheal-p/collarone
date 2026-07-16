@@ -1,8 +1,8 @@
 {
-  "name": "org-ops-erp",
+  "name": "collarone",
   "version": "1.0.0",
   "private": true,
-  "description": "Org-Ops Cloud ERP — modular suite platform for Origin Tech Group",
+  "description": "Collarone — the business platform for Nigerian companies (HR, payroll, CRM, finance and more, all under one login)",
   "workspaces": [
     "server",
     "client"
