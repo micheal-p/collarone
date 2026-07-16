@@ -188,7 +188,13 @@
 
 .cl-gallery-shot { border-radius: 18px; overflow: hidden; box-shadow: var(--shadow-sm); border: 1px solid var(--line); background: var(--surface); transition: box-shadow .3s ease, border-color .3s ease; }
 .cl-gallery-shot:hover { box-shadow: var(--shadow-md); border-color: var(--line-strong); }
+.cl-gallery-shot-btn { display: block; width: 100%; padding: 0; margin: 0; border: none; background: transparent; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.cl-shot-img-wrap { position: relative; }
 .cl-shot-img { display: block; width: 100%; height: auto; }
+.cl-gallery-zoom { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 50%; background: rgba(10,14,26,0.62);
+  backdrop-filter: blur(4px); color: #fff; display: grid; place-items: center; opacity: 0; transform: scale(0.85);
+  transition: opacity .25s ease, transform .25s ease; pointer-events: none; }
+.cl-gallery-shot:hover .cl-gallery-zoom { opacity: 1; transform: scale(1); }
 .cl-shot-caption { font-size: 12.5px; font-weight: 600; padding: 12px 16px; }
 .cl-dark .cl-shot-caption { color: rgba(244,241,234,0.75); border-top: 1px solid rgba(244,241,234,0.08); }
 .cl-gallery-shot .cl-mock { padding: 18px 18px 22px; }
@@ -253,6 +259,21 @@
 .cl-card:hover { box-shadow: var(--shadow-md); border-color: var(--line-strong); }
 .cl-card h3 { font-size: 17px; margin-bottom: 8px; }
 .cl-card p { font-size: 14px; color: var(--text-soft); line-height: 1.6; margin: 0; }
+
+/* ---- "why it feels different" — a connected process row instead of four
+   identical boxes: a through-line with each card's icon sitting on it like
+   a timeline node, same ghost-numeral language as the FAQ. ---- */
+.cl-process { position: relative; }
+.cl-process::before { content: ''; position: absolute; top: 27px; left: 6%; right: 6%; height: 1px; background: var(--line-strong); z-index: 0; }
+@media (max-width: 900px) { .cl-process::before { display: none; } }
+.cl-process-card { position: relative; z-index: 1; background: transparent; border: none; padding: 0; box-shadow: none; }
+.cl-process-num { position: absolute; top: -6px; right: 4px; font-family: Georgia, serif; font-style: italic; font-weight: 700; font-size: 15px; color: var(--line-strong); transition: color .3s ease; }
+.cl-process-card:hover .cl-process-num { color: var(--accent); }
+.cl-process-card .cl-icon-wrap { width: 54px; height: 54px; border-radius: 50%; background: var(--surface); border: 1.5px solid var(--line-strong);
+  box-shadow: 0 0 0 6px var(--bg); transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease; }
+.cl-process-card:hover .cl-icon-wrap { transform: scale(1.08) rotate(-6deg); border-color: var(--accent); box-shadow: 0 0 0 6px var(--bg), 0 0 0 9px rgba(255,91,31,0.14); }
+.cl-process-card h3 { font-size: 17px; margin: 4px 0 8px; }
+.cl-process-card p { font-size: 14px; color: var(--text-soft); line-height: 1.6; margin: 0; }
 
 .cl-module-card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 30px; display: flex; flex-direction: column; gap: 16px; box-shadow: var(--shadow-sm); transition: box-shadow .3s ease, border-color .3s ease; }
 .cl-module-card:hover { box-shadow: var(--shadow-md); border-color: var(--line-strong); }
@@ -403,6 +424,33 @@
 .cl-footer-loc { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-faint); }
 
 .cl a:focus-visible, .cl button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- screenshot lightbox ---- */
+.cl-lightbox { position: fixed; inset: 0; z-index: 200; background: rgba(6,8,14,0.92); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center; padding: 32px 80px; animation: cl-lightbox-in .25s ease; }
+@keyframes cl-lightbox-in { from { opacity: 0; } to { opacity: 1; } }
+.cl-lightbox-inner { max-width: 1040px; width: 100%; border-radius: 16px; overflow: hidden; border: 1px solid rgba(244,241,234,0.14);
+  box-shadow: 0 50px 140px rgba(0,0,0,0.6); background: #0D1322; }
+.cl-lightbox-inner .cl-browser-bar { background: rgba(255,255,255,0.04); border-color: rgba(244,241,234,0.09); }
+.cl-lightbox-inner .cl-url { color: rgba(244,241,234,0.45); }
+.cl-lightbox-img { display: block; width: 100%; height: auto; max-height: 76vh; object-fit: contain; background: #0D1322; }
+.cl-lightbox-caption { padding: 14px 18px; font-size: 13.5px; font-weight: 600; color: rgba(244,241,234,0.8); border-top: 1px solid rgba(244,241,234,0.09); }
+.cl-lightbox-close { position: absolute; top: 24px; right: 28px; width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(244,241,234,0.2);
+  background: rgba(244,241,234,0.06); color: var(--paper); display: grid; place-items: center; cursor: pointer; transition: background .2s ease, border-color .2s ease; }
+.cl-lightbox-close:hover { background: rgba(244,241,234,0.14); border-color: rgba(244,241,234,0.4); }
+.cl-lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; border-radius: 50%;
+  border: 1px solid rgba(244,241,234,0.2); background: rgba(244,241,234,0.06); color: var(--paper); display: grid; place-items: center;
+  cursor: pointer; transition: background .2s ease, border-color .2s ease; }
+.cl-lightbox-nav:hover { background: rgba(244,241,234,0.14); border-color: rgba(244,241,234,0.4); }
+.cl-lightbox-prev { left: 24px; }
+.cl-lightbox-next { right: 24px; }
+@media (max-width: 720px) {
+  .cl-lightbox { padding: 70px 8px 20px; }
+  .cl-lightbox-nav { width: 38px; height: 38px; }
+  .cl-lightbox-prev { left: 6px; }
+  .cl-lightbox-next { right: 6px; }
+  .cl-lightbox-close { top: 16px; right: 16px; }
+}
 
 @media (max-width: 480px) {
   .cl-sec { padding: 64px 0; }

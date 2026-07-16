@@ -29,6 +29,10 @@ const I = {
   globeBig: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></svg>,
   pin: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" /><circle cx="12" cy="9" r="2.5" /></svg>,
   chev: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>,
+  expand: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" /></svg>,
+  close: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 5l14 14M19 5L5 19" /></svg>,
+  arrowLeft: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 4L7 12l8 8" /></svg>,
+  arrowRight: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4l8 8-8 8" /></svg>,
 };
 
 function Reveal({ children, delay = 0, className, hover = false }) {
@@ -87,7 +91,7 @@ function Marquee({ items, dark }) {
 
 // The headline's moving part — cycles what "your whole business" actually
 // means, one suite at a time.
-const ROTATE_WORDS = ['whole business.', 'payroll.', 'front desk.', 'customers.', 'people.', 'projects.'];
+const ROTATE_WORDS = ['whole business.', 'invoicing.', 'front desk.', 'customers.', 'people.', 'projects.'];
 function RotatingWord() {
   const reduce = useReducedMotion();
   const [i, setI] = useState(0);
@@ -111,6 +115,12 @@ function RotatingWord() {
     </span>
   );
 }
+
+const GALLERY_SHOTS = [
+  { src: shotHome, url: 'collarone.app/home', caption: 'Your whole workspace, one login' },
+  { src: shotTasks, url: 'Task & Report', caption: 'Assign work, track it to done' },
+  { src: shotCrm, url: 'CRM — Messages', caption: 'Website messages, answered in one tap' },
+];
 
 const marqueeItems = ['Staff Directory', 'Leave Management', 'Task Tracking', 'Visitor Sign-in', 'Recruiting & Careers', 'Onboarding', 'Performance Reviews', 'Compliance Vault', 'Payroll — PAYE · Pension · NHF', 'Customer CRM', 'Website Builder', 'Invoicing & GRNs', 'Automation'];
 
@@ -256,6 +266,17 @@ export default function Landing() {
 
   const [scrolled, setScrolled] = useState(false);
   const [pastHero, setPastHero] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(null);
+  useEffect(() => {
+    if (lightboxIdx === null) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setLightboxIdx(null);
+      if (e.key === 'ArrowLeft') setLightboxIdx((i) => (i - 1 + GALLERY_SHOTS.length) % GALLERY_SHOTS.length);
+      if (e.key === 'ArrowRight') setLightboxIdx((i) => (i + 1) % GALLERY_SHOTS.length);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxIdx]);
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, 'change', (v) => { setScrolled(v > 10); setPastHero(v > 520); });
 
@@ -396,11 +417,11 @@ export default function Landing() {
             <h2 className="cl-sec-h">Built to feel obvious, not overwhelming</h2>
             <p className="cl-sec-lede">Every screen does one job well. No settings maze, no module you have to configure before it's useful.</p>
           </Reveal>
-          <div className="cl-grid4">
-            <Reveal className="cl-card" hover><div className="cl-icon-wrap">{I.bolt}</div><h3>Set up in minutes</h3><p>Sign up, add your team, and your space is ready — no onboarding call required.</p></Reveal>
-            <Reveal className="cl-card" delay={0.05} hover><div className="cl-icon-wrap">{I.shield}</div><h3>Access, done right</h3><p>Every screen checks who's allowed to see it — tested as different roles before anything ships.</p></Reveal>
-            <Reveal className="cl-card" delay={0.1} hover><div className="cl-icon-wrap">{I.money}</div><h3>Priced in naira</h3><p>Pay by transfer or card, no forex markup, no bill that moves with the exchange rate.</p></Reveal>
-            <Reveal className="cl-card" delay={0.15} hover><div className="cl-icon-wrap">{I.globeBig}</div><h3>Grows with you</h3><p>Start with a website and a staff list. Turn on leave, tasks and the rest the day you need them.</p></Reveal>
+          <div className="cl-grid4 cl-process">
+            <Reveal className="cl-process-card" hover><span className="cl-process-num">01</span><div className="cl-icon-wrap">{I.bolt}</div><h3>Set up in minutes</h3><p>Sign up, add your team, and your space is ready — no onboarding call required.</p></Reveal>
+            <Reveal className="cl-process-card" delay={0.05} hover><span className="cl-process-num">02</span><div className="cl-icon-wrap">{I.shield}</div><h3>Access, done right</h3><p>Every screen checks who's allowed to see it — tested as different roles before anything ships.</p></Reveal>
+            <Reveal className="cl-process-card" delay={0.1} hover><span className="cl-process-num">03</span><div className="cl-icon-wrap">{I.money}</div><h3>Priced in naira</h3><p>Pay by transfer or card, no forex markup, no bill that moves with the exchange rate.</p></Reveal>
+            <Reveal className="cl-process-card" delay={0.15} hover><span className="cl-process-num">04</span><div className="cl-icon-wrap">{I.globeBig}</div><h3>Grows with you</h3><p>Start with a website and a staff list. Turn on leave, tasks and the rest the day you need them.</p></Reveal>
           </div>
         </div>
       </section>
@@ -464,20 +485,40 @@ export default function Landing() {
             <p className="cl-sec-lede">Real screenshots, not mockups — the same screens your team gets on day one.</p>
           </Reveal>
           <div className="cl-grid3">
-            {[
-              [shotHome, 'collarone.app/home', 'Your whole workspace, one login', 0],
-              [shotTasks, 'Task & Report', 'Assign work, track it to done', 0.06],
-              [shotCrm, 'CRM — Messages', 'Website messages, answered in one tap', 0.12],
-            ].map(([src, url, caption, delay]) => (
-              <Reveal className="cl-gallery-shot" delay={delay} hover key={url}>
-                <div className="cl-browser-bar"><span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" /><span className="cl-url">{url}</span></div>
-                <img className="cl-shot-img" src={src} alt={caption} loading="lazy" />
-                <div className="cl-shot-caption">{caption}</div>
+            {GALLERY_SHOTS.map((shot, i) => (
+              <Reveal className="cl-gallery-shot" delay={i * 0.06} hover key={shot.url}>
+                <button type="button" className="cl-gallery-shot-btn" onClick={() => setLightboxIdx(i)} aria-label={`Preview: ${shot.caption}`}>
+                  <div className="cl-browser-bar"><span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" /><span className="cl-url">{shot.url}</span></div>
+                  <div className="cl-shot-img-wrap">
+                    <img className="cl-shot-img" src={shot.src} alt={shot.caption} loading="lazy" />
+                    <span className="cl-gallery-zoom">{I.expand}</span>
+                  </div>
+                </button>
+                <div className="cl-shot-caption">{shot.caption}</div>
               </Reveal>
             ))}
           </div>
         </div>
       </section>
+
+      {lightboxIdx !== null && (
+        <div className="cl-lightbox" onClick={() => setLightboxIdx(null)}>
+          <button type="button" className="cl-lightbox-close" onClick={() => setLightboxIdx(null)} aria-label="Close preview">{I.close}</button>
+          <button
+            type="button" className="cl-lightbox-nav cl-lightbox-prev" aria-label="Previous screenshot"
+            onClick={(e) => { e.stopPropagation(); setLightboxIdx((i) => (i - 1 + GALLERY_SHOTS.length) % GALLERY_SHOTS.length); }}
+          >{I.arrowLeft}</button>
+          <div className="cl-lightbox-inner" onClick={(e) => e.stopPropagation()}>
+            <div className="cl-browser-bar"><span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" /><span className="cl-url">{GALLERY_SHOTS[lightboxIdx].url}</span></div>
+            <img className="cl-lightbox-img" src={GALLERY_SHOTS[lightboxIdx].src} alt={GALLERY_SHOTS[lightboxIdx].caption} />
+            <div className="cl-lightbox-caption">{GALLERY_SHOTS[lightboxIdx].caption}</div>
+          </div>
+          <button
+            type="button" className="cl-lightbox-nav cl-lightbox-next" aria-label="Next screenshot"
+            onClick={(e) => { e.stopPropagation(); setLightboxIdx((i) => (i + 1) % GALLERY_SHOTS.length); }}
+          >{I.arrowRight}</button>
+        </div>
+      )}
 
       <section className="cl-sec" id="nigeria">
         <div className="cl-wrap">
