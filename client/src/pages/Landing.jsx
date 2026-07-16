@@ -33,6 +33,7 @@ const I = {
   close: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 5l14 14M19 5L5 19" /></svg>,
   arrowLeft: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 4L7 12l8 8" /></svg>,
   arrowRight: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4l8 8-8 8" /></svg>,
+  check: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l5 5L19 7" /></svg>,
 };
 
 function Reveal({ children, delay = 0, className, hover = false }) {
@@ -236,18 +237,19 @@ const modules = [
   },
 ];
 
+const FAQ_CATS = ['All', 'General', 'Pricing', 'Product', 'Security'];
 const faqs = [
-  { q: 'What is Collarone?', a: 'Collarone is a full business platform for Nigerian companies — HR, leave, tasks, visitor management, payroll, CRM, finance, projects, documents and more, all under one login, priced and billed in naira.' },
-  { q: 'Is Collarone only for large companies?', a: 'No. Startup is ₦15,000 a month, includes any 3 suites of your choice, and every suite ships complete — not a stripped-down trial. Small teams get the same real directory, leave, tasks and visitor management as an Enterprise customer.' },
-  { q: 'How much does Collarone cost?', a: 'Every tier is à la carte — pick whichever suites you need. Startup is ₦15,000/mo with 3 suites included (₦8,000 per extra suite). Standard is ₦25,000/mo with 5 included (₦6,000/extra). Enterprise is ₦45,000/mo with 8 included (₦4,000/extra). Every tier adds ₦2,000/staff, and paying yearly saves 15% off the total. Your rate locks in at sign-up. No dollar pricing, no forex markup.' },
-  { q: 'Does Collarone include a website builder?', a: 'Yes, on every tier. Pick from 10 starter themes across online store, landing page and company-profile categories, edit every page and block directly, and already have a site? Just link it instead — no migration required.' },
-  { q: 'Is there a CRM for managing customers?', a: 'Yes — contacts, companies and a WhatsApp-first activity log, live on every tier. An embeddable contact-form widget lets you capture leads from your own website too, straight into your CRM.' },
-  { q: 'Can I manage staff leave and recruiting on Collarone?', a: 'Yes — leave management, task tracking, visitor management, recruiting with a public careers page, onboarding/offboarding, performance reviews and a compliance vault are all live suites you can pick from day one.' },
-  { q: 'Is my company’s data secure?', a: 'Every screen checks who’s allowed to see it before showing anything, verified role by role, and every company\'s data is isolated from every other company\'s at the database level — verified directly, not just assumed.' },
-  { q: 'What about payroll?', a: 'Payroll is live — Nigerian PAYE, Pension, NHF and NSITF, configurable rate packs, and a Banking Wall so whoever liaises with your bank always knows what\'s new. It never touches your bank account directly — Collarone prepares the disbursement, your bank executes it.' },
-  { q: 'Can I generate invoices and automate follow-ups?', a: 'Yes — Trade Documents generates sequential invoices, receipts, GRNs and stock release passes with your own logo, address and signature on a choice of 6 templates. Automation runs daily checks across your other suites — low-stock alerts, overdue-invoice reminders, new-lead follow-up tasks and more — and can optionally draft the follow-up message for you.' },
-  { q: 'How long does it take to get started?', a: 'During early access, we set up your space personally — reach out on WhatsApp or email and we’ll have your business live the same day.' },
-  { q: 'Is there a contract or can I cancel anytime?', a: 'Collarone is billed monthly (or yearly, for 15% off) with no long-term contract. Your locked-in rate never changes even if our published prices do.' },
+  { cat: 'General', q: 'What is Collarone?', a: 'Collarone is a full business platform for Nigerian companies — HR, leave, tasks, visitor management, payroll, CRM, finance, projects, documents and more, all under one login, priced and billed in naira.' },
+  { cat: 'Pricing', q: 'Is Collarone only for large companies?', a: 'No. Startup is ₦15,000 a month, includes any 3 suites of your choice, and every suite ships complete — not a stripped-down trial. Small teams get the same real directory, leave, tasks and visitor management as an Enterprise customer.' },
+  { cat: 'Pricing', q: 'How much does Collarone cost?', a: 'Every tier is à la carte — pick whichever suites you need. Startup is ₦15,000/mo with 3 suites included (₦8,000 per extra suite). Standard is ₦25,000/mo with 5 included (₦6,000/extra). Enterprise is ₦45,000/mo with 8 included (₦4,000/extra). Every tier adds ₦2,000/staff, and paying yearly saves 15% off the total. Your rate locks in at sign-up. No dollar pricing, no forex markup.' },
+  { cat: 'Product', q: 'Does Collarone include a website builder?', a: 'Yes, on every tier. Pick from 10 starter themes across online store, landing page and company-profile categories, edit every page and block directly, and already have a site? Just link it instead — no migration required.' },
+  { cat: 'Product', q: 'Is there a CRM for managing customers?', a: 'Yes — contacts, companies and a WhatsApp-first activity log, live on every tier. An embeddable contact-form widget lets you capture leads from your own website too, straight into your CRM.' },
+  { cat: 'Product', q: 'Can I manage staff leave and recruiting on Collarone?', a: 'Yes — leave management, task tracking, visitor management, recruiting with a public careers page, onboarding/offboarding, performance reviews and a compliance vault are all live suites you can pick from day one.' },
+  { cat: 'Security', q: 'Is my company’s data secure?', a: 'Every screen checks who’s allowed to see it before showing anything, verified role by role, and every company\'s data is isolated from every other company\'s at the database level — verified directly, not just assumed.' },
+  { cat: 'Product', q: 'What about payroll?', a: 'Payroll is live — Nigerian PAYE, Pension, NHF and NSITF, configurable rate packs, and a Banking Wall so whoever liaises with your bank always knows what\'s new. It never touches your bank account directly — Collarone prepares the disbursement, your bank executes it.' },
+  { cat: 'Product', q: 'Can I generate invoices and automate follow-ups?', a: 'Yes — Trade Documents generates sequential invoices, receipts, GRNs and stock release passes with your own logo, address and signature on a choice of 6 templates. Automation runs daily checks across your other suites — low-stock alerts, overdue-invoice reminders, new-lead follow-up tasks and more — and can optionally draft the follow-up message for you.' },
+  { cat: 'General', q: 'How long does it take to get started?', a: 'During early access, we set up your space personally — reach out on WhatsApp or email and we’ll have your business live the same day.' },
+  { cat: 'Pricing', q: 'Is there a contract or can I cancel anytime?', a: 'Collarone is billed monthly (or yearly, for 15% off) with no long-term contract. Your locked-in rate never changes even if our published prices do.' },
 ];
 
 export default function Landing() {
@@ -267,6 +269,8 @@ export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
   const [pastHero, setPastHero] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(null);
+  const [faqCat, setFaqCat] = useState('All');
+  const visibleFaqs = faqCat === 'All' ? faqs : faqs.filter((f) => f.cat === faqCat);
   useEffect(() => {
     if (lightboxIdx === null) return undefined;
     const onKey = (e) => {
@@ -372,19 +376,7 @@ export default function Landing() {
                 <span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" />
                 <span className="cl-url">collarone.app/home</span>
               </div>
-              <div className="cl-mock">
-                <div className="cl-mtitle">Good morning, Amaka</div>
-                <div className="cl-mock-cards">
-                  <div className="cl-mc"><div className="cl-mv"><CountUp to={248} /></div><div className="cl-ml">Active staff</div></div>
-                  <div className="cl-mc"><div className="cl-mv"><CountUp to={12} /></div><div className="cl-ml">On leave</div></div>
-                  <div className="cl-mc"><div className="cl-mv"><CountUp to={5} /></div><div className="cl-ml">Visitors today</div></div>
-                </div>
-                <div className="cl-mock-table">
-                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" /><span className="cl-mock-badge">Approved</span></div>
-                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" style={{ maxWidth: 90 }} /><span className="cl-mock-badge">Approved</span></div>
-                  <div className="cl-mock-row"><div className="cl-mock-avatar" /><div className="cl-mock-bar" style={{ maxWidth: 110 }} /><span className="cl-mock-badge">Approved</span></div>
-                </div>
-              </div>
+              <img className="cl-shot-img" src={shotHome} alt="Collarone — real product screenshot" loading="eager" />
             </motion.div>
             <motion.div
               className="cl-float-toast cl-toast-a"
@@ -577,7 +569,7 @@ export default function Landing() {
                 cta: ['Talk to us', '#contact', false],
               },
             ].map((p, i) => (
-              <Reveal className={`cl-pc${p.featured ? ' cl-pc-feat' : ''}`} key={p.key} delay={i * 0.06} hover>
+              <Reveal className={`cl-pc${p.featured ? ' cl-pc-feat' : ''}`} key={p.key} delay={i * 0.06}>
                 {p.featured && <span className="cl-pc-badge">What most companies need</span>}
                 <div className="cl-pc-plan">{p.name}</div>
                 <div className="cl-pc-amt">₦{p.price}<span className="cl-pc-per">/mo</span></div>
@@ -586,7 +578,7 @@ export default function Landing() {
                 </div>
                 <div className="cl-pc-rows">
                   {p.rows.map(([label, val]) => (
-                    <div className="cl-pc-row" key={label}><span>{label}</span><em /><strong>{val}</strong></div>
+                    <div className="cl-pc-row" key={label}><span className="cl-pc-check">{I.check}</span><span>{label}</span><em /><strong>{val}</strong></div>
                   ))}
                 </div>
                 <p className="cl-pc-quote">{p.quote}</p>
@@ -610,13 +602,17 @@ export default function Landing() {
           <div className="cl-about-grid">
             <Reveal className="cl-about-copy">
               <p>Collarone didn't start as a plan for a "business platform." It started as a tool built to solve one real problem for one real Nigerian business — watching what actually broke, what actually got used, and what a Nigerian back office genuinely needed on an ordinary working day.</p>
-              <p>Once it worked, the next question was obvious: why should only one company have this?</p>
+              <blockquote className="cl-about-pullquote">Why should only one company have this?</blockquote>
               <p>That's what Collarone is now — built for the Nigerian businesses quietly outgrowing spreadsheets and WhatsApp groups, tired of paying for software that was never built with a single Nigerian working day in mind. Whether you're a startup finding your feet, a growing company standardising how you run, or an established business scaling across states, we're building this for how Nigerian companies actually operate — remote, hybrid and on-site teams alike. Real business software, priced and built like it belongs here. Because it does.</p>
             </Reveal>
             <Reveal className="cl-founder-card" delay={0.1}>
               <div className="cl-founder-avatar">AP</div>
               <div className="cl-founder-name">Aniebiet Pius</div>
               <div className="cl-founder-role">Founder, Collarone</div>
+              <div className="cl-founder-stats">
+                <div><strong>2026</strong><small>Founded</small></div>
+                <div><strong>16</strong><small>Suites live</small></div>
+              </div>
               <div className="cl-founder-loc">{I.pin}Nigeria</div>
             </Reveal>
           </div>
@@ -629,8 +625,15 @@ export default function Landing() {
             <p className="cl-eyebrow">Questions</p>
             <h2 className="cl-sec-h">Everything business owners ask us</h2>
           </Reveal>
-          <Reveal className="cl-faq-list">
-            {faqs.map((f, i) => (
+          <div className="cl-faq-tabs">
+            {FAQ_CATS.map((c) => (
+              <button key={c} type="button" className={`cl-faq-tab${faqCat === c ? ' on' : ''}`} onClick={() => setFaqCat(c)}>
+                {c}{c !== 'All' && <span className="cl-faq-tab-count">{faqs.filter((f) => f.cat === c).length}</span>}
+              </button>
+            ))}
+          </div>
+          <Reveal className="cl-faq-list" key={faqCat}>
+            {visibleFaqs.map((f, i) => (
               <details className="cl-faq-item" key={f.q}>
                 <span className="cl-faq-num">{String(i + 1).padStart(2, '0')}</span>
                 <summary>{f.q}<span className="cl-chev">{I.chev}</span></summary>
