@@ -17,6 +17,34 @@ function useOptional(loader) {
   return data;
 }
 
+// Fake-but-realistic data so the letterhead preview shows something
+// meaningful before a single real document exists — never saved, never sent.
+const SAMPLE_DOCS = {
+  invoice: {
+    doc_type: 'invoice', doc_no: 'INV-000123', created_at: new Date().toISOString(), status: 'issued',
+    party_name: 'Adaeze Okonkwo', party_phone: '0803 555 1234', party_email: 'adaeze@example.com', party_address: 'Lekki Phase 1, Lagos',
+    due_date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), reference: 'PO-2201',
+    items: [{ description: 'Web design services', qty: 1, unit_price: 250000 }, { description: 'Hosting (1 year)', qty: 1, unit_price: 60000 }],
+    subtotal: 310000, vat_rate: 0.075, vat_amount: 23250, total: 333250, notes: 'Thank you for your business.',
+  },
+  receipt: {
+    doc_type: 'receipt', doc_no: 'RCT-000045', created_at: new Date().toISOString(), status: 'issued',
+    party_name: 'Adaeze Okonkwo', party_phone: '0803 555 1234', party_email: 'adaeze@example.com',
+    items: [{ description: 'Consulting session', qty: 2, unit_price: 50000 }],
+    subtotal: 100000, vat_rate: 0.075, vat_amount: 7500, total: 107500,
+  },
+  grn: {
+    doc_type: 'grn', doc_no: 'GRN-000012', created_at: new Date().toISOString(),
+    party_name: 'Lagos Paper Supplies Ltd', reference: 'PO-1187',
+    items: [{ description: 'A4 paper (reams)', qty: 50 }, { description: 'Toner cartridges', qty: 4 }],
+  },
+  srp: {
+    doc_type: 'srp', doc_no: 'SRP-000031', created_at: new Date().toISOString(),
+    party_name: 'Warehouse — Ikeja', reference: 'Internal transfer',
+    items: [{ description: 'Office chairs', qty: 6 }],
+  },
+};
+
 function LineItems({ type, items, setItems, stockItems }) {
   const isStock = TD.DOC_TYPES[type]?.isStock;
   const addRow = () => setItems((rows) => [...rows, isStock ? { item_id: '', description: '', qty: 1, unit_price: 0 } : { description: '', qty: 1, unit_price: 0 }]);
@@ -238,7 +266,16 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
   });
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState('');
+  const [mode, setMode] = useState('edit');
+  const [previewType, setPreviewType] = useState('invoice');
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  // Live — reflects whatever's typed/picked right now, not the last saved copy.
+  const liveSettings = {
+    company_name: f.companyName, address: f.address, tagline: f.tagline, phone: f.phone, email: f.email,
+    logo_url: f.logoUrl, accent_color: f.accentColor, signature_name: f.signatureName,
+    signature_title: f.signatureTitle, signature_url: f.signatureUrl, template_key: f.templateKey,
+  };
 
   const uploadLogo = async (file) => {
     setUploading('logo');
@@ -258,50 +295,71 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
 
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()} style={mode === 'preview' ? { maxWidth: 760 } : undefined}>
         <div className="modal-head"><h2>Letterhead settings</h2></div>
+        <div className="lv-tabs" style={{ margin: '0 20px' }}>
+          <button type="button" className={`lv-tab ${mode === 'edit' ? 'active' : ''}`} onClick={() => setMode('edit')}>Edit</button>
+          <button type="button" className={`lv-tab ${mode === 'preview' ? 'active' : ''}`} onClick={() => setMode('preview')}>Preview</button>
+        </div>
         <form className="modal-body" onSubmit={submit}>
-          <div className="form-grid">
-            <Field label="Company name"><input className="input" value={f.companyName} onChange={(e) => set('companyName', e.target.value)} placeholder="Shown on every document" /></Field>
-            <Field label="Tagline"><input className="input" value={f.tagline} onChange={(e) => set('tagline', e.target.value)} /></Field>
-            <Field label="Address"><input className="input" value={f.address} onChange={(e) => set('address', e.target.value)} /></Field>
-            <Field label="Phone"><input className="input" value={f.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
-            <Field label="Email"><input className="input" value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
-            <Field label="Accent colour"><input className="input" type="color" value={f.accentColor} onChange={(e) => set('accentColor', e.target.value)} style={{ height: 38, padding: 2 }} /></Field>
-          </div>
+          {mode === 'edit' ? (
+            <>
+              <div className="form-grid">
+                <Field label="Company name"><input className="input" value={f.companyName} onChange={(e) => set('companyName', e.target.value)} placeholder="Shown on every document" /></Field>
+                <Field label="Tagline"><input className="input" value={f.tagline} onChange={(e) => set('tagline', e.target.value)} /></Field>
+                <Field label="Address"><input className="input" value={f.address} onChange={(e) => set('address', e.target.value)} /></Field>
+                <Field label="Phone"><input className="input" value={f.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
+                <Field label="Email"><input className="input" value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
+                <Field label="Accent colour"><input className="input" type="color" value={f.accentColor} onChange={(e) => set('accentColor', e.target.value)} style={{ height: 38, padding: 2 }} /></Field>
+              </div>
 
-          <Field label="Logo">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {f.logoUrl && <img src={f.logoUrl} alt="Logo" style={{ height: 40, objectFit: 'contain' }} />}
-              <input type="file" accept="image/*" disabled={uploading === 'logo'} onChange={(e) => e.target.files[0] && uploadLogo(e.target.files[0])} />
-              {uploading === 'logo' && <span className="spinner" />}
-            </div>
-          </Field>
+              <Field label="Logo">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {f.logoUrl && <img src={f.logoUrl} alt="Logo" style={{ height: 40, objectFit: 'contain' }} />}
+                  <input type="file" accept="image/*" disabled={uploading === 'logo'} onChange={(e) => e.target.files[0] && uploadLogo(e.target.files[0])} />
+                  {uploading === 'logo' && <span className="spinner" />}
+                </div>
+              </Field>
 
-          <div className="form-grid">
-            <Field label="Signature name"><input className="input" value={f.signatureName} onChange={(e) => set('signatureName', e.target.value)} placeholder="e.g. Aniebiet Pius Nkanta" /></Field>
-            <Field label="Signature title"><input className="input" value={f.signatureTitle} onChange={(e) => set('signatureTitle', e.target.value)} placeholder="e.g. Founder" /></Field>
-          </div>
-          <Field label="Signature image">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              {f.signatureUrl && <img src={f.signatureUrl} alt="Signature" style={{ height: 36, mixBlendMode: 'multiply' }} />}
-              <input type="file" accept="image/*" disabled={uploading === 'sig'} onChange={(e) => e.target.files[0] && uploadSig(e.target.files[0])} />
-              {uploading === 'sig' && <span className="spinner" />}
-            </div>
-          </Field>
+              <div className="form-grid">
+                <Field label="Signature name"><input className="input" value={f.signatureName} onChange={(e) => set('signatureName', e.target.value)} placeholder="e.g. Aniebiet Pius Nkanta" /></Field>
+                <Field label="Signature title"><input className="input" value={f.signatureTitle} onChange={(e) => set('signatureTitle', e.target.value)} placeholder="e.g. Founder" /></Field>
+              </div>
+              <Field label="Signature image">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {f.signatureUrl && <img src={f.signatureUrl} alt="Signature" style={{ height: 36, mixBlendMode: 'multiply' }} />}
+                  <input type="file" accept="image/*" disabled={uploading === 'sig'} onChange={(e) => e.target.files[0] && uploadSig(e.target.files[0])} />
+                  {uploading === 'sig' && <span className="spinner" />}
+                </div>
+              </Field>
 
-          <Field label="Template">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
-              {Object.entries(TD.TEMPLATES).map(([k, t]) => (
-                <label key={k} className="card" style={{ padding: 10, cursor: 'pointer', border: f.templateKey === k ? '2px solid var(--brand)' : undefined }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: 13 }}>
-                    <input type="radio" name="template" checked={f.templateKey === k} onChange={() => set('templateKey', k)} /> {t.name}
-                  </div>
-                  <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{t.desc}</div>
-                </label>
-              ))}
-            </div>
-          </Field>
+              <Field label="Template">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+                  {Object.entries(TD.TEMPLATES).map(([k, t]) => (
+                    <label key={k} className="card" style={{ padding: 10, cursor: 'pointer', border: f.templateKey === k ? '2px solid var(--brand)' : undefined }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: 13 }}>
+                        <input type="radio" name="template" checked={f.templateKey === k} onChange={() => set('templateKey', k)} /> {t.name}
+                      </div>
+                      <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{t.desc}</div>
+                    </label>
+                  ))}
+                </div>
+              </Field>
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                {Object.entries(TD.DOC_TYPES).map(([k, m]) => (
+                  <button key={k} type="button" className={`btn ${previewType === k ? 'btn-primary' : 'btn-ghost'}`} style={{ padding: '6px 14px', fontSize: 13 }} onClick={() => setPreviewType(k)}>{m.label}</button>
+                ))}
+              </div>
+              <p className="muted" style={{ fontSize: 12.5, marginTop: 0 }}>Sample data — updates live as you edit, nothing here is saved or sent.</p>
+              <style>{TEMPLATE_CSS}</style>
+              <div style={{ border: '1px solid var(--line, #e4e0d6)', borderRadius: 10, overflow: 'hidden' }}>
+                <DocPreviewBody doc={SAMPLE_DOCS[previewType]} settings={liveSettings} />
+              </div>
+            </>
+          )}
 
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
@@ -313,9 +371,79 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
   );
 }
 
-function PrintView({ doc, settings, onClose }) {
+// Shared by the real print view and the live letterhead preview — same
+// markup, same template CSS, just a different doc/settings source.
+function DocPreviewBody({ doc, settings }) {
   const meta = TD.DOC_TYPES[doc.doc_type];
   const s = settings || {};
+  return (
+    <div id="td-print-area" className={`tdt-doc tdt-${s.template_key || 'classic'}`} style={{ '--accent': s.accent_color || '#0A0E1A' }}>
+      <div className="tdt-band" />
+      <div className="tdt-header">
+        <div>
+          {s.logo_url && <img className="tdt-logo" src={s.logo_url} alt="" />}
+          <div className="tdt-company">{s.company_name || 'Your company'}</div>
+          {s.tagline && <div className="tdt-tagline">{s.tagline}</div>}
+        </div>
+        <div>
+          <div className="tdt-doctitle">{meta.label}</div>
+          <div className="tdt-docno">{doc.doc_no} · {TD.fmtDate(doc.created_at)}</div>
+          {doc.status && <div style={{ marginTop: 6, textAlign: 'right' }}><span className="badge">{TD.STATUS_LABELS[doc.status]}</span></div>}
+        </div>
+      </div>
+      {(s.address || s.phone || s.email) && (
+        <div className="tdt-contactline">{[s.address, s.phone, s.email].filter(Boolean).join(' · ')}</div>
+      )}
+      <hr className="tdt-rule" />
+
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontWeight: 600 }}>{doc.party_name}</div>
+        {doc.party_phone && <div className="muted" style={{ fontSize: 13 }}>{doc.party_phone}</div>}
+        {doc.party_email && <div className="muted" style={{ fontSize: 13 }}>{doc.party_email}</div>}
+        {doc.party_address && <div className="muted" style={{ fontSize: 13 }}>{doc.party_address}</div>}
+        {doc.due_date && <div className="muted" style={{ fontSize: 13 }}>Due {TD.fmtDate(doc.due_date)}</div>}
+        {doc.reference && <div className="muted" style={{ fontSize: 13 }}>Ref: {doc.reference}</div>}
+      </div>
+      <table className="table" style={{ marginBottom: 12 }}>
+        <thead><tr><th>Description</th><th style={{ width: 70 }}>Qty</th>{meta.hasVat && <><th style={{ width: 110 }}>Unit price</th><th style={{ width: 110 }}>Amount</th></>}</tr></thead>
+        <tbody>
+          {(doc.items || []).map((l, i) => (
+            <tr key={i}>
+              <td>{l.description}</td>
+              <td>{l.qty}</td>
+              {meta.hasVat && <><td>{TD.money(l.unit_price)}</td><td>{TD.money((Number(l.qty) || 0) * (Number(l.unit_price) || 0))}</td></>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {meta.hasVat && (
+        <div style={{ textAlign: 'right', fontSize: 14 }}>
+          <div>Subtotal: {TD.money(doc.subtotal)}</div>
+          <div>VAT ({(doc.vat_rate * 100).toFixed(1)}%): {TD.money(doc.vat_amount)}</div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>Total: {TD.money(doc.total)}</div>
+        </div>
+      )}
+      {doc.notes && <div className="muted" style={{ fontSize: 13, marginTop: 16 }}>{doc.notes}</div>}
+
+      <div className="tdt-sigblock">
+        <div className="tdt-sig">
+          {s.signature_url && <img src={s.signature_url} alt="" />}
+          <div className="tdt-signame">{s.signature_name || '_________________________'}</div>
+          {s.signature_title && <div className="tdt-sigtitle">{s.signature_title}</div>}
+        </div>
+        {meta.isStock && (
+          <div className="tdt-sig tdt-sig-blank">
+            <div style={{ height: 40 }} />
+            <div>{meta.stockDirection === 'in' ? 'Received by' : 'Released by'} (name &amp; signature)</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PrintView({ doc, settings, onClose }) {
+  const meta = TD.DOC_TYPES[doc.doc_type];
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
       <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 720 }}>
@@ -330,68 +458,7 @@ function PrintView({ doc, settings, onClose }) {
               .no-print { display: none !important; }
             }
           `}</style>
-          <div id="td-print-area" className={`tdt-doc tdt-${s.template_key || 'classic'}`} style={{ '--accent': s.accent_color || '#0A0E1A' }}>
-            <div className="tdt-band" />
-            <div className="tdt-header">
-              <div>
-                {s.logo_url && <img className="tdt-logo" src={s.logo_url} alt="" />}
-                <div className="tdt-company">{s.company_name || 'Your company'}</div>
-                {s.tagline && <div className="tdt-tagline">{s.tagline}</div>}
-              </div>
-              <div>
-                <div className="tdt-doctitle">{meta.label}</div>
-                <div className="tdt-docno">{doc.doc_no} · {TD.fmtDate(doc.created_at)}</div>
-                {doc.status && <div style={{ marginTop: 6, textAlign: 'right' }}><span className="badge">{TD.STATUS_LABELS[doc.status]}</span></div>}
-              </div>
-            </div>
-            {(s.address || s.phone || s.email) && (
-              <div className="tdt-contactline">{[s.address, s.phone, s.email].filter(Boolean).join(' · ')}</div>
-            )}
-            <hr className="tdt-rule" />
-
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 600 }}>{doc.party_name}</div>
-              {doc.party_phone && <div className="muted" style={{ fontSize: 13 }}>{doc.party_phone}</div>}
-              {doc.party_email && <div className="muted" style={{ fontSize: 13 }}>{doc.party_email}</div>}
-              {doc.party_address && <div className="muted" style={{ fontSize: 13 }}>{doc.party_address}</div>}
-              {doc.due_date && <div className="muted" style={{ fontSize: 13 }}>Due {TD.fmtDate(doc.due_date)}</div>}
-              {doc.reference && <div className="muted" style={{ fontSize: 13 }}>Ref: {doc.reference}</div>}
-            </div>
-            <table className="table" style={{ marginBottom: 12 }}>
-              <thead><tr><th>Description</th><th style={{ width: 70 }}>Qty</th>{meta.hasVat && <><th style={{ width: 110 }}>Unit price</th><th style={{ width: 110 }}>Amount</th></>}</tr></thead>
-              <tbody>
-                {(doc.items || []).map((l, i) => (
-                  <tr key={i}>
-                    <td>{l.description}</td>
-                    <td>{l.qty}</td>
-                    {meta.hasVat && <><td>{TD.money(l.unit_price)}</td><td>{TD.money((Number(l.qty) || 0) * (Number(l.unit_price) || 0))}</td></>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {meta.hasVat && (
-              <div style={{ textAlign: 'right', fontSize: 14 }}>
-                <div>Subtotal: {TD.money(doc.subtotal)}</div>
-                <div>VAT ({(doc.vat_rate * 100).toFixed(1)}%): {TD.money(doc.vat_amount)}</div>
-                <div style={{ fontWeight: 700, fontSize: 16 }}>Total: {TD.money(doc.total)}</div>
-              </div>
-            )}
-            {doc.notes && <div className="muted" style={{ fontSize: 13, marginTop: 16 }}>{doc.notes}</div>}
-
-            <div className="tdt-sigblock">
-              <div className="tdt-sig">
-                {s.signature_url && <img src={s.signature_url} alt="" />}
-                <div className="tdt-signame">{s.signature_name || '_________________________'}</div>
-                {s.signature_title && <div className="tdt-sigtitle">{s.signature_title}</div>}
-              </div>
-              {meta.isStock && (
-                <div className="tdt-sig tdt-sig-blank">
-                  <div style={{ height: 40 }} />
-                  <div>{meta.stockDirection === 'in' ? 'Received by' : 'Released by'} (name &amp; signature)</div>
-                </div>
-              )}
-            </div>
-          </div>
+          <DocPreviewBody doc={doc} settings={settings} />
         </div>
         <div className="modal-actions no-print">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
