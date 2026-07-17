@@ -17,7 +17,7 @@ const IMG = {
   faceM: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
 };
 
-function samplePayload(t) {
+export function samplePayload(t) {
   const base = {
     orgName: 'Acme Nigeria', siteName: 'Acme Nigeria', tagline: '', logoUrl: '', slug: 'preview', published: true, isPreview: true,
     contactEmail: 'hello@acme.ng', contactPhone: '0801 234 5678', contactWhatsapp: '+2348012345678',

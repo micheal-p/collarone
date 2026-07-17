@@ -36,7 +36,7 @@ const VARIANTS = {
   'feature-focus':         { hero: 'overlay',   card: 'zigzag',   btnRadius: 10,  headingWeight: 700 },
   // company
   'corporate-clean':       { hero: 'boxed',     card: 'bordered', btnRadius: 4,   display: 0.9, headingWeight: 700 },
-  'agency-modern':         { hero: 'editorial', card: 'minimal',  btnRadius: 0,   navCaps: true, display: 1.25, headingWeight: 800 },
+  'agency-modern':         { hero: 'editorial', card: 'minimal',  btnRadius: 0,   navCaps: true, display: 1.25, headingWeight: 800, btnInvert: true },
   'professional-services': { hero: 'minimal',   card: 'bordered', btnRadius: 8,   display: 0.95, headingWeight: 600 },
 };
 const variantFor = (theme) => ({ ...DEFAULT_VARIANT, ...(VARIANTS[theme?.key] || {}) });
@@ -48,11 +48,21 @@ function shade(hex, amt) {
   return `#${[(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => f(c).toString(16).padStart(2, '0')).join('')}`;
 }
 
+// relative luminance of a hex colour — enough to know "is this readable on ink"
+function lum(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+}
+
 function useThemeVars(theme) {
   return useMemo(() => {
     const dark = theme.tone === 'dark';
+    const accent = theme.accentColor || theme.accent;
     return {
-      '--site-accent': theme.accentColor || theme.accent,
+      '--site-accent': accent,
+      // accent used as TEXT or thin borders: a near-black accent (Agency
+      // Modern) vanishes on a dark surface — fall back to paper-white there.
+      '--site-accent-ui': dark && lum(accent) < 0.22 ? '#f2f2f2' : accent,
       '--site-accent-dark': shade(theme.accentColor || theme.accent, -0.25),
       '--site-bg': dark ? '#0d0f14' : '#ffffff',
       '--site-fg': dark ? '#f2f2f2' : '#14161a',
@@ -68,7 +78,12 @@ const btnStyle = (v, filled = true) => ({
   display: 'inline-block', padding: '13px 30px', borderRadius: v.btnRadius, textDecoration: 'none',
   fontWeight: 650, fontSize: 14.5, cursor: 'pointer', border: '1px solid transparent',
   ...(filled
-    ? { background: 'var(--site-accent)', color: '#fff' }
+    // btnInvert (Agency Modern): the accent is near-black, so a filled accent
+    // button disappears on the dark surface — the editorial answer is a
+    // white button with ink text.
+    ? (v.btnInvert
+      ? { background: '#ffffff', color: '#111318' }
+      : { background: 'var(--site-accent)', color: '#fff' })
     : { background: 'transparent', color: 'var(--site-fg)', borderColor: 'var(--site-line)' }),
   ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.12em', fontSize: 12.5 } : {}),
 });
@@ -108,7 +123,7 @@ function Hero({ c, v }) {
 
   if (v.hero === 'split') {
     return (
-      <section style={{ display: 'grid', gridTemplateColumns: img ? 'minmax(300px, 1fr) minmax(280px, 1fr)' : '1fr', minHeight: 460 }}>
+      <section style={{ display: 'grid', gridTemplateColumns: img ? 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' : '1fr', minHeight: 460 }}>
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(28px, 5vw, 64px)', background: 'var(--site-surface)' }}>
           <span style={{ alignSelf: 'flex-start', fontSize: 12.5, fontWeight: 800, background: 'var(--site-accent)', color: '#fff', borderRadius: 999, padding: '6px 16px', marginBottom: 20 }}>Now delivering nationwide</span>
           <h1 style={{ fontSize: h1Size, lineHeight: 1.08, margin: '0 0 14px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight }}>{c.heading}</h1>
@@ -126,7 +141,7 @@ function Hero({ c, v }) {
         padding: 'clamp(80px, 13vw, 130px) 24px', textAlign: 'center', color: '#fff',
         background: `radial-gradient(700px 340px at 20% 0%, rgba(255,255,255,0.14), transparent 60%), radial-gradient(600px 320px at 90% 100%, rgba(0,0,0,0.25), transparent 60%), linear-gradient(135deg, var(--site-accent) 0%, var(--site-accent-dark) 100%)`,
       }}>
-        <h1 style={{ fontSize: h1Size, lineHeight: 1.08, margin: '0 0 16px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, textShadow: '0 2px 24px rgba(0,0,0,0.25)' }}>{c.heading}</h1>
+        <h1 style={{ fontSize: h1Size, lineHeight: 1.08, margin: '0 0 16px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, textShadow: '0 1px 8px rgba(0,0,0,0.15)' }}>{c.heading}</h1>
         {c.subheading && <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,0.86)', maxWidth: 560, margin: '0 auto 30px' }}>{c.subheading}</p>}
         {c.button_text && <a href={c.button_link || '#'} style={{ ...btnStyle(v), background: '#fff', color: 'var(--site-accent-dark)', boxShadow: '0 12px 32px rgba(0,0,0,0.25)' }}>{c.button_text}</a>}
       </section>
@@ -196,7 +211,7 @@ function Features({ c, v }) {
     bordered: { padding: 20, background: 'var(--site-surface)', border: '1px solid var(--site-line)', borderRadius: Math.min(v.btnRadius === 999 ? 18 : v.btnRadius + 6, 18) },
     rounded: { padding: 24, background: 'var(--site-surface)', borderRadius: 20, boxShadow: '0 10px 30px rgba(20,22,26,0.07)' },
     glass: { padding: 22, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 16, backdropFilter: 'blur(8px)' },
-    minimal: { padding: '20px 0 0', borderTop: '2px solid var(--site-accent)' },
+    minimal: { padding: '20px 0 0', borderTop: '2px solid var(--site-accent-ui)' },
     plain: { padding: 0 },
   };
   return (
@@ -204,7 +219,7 @@ function Features({ c, v }) {
       {c.heading && <H2 v={v}>{c.heading}</H2>}
       <div style={{ display: 'grid', gridTemplateColumns: v.narrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: v.card === 'minimal' ? 32 : 20 }}>
         {items.map((it, i) => (
-          <div key={i} style={cardStyles[v.card] || cardStyles.bordered}>
+          <div key={i} style={{ ...(cardStyles[v.card] || cardStyles.bordered), ...(v.narrow ? { textAlign: 'center' } : {}) }}>
             <h3 style={{ fontSize: 16, margin: '0 0 8px', fontWeight: 700, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 13.5 } : {}) }}>{it.title}</h3>
             <p style={{ fontSize: 13.5, color: 'var(--site-muted)', margin: 0, lineHeight: 1.65 }}>{it.body}</p>
           </div>
@@ -252,8 +267,8 @@ function CartButton({ v }) {
   return (
     <button onClick={() => cart.setOpen(true)} aria-label="Open cart"
       style={{ ...btnStyle(v), padding: '8px 16px', fontSize: v.navCaps ? 11.5 : 13, display: 'inline-flex', alignItems: 'center', gap: 8, border: 'none' }}>
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /><path d="M2.5 3.5h3l2.6 12h10.4l2-8.5H6.2" /></svg>
-      Cart{cart.count > 0 && <span style={{ background: 'rgba(255,255,255,0.25)', borderRadius: 999, padding: '1px 8px', fontSize: 11.5, fontWeight: 800 }}>{cart.count}</span>}
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /><path d="M2.5 3.5h3l2.6 12h10.4l2-8.5H6.2" /></svg>
+      Cart{cart.count > 0 && <span style={{ background: v.btnInvert ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.25)', borderRadius: 999, padding: '1px 8px', fontSize: 11.5, fontWeight: 800 }}>{cart.count}</span>}
     </button>
   );
 }
@@ -460,7 +475,7 @@ function ProductsSection({ c, site, v }) {
               {p.price != null && (
                 v.card === 'rounded'
                   ? <span style={{ display: 'inline-block', marginTop: 8, background: 'var(--site-accent)', color: '#fff', fontWeight: 700, fontSize: 12.5, borderRadius: 999, padding: '4px 12px' }}>{money(p.price)}</span>
-                  : <div style={{ color: v.card === 'minimal' ? 'var(--site-muted)' : 'var(--site-accent)', fontWeight: v.card === 'minimal' ? 500 : 700, marginTop: 5, fontSize: 13.5 }}>{money(p.price)}</div>
+                  : <div style={{ color: v.card === 'minimal' ? 'var(--site-muted)' : 'var(--site-accent-ui)', fontWeight: v.card === 'minimal' ? 500 : 700, marginTop: 5, fontSize: 13.5 }}>{money(p.price)}</div>
               )}
               <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                 {cart ? (
@@ -468,7 +483,7 @@ function ProductsSection({ c, site, v }) {
                     Add to cart
                   </button>
                 ) : (
-                  <button onClick={() => setEnquire(p)} style={{ ...btnStyle(v, false), padding: '8px 14px', fontSize: 12.5, flex: 1, textAlign: 'center', color: 'var(--site-accent)', borderColor: 'var(--site-accent)' }}>
+                  <button onClick={() => setEnquire(p)} style={{ ...btnStyle(v, false), padding: '8px 14px', fontSize: 12.5, flex: 1, textAlign: 'center', color: 'var(--site-accent-ui)', borderColor: 'var(--site-accent-ui)' }}>
                     Enquire
                   </button>
                 )}
@@ -574,7 +589,7 @@ function SubscribeSection({ c, site, v }) {
           {c.blurb || 'New arrivals, offers and updates — straight to your inbox. No spam.'}
         </p>
         {done ? (
-          <div style={{ fontSize: 14.5, fontWeight: 650, color: 'var(--site-accent)' }}>You're on the list — thank you.</div>
+          <div style={{ fontSize: 14.5, fontWeight: 650, color: 'var(--site-accent-ui)' }}>You're on the list — thank you.</div>
         ) : (
           <form onSubmit={submit} style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <input
@@ -638,9 +653,9 @@ function ContactFormSection({ site, v }) {
 
       {(site.contactEmail || site.contactPhone || site.contactWhatsapp) && (
         <div style={{ textAlign: 'center', fontSize: 13.5, lineHeight: 2, marginTop: 18, color: 'var(--site-muted)' }}>
-          {site.contactEmail && <span style={{ margin: '0 10px' }}>Email: <a href={`mailto:${site.contactEmail}`} style={{ color: 'var(--site-accent)' }}>{site.contactEmail}</a></span>}
-          {site.contactPhone && <span style={{ margin: '0 10px' }}>Phone: <a href={`tel:${site.contactPhone}`} style={{ color: 'var(--site-accent)' }}>{site.contactPhone}</a></span>}
-          {site.contactWhatsapp && <span style={{ margin: '0 10px' }}>WhatsApp: <a href={`https://wa.me/${waDigits(site.contactWhatsapp)}`} style={{ color: 'var(--site-accent)' }}>{site.contactWhatsapp}</a></span>}
+          {site.contactEmail && <span style={{ margin: '0 10px' }}>Email: <a href={`mailto:${site.contactEmail}`} style={{ color: 'var(--site-accent-ui)' }}>{site.contactEmail}</a></span>}
+          {site.contactPhone && <span style={{ margin: '0 10px' }}>Phone: <a href={`tel:${site.contactPhone}`} style={{ color: 'var(--site-accent-ui)' }}>{site.contactPhone}</a></span>}
+          {site.contactWhatsapp && <span style={{ margin: '0 10px' }}>WhatsApp: <a href={`https://wa.me/${waDigits(site.contactWhatsapp)}`} style={{ color: 'var(--site-accent-ui)' }}>{site.contactWhatsapp}</a></span>}
         </div>
       )}
     </section>
@@ -694,7 +709,7 @@ function Block({ block, site, v }) {
               margin: '0 0 20px', padding: '16px 20px',
               ...(v.card === 'minimal'
                 ? { borderLeft: 'none', textAlign: 'center', fontSize: 17, fontFamily: 'var(--site-font)' }
-                : { borderLeft: '3px solid var(--site-accent)', background: 'var(--site-surface)', borderRadius: v.card === 'rounded' ? 14 : 0 }),
+                : { borderLeft: '3px solid var(--site-accent-ui)', background: 'var(--site-surface)', borderRadius: v.card === 'rounded' ? 14 : 0 }),
             }}>
               <p style={{ fontStyle: 'italic', margin: '0 0 8px', lineHeight: 1.65 }}>&ldquo;{it.quote}&rdquo;</p>
               <footer style={{ fontSize: 13, color: 'var(--site-muted)' }}>— {it.author}</footer>
@@ -763,8 +778,9 @@ function PageBody({ page, site, v }) {
    links, pill themes get pill CTAs, boxed themes keep the contact strip. */
 const navLink = (v, active) => ({
   fontSize: v.navCaps ? 12 : 14, textDecoration: 'none',
-  color: active ? 'var(--site-accent)' : 'var(--site-fg)',
+  color: active ? 'var(--site-accent-ui)' : 'var(--site-fg)',
   fontWeight: active ? 650 : 450,
+  ...(active ? { borderBottom: '2px solid var(--site-accent-ui)', paddingBottom: 3 } : {}),
   ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.16em' } : {}),
 });
 
