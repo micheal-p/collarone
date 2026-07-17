@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet } from '../../api/client.js';
+import { useToast, Modal, EmptyState, searchMatcher } from '../../components/ui.jsx';
 import * as H from './hrApi.js';
 import RecruitingApp, { MyInterviewsView } from './RecruitingApp.jsx';
+import EmployeeRecord from './EmployeeRecord.jsx';
+import LettersApp from './LettersApp.jsx';
 import OnboardingApp from './OnboardingApp.jsx';
 import OffboardingApp from './OffboardingApp.jsx';
 import PerformanceApp from './PerformanceApp.jsx';
@@ -9,7 +12,8 @@ import ComplianceApp from './ComplianceApp.jsx';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
-  close: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>,
+  chevDown:  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6"/></svg>,
+  chevRight: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>,
   edit:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2 2 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>,
   mail:  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 4h16v16H4z"/><path d="M4 6l8 7 8-7"/></svg>,
   phone: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 2 .6 3a2 2 0 0 1-.5 2L8 10a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2-.5c1 .3 2 .5 3 .6a2 2 0 0 1 1.7 2z"/></svg>,
@@ -45,13 +49,8 @@ function EditModal({ emp, staff, departments, onClose, onSaved, onError }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h2>Edit employment — {emp.name}</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button>
-        </div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title={`Edit employment — ${emp.name}`} onClose={onClose} wide>
+      <form onSubmit={submit}>
           <div className="field"><label>Job title</label>
             <input className="input" value={f.jobTitle} onChange={(e) => set('jobTitle', e.target.value)} autoFocus />
           </div>
@@ -83,9 +82,8 @@ function EditModal({ emp, staff, departments, onClose, onSaved, onError }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -93,13 +91,7 @@ function EditModal({ emp, staff, departments, onClose, onSaved, onError }) {
 function ProfileModal({ emp, canEdit, onClose, onEdit }) {
   const t = H.tenure(emp.startDate);
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h2>Employee profile</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button>
-        </div>
-        <div className="modal-body">
+    <Modal title="Employee profile" onClose={onClose}>
           <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:18 }}>
             {emp.avatarUrl
               ? <img src={emp.avatarUrl} alt="" className="avatar" style={{ width:56, height:56, fontSize:20, objectFit:'cover' }} />
@@ -124,9 +116,7 @@ function ProfileModal({ emp, canEdit, onClose, onEdit }) {
             <button className="btn btn-ghost" onClick={onClose}>Close</button>
             {canEdit && <button className="btn btn-primary" onClick={onEdit}>{I.edit} Edit employment</button>}
           </div>
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -144,7 +134,7 @@ function OrgNode({ node, depth }) {
           <div className="muted" style={{ fontSize:12 }}>{node.jobTitle || node.deptName || '—'}</div>
         </div>
         {node.children.length > 0 && (
-          <span className="muted" style={{ marginLeft:'auto', fontSize:12 }}>{open ? '▾' : '▸'} {node.children.length}</span>
+          <span className="muted" style={{ marginLeft:'auto', fontSize:12, display:'inline-flex', alignItems:'center', gap:3 }}>{open ? I.chevDown : I.chevRight} {node.children.length}</span>
         )}
       </div>
       {open && node.children.map((c) => <OrgNode key={c.id} node={c} depth={depth + 1} />)}
@@ -164,7 +154,7 @@ function OrgChart({ staff }) {
     return top.sort((a, b) => a.name.localeCompare(b.name));
   }, [staff]);
 
-  if (roots.length === 0) return <p className="muted" style={{ padding:24 }}>No staff to show yet.</p>;
+  if (roots.length === 0) return <EmptyState title="No staff to show yet" hint="The org chart builds itself from reporting lines in the directory." />;
   return <div className="hr-org-chart">{roots.map((n) => <OrgNode key={n.id} node={n} depth={0} />)}</div>;
 }
 
@@ -179,13 +169,12 @@ export default function HRApp({ access }) {
   const [q, setQ] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
   const [profileEmp, setProfileEmp] = useState(null);
+  const [recordEmp, setRecordEmp] = useState(null); // Employee 360 (HR managers)
   const [editEmp, setEditEmp] = useState(null);
-  const [toast, setToast] = useState(null);
   const [myId, setMyId] = useState(null);
+  const { flash, toastNode } = useToast();
 
   useEffect(() => { apiGet('/me').then((d) => setMyId(d.user.id)).catch(() => {}); }, []);
-
-  const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 2800); };
 
   const load = () => {
     setLoading(true);
@@ -200,14 +189,16 @@ export default function HRApp({ access }) {
     let list = staff;
     if (deptFilter) list = list.filter((s) => String(s.departmentId) === deptFilter);
     if (q.trim()) {
-      const rx = new RegExp(q.trim(), 'i');
-      list = list.filter((s) => rx.test(s.name) || rx.test(s.email) || rx.test(s.jobTitle || '') || rx.test(s.deptName || ''));
+      const match = searchMatcher(q);
+      list = list.filter((s) => match(s.name, s.email, s.jobTitle, s.deptName));
     }
     return list;
   }, [staff, q, deptFilter]);
 
   const onSaved = (updated) => {
-    setStaff((l) => l.map((s) => (s.id === updated.id ? { ...s, ...updated, deptName: departments.find((d) => d.id === updated.departmentId)?.name || s.deptName, manager: staff.find((m) => m.id === updated.managerId) ? { id: updated.managerId, name: staff.find((m) => m.id === updated.managerId).name } : null } : s)));
+    const merge = (s) => ({ ...s, ...updated, deptName: departments.find((d) => d.id === updated.departmentId)?.name || s.deptName, manager: staff.find((m) => m.id === updated.managerId) ? { id: updated.managerId, name: staff.find((m) => m.id === updated.managerId).name } : null });
+    setStaff((l) => l.map((s) => (s.id === updated.id ? merge(s) : s)));
+    setRecordEmp((r) => (r && r.id === updated.id ? merge(r) : r));
     setEditEmp(null);
     setProfileEmp(null);
     flash('Employment details updated.');
@@ -219,6 +210,7 @@ export default function HRApp({ access }) {
     { key: 'myinterviews', label: 'My interviews' },
     ...(isHrManager ? [
       { key: 'recruiting',   label: 'Recruiting' },
+      { key: 'letters',      label: 'Letters' },
       { key: 'onboarding',   label: 'Onboarding' },
       { key: 'offboarding',  label: 'Offboarding' },
       { key: 'performance',  label: 'Performance' },
@@ -286,11 +278,14 @@ export default function HRApp({ access }) {
 
       <div className="lv-tabs">
         {TABS.map((t) => (
-          <button key={t.key} className={`lv-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
+          <button key={t.key} className={`lv-tab ${tab === t.key && !recordEmp ? 'active' : ''}`} onClick={() => { setRecordEmp(null); setTab(t.key); }}>{t.label}</button>
         ))}
       </div>
 
-      {loading ? <div className="suite-loading"><div className="boot-spinner" /></div> : (
+      {loading ? <div className="suite-loading"><div className="boot-spinner" /></div> : recordEmp ? (
+        <EmployeeRecord emp={recordEmp} isHrManager={isHrManager}
+          onBack={() => setRecordEmp(null)} onEdit={() => setEditEmp(recordEmp)} />
+      ) : (
         <>
           {tab === 'directory' && (
             <>
@@ -327,7 +322,7 @@ export default function HRApp({ access }) {
                       return (
                         <tr key={s.id}>
                           <td>
-                            <div className="hr-row-name" onClick={() => setProfileEmp(s)}>
+                            <div className="hr-row-name" onClick={() => (isHrManager ? setRecordEmp(s) : setProfileEmp(s))}>
                               {s.avatarUrl
                                 ? <img src={s.avatarUrl} alt="" className="avatar sm" style={{ objectFit:'cover' }} />
                                 : <span className="avatar sm">{H.initials(s.name)}</span>}
@@ -350,6 +345,7 @@ export default function HRApp({ access }) {
           {tab === 'orgchart' && <OrgChart staff={staff} />}
           {tab === 'myinterviews' && <MyInterviewsView myId={myId} flash={flash} />}
           {tab === 'recruiting'  && <RecruitingApp access={access} departments={departments} staff={staff} myId={myId} />}
+          {tab === 'letters'     && <LettersApp staff={staff} flash={flash} />}
           {tab === 'onboarding'  && <OnboardingApp access={access} />}
           {tab === 'offboarding' && <OffboardingApp access={access} staff={staff} />}
           {tab === 'performance' && <PerformanceApp staff={staff} />}
@@ -375,7 +371,7 @@ export default function HRApp({ access }) {
           onError={(m) => flash(m, true)}
         />
       )}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {toastNode}
     </div>
   );
 }

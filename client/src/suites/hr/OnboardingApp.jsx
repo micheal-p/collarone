@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useToast, searchMatcher } from '../../components/ui.jsx';
 import * as H from './hrApi.js';
 import * as L from './lifecycleApi.js';
 import LifecycleTaskList from './LifecycleTaskList.jsx';
@@ -61,9 +62,8 @@ export default function OnboardingApp({ access }) {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState('pending');
-  const [toast, setToast] = useState(null);
+  const { flash, toastNode } = useToast();
 
-  const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 2800); };
   const load = () => { setLoading(true); H.getDirectory().then(setStaff).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); };
   useEffect(load, []); // eslint-disable-line
 
@@ -79,7 +79,7 @@ export default function OnboardingApp({ access }) {
   const view = useMemo(() => {
     let list = staff;
     if (filter === 'pending') list = list.filter((s) => !s.confirmedAt);
-    if (q.trim()) { const rx = new RegExp(q.trim(), 'i'); list = list.filter((s) => rx.test(s.name) || rx.test(s.email)); }
+    if (q.trim()) { const match = searchMatcher(q); list = list.filter((s) => match(s.name, s.email)); }
     return list;
   }, [staff, filter, q]);
 
@@ -110,7 +110,7 @@ export default function OnboardingApp({ access }) {
           </table>
         </div>
       )}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {toastNode}
     </div>
   );
 }

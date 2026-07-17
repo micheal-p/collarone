@@ -971,6 +971,67 @@ export async function supabaseApi(path, opts = {}) {
     return { letter: data };
   }
 
+  // ---- hr: letters engine (letterheads + issued letters) ----
+  if (head === 'GET /hr' && seg[1] === 'letterheads') {
+    const { data, error } = await supabase.from('hr_letterheads').select('*').order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { letterheads: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'letterheads') {
+    const { name, mode, templateKey, details, filePath, isDefault } = body;
+    const { data: { user } } = await supabase.auth.getUser();
+    const orgId = await myOrgId();
+    if (isDefault !== false) await supabase.from('hr_letterheads').update({ is_default: false }).eq('org_id', orgId);
+    const { data, error } = await supabase.from('hr_letterheads').insert({
+      org_id: orgId, name: name || 'Company letterhead', mode: mode || 'generated',
+      template_key: templateKey || 'classic', details: details || {}, file_path: filePath || null,
+      is_default: isDefault !== false, created_by: user.id,
+    }).select().single();
+    if (error) fail(400, error.message);
+    return { letterhead: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'letterheads' && seg.length === 3) {
+    const { name, mode, templateKey, details, filePath, isDefault } = body;
+    const patch = { updated_at: new Date().toISOString() };
+    if (name !== undefined) patch.name = name;
+    if (mode !== undefined) patch.mode = mode;
+    if (templateKey !== undefined) patch.template_key = templateKey;
+    if (details !== undefined) patch.details = details;
+    if (filePath !== undefined) patch.file_path = filePath;
+    if (isDefault === true) {
+      const orgId = await myOrgId();
+      await supabase.from('hr_letterheads').update({ is_default: false }).eq('org_id', orgId);
+      patch.is_default = true;
+    }
+    const { data, error } = await supabase.from('hr_letterheads').update(patch).eq('id', seg[2]).select().single();
+    if (error) fail(400, error.message);
+    return { letterhead: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'letterheads' && seg.length === 3) {
+    const { error } = await supabase.from('hr_letterheads').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+  if (head === 'GET /hr' && seg[1] === 'issued-letters') {
+    const { data, error } = await supabase.from('hr_letters')
+      .select('*, employee:profiles!employee_id(id,name,email), issuedBy:profiles!issued_by(id,name)')
+      .order('issued_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { letters: data };
+  }
+  if (head === 'POST /hr' && seg[1] === 'issued-letters') {
+    const { employeeId, letterType, title, letterBody, letterheadId, requestId, filePath } = body;
+    if (!employeeId || !title?.trim() || !letterBody?.trim()) fail(400, 'Employee, title and letter body are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('hr_letters').insert({
+      org_id: await myOrgId(), employee_id: employeeId, letter_type: letterType || 'custom',
+      title: title.trim(), body: letterBody, letterhead_id: letterheadId || null,
+      request_id: requestId || null, file_path: filePath || null, issued_by: user.id,
+    }).select('*, employee:profiles!employee_id(id,name,email), issuedBy:profiles!issued_by(id,name)').single();
+    if (error) fail(400, error.message);
+    return { letter: data };
+  }
+
   // ---- hr: onboarding / offboarding ----
   if (head === 'GET /hr' && seg[1] === 'templates') {
     const phase = (path.match(/phase=([^&]*)/) || [])[1];

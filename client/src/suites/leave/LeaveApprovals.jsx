@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as L from './leaveApi.js';
+import { useConfirm, EmptyState } from '../../components/ui.jsx';
 
 const fmt = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
 const STATUS = { pending: 'st-pending', approved: 'st-approved', rejected: 'st-rejected', cancelled: 'st-cancelled' };
@@ -10,6 +11,7 @@ export default function LeaveApprovals({ flash }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
+  const { confirm, confirmNode } = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -21,7 +23,17 @@ export default function LeaveApprovals({ flash }) {
 
   const decide = async (r, decision) => {
     let comment = '';
-    if (decision === 'rejected') { comment = prompt(`Reason for rejecting ${r.applicant?.name}'s request:`) || ''; }
+    if (decision === 'rejected') {
+      const res = await confirm({
+        title: 'Reject leave request',
+        message: `${r.applicant?.name}’s request will be rejected.`,
+        confirmLabel: 'Reject',
+        danger: true,
+        input: { label: 'Reason (shared with the employee)', required: false },
+      });
+      if (!res) return; // Cancel must abort the rejection entirely
+      comment = res.value;
+    }
     setBusyId(r.id);
     try { await L.decideRequest(r.id, decision, comment); flash(`Request ${decision}.`); load(); }
     catch (e) { flash(e.message, true); } finally { setBusyId(null); }
@@ -42,7 +54,14 @@ export default function LeaveApprovals({ flash }) {
           <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Reason</th><th>Status</th><th className="ta-r">Action</th></tr></thead>
           <tbody>
             {loading && <tr><td colSpan={7} className="td-empty">Loading…</td></tr>}
-            {!loading && rows.length === 0 && <tr><td colSpan={7} className="td-empty">No requests.</td></tr>}
+            {!loading && rows.length === 0 && (
+              <tr><td colSpan={7}>
+                <EmptyState
+                  title="No requests"
+                  hint={filter === 'all' ? 'No leave requests have been submitted yet.' : `There are no ${filter} requests right now.`}
+                />
+              </td></tr>
+            )}
             {!loading && rows.map((r) => (
               <tr key={r.id}>
                 <td><div className="cell-user"><span className="avatar sm">{initials(r.applicant?.name)}</span>
@@ -65,6 +84,7 @@ export default function LeaveApprovals({ flash }) {
           </tbody>
         </table>
       </div>
+      {confirmNode}
     </>
   );
 }

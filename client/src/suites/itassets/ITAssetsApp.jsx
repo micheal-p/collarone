@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as IA from './itAssetsApi.js';
 import { apiGet } from '../../api/client.js';
+import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
 
 const CSS = `
   .ia-badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; letter-spacing:.03em; }
@@ -10,7 +11,6 @@ const CSS = `
   .ia-s-retired { background:#fde7e9; color:#a4262c; }
 `;
 
-function Toast({ toast }) { if (!toast) return null; return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>; }
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 function StatusBadge({ status }) { const s = IA.STATUS[status] || IA.STATUS.spare; return <span className={`ia-badge ${s.cls}`}>{s.label}</span>; }
 
@@ -33,29 +33,26 @@ function AssetModal({ asset, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>{asset ? 'Edit asset' : 'Add asset'}</h2></div>
-        <form className="modal-body" onSubmit={submit}>
-          <div className="form-grid">
-            <Field label="Asset tag *"><input className="input" value={f.assetTag} onChange={(e) => set('assetTag', e.target.value)} required autoFocus /></Field>
-            <Field label="Name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required /></Field>
-            <Field label="Category">
-              <select className="select" value={f.category} onChange={(e) => set('category', e.target.value)}>
-                {Object.entries(IA.CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-            </Field>
-            <Field label="Serial number"><input className="input" value={f.serialNumber} onChange={(e) => set('serialNumber', e.target.value)} /></Field>
-            <Field label="Purchase date"><input className="input" type="date" value={f.purchaseDate} onChange={(e) => set('purchaseDate', e.target.value)} /></Field>
-            <Field label="Purchase cost (₦)"><input className="input" type="number" value={f.purchaseCost} onChange={(e) => set('purchaseCost', e.target.value)} /></Field>
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : asset ? 'Save changes' : 'Add asset'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal title={asset ? 'Edit asset' : 'Add asset'} onClose={onClose} wide>
+      <form onSubmit={submit}>
+        <div className="form-grid">
+          <Field label="Asset tag *"><input className="input" value={f.assetTag} onChange={(e) => set('assetTag', e.target.value)} required autoFocus /></Field>
+          <Field label="Name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required /></Field>
+          <Field label="Category">
+            <select className="select" value={f.category} onChange={(e) => set('category', e.target.value)}>
+              {Object.entries(IA.CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </Field>
+          <Field label="Serial number"><input className="input" value={f.serialNumber} onChange={(e) => set('serialNumber', e.target.value)} /></Field>
+          <Field label="Purchase date"><input className="input" type="date" value={f.purchaseDate} onChange={(e) => set('purchaseDate', e.target.value)} /></Field>
+          <Field label="Purchase cost (₦)"><input className="input" type="number" value={f.purchaseCost} onChange={(e) => set('purchaseCost', e.target.value)} /></Field>
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : asset ? 'Save changes' : 'Add asset'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -78,24 +75,21 @@ function AssignModal({ asset, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Assign {asset.name}</h2></div>
-        <form className="modal-body" onSubmit={submit}>
-          <Field label="Employee *">
-            <select className="select" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} required autoFocus>
-              <option value="">— Select —</option>
-              {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Notes"><textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Assign'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal title={`Assign ${asset.name}`} onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label="Employee *">
+          <select className="select" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} required autoFocus>
+            <option value="">— Select —</option>
+            {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Notes"><textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Assign'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -104,6 +98,7 @@ function ManagerView({ flash }) {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [assignFor, setAssignFor] = useState(null);
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -116,11 +111,21 @@ function ManagerView({ flash }) {
     try { await IA.updateAsset(a.id, { action: 'return' }); flash('Asset returned.'); load(); } catch (e) { flash(e.message, true); }
   };
   const retireAsset = async (a) => {
-    if (!confirm(`Retire ${a.name}?`)) return;
+    const ok = await confirm({
+      title: `Retire ${a.name}?`,
+      message: 'The asset moves to Retired — there is no un-retire.',
+      confirmLabel: 'Retire', danger: true,
+    });
+    if (!ok) return;
     try { await IA.updateAsset(a.id, { action: 'retire' }); flash('Asset retired.'); load(); } catch (e) { flash(e.message, true); }
   };
   const removeAsset = async (a) => {
-    if (!confirm(`Delete ${a.name} permanently?`)) return;
+    const ok = await confirm({
+      title: `Delete ${a.name}?`,
+      message: 'The asset and its assignment history are permanently removed.',
+      confirmLabel: 'Delete', danger: true,
+    });
+    if (!ok) return;
     try { await IA.deleteAsset(a.id); flash('Asset deleted.'); load(); } catch (e) { flash(e.message, true); }
   };
 
@@ -134,14 +139,20 @@ function ManagerView({ flash }) {
       {!loading && (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Tag</th><th>Name</th><th>Category</th><th>Status</th><th>Assigned to</th><th></th></tr></thead>
+            <thead><tr><th>Tag</th><th>Name</th><th>Category</th><th>Cost</th><th>Purchased</th><th>Status</th><th>Assigned to</th><th></th></tr></thead>
             <tbody>
-              {assets.length === 0 && <tr><td colSpan={6} className="td-empty">No assets yet.</td></tr>}
+              {assets.length === 0 && (
+                <tr><td colSpan={8} style={{ padding: 0 }}>
+                  <EmptyState title="No assets yet" hint="Add an asset to start the register." />
+                </td></tr>
+              )}
               {assets.map((a) => (
                 <tr key={a.id}>
                   <td className="muted" style={{ fontSize: 13, fontFamily: 'monospace' }}>{a.asset_tag}</td>
                   <td style={{ fontWeight: 500 }}>{a.name}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{IA.CATEGORIES[a.category]}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{IA.money(a.purchase_cost)}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{IA.fmtDate(a.purchase_date)}</td>
                   <td><StatusBadge status={a.status} /></td>
                   <td className="muted" style={{ fontSize: 13 }}>{a.employee?.name || '—'}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
@@ -161,6 +172,7 @@ function ManagerView({ flash }) {
         <AssetModal asset={modal === 'new' ? null : modal} onClose={() => setModal(null)} onSaved={load} flash={flash} />
       )}
       {assignFor && <AssignModal asset={assignFor} onClose={() => setAssignFor(null)} onSaved={load} flash={flash} />}
+      {confirmNode}
     </>
   );
 }
@@ -175,7 +187,11 @@ function StaffView({ flash }) {
       <table className="table">
         <thead><tr><th>Tag</th><th>Name</th><th>Category</th><th>Serial no.</th></tr></thead>
         <tbody>
-          {assets.length === 0 && <tr><td colSpan={4} className="td-empty">No assets assigned to you.</td></tr>}
+          {assets.length === 0 && (
+            <tr><td colSpan={4} style={{ padding: 0 }}>
+              <EmptyState title="No assets assigned to you" hint="Assets show up here once IT assigns them to you." />
+            </td></tr>
+          )}
           {assets.map((a) => (
             <tr key={a.id}>
               <td className="muted" style={{ fontSize: 13, fontFamily: 'monospace' }}>{a.asset_tag}</td>
@@ -192,13 +208,12 @@ function StaffView({ flash }) {
 
 export default function ITAssetsApp({ access }) {
   const isManager = access?.role === 'manager';
-  const [toast, setToast] = useState(null);
-  const flash = (msg, isErr = false) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000); };
+  const { flash, toastNode } = useToast();
   return (
     <div className="lv">
       <style>{CSS}</style>
       {isManager ? <ManagerView flash={flash} /> : <StaffView flash={flash} />}
-      <Toast toast={toast} />
+      {toastNode}
     </div>
   );
 }

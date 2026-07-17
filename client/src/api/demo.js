@@ -186,7 +186,129 @@ export async function demoApi(path, opts = {}) {
     }
 
     default:
-      // storefront funnel — demo-safe stubs so a prospect clicking through a
+      // ---- HR suite + Employee 360 demo data --------------------------------
+  // Enough believable, deterministic data that the HR directory and the
+  // Employee 360 record render fully in demo mode. Derived from db.users so
+  // ids always line up; regenerated per call (nothing persisted).
+  if (seg[0] === 'hr' || (seg[0] === 'departments') || (seg[0] === 'payroll' && ['salary', 'bank'].includes(seg[1])) || (seg[0] === 'attendance' && seg[1] === 'records') || (seg[0] === 'itassets' && seg[1] === 'assets') || (seg[0] === 'benefits' && seg[1] === 'enrollments') || route === 'GET /tasks') {
+    requireAuth();
+    const DEPTS = [{ id: 1, name: 'IT' }, { id: 2, name: 'People Ops' }, { id: 3, name: 'Operations' }, { id: 4, name: 'Logistics' }];
+    const ET = ['full_time', 'full_time', 'contract', 'full_time'];
+    const staff = db.users.filter((u) => u.status === 'active').map((u, i) => {
+      const dept = DEPTS.find((d) => d.name === u.department) || DEPTS[i % DEPTS.length];
+      const managerId = u.role === 'super_admin' ? null : db.users[0].id;
+      return {
+        id: u.id, name: u.name, email: u.email, phone: `080${(31111111 + i * 1234567) % 100000000}`,
+        jobTitle: u.jobTitle, role: u.role, avatarUrl: null,
+        departmentId: dept.id, deptName: dept.name,
+        managerId, manager: managerId ? { id: managerId, name: db.users[0].name } : null,
+        employmentType: ET[i % ET.length],
+        startDate: new Date(Date.now() - (200 + i * 260) * 86400000).toISOString().slice(0, 10),
+      };
+    });
+    const byIdx = (id) => Math.max(0, db.users.findIndex((u) => u.id === id));
+    const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString();
+    const empId = (fallback) => (path.match(/employeeId=([^&]*)/) || [])[1] || fallback;
+
+    if (route === 'GET /hr/staff') return { staff };
+    if (seg[0] === 'departments') return { departments: DEPTS };
+    if (seg[0] === 'payroll' && seg[1] === 'salary') {
+      const i = byIdx(seg[2]);
+      const basic = 250000 + i * 90000;
+      return { history: [
+        { id: 's1' + i, basic, housing: basic * 0.4, transport: basic * 0.2, other_allowances: 30000, effective_date: daysAgo(120).slice(0, 10) },
+        { id: 's0' + i, basic: basic * 0.85, housing: basic * 0.34, transport: basic * 0.17, other_allowances: 20000, effective_date: daysAgo(480).slice(0, 10) },
+      ] };
+    }
+    if (seg[0] === 'payroll' && seg[1] === 'bank') {
+      const i = byIdx(seg[2]);
+      return { accounts: [{ id: 'b' + i, bank_name: ['GTBank', 'Access Bank', 'Zenith Bank', 'UBA'][i % 4], account_name: db.users[i]?.name, account_number: String(1234567890 + i * 1111111).slice(0, 10), is_primary: true }] };
+    }
+    if (seg[0] === 'attendance') {
+      const records = staff.flatMap((s, si) => Array.from({ length: 8 }, (_, d) => {
+        const day = d * 3 + (si % 3);
+        const cin = new Date(Date.now() - day * 86400000); cin.setHours(8, 40 + si * 5, 0, 0);
+        const cout = new Date(cin); cout.setHours(17, 10 + si * 7, 0, 0);
+        return { id: `att${si}-${d}`, employee_id: s.id, employee: { id: s.id, name: s.name, email: s.email }, clock_in_at: cin.toISOString(), clock_out_at: d === 0 && si === 1 ? null : cout.toISOString() };
+      }));
+      return { records };
+    }
+    if (seg[0] === 'itassets') {
+      return { assets: staff.slice(0, 3).map((s, i) => ({ id: 'a' + i, name: ['MacBook Air M2', 'Dell Latitude 5440', 'iPhone 13'][i], category: ['Laptop', 'Laptop', 'Phone'][i], asset_tag: `CLR-00${i + 1}`, serial_number: '', status: 'in_use', assigned_to: s.id, employee: { id: s.id, name: s.name } })) };
+    }
+    if (seg[0] === 'benefits') {
+      return { enrollments: staff.map((s, i) => ({ id: 'en' + i, employee_id: s.id, employee: { id: s.id, name: s.name }, status: 'active', plan: { id: 'p1', name: i % 2 ? 'Axa Mansard HMO — Gold' : 'Stanbic IBTC Pension (RSA)', type: i % 2 ? 'hmo' : 'pension', provider: i % 2 ? 'Axa Mansard' : 'Stanbic IBTC' } })) };
+    }
+    if (route === 'GET /tasks') {
+      return { tasks: staff.flatMap((s, i) => [
+        { id: `t${i}a`, title: ['Quarterly stock reconciliation', 'Onboard new vendor', 'Prepare payroll inputs', 'Site visit report — Ikeja'][i % 4], status: 'in_progress', due_date: daysAgo(-3).slice(0, 10), assigned_to: s.id, assignee: { id: s.id, name: s.name } },
+        { id: `t${i}b`, title: 'Weekly report', status: 'done', due_date: daysAgo(4).slice(0, 10), assigned_to: s.id, assignee: { id: s.id, name: s.name } },
+      ]) };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'goals') {
+      const id = empId(null);
+      const mine = staff.filter((s) => !id || s.id === id);
+      return { goals: mine.map((s, i) => ({ id: 'g' + i + s.id, employee_id: s.id, employee: { id: s.id, name: s.name }, title: 'Close Q3 objectives at 90%+', status: 'in_progress', target_date: daysAgo(-45).slice(0, 10) })) };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'reviews') {
+      const id = empId(null);
+      const mine = staff.filter((s) => !id || s.id === id);
+      return { reviews: mine.map((s, i) => ({ id: 'r' + i + s.id, employee_id: s.id, employee: { id: s.id, name: s.name }, reviewer: { id: db.users[0].id, name: db.users[0].name }, cycle_label: 'H1 2026', rating: 4, status: 'submitted', created_at: daysAgo(30) })) };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'trainings') return { trainings: [] };
+    if (seg[0] === 'hr' && seg[1] === 'documents') {
+      const id = empId(null);
+      const mine = staff.filter((s) => !id || s.id === id);
+      return { documents: mine.flatMap((s, i) => [
+        { id: 'd' + i + 'a', employee: { id: s.id, name: s.name }, title: 'Employment contract', category: 'contract', expiry_date: null, file_path: 'demo', created_at: daysAgo(300) },
+        { id: 'd' + i + 'b', employee: { id: s.id, name: s.name }, title: 'Means of ID (NIN slip)', category: 'id', expiry_date: daysAgo(-200).slice(0, 10), file_path: 'demo', created_at: daysAgo(290) },
+      ]) };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'cases') return { cases: [] };
+
+    // ---- letters engine (requests, letterheads, issued register) ----
+    if (!db.letterRequests) {
+      db.letterRequests = [{
+        id: 'lr1', employee_id: staff[3]?.id, employee: { id: staff[3]?.id, name: staff[3]?.name, email: staff[3]?.email },
+        letter_type: 'employment_verification', purpose: 'Bank account opening — GTBank', status: 'pending',
+        requested_at: daysAgo(2), decided_at: null,
+      }];
+      db.letterheads = []; db.issuedLetters = []; save();
+    }
+    if (route === 'GET /hr/letters') return { letters: db.letterRequests };
+    if (method === 'PATCH' && seg[1] === 'letters' && seg.length === 3) {
+      const r = db.letterRequests.find((x) => x.id === seg[2]) || fail(404, 'Request not found.');
+      Object.assign(r, { status: body.status, decline_reason: body.declineReason || null, decided_at: new Date().toISOString() });
+      save(); return { letter: r };
+    }
+    if (route === 'GET /hr/letterheads') return { letterheads: db.letterheads };
+    if (route === 'POST /hr/letterheads') {
+      db.letterheads.forEach((x) => { x.is_default = false; });
+      const lh = { id: 'lh' + Math.random().toString(36).slice(2, 8), name: body.name, mode: body.mode || 'generated', template_key: body.templateKey || 'classic', details: body.details || {}, file_path: body.filePath || null, is_default: true, created_at: new Date().toISOString() };
+      db.letterheads.unshift(lh); save(); return { letterhead: lh };
+    }
+    if (method === 'PATCH' && seg[1] === 'letterheads' && seg.length === 3) {
+      const lh = db.letterheads.find((x) => x.id === seg[2]) || fail(404, 'Letterhead not found.');
+      if (body.isDefault) db.letterheads.forEach((x) => { x.is_default = x.id === lh.id; });
+      if (body.name !== undefined) lh.name = body.name;
+      if (body.mode !== undefined) lh.mode = body.mode;
+      if (body.templateKey !== undefined) lh.template_key = body.templateKey;
+      if (body.details !== undefined) lh.details = body.details;
+      if (body.filePath !== undefined) lh.file_path = body.filePath;
+      save(); return { letterhead: lh };
+    }
+    if (route === 'GET /hr/issued-letters') return { letters: db.issuedLetters };
+    if (route === 'POST /hr/issued-letters') {
+      const empRec = staff.find((s) => s.id === body.employeeId);
+      const me = session.get();
+      const l = { id: 'il' + Math.random().toString(36).slice(2, 8), employee_id: body.employeeId, employee: { id: empRec?.id, name: empRec?.name, email: empRec?.email }, letter_type: body.letterType, title: body.title, body: body.letterBody, letterhead_id: body.letterheadId || null, request_id: body.requestId || null, file_path: null, issuedBy: { id: me?.id, name: me?.name }, issued_at: new Date().toISOString() };
+      db.issuedLetters.unshift(l); save(); return { letter: l };
+    }
+
+    if (seg[0] === 'hr') return fail(404, `Demo API has no route for ${route}`);
+  }
+
+  // storefront funnel — demo-safe stubs so a prospect clicking through a
   // demo store gets believable behaviour instead of a 404
   if (route === 'POST /site/order') {
     return { orderNo: `ORD-DEMO${String(Math.floor(Math.random() * 900) + 100)}`, total: (body.items || []).length * 25000, method: body.method || 'transfer',

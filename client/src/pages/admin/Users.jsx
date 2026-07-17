@@ -7,6 +7,7 @@ import { FOUNDING_ORG_ID } from '../../config/org.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import AppLayout from '../../components/AppLayout.jsx';
 import SuiteIcon from '../../components/SuiteIcon.jsx';
+import { useToast, useConfirm } from '../../components/ui.jsx';
 
 const ROLE_LABEL = { super_admin: 'System Admin', manager: 'Manager', staff: 'Staff' };
 const ROLE_FILTERS = [
@@ -42,7 +43,14 @@ function SuiteGrantPicker({ catalog, value, onChange, disabled }) {
   const map = useMemo(() => Object.fromEntries(value.map((g) => [g.key, g.role])), [value]);
   const toggle = (key) => {
     const defaultRole = getSuiteRoles(key)[0].value;
-    map[key] !== undefined ? onChange(value.filter((g) => g.key !== key)) : onChange([...value, { key, role: defaultRole }]);
+    if (map[key] !== undefined) { onChange(value.filter((g) => g.key !== key)); return; }
+    // A suite can declare companions (e.g. HR comes with Benefits, Payroll,
+    // Documents) — granting it auto-selects them so the connected experience
+    // works out of the box. They stay individually removable.
+    const companions = (catalog.find((s) => s.key === key)?.companions || [])
+      .filter((c) => map[c] === undefined && catalog.some((s) => s.key === c && s.status === 'live'))
+      .map((c) => ({ key: c, role: getSuiteRoles(c)[0].value }));
+    onChange([...value, { key, role: defaultRole }, ...companions]);
   };
   const setRole = (key, role) => onChange(value.map((g) => (g.key === key ? { ...g, role } : g)));
   return (
@@ -107,13 +115,13 @@ export default function AdminUsers() {
   const [sortDir, setSortDir] = useState(1);
   const [selected, setSelected] = useState(new Set());
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [manage,  setManage]  = useState(null);
   const [viewUser, setViewUser] = useState(null);
   const [rowMenu, setRowMenu] = useState(null); // { id, rect } | null
 
-  const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 2800); };
+  const { flash, toastNode } = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
   const load = () =>
     apiGet('/users').then((d) => setUsers(d.users)).catch((e) => flash(e.message, true)).finally(() => setLoading(false));
@@ -151,9 +159,15 @@ export default function AdminUsers() {
     setSelected(new Set()); flash(`${n} account${n === 1 ? '' : 's'} ${status === 'active' ? 'enabled' : 'disabled'}.`);
   };
   const resetPw = async (u) => {
-    const pw = prompt(`Set a temporary password for ${u.name} (min 8 chars):`);
-    if (!pw) return;
-    try { await apiPost(`/users/${u.id}/reset-password`, { password: pw }); flash('Temporary password set.'); }
+    const res = await confirm({
+      title: 'Reset password',
+      message: `Set a temporary password for ${u.name}. They should change it after signing in.`,
+      confirmLabel: 'Set password',
+      input: { label: 'Temporary password (min 8 chars)', required: true },
+    });
+    if (!res) return;
+    if (res.value.length < 8) { flash('Password must be at least 8 characters.', true); return; }
+    try { await apiPost(`/users/${u.id}/reset-password`, { password: res.value }); flash('Temporary password set.'); }
     catch (e) { flash(e.message, true); }
   };
 

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import * as V from './visitorApi.js';
+import { EmptyState, searchMatcher, useConfirm, useToast } from '../../components/ui.jsx';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
@@ -83,12 +84,14 @@ function VisitorResultCard({ visit, canAct, onRefresh, flash }) {
   const [showFlag, setShowFlag]         = useState(false);
   const [busy, setBusy]                 = useState(false);
 
+  const { confirm, confirmNode } = useConfirm();
+
   const act = async (fn) => { setBusy(true); try { await fn(); onRefresh?.(); } catch (e) { flash(e.message, true); } finally { setBusy(false); } };
 
   const checkin  = () => act(() => V.updateVisit(visit.id, { action: 'checkin', badgeNumber: badge, accessPoint: point }));
-  const checkout = () => { if (!confirm('Check out this visitor?')) return; act(() => V.updateVisit(visit.id, { action: 'checkout' })); };
+  const checkout = async () => { if (!(await confirm({ title: 'Check out this visitor?', confirmLabel: 'Check out' }))) return; act(() => V.updateVisit(visit.id, { action: 'checkout' })); };
   const doFlag   = () => act(() => V.updateVisit(visit.id, { action: 'flag', flagReason: flagNote }).then(() => setShowFlag(false)));
-  const cancel   = () => { if (!confirm('Cancel this visit?')) return; act(() => V.updateVisit(visit.id, { action: 'cancel' })); };
+  const cancel   = async () => { if (!(await confirm({ title: 'Cancel this visit?', message: 'The visit will be marked cancelled.', confirmLabel: 'Cancel visit', cancelLabel: 'Keep visit', danger: true }))) return; act(() => V.updateVisit(visit.id, { action: 'cancel' })); };
 
   const isBanned = visit.visitor?.is_banned;
   return (
@@ -151,6 +154,7 @@ function VisitorResultCard({ visit, canAct, onRefresh, flash }) {
           )}
         </div>
       )}
+      {confirmNode}
     </div>
   );
 }
@@ -373,7 +377,7 @@ function VisitModal({ onClose, onSaved, flash, showHostPicker = false, staff = [
 }
 
 /* ---- VisitsTable (shared list component) ---------------------------------- */
-function VisitsTable({ visits, canAct, flash, onRefresh, showHost = true, emptyMsg = 'No visits found.' }) {
+function VisitsTable({ visits, canAct, flash, onRefresh, showHost = true, emptyMsg = 'No visits found.', onBan }) {
   const [expand, setExpand] = useState(null);
 
   return (
@@ -391,10 +395,10 @@ function VisitsTable({ visits, canAct, flash, onRefresh, showHost = true, emptyM
           </tr>
         </thead>
         <tbody>
-          {visits.length === 0 && <tr><td colSpan={showHost ? 7 : 6} className="td-empty">{emptyMsg}</td></tr>}
+          {visits.length === 0 && <tr><td colSpan={showHost ? 7 : 6} style={{ padding: 0 }}><EmptyState title={emptyMsg} /></td></tr>}
           {visits.map((v) => (
-            <>
-              <tr key={v.id} className={`${V.isOverstay(v) ? 'vs-row-overstay' : ''} ${v.visitor?.is_banned ? 'vs-row-banned' : ''}`}>
+            <Fragment key={v.id}>
+              <tr className={`${V.isOverstay(v) ? 'vs-row-overstay' : ''} ${v.visitor?.is_banned ? 'vs-row-banned' : ''}`}>
                 <td>
                   <div style={{ fontWeight:500 }}>{v.visitor?.name}</div>
                   <div className="muted" style={{ fontSize:12 }}>{v.visitor?.company || 'Individual'}</div>
@@ -405,19 +409,24 @@ function VisitsTable({ visits, canAct, flash, onRefresh, showHost = true, emptyM
                 <td><StatusBadge status={v.status} /></td>
                 <td className="muted" style={{ fontSize:13 }}>{v.badge_number || '—'}</td>
                 <td>
-                  <button className="iconbtn" onClick={() => setExpand(expand === v.id ? null : v.id)} aria-label="Details">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-                  </button>
+                  <div style={{ display:'flex', justifyContent:'flex-end', gap:2 }}>
+                    {onBan && v.visitor && !v.visitor.is_banned && (
+                      <button className="iconbtn" title={`Ban ${v.visitor.name}`} aria-label={`Ban ${v.visitor.name}`} onClick={() => onBan(v.visitor)}>{I.ban}</button>
+                    )}
+                    <button className="iconbtn" onClick={() => setExpand(expand === v.id ? null : v.id)} aria-label="Details">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
               {expand === v.id && (
-                <tr key={`${v.id}-exp`}>
+                <tr>
                   <td colSpan={showHost ? 7 : 6} style={{ padding:'0 16px 16px', background:'var(--surface)' }}>
                     <VisitorResultCard visit={v} canAct={canAct} flash={flash} onRefresh={() => { setExpand(null); onRefresh?.(); }} />
                   </td>
                 </tr>
               )}
-            </>
+            </Fragment>
           ))}
         </tbody>
       </table>
@@ -452,7 +461,8 @@ function StaffView({ flash }) {
     if (tab === 'active')   list = list.filter((v) => v.status === 'checked_in');
     if (tab === 'upcoming') list = list.filter((v) => v.status === 'expected');
     if (tab === 'past')     list = list.filter((v) => ['checked_out','cancelled','no_show'].includes(v.status));
-    if (q.trim()) { const rx = new RegExp(q.trim(),'i'); list = list.filter((v) => rx.test(v.visitor?.name) || rx.test(v.purpose)); }
+    const match = searchMatcher(q);
+    list = list.filter((v) => match(v.visitor?.name, v.purpose));
     return list;
   }, [visits, tab, q]);
 
@@ -531,7 +541,8 @@ function ReceptionistView({ flash }) {
     if (tab === 'expected') list = list.filter((v) => v.status === 'expected' && new Date(v.expected_at).toDateString() === today);
     if (tab === 'active')   list = list.filter((v) => v.status === 'checked_in');
     if (tab === 'all')      list = [...list];
-    if (q.trim()) { const rx = new RegExp(q.trim(),'i'); list = list.filter((v) => rx.test(v.visitor?.name) || rx.test(v.host?.name) || rx.test(v.purpose) || rx.test(v.access_code)); }
+    const match = searchMatcher(q);
+    list = list.filter((v) => match(v.visitor?.name, v.host?.name, v.purpose, v.access_code));
     return list.sort((a,b) => new Date(a.expected_at) - new Date(b.expected_at));
   }, [visits, tab, q, today]);
 
@@ -624,7 +635,7 @@ function SecurityView({ flash }) {
           {!loading && (
             <>
               <div className="filterbar" style={{ marginTop:8 }}>
-                <span className="count">{visits.length} visitor{visits.length===1?'':' s'} on premises</span>
+                <span className="count">{visits.length} visitor{visits.length===1?'':'s'} on premises</span>
               </div>
               <VisitsTable visits={visits} canAct flash={flash} onRefresh={load} emptyMsg="No visitors currently on premises." />
             </>
@@ -646,6 +657,7 @@ function ManagementView({ flash }) {
   const [q,        setQ]        = useState('');
   const [modal,    setModal]    = useState(false);
   const [banModal, setBanModal] = useState(null);
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -671,11 +683,14 @@ function ManagementView({ flash }) {
 
   const logView = useMemo(() => {
     let list = visits;
-    if (q.trim()) { const rx = new RegExp(q.trim(),'i'); list = list.filter((v) => rx.test(v.visitor?.name) || rx.test(v.host?.name) || rx.test(v.purpose) || rx.test(v.access_code)); }
+    const match = searchMatcher(q);
+    list = list.filter((v) => match(v.visitor?.name, v.host?.name, v.purpose, v.access_code));
     return list;
   }, [visits, q]);
 
   const unban = async (vis) => {
+    const ok = await confirm({ title: `Unban ${vis.name}?`, message: 'They will be allowed entry on future visits again.', confirmLabel: 'Unban' });
+    if (!ok) return;
     try { await V.banVisitor(vis.id, { banned: false, reason: '' }); flash(`${vis.name} unbanned.`); load(); }
     catch (e) { flash(e.message, true); }
   };
@@ -730,14 +745,14 @@ function ManagementView({ flash }) {
             </div>
             <span className="count">{logView.length} record{logView.length===1?'':'s'}</span>
           </div>
-          <VisitsTable visits={logView} canAct={false} flash={flash} onRefresh={load} />
+          <VisitsTable visits={logView} canAct={false} flash={flash} onRefresh={load} onBan={setBanModal} />
         </>
       )}
 
       {!loading && tab === 'overstay' && (
         <>
           <p className="muted" style={{ fontSize:13, margin:'8px 0 12px' }}>Visitors who have been inside for more than 4 hours without checking out.</p>
-          <VisitsTable visits={overstay} canAct flash={flash} onRefresh={load} emptyMsg="No overstay visitors." />
+          <VisitsTable visits={overstay} canAct flash={flash} onRefresh={load} emptyMsg="No overstay visitors." onBan={setBanModal} />
         </>
       )}
 
@@ -746,7 +761,7 @@ function ManagementView({ flash }) {
           <table className="table">
             <thead><tr><th>Name</th><th>Phone</th><th>Company</th><th>Reason</th><th></th></tr></thead>
             <tbody>
-              {banned.length === 0 && <tr><td colSpan={5} className="td-empty">No banned visitors.</td></tr>}
+              {banned.length === 0 && <tr><td colSpan={5} style={{ padding: 0 }}><EmptyState title="No banned visitors" hint="Visitors banned from the visitor log will appear here." /></td></tr>}
               {banned.map((vis) => (
                 <tr key={vis.id}>
                   <td style={{ fontWeight:500 }}>{vis.name}</td>
@@ -770,6 +785,7 @@ function ManagementView({ flash }) {
       {banModal && (
         <BanModal visitor={banModal} onClose={() => setBanModal(null)} onDone={() => { setBanModal(null); load(); }} flash={flash} />
       )}
+      {confirmNode}
     </>
   );
 }
@@ -821,11 +837,7 @@ export default function VisitorsApp({ access }) {
   const isReceptionist = role === 'receptionist';
   const isSecurity     = role === 'security';
 
-  const [toast, setToast] = useState(null);
-  const flash = useCallback((msg, isErr = false) => {
-    setToast({ msg, isErr });
-    setTimeout(() => setToast(null), 3000);
-  }, []);
+  const { flash, toastNode } = useToast();
 
   return (
     <div className="lv">
@@ -834,7 +846,7 @@ export default function VisitorsApp({ access }) {
       {isReceptionist && <ReceptionistView flash={flash} />}
       {isSecurity     && <SecurityView     flash={flash} />}
       {!isManagement && !isReceptionist && !isSecurity && <StaffView flash={flash} />}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {toastNode}
     </div>
   );
 }

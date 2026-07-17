@@ -30,7 +30,7 @@ function SuiteTile({ s, onOpen, index, reduce }) {
       whileTap={s.openable ? { scale: 0.97 } : undefined}
       onClick={() => s.openable && onOpen(s)} disabled={!s.openable}
       title={locked ? 'You have not been granted access to this suite' : soon ? 'Coming soon' : `Open ${s.name}`}>
-      <span className="tile-icon" style={{ background: locked ? '#c8c6c4' : meta.tint || 'var(--brand)' }}>
+      <span className="tile-icon" style={{ background: locked ? 'rgba(10,14,26,0.28)' : meta.tint || 'var(--brand)' }}>
         <SuiteIcon name={locked ? 'lock' : meta.icon || 'grid'} size={26} color="#fff" />
       </span>
       <span className="tile-body">

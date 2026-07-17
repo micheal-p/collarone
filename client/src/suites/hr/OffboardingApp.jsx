@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useToast, useConfirm, Modal } from '../../components/ui.jsx';
 import * as L from './lifecycleApi.js';
 import LifecycleTaskList from './LifecycleTaskList.jsx';
 
 const I = {
   add:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
-  close:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>,
   expand: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>,
   flag:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>,
 };
@@ -23,11 +23,8 @@ function InitiateModal({ staff, onClose, onSaved, onError }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Initiate exit</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Initiate exit" onClose={onClose} wide>
+      <form onSubmit={submit}>
           <div className="field"><label>Employee</label>
             <select className="select" value={f.employeeId} onChange={(e) => set('employeeId', e.target.value)} required autoFocus>
               <option value="">— Select —</option>
@@ -48,14 +45,13 @@ function InitiateModal({ staff, onClose, onSaved, onError }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Start offboarding'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
 /* ---- ExitRow ---------------------------------------------------------------------- */
-function ExitRow({ exit: ex, isHrManager, onUpdated, flash }) {
+function ExitRow({ exit: ex, isHrManager, onUpdated, flash, confirm }) {
   const [expanded, setExpanded] = useState(false);
   const [busy, setBusy] = useState(false);
   const st = L.EXIT_STATUS[ex.status];
@@ -66,7 +62,13 @@ function ExitRow({ exit: ex, isHrManager, onUpdated, flash }) {
   };
 
   const finalize = async () => {
-    if (!confirm(`Finalize offboarding for ${ex.employee?.name}? This disables their login.`)) return;
+    const ok = await confirm({
+      title: 'Finalize offboarding',
+      message: `Finalize offboarding for ${ex.employee?.name}? This disables their login immediately.`,
+      confirmLabel: 'Finalize',
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     try { onUpdated(await L.finalizeExit(ex.id)); flash('Offboarding finalized — account disabled.'); }
     catch (e) { flash(e.message, true); } finally { setBusy(false); }
@@ -134,10 +136,10 @@ export default function OffboardingApp({ access, staff }) {
   const [exits, setExits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
-  const [toast, setToast] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
+  const { flash, toastNode } = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
-  const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 2800); };
   const load = () => { setLoading(true); L.getExits().then(setExits).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); };
   useEffect(load, []); // eslint-disable-line
 
@@ -162,7 +164,7 @@ export default function OffboardingApp({ access, staff }) {
             <thead><tr><th>Employee</th><th>Reason</th><th>Last working day</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {view.length === 0 && <tr><td colSpan={5} className="td-empty">No exits in progress.</td></tr>}
-              {view.map((ex) => <ExitRow key={ex.id} exit={ex} isHrManager={isHrManager} onUpdated={upsert} flash={flash} />)}
+              {view.map((ex) => <ExitRow key={ex.id} exit={ex} isHrManager={isHrManager} onUpdated={upsert} flash={flash} confirm={confirm} />)}
             </tbody>
           </table>
         </div>
@@ -172,7 +174,8 @@ export default function OffboardingApp({ access, staff }) {
           onSaved={(ex) => { upsert(ex); setModal(false); flash('Offboarding started — checklist generated.'); }}
           onError={(m) => flash(m, true)} />
       )}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {confirmNode}
+      {toastNode}
     </div>
   );
 }

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import * as C from './crmApi.js';
 import { waDigits as normalizeWa } from '../../lib/whatsapp.js';
+import { EmptyState, Modal, searchMatcher, useConfirm, useToast } from '../../components/ui.jsx';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
@@ -42,11 +43,6 @@ const CSS = `
 
 /* ---- shared bits ------------------------------------------------------------ */
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
-
-function Toast({ toast }) {
-  if (!toast) return null;
-  return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>;
-}
 
 function ActivityBadge({ type }) {
   const t = C.ACTIVITY_TYPES[type] || C.ACTIVITY_TYPES.note;
@@ -93,13 +89,8 @@ function LogActivityModal({ contact, company, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h2>Log activity — {contact?.name || company?.name}</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button>
-        </div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title={`Log activity — ${contact?.name || company?.name}`} onClose={onClose}>
+        <form onSubmit={submit}>
           <Field label="Type">
             <select className="select" value={type} onChange={(e) => setType(e.target.value)}>
               {Object.entries(C.LOGGABLE_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -116,8 +107,7 @@ function LogActivityModal({ contact, company, onClose, onSaved, flash }) {
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Log activity'}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -142,13 +132,8 @@ function CompanyModal({ company, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h2>{company ? 'Edit company' : 'Add company'}</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button>
-        </div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title={company ? 'Edit company' : 'Add company'} onClose={onClose} wide>
+        <form onSubmit={submit}>
           <div className="form-grid">
             <Field label="Company name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></Field>
             <Field label="Industry"><input className="input" value={f.industry} onChange={(e) => set('industry', e.target.value)} /></Field>
@@ -163,8 +148,7 @@ function CompanyModal({ company, onClose, onSaved, flash }) {
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : company ? 'Save changes' : 'Add company'}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -190,13 +174,8 @@ function ContactModal({ contact, companies, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h2>{contact ? 'Edit contact' : 'Add contact'}</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button>
-        </div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title={contact ? 'Edit contact' : 'Add contact'} onClose={onClose} wide>
+        <form onSubmit={submit}>
           <div className="form-grid">
             <Field label="Full name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></Field>
             <Field label="Company">
@@ -216,8 +195,7 @@ function ContactModal({ contact, companies, onClose, onSaved, flash }) {
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : contact ? 'Save changes' : 'Add contact'}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -230,6 +208,7 @@ function CompaniesTab({ flash }) {
   const [expand, setExpand] = useState(null);
   const [activities, setActivities] = useState({});
   const [logFor, setLogFor] = useState(null);
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -239,9 +218,8 @@ function CompaniesTab({ flash }) {
   useEffect(() => { load(); }, [load]);
 
   const view = useMemo(() => {
-    if (!q.trim()) return companies;
-    const rx = new RegExp(q.trim(), 'i');
-    return companies.filter((c) => rx.test(c.name) || rx.test(c.industry || ''));
+    const match = searchMatcher(q);
+    return companies.filter((c) => match(c.name, c.industry));
   }, [companies, q]);
 
   const toggleExpand = async (c) => {
@@ -253,11 +231,19 @@ function CompaniesTab({ flash }) {
   };
 
   const removeCompany = async (c) => {
-    if (!confirm(`Delete ${c.name}? This cannot be undone.`)) return;
+    const ok = await confirm({
+      title: `Delete ${c.name}?`,
+      message: 'Contacts linked to this company and its logged activity history are affected. This cannot be undone.',
+      confirmLabel: 'Delete company',
+      danger: true,
+    });
+    if (!ok) return;
     try { await C.deleteCompany(c.id); flash('Company deleted.'); load(); } catch (e) { flash(e.message, true); }
   };
 
   const removeActivity = async (companyId, activityId) => {
+    const ok = await confirm({ title: 'Delete this activity?', message: 'The logged entry is removed permanently.', confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
     try {
       await C.deleteActivity(activityId);
       setActivities((s) => ({ ...s, [companyId]: s[companyId].filter((a) => a.id !== activityId) }));
@@ -282,10 +268,16 @@ function CompaniesTab({ flash }) {
           <table className="table">
             <thead><tr><th>Company</th><th>Industry</th><th>Phone</th><th>Email</th><th></th></tr></thead>
             <tbody>
-              {view.length === 0 && <tr><td colSpan={5} className="td-empty">No companies yet.</td></tr>}
+              {view.length === 0 && (
+                <tr><td colSpan={5}>
+                  {companies.length === 0
+                    ? <EmptyState title="No companies yet" hint="Add the organisations you work with to start logging calls, emails and meetings." />
+                    : <span className="td-empty" style={{ display: 'block' }}>No companies match your search.</span>}
+                </td></tr>
+              )}
               {view.map((c) => (
-                <>
-                  <tr key={c.id}>
+                <Fragment key={c.id}>
+                  <tr>
                     <td style={{ fontWeight: 500 }}>{c.name}</td>
                     <td className="muted" style={{ fontSize: 13 }}>{c.industry || '—'}</td>
                     <td className="muted" style={{ fontSize: 13 }}>{c.phone || '—'}</td>
@@ -298,7 +290,7 @@ function CompaniesTab({ flash }) {
                     </td>
                   </tr>
                   {expand === c.id && (
-                    <tr className="crm-expand-row" key={`${c.id}-exp`}>
+                    <tr className="crm-expand-row">
                       <td colSpan={5}>
                         <div className="crm-detail-grid">
                           <div><span className="crm-label">Website</span>{c.website || '—'}</div>
@@ -310,7 +302,7 @@ function CompaniesTab({ flash }) {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -324,6 +316,7 @@ function CompaniesTab({ flash }) {
         <LogActivityModal company={logFor} onClose={() => setLogFor(null)} flash={flash}
           onSaved={(a) => setActivities((s) => ({ ...s, [logFor.id]: [a, ...(s[logFor.id] || [])] }))} />
       )}
+      {confirmNode}
     </>
   );
 }
@@ -338,6 +331,7 @@ function ContactsTab({ flash }) {
   const [expand, setExpand] = useState(null);
   const [activities, setActivities] = useState({});
   const [logFor, setLogFor] = useState(null);
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -350,9 +344,8 @@ function ContactsTab({ flash }) {
   useEffect(() => { load(); }, [load]);
 
   const view = useMemo(() => {
-    if (!q.trim()) return contacts;
-    const rx = new RegExp(q.trim(), 'i');
-    return contacts.filter((c) => rx.test(c.name) || rx.test(c.company?.name || '') || rx.test(c.job_title || ''));
+    const match = searchMatcher(q);
+    return contacts.filter((c) => match(c.name, c.company?.name, c.job_title));
   }, [contacts, q]);
 
   const toggleExpand = async (c) => {
@@ -364,11 +357,19 @@ function ContactsTab({ flash }) {
   };
 
   const removeContact = async (c) => {
-    if (!confirm(`Delete ${c.name}? This cannot be undone.`)) return;
+    const ok = await confirm({
+      title: `Delete ${c.name}?`,
+      message: 'Their details and logged activity history are removed. This cannot be undone.',
+      confirmLabel: 'Delete contact',
+      danger: true,
+    });
+    if (!ok) return;
     try { await C.deleteContact(c.id); flash('Contact deleted.'); load(); } catch (e) { flash(e.message, true); }
   };
 
   const removeActivity = async (contactId, activityId) => {
+    const ok = await confirm({ title: 'Delete this activity?', message: 'The logged entry is removed permanently.', confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
     try {
       await C.deleteActivity(activityId);
       setActivities((s) => ({ ...s, [contactId]: s[contactId].filter((a) => a.id !== activityId) }));
@@ -393,10 +394,16 @@ function ContactsTab({ flash }) {
           <table className="table">
             <thead><tr><th>Name</th><th>Company</th><th>Job title</th><th>Phone</th><th>WhatsApp</th><th></th></tr></thead>
             <tbody>
-              {view.length === 0 && <tr><td colSpan={6} className="td-empty">No contacts yet.</td></tr>}
+              {view.length === 0 && (
+                <tr><td colSpan={6}>
+                  {contacts.length === 0
+                    ? <EmptyState title="No contacts yet" hint="Add the people you deal with — reachable by phone, email or WhatsApp from their row." />
+                    : <span className="td-empty" style={{ display: 'block' }}>No contacts match your search.</span>}
+                </td></tr>
+              )}
               {view.map((c) => (
-                <>
-                  <tr key={c.id}>
+                <Fragment key={c.id}>
+                  <tr>
                     <td style={{ fontWeight: 500 }}>{c.name}</td>
                     <td className="muted" style={{ fontSize: 13 }}>{c.company?.name || '—'}</td>
                     <td className="muted" style={{ fontSize: 13 }}>{c.job_title || '—'}</td>
@@ -410,7 +417,7 @@ function ContactsTab({ flash }) {
                     </td>
                   </tr>
                   {expand === c.id && (
-                    <tr className="crm-expand-row" key={`${c.id}-exp`}>
+                    <tr className="crm-expand-row">
                       <td colSpan={6}>
                         <div className="crm-detail-grid">
                           <div><span className="crm-label">Email</span>{c.email || '—'}</div>
@@ -421,7 +428,7 @@ function ContactsTab({ flash }) {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -435,6 +442,7 @@ function ContactsTab({ flash }) {
         <LogActivityModal contact={logFor} onClose={() => setLogFor(null)} flash={flash}
           onSaved={(a) => setActivities((s) => ({ ...s, [logFor.id]: [a, ...(s[logFor.id] || [])] }))} />
       )}
+      {confirmNode}
     </>
   );
 }
@@ -528,6 +536,7 @@ function MessagesTab({ flash }) {
 function ActivityTab({ flash }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -537,6 +546,8 @@ function ActivityTab({ flash }) {
   useEffect(() => { load(); }, [load]);
 
   const removeActivity = async (id) => {
+    const ok = await confirm({ title: 'Delete this activity?', message: 'The logged entry is removed permanently.', confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
     try { await C.deleteActivity(id); setActivities((s) => s.filter((a) => a.id !== id)); } catch (e) { flash(e.message, true); }
   };
 
@@ -562,6 +573,7 @@ function ActivityTab({ flash }) {
           ))}
         </div>
       )}
+      {confirmNode}
     </>
   );
 }
@@ -571,11 +583,7 @@ function ActivityTab({ flash }) {
    ========================================================================= */
 export default function CRMApp() {
   const [tab, setTab] = useState('messages');
-  const [toast, setToast] = useState(null);
-  const flash = useCallback((msg, isErr = false) => {
-    setToast({ msg, isErr });
-    setTimeout(() => setToast(null), 3000);
-  }, []);
+  const { flash, toastNode } = useToast();
 
   const TABS = [
     { key: 'messages',   label: 'Messages' },
@@ -594,7 +602,7 @@ export default function CRMApp() {
       {tab === 'companies'  && <CompaniesTab flash={flash} />}
       {tab === 'contacts'   && <ContactsTab flash={flash} />}
       {tab === 'activities' && <ActivityTab flash={flash} />}
-      <Toast toast={toast} />
+      {toastNode}
     </div>
   );
 }

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as D from './documentsApi.js';
 import { apiGet } from '../../api/client.js';
+import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
 
-function Toast({ toast }) { if (!toast) return null; return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>; }
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 
 function UploadModal({ folders, defaultFolderId, onClose, onSaved, flash }) {
@@ -24,33 +24,30 @@ function UploadModal({ folders, defaultFolderId, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Upload document</h2></div>
-        <form className="modal-body" onSubmit={submit}>
-          <Field label="File *"><input className="input" type="file" onChange={(e) => setFile(e.target.files[0])} required /></Field>
-          <Field label="Display name"><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Defaults to file name" /></Field>
-          <div className="form-grid">
-            <Field label="Folder">
-              <select className="select" value={folderId} onChange={(e) => setFolderId(e.target.value)}>
-                <option value="">— No folder —</option>
-                {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Visibility">
-              <select className="select" value={visibility} onChange={(e) => setVisibility(e.target.value)}>
-                <option value="org">Anyone with Documents access</option>
-                <option value="restricted">Restricted (only me + granted people)</option>
-              </select>
-            </Field>
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Upload'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal title="Upload document" onClose={onClose} wide>
+      <form onSubmit={submit}>
+        <Field label="File *"><input className="input" type="file" onChange={(e) => setFile(e.target.files[0])} required /></Field>
+        <Field label="Display name"><input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Defaults to file name" /></Field>
+        <div className="form-grid">
+          <Field label="Folder">
+            <select className="select" value={folderId} onChange={(e) => setFolderId(e.target.value)}>
+              <option value="">— No folder —</option>
+              {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Visibility">
+            <select className="select" value={visibility} onChange={(e) => setVisibility(e.target.value)}>
+              <option value="org">Anyone with Documents access</option>
+              <option value="restricted">Restricted (only me + granted people)</option>
+            </select>
+          </Field>
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Upload'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -80,36 +77,31 @@ function VersionModal({ doc, onClose, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Versions — {doc.name}</h2></div>
-        <div className="modal-body">
-          <form onSubmit={upload} style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            <input type="file" onChange={(e) => setFile(e.target.files[0])} />
-            <input className="input" placeholder="Version notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ flex: 1, minWidth: 160 }} />
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Upload new version'}</button>
-          </form>
-          {loading ? <div className="suite-loading"><div className="boot-spinner" /></div> : (
-            <div className="table-wrap">
-              <table className="table">
-                <thead><tr><th>Version</th><th>Uploaded by</th><th>When</th><th>Notes</th><th></th></tr></thead>
-                <tbody>
-                  {versions.map((v) => (
-                    <tr key={v.id}>
-                      <td style={{ fontWeight: 500 }}>v{v.version}</td>
-                      <td className="muted" style={{ fontSize: 13 }}>{v.uploader?.name}</td>
-                      <td className="muted" style={{ fontSize: 13 }}>{D.fmtDt(v.uploaded_at)}</td>
-                      <td className="muted" style={{ fontSize: 13 }}>{v.notes || '—'}</td>
-                      <td><button className="iconbtn" onClick={() => download(v)}>Download</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+    <Modal title={`Versions — ${doc.name}`} onClose={onClose} wide>
+      <form onSubmit={upload} style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <input type="file" onChange={(e) => setFile(e.target.files[0])} />
+        <input className="input" placeholder="Version notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ flex: 1, minWidth: 160 }} />
+        <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Upload new version'}</button>
+      </form>
+      {loading ? <div className="suite-loading"><div className="boot-spinner" /></div> : (
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Version</th><th>Uploaded by</th><th>When</th><th>Notes</th><th></th></tr></thead>
+            <tbody>
+              {versions.map((v) => (
+                <tr key={v.id}>
+                  <td style={{ fontWeight: 500 }}>v{v.version}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{v.uploader?.name}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{D.fmtDt(v.uploaded_at)}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{v.notes || '—'}</td>
+                  <td><button className="iconbtn" onClick={() => download(v)}>Download</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }
 
@@ -132,31 +124,26 @@ function PermissionsModal({ doc, onClose, flash }) {
   const available = staff.filter((s) => !perms.some((p) => p.user_id === s.id));
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Permissions — {doc.name}</h2></div>
-        <div className="modal-body">
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-            <select className="select" value={userId} onChange={(e) => setUserId(e.target.value)} style={{ flex: 1 }}>
-              <option value="">— Select person —</option>
-              {available.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <button className="btn btn-primary" onClick={grant} disabled={!userId}>Grant access</button>
-          </div>
-          <div className="table-wrap">
-            <table className="table">
-              <thead><tr><th>Name</th><th></th></tr></thead>
-              <tbody>
-                {perms.length === 0 && <tr><td colSpan={2} className="td-empty">Only you and documents managers can view this.</td></tr>}
-                {perms.map((p) => (
-                  <tr key={p.id}><td style={{ fontWeight: 500 }}>{p.user?.name}</td><td><button className="iconbtn" onClick={() => revoke(p.user_id)}>Revoke</button></td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+    <Modal title={`Permissions — ${doc.name}`} onClose={onClose}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <select className="select" value={userId} onChange={(e) => setUserId(e.target.value)} style={{ flex: 1 }}>
+          <option value="">— Select person —</option>
+          {available.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <button className="btn btn-primary" onClick={grant} disabled={!userId}>Grant access</button>
       </div>
-    </div>
+      <div className="table-wrap">
+        <table className="table">
+          <thead><tr><th>Name</th><th></th></tr></thead>
+          <tbody>
+            {perms.length === 0 && <tr><td colSpan={2} className="td-empty">Only you and documents managers can view this.</td></tr>}
+            {perms.map((p) => (
+              <tr key={p.id}><td style={{ fontWeight: 500 }}>{p.user?.name}</td><td><button className="iconbtn" onClick={() => revoke(p.user_id)}>Revoke</button></td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Modal>
   );
 }
 
@@ -223,14 +210,14 @@ export default function DocumentsApp({ access }) {
   const [uploadModal, setUploadModal] = useState(false);
   const [versionDoc, setVersionDoc] = useState(null);
   const [permDoc, setPermDoc] = useState(null);
-  const [toast, setToast] = useState(null);
-  const flash = (msg, isErr = false) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000); };
+  const { flash, toastNode } = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
     try { const [d, f] = await Promise.all([D.getDocuments(), D.getFolders()]); setDocs(d); setFolders(f); }
     catch (e) { flash(e.message, true); } finally { setLoading(false); }
-  }, []);
+  }, [flash]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -238,11 +225,21 @@ export default function DocumentsApp({ access }) {
     try { window.open(await D.getDownloadUrl(doc.file_path), '_blank'); } catch (e) { flash(e.message, true); }
   };
   const remove = async (doc) => {
-    if (!confirm(`Delete ${doc.name}?`)) return;
+    const ok = await confirm({
+      title: 'Delete document?',
+      message: `"${doc.name}" and all its versions will be permanently removed.`,
+      confirmLabel: 'Delete', danger: true,
+    });
+    if (!ok) return;
     try { await D.deleteDocument(doc.id); flash('Document deleted.'); load(); } catch (e) { flash(e.message, true); }
   };
   const removeFolder = async (folder) => {
-    if (!confirm(`Delete folder "${folder.name}"? Documents inside move to "All documents", nothing is deleted.`)) return;
+    const ok = await confirm({
+      title: `Delete folder "${folder.name}"?`,
+      message: 'Documents inside move to "All documents" — no documents are deleted.',
+      confirmLabel: 'Delete folder', danger: true,
+    });
+    if (!ok) return;
     try { await D.deleteFolder(folder.id); flash('Folder deleted.'); if (activeFolder === folder.id) setActiveFolder(null); load(); }
     catch (e) { flash(e.message, true); }
   };
@@ -269,7 +266,11 @@ export default function DocumentsApp({ access }) {
               <table className="table">
                 <thead><tr><th>Name</th><th>Version</th><th>Size</th><th>Visibility</th><th>Updated</th><th></th></tr></thead>
                 <tbody>
-                  {visibleDocs.length === 0 && <tr><td colSpan={6} className="td-empty">No documents in this folder yet.</td></tr>}
+                  {visibleDocs.length === 0 && (
+                    <tr><td colSpan={6} style={{ padding: 0 }}>
+                      <EmptyState title="No documents in this folder yet" hint="Upload a document to get started." />
+                    </td></tr>
+                  )}
                   {visibleDocs.map((d) => (
                     <tr key={d.id}>
                       <td style={{ fontWeight: 500 }}>{d.name}</td>
@@ -295,7 +296,8 @@ export default function DocumentsApp({ access }) {
       {uploadModal && <UploadModal folders={folders} defaultFolderId={activeFolder} onClose={() => setUploadModal(false)} onSaved={load} flash={flash} />}
       {versionDoc && <VersionModal doc={versionDoc} onClose={() => { setVersionDoc(null); load(); }} flash={flash} />}
       {permDoc && <PermissionsModal doc={permDoc} onClose={() => setPermDoc(null)} flash={flash} />}
-      <Toast toast={toast} />
+      {confirmNode}
+      {toastNode}
     </div>
   );
 }

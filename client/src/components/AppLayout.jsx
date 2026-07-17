@@ -143,7 +143,13 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
       <header className="suitebar">
         <div className="sb-left">
           <button className="iconbtn" aria-label="Toggle navigation"
-            onClick={() => { setRailOpen((v) => !v); setDrawer((v) => !v); }}>
+            onClick={() => {
+              // ≤820px the rail is a drawer; above it it collapses in place.
+              // Toggling both at once left a stray scrim/drawer state behind
+              // whenever the viewport crossed the breakpoint.
+              if (window.matchMedia('(max-width: 820px)').matches) setDrawer((v) => !v);
+              else setRailOpen((v) => !v);
+            }}>
             <Hamburger />
           </button>
           <Link to="/" className="sb-brand">
@@ -212,7 +218,7 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
         <div className="sb-right">
           <div className="waffle-wrap" ref={waffleRef}>
             <button className="iconbtn" aria-label="Open suites" onClick={() => setWaffle((v) => !v)}>
-              <SuiteIcon name="grid" size={20} color="#605e5c" />
+              <SuiteIcon name="grid" size={20} color="currentColor" />
             </button>
             {waffle && (
               <div className="flyout waffle">
@@ -258,10 +264,10 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
                     <ProfileIcon /> My profile
                   </Link>
                   <Link to="/change-password" onClick={() => setMenu(false)} className="um-link">
-                    <SuiteIcon name="lock" size={16} color="#605e5c" /> Change password
+                    <SuiteIcon name="lock" size={16} color="currentColor" /> Change password
                   </Link>
                   <Link to="/help" onClick={() => setMenu(false)} className="um-link">
-                    <SuiteIcon name="grid" size={16} color="#605e5c" /> How to use Collarone
+                    <SuiteIcon name="grid" size={16} color="currentColor" /> How to use Collarone
                   </Link>
                   <button className="um-link" onClick={() => logout()}>
                     <SignOutIcon /> Sign out
@@ -340,19 +346,19 @@ function RailItem({ to, label, icon, suiteKey, end, onClick }) {
 
 /* small inline glyphs kept as SVG (no emoji) */
 const Hamburger = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#605e5c" strokeWidth="1.8" strokeLinecap="round">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
     <path d="M4 7h16M4 12h16M4 17h16" />
   </svg>
 );
 const ChevronRight = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a8886" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ color:'var(--text-3)' }}><path d="M9 6l6 6-6 6" /></svg>
 );
 const SignOutIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#605e5c" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" /></svg>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" /></svg>
 );
 const SearchIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8a8886" strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink:0 }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ flexShrink:0 }}><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
 );
 const ProfileIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#605e5c" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
 );

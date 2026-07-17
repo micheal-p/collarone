@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as P from './payrollApi.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
+import { EmptyState, Modal, searchMatcher, useConfirm, useToast } from '../../components/ui.jsx';
 
 const I = {
   add:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
@@ -40,11 +41,8 @@ function SalaryModal({ employee, onClose, onSaved, onError }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>New salary — {employee.name}</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title={`New salary — ${employee.name}`} onClose={onClose}>
+        <form onSubmit={submit}>
           <div className="form-grid">
             <div className="field"><label>Basic (₦/mo)</label>
               <input className="input" type="number" min="0" value={f.basic} onChange={(e) => set('basic', e.target.value)} required autoFocus /></div>
@@ -65,8 +63,7 @@ function SalaryModal({ employee, onClose, onSaved, onError }) {
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save salary'}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -85,11 +82,8 @@ function BankModal({ employee, onClose, onSaved, onError }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Bank account — {employee.name}</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title={`Bank account — ${employee.name}`} onClose={onClose}>
+        <form onSubmit={submit}>
           <div className="field"><label>Account name</label>
             <input className="input" value={f.accountName} onChange={(e) => set('accountName', e.target.value)} required autoFocus /></div>
           <div className="form-grid">
@@ -106,8 +100,7 @@ function BankModal({ employee, onClose, onSaved, onError }) {
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save account'}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -215,9 +208,8 @@ function EmployeesTab({ flash, isPayrollManager }) {
   useEffect(() => { P.getEmployees().then(setEmployees).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); }, []); // eslint-disable-line
 
   const view = useMemo(() => {
-    if (!q.trim()) return employees;
-    const rx = new RegExp(q.trim(), 'i');
-    return employees.filter((e) => rx.test(e.name) || rx.test(e.email));
+    const match = searchMatcher(q);
+    return employees.filter((e) => match(e.name, e.email));
   }, [employees, q]);
 
   if (loading) return <div className="suite-loading"><div className="boot-spinner" /></div>;
@@ -326,6 +318,7 @@ function RatesTab({ flash, isPayrollManager }) {
 function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager }) {
   const [lines, setLines] = useState(null);
   const [busy, setBusy] = useState(false);
+  const { confirm, confirmNode } = useConfirm();
 
   const load = () => { P.getRunLines(run.id).then(setLines).catch((e) => flash(e.message, true)); };
   useEffect(load, [run.id]); // eslint-disable-line
@@ -349,8 +342,53 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
     catch (e) { flash(e.message, true); }
   };
 
+  const period = `${P.MONTHS[run.period_month - 1]} ${run.period_year}`;
+
+  const approveRun = async () => {
+    const ok = await confirm({
+      title: 'Approve this run?',
+      message: `Approve the ${period} run? Figures are locked in for release — you can still reopen it before payslips go out.`,
+      confirmLabel: 'Approve',
+    });
+    if (ok) act('approve');
+  };
+
+  const releaseRun = async () => {
+    const ok = await confirm({
+      title: 'Release payslips?',
+      message: `Release the ${period} payslips? They become visible to every employee on the run immediately.`,
+      confirmLabel: 'Release payslips',
+    });
+    if (ok) act('release');
+  };
+
+  const disburseRun = async () => {
+    const res = await confirm({
+      title: 'Mark disbursed?',
+      message: `Mark the ${period} run as paid out. This is the final state of a run.`,
+      confirmLabel: 'Mark disbursed',
+      input: { label: 'Bank/transfer reference', placeholder: 'Optional', required: false },
+    });
+    if (res) act('disburse', { reference: res.value });
+  };
+
+  const reopenRun = async () => {
+    const ok = await confirm({
+      title: 'Reopen this run?',
+      message: `Reopen the ${period} run? It moves back to draft so lines can be edited before approving again.`,
+      confirmLabel: 'Reopen',
+    });
+    if (ok) act('reopen');
+  };
+
   const removeDraft = async () => {
-    if (!confirm(`Delete the ${P.MONTHS[run.period_month - 1]} ${run.period_year} draft? This can't be undone.`)) return;
+    const ok = await confirm({
+      title: 'Delete this draft?',
+      message: `Delete the ${period} draft? This can't be undone.`,
+      confirmLabel: 'Delete draft',
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     try { await P.deleteRun(run.id); onDeleted(run.id); flash('Draft deleted.'); }
     catch (e) { flash(e.message, true); setBusy(false); }
@@ -369,16 +407,16 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
           <span className={`lc-badge ${st.cls}`}>{st.label}</span>
         </div>
         <div style={{ marginLeft:'auto', display:'flex', gap:8, flexWrap:'wrap' }}>
-          {isPayrollManager && run.status === 'draft'   && <button className="btn btn-primary" disabled={busy} onClick={() => act('approve')}>Approve</button>}
-          {isPayrollManager && run.status === 'approved'&& <button className="btn btn-primary" disabled={busy} onClick={() => act('release')}>Release payslips</button>}
+          {isPayrollManager && run.status === 'draft'   && <button className="btn btn-primary" disabled={busy} onClick={approveRun}>Approve</button>}
+          {isPayrollManager && run.status === 'approved'&& <button className="btn btn-primary" disabled={busy} onClick={releaseRun}>Release payslips</button>}
           {isPayrollManager && run.status === 'released'&& (
-            <button className="btn btn-primary" disabled={busy} onClick={() => { const ref = prompt('Bank confirmation reference (optional):') || ''; act('disburse', { reference: ref }); }}>Mark disbursed</button>
+            <button className="btn btn-primary" disabled={busy} onClick={disburseRun}>Mark disbursed</button>
           )}
           {isPayrollManager && (run.status === 'approved' || run.status === 'released' || run.status === 'disbursed') && lines?.length > 0 && (
             <button className="btn btn-ghost" onClick={() => P.exportBankCsv(run, lines)}>{I.download} Export bank CSV</button>
           )}
           {isPayrollManager && run.status !== 'draft' && run.status !== 'disbursed' && (
-            <button className="btn btn-ghost" disabled={busy} onClick={() => act('reopen')}>Reopen</button>
+            <button className="btn btn-ghost" disabled={busy} onClick={reopenRun}>Reopen</button>
           )}
           {isPayrollManager && run.status === 'draft' && (
             <button className="btn btn-ghost danger-icon" disabled={busy} onClick={removeDraft}>Delete draft</button>
@@ -426,6 +464,7 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
           </table>
         </div>
       )}
+      {confirmNode}
     </div>
   );
 }
@@ -445,11 +484,8 @@ function GenerateModal({ onClose, onSaved, onError }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>New payroll run</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="New payroll run" onClose={onClose}>
+        <form onSubmit={submit}>
           <div className="form-grid">
             <div className="field"><label>Month</label>
               <select className="select" value={month} onChange={(e) => setMonth(e.target.value)}>
@@ -464,8 +500,7 @@ function GenerateModal({ onClose, onSaved, onError }) {
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Generate'}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -536,9 +571,8 @@ export default function PayrollApp({ access }) {
   const [loading, setLoading] = useState(true);
   const [openRun, setOpenRun] = useState(null);
   const [modal, setModal] = useState(false);
-  const [toast, setToast] = useState(null);
+  const { flash, toastNode } = useToast();
 
-  const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3200); };
   const load = () => { setLoading(true); P.getRuns().then(setRuns).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); };
   useEffect(load, []); // eslint-disable-line
 
@@ -546,8 +580,10 @@ export default function PayrollApp({ access }) {
 
   if (openRun) return (
     <div className="lv"><style>{PAYROLL_CSS}</style>
-      <RunDetail run={openRun} onBack={() => { setOpenRun(null); load(); }} onUpdated={upsertRun} flash={flash} isPayrollManager={isPayrollManager} />
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      <RunDetail run={openRun} onBack={() => { setOpenRun(null); load(); }} onUpdated={upsertRun}
+        onDeleted={(id) => { setRuns((l) => l.filter((x) => x.id !== id)); setOpenRun(null); }}
+        flash={flash} isPayrollManager={isPayrollManager} />
+      {toastNode}
     </div>
   );
 
@@ -568,7 +604,12 @@ export default function PayrollApp({ access }) {
             <table className="table">
               <thead><tr><th>Period</th><th>Status</th><th>Approved by</th><th>Disbursed</th></tr></thead>
               <tbody>
-                {runs.length === 0 && <tr><td colSpan={4} className="td-empty">No payroll runs yet.</td></tr>}
+                {runs.length === 0 && (
+                  <tr><td colSpan={4}>
+                    <EmptyState title="No payroll runs yet"
+                      hint="Generate a run to compute gross pay and statutory deductions for every active employee." />
+                  </td></tr>
+                )}
                 {runs.map((r) => {
                   const st = P.RUN_STATUS[r.status];
                   return (
@@ -595,7 +636,7 @@ export default function PayrollApp({ access }) {
           onSaved={(r) => { setModal(false); upsertRun(r); flash('Payroll run generated.'); }}
           onError={(m) => flash(m, true)} />
       )}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {toastNode}
     </div>
   );
 }

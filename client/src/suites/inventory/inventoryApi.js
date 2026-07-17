@@ -45,6 +45,21 @@ export const createTakeout = (body) => apiPost('/inventory/takeouts', body).then
 export const returnTakeout = (id, notes) => apiPost(`/inventory/takeouts/${id}/return`, { notes }).then((d) => d.takeout);
 export const cancelTakeout = (id) => apiPost(`/inventory/takeouts/${id}/cancel`).then((d) => d.takeout);
 
+// The printed issue/return form must carry the tenant's own company name,
+// never the platform's. Cached after the first lookup; falls back to a
+// neutral label rather than the wrong brand if the call fails.
+let orgNamePromise = null;
+const getOrgName = () => {
+  if (!orgNamePromise) {
+    orgNamePromise = apiGet('/me')
+      .then((d) => d.user?.org?.name || 'Company')
+      .catch(() => { orgNamePromise = null; return 'Company'; });
+  }
+  return orgNamePromise;
+};
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 // Downloads immediately in the browser regardless of whether Documents
 // filing succeeds — "downloadable" shouldn't depend on a second suite grant.
 const downloadHtml = (html, filename) => {
@@ -55,18 +70,18 @@ const downloadHtml = (html, filename) => {
   URL.revokeObjectURL(url);
 };
 
-const buildTakeoutHtml = ({ kind, companyName, itemName, quantity, unit, staffName, approverName, date, notes }) => `<!doctype html><html><head><meta charset="utf-8"><title>${kind} — ${itemName}</title>
+const buildTakeoutHtml = ({ kind, companyName, itemName, quantity, unit, staffName, approverName, date, notes }) => `<!doctype html><html><head><meta charset="utf-8"><title>${esc(kind)} — ${esc(itemName)}</title>
 <style>body{font-family:Georgia,serif;max-width:640px;margin:40px auto;line-height:1.6;color:#14161a;} h1{font-size:20px;} table{border-collapse:collapse;width:100%;margin:16px 0;} td{padding:6px 10px;border:1px solid #ccc;}</style>
 </head><body>
-<h1>${kind}</h1>
-<p><strong>${companyName}</strong></p>
+<h1>${esc(kind)}</h1>
+<p><strong>${esc(companyName)}</strong></p>
 <table>
-  <tr><td>Item</td><td>${itemName}</td></tr>
-  <tr><td>Quantity</td><td>${quantity} ${unit}</td></tr>
-  <tr><td>Staff member</td><td>${staffName}</td></tr>
-  <tr><td>${kind === 'Return Form' ? 'Received by' : 'Approved by'}</td><td>${approverName}</td></tr>
-  <tr><td>Date</td><td>${date}</td></tr>
-  ${notes ? `<tr><td>Notes</td><td>${notes}</td></tr>` : ''}
+  <tr><td>Item</td><td>${esc(itemName)}</td></tr>
+  <tr><td>Quantity</td><td>${esc(quantity)} ${esc(unit)}</td></tr>
+  <tr><td>Staff member</td><td>${esc(staffName)}</td></tr>
+  <tr><td>${kind === 'Return Form' ? 'Received by' : 'Approved by'}</td><td>${esc(approverName)}</td></tr>
+  <tr><td>Date</td><td>${esc(date)}</td></tr>
+  ${notes ? `<tr><td>Notes</td><td>${esc(notes)}</td></tr>` : ''}
 </table>
 <p>${kind === 'Return Form'
     ? 'This confirms the item above has been returned to inventory.'
@@ -84,7 +99,7 @@ async function findOrCreateFolder(name) {
 // and the approving senior worker) but never blocks on it; the browser
 // download above is the one guarantee.
 const fileTakeoutDoc = async ({ kind, itemName, quantity, unit, staffId, staffName, approverId, approverName, notes }) => {
-  const html = buildTakeoutHtml({ kind, companyName: 'Collarone', itemName, quantity, unit, staffName, approverName, date: new Date().toLocaleDateString('en-GB'), notes });
+  const html = buildTakeoutHtml({ kind, companyName: await getOrgName(), itemName, quantity, unit, staffName, approverName, date: new Date().toLocaleDateString('en-GB'), notes });
   const folder = await findOrCreateFolder('Staff Takeouts');
   const safeName = itemName.replace(/[^a-zA-Z0-9]+/g, '-');
   const stamp = new Date().toISOString().slice(0, 10);
@@ -99,8 +114,8 @@ const fileTakeoutDoc = async ({ kind, itemName, quantity, unit, staffId, staffNa
 // Called from the UI right after create/return succeeds — downloads
 // immediately and files a copy, in that order, so the download never waits
 // on (or depends on) the filing step.
-export const generateTakeoutDoc = ({ kind, itemName, quantity, unit, staffId, staffName, approverId, approverName, notes }) => {
-  const html = buildTakeoutHtml({ kind, companyName: 'Collarone', itemName, quantity, unit, staffName, approverName, date: new Date().toLocaleDateString('en-GB'), notes });
+export const generateTakeoutDoc = async ({ kind, itemName, quantity, unit, staffId, staffName, approverId, approverName, notes }) => {
+  const html = buildTakeoutHtml({ kind, companyName: await getOrgName(), itemName, quantity, unit, staffName, approverName, date: new Date().toLocaleDateString('en-GB'), notes });
   const safeName = itemName.replace(/[^a-zA-Z0-9]+/g, '-');
   downloadHtml(html, `${kind.replace(' ', '-')}-${safeName}.html`);
   fileTakeoutDoc({ kind, itemName, quantity, unit, staffId, staffName, approverId, approverName, notes }).catch(() => {});

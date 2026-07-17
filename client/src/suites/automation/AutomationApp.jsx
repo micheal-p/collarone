@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import * as AUTO from './automationApi.js';
 import { SUITE_META } from '../../config/suites.js';
 import SuiteIcon from '../../components/SuiteIcon.jsx';
-
-function Toast({ toast }) { if (!toast) return null; return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>; }
+import { useToast } from '../../components/ui.jsx';
 
 // The AUTOMATIONS catalog names suites for humans ("Trade Documents"); this
 // maps back to the real suite key so the card can borrow that suite's own
@@ -34,7 +33,12 @@ function AutomationCard({ def, setting, lastRun, isManager, onToggle, onConfigSa
 
   const saveConfig = async () => {
     setBusy(true);
-    try { await onConfigSave(def.key, enabled, config); setDirty(false); } finally { setBusy(false); }
+    try {
+      await onConfigSave(def.key, enabled, config, `${def.name} settings saved.`);
+      setDirty(false); // only clear once the save actually succeeded
+    } catch {
+      /* error already flashed upstream — keep the Save button visible */
+    } finally { setBusy(false); }
   };
 
   return (
@@ -108,11 +112,11 @@ function RoadmapCard({ item }) {
     <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, borderStyle: 'dashed', opacity: 0.92 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <span style={{ width: 36, height: 36, borderRadius: 10, display: 'grid', placeItems: 'center', flexShrink: 0, background: 'var(--text-2)', color: '#fff' }}>{item.icon}</span>
-        <span className="badge" style={{ fontSize: 10.5, background: 'var(--surface-2, #f3f1eb)' }}>Roadmap</span>
+        <span className="badge" style={{ fontSize: 10.5, background: 'var(--surface-2)' }}>Roadmap</span>
       </div>
       <div style={{ fontWeight: 650, fontSize: 14.5 }}>{item.name}</div>
       <p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>{item.desc}</p>
-      <div style={{ fontSize: 11.5, color: 'var(--accent-ink, #c24614)', fontWeight: 600, marginTop: 2 }}>{item.needs}</div>
+      <div style={{ fontSize: 11.5, color: 'var(--brand-dark)', fontWeight: 600, marginTop: 2 }}>{item.needs}</div>
     </div>
   );
 }
@@ -122,8 +126,7 @@ export default function AutomationApp({ access }) {
   const [settings, setSettings] = useState([]);
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
-  const flash = (msg, isErr = false) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000); };
+  const { flash, toastNode } = useToast();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -131,25 +134,31 @@ export default function AutomationApp({ access }) {
       .then(([s, r]) => { setSettings(s); setRuns(r); })
       .catch((e) => flash(e.message, true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [flash]);
   useEffect(() => { load(); }, [load]);
 
   const settingFor = (key) => settings.find((s) => s.key === key);
   const lastRunFor = (key) => runs.find((r) => r.key === key);
 
-  const saveSetting = async (key, enabled, config) => {
+  const saveSetting = async (key, enabled, config, msg) => {
+    const def = AUTO.AUTOMATIONS.find((a) => a.key === key);
     try {
       const saved = await AUTO.setSetting(key, enabled, config);
       setSettings((s) => {
         const others = s.filter((x) => x.key !== key);
         return [...others, saved];
       });
-      flash(`${enabled ? 'Enabled' : 'Disabled'}.`);
-    } catch (e) { flash(e.message, true); }
+      flash(msg || `${def?.name || 'Automation'} ${enabled ? 'enabled' : 'disabled'}.`);
+    } catch (e) { flash(e.message, true); throw e; }
   };
 
-  const toggle = (key, enabled, config) => saveSetting(key, enabled, config);
-  const liveCount = settings.filter((s) => s.enabled).length || AUTO.AUTOMATIONS.length;
+  const toggle = (key, enabled, config) => { saveSetting(key, enabled, config).catch(() => {}); };
+  // A missing setting row means the automation defaults to enabled, so count
+  // the EFFECTIVE state per automation — and 0 genuinely shows "0 of N".
+  const liveCount = AUTO.AUTOMATIONS.filter((a) => {
+    const s = settings.find((x) => x.key === a.key);
+    return s ? s.enabled : true;
+  }).length;
 
   return (
     <div className="lv">
@@ -162,6 +171,9 @@ export default function AutomationApp({ access }) {
             </p>
             <span className="badge" style={{ fontSize: 11.5 }}>{liveCount} of {AUTO.AUTOMATIONS.length} live</span>
           </div>
+          {!isManager && (
+            <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>Manager access is required to change these settings.</p>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginTop: 14 }}>
             {AUTO.AUTOMATIONS.map((def) => (
               <AutomationCard
@@ -182,7 +194,7 @@ export default function AutomationApp({ access }) {
           </div>
         </>
       )}
-      <Toast toast={toast} />
+      {toastNode}
     </div>
   );
 }

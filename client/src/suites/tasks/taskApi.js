@@ -52,6 +52,11 @@ export const fmtDt = (d) => d
   ? new Date(d).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
   : '—';
 
-export const isOverdue = (task) =>
-  task.status !== 'done' && task.status !== 'cancelled' &&
-  task.due_date && new Date(task.due_date) < new Date();
+// Date-only comparison: a task due today is NOT overdue all day —
+// overdue starts the day after due_date.
+export const isOverdue = (task) => {
+  if (!task.due_date || task.status === 'done' || task.status === 'cancelled') return false;
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return String(task.due_date).slice(0, 10) < today;
+};

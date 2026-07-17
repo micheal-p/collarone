@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
 import * as C from './complianceApi.js';
 
 const I = {
@@ -25,10 +26,8 @@ function DocumentModal({ staff, onClose, onSaved, onError }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Upload document</h2><button className="iconbtn dark" onClick={onClose}>{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Upload document" onClose={onClose}>
+      <form onSubmit={submit}>
           <div className="field"><label>Employee</label>
             <select className="select" value={f.employeeId} onChange={(e) => set('employeeId', e.target.value)} required autoFocus>
               <option value="">— Select —</option>
@@ -50,13 +49,12 @@ function DocumentModal({ staff, onClose, onSaved, onError }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Upload'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
-function DocumentsTab({ staff, flash }) {
+function DocumentsTab({ staff, flash, confirm }) {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -64,7 +62,8 @@ function DocumentsTab({ staff, flash }) {
   useEffect(load, []); // eslint-disable-line
 
   const remove = async (d) => {
-    if (!confirm(`Delete "${d.title}"?`)) return;
+    const ok = await confirm({ title: 'Delete document', message: `"${d.title}" will be permanently deleted.`, confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
     try { await C.deleteDocument(d.id); setDocs((ds) => ds.filter((x) => x.id !== d.id)); } catch (e) { flash(e.message, true); }
   };
   const open = async (d) => { try { window.open(await C.getDocumentUrl(d.file_path), '_blank'); } catch (e) { flash(e.message, true); } };
@@ -119,10 +118,8 @@ function CaseModal({ staff, onClose, onSaved, onError }) {
     try { onSaved(await C.createCase(f)); } catch (e2) { onError(e2.message); } finally { setBusy(false); }
   };
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Open case</h2><button className="iconbtn dark" onClick={onClose}>{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Open case" onClose={onClose}>
+      <form onSubmit={submit}>
           <div className="field"><label>Employee</label>
             <select className="select" value={f.employeeId} onChange={(e) => set('employeeId', e.target.value)} required autoFocus>
               <option value="">— Select —</option>
@@ -139,13 +136,12 @@ function CaseModal({ staff, onClose, onSaved, onError }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Open case'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
-function CasesTab({ staff, flash }) {
+function CasesTab({ staff, flash, confirm }) {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -153,8 +149,14 @@ function CasesTab({ staff, flash }) {
   useEffect(load, []); // eslint-disable-line
 
   const resolve = async (c) => {
-    const notes = prompt('Resolution notes:') || '';
-    try { const updated = await C.updateCase(c.id, { status: 'resolved', resolutionNotes: notes }); setCases((cs) => cs.map((x) => (x.id === updated.id ? updated : x))); }
+    const res = await confirm({
+      title: 'Mark case resolved',
+      message: 'The case will move to Resolved.',
+      confirmLabel: 'Resolve',
+      input: { label: 'Resolution notes', required: false },
+    });
+    if (!res) return;
+    try { const updated = await C.updateCase(c.id, { status: 'resolved', resolutionNotes: res.value }); setCases((cs) => cs.map((x) => (x.id === updated.id ? updated : x))); }
     catch (e) { flash(e.message, true); }
   };
 
@@ -166,7 +168,7 @@ function CasesTab({ staff, flash }) {
         <span className="count" style={{ marginLeft:'auto' }}>{cases.length}</span>
       </div>
       {loading ? <div className="suite-loading"><div className="boot-spinner" /></div> : cases.length === 0 ? (
-        <p className="muted" style={{ padding:'24px 0' }}>No cases on record.</p>
+        <EmptyState title="No cases on record" hint="Disciplinary and grievance cases you open will be listed here, visible only to HR managers." />
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:12, marginTop:8 }}>
           {cases.map((c) => (
@@ -193,8 +195,8 @@ function CasesTab({ staff, flash }) {
 /* ---- Main ComplianceApp ------------------------------------------------------------ */
 export default function ComplianceApp({ staff }) {
   const [tab, setTab] = useState('documents');
-  const [toast, setToast] = useState(null);
-  const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 2800); };
+  const { flash, toastNode } = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
   return (
     <div>
@@ -202,9 +204,10 @@ export default function ComplianceApp({ staff }) {
         <button className={`lv-tab ${tab === 'documents' ? 'active' : ''}`} onClick={() => setTab('documents')}>Documents</button>
         <button className={`lv-tab ${tab === 'cases' ? 'active' : ''}`} onClick={() => setTab('cases')}>Cases</button>
       </div>
-      {tab === 'documents' && <DocumentsTab staff={staff} flash={flash} />}
-      {tab === 'cases'     && <CasesTab staff={staff} flash={flash} />}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {tab === 'documents' && <DocumentsTab staff={staff} flash={flash} confirm={confirm} />}
+      {tab === 'cases'     && <CasesTab staff={staff} flash={flash} confirm={confirm} />}
+      {confirmNode}
+      {toastNode}
     </div>
   );
 }

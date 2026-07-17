@@ -1,10 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
 import * as PF from './performanceApi.js';
 
 const I = {
   add:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
   close: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>,
 };
+
+/* ---- Stars — 5 small SVG stars, filled up to `rating` ----------------------- */
+function Stars({ rating }) {
+  return (
+    <span style={{ display:'inline-flex', gap:1, verticalAlign:'middle' }} aria-label={`${rating} of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <svg key={n} width="12" height="12" viewBox="0 0 24 24" fill={n <= rating ? 'currentColor' : 'none'}
+          stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
+          <path d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.3l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z" />
+        </svg>
+      ))}
+    </span>
+  );
+}
 
 /* ---- GoalModal --------------------------------------------------------------- */
 function GoalModal({ staff, onClose, onSaved, onError }) {
@@ -18,10 +33,8 @@ function GoalModal({ staff, onClose, onSaved, onError }) {
     try { onSaved(await PF.createGoal(f)); } catch (e2) { onError(e2.message); } finally { setBusy(false); }
   };
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>New goal</h2><button className="iconbtn dark" onClick={onClose}>{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="New goal" onClose={onClose}>
+      <form onSubmit={submit}>
           <div className="field"><label>Employee</label>
             <select className="select" value={f.employeeId} onChange={(e) => set('employeeId', e.target.value)} required autoFocus>
               <option value="">— Select —</option>
@@ -37,13 +50,12 @@ function GoalModal({ staff, onClose, onSaved, onError }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Create goal'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
-function GoalsTab({ staff, flash }) {
+function GoalsTab({ staff, flash, confirm }) {
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -55,7 +67,8 @@ function GoalsTab({ staff, flash }) {
     catch (e) { flash(e.message, true); }
   };
   const remove = async (g) => {
-    if (!confirm(`Delete goal "${g.title}"?`)) return;
+    const ok = await confirm({ title: 'Delete goal', message: `"${g.title}" will be permanently deleted.`, confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
     try { await PF.deleteGoal(g.id); setGoals((gs) => gs.filter((x) => x.id !== g.id)); } catch (e) { flash(e.message, true); }
   };
 
@@ -106,10 +119,8 @@ function ReviewModal({ staff, onClose, onSaved, onError }) {
     try { onSaved(await PF.createReview(f)); } catch (e2) { onError(e2.message); } finally { setBusy(false); }
   };
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>New review</h2><button className="iconbtn dark" onClick={onClose}>{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="New review" onClose={onClose}>
+      <form onSubmit={submit}>
           <div className="field"><label>Employee</label>
             <select className="select" value={f.employeeId} onChange={(e) => setF((s) => ({ ...s, employeeId: e.target.value }))} required autoFocus>
               <option value="">— Select —</option>
@@ -121,9 +132,8 @@ function ReviewModal({ staff, onClose, onSaved, onError }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Start review'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -146,7 +156,7 @@ function ReviewsTab({ staff, flash }) {
         <span className="count" style={{ marginLeft:'auto' }}>{reviews.length} review{reviews.length===1?'':'s'}</span>
       </div>
       {loading ? <div className="suite-loading"><div className="boot-spinner" /></div> : reviews.length === 0 ? (
-        <p className="muted" style={{ padding:'24px 0' }}>No reviews yet.</p>
+        <EmptyState title="No reviews yet" hint="Start a review cycle for an employee to record ratings and feedback." />
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:12, marginTop:8 }}>
           {reviews.map((r) => {
@@ -176,7 +186,7 @@ function ReviewsTab({ staff, flash }) {
                 )}
                 {r.status !== 'draft' && (
                   <div style={{ marginTop:8, fontSize:13 }}>
-                    {r.rating && <div>Rating: {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</div>}
+                    {r.rating && <div style={{ display:'flex', alignItems:'center', gap:5 }}>Rating: <Stars rating={r.rating} /></div>}
                     {r.strengths && <p style={{ margin:'6px 0 0' }}><b>Strengths:</b> {r.strengths}</p>}
                     {r.improvements && <p style={{ margin:'4px 0 0' }}><b>To improve:</b> {r.improvements}</p>}
                   </div>
@@ -205,10 +215,8 @@ function TrainingModal({ staff, onClose, onSaved, onError }) {
     try { onSaved(await PF.createTraining(f)); } catch (e2) { onError(e2.message); } finally { setBusy(false); }
   };
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Add training record</h2><button className="iconbtn dark" onClick={onClose}>{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Add training record" onClose={onClose}>
+      <form onSubmit={submit}>
           <div className="field"><label>Employee</label>
             <select className="select" value={f.employeeId} onChange={(e) => set('employeeId', e.target.value)} required autoFocus>
               <option value="">— Select —</option>
@@ -228,13 +236,12 @@ function TrainingModal({ staff, onClose, onSaved, onError }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
-function TrainingTab({ staff, flash }) {
+function TrainingTab({ staff, flash, confirm }) {
   const [trainings, setTrainings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -242,7 +249,8 @@ function TrainingTab({ staff, flash }) {
   useEffect(load, []); // eslint-disable-line
 
   const remove = async (t) => {
-    if (!confirm(`Delete "${t.title}"?`)) return;
+    const ok = await confirm({ title: 'Delete training record', message: `"${t.title}" will be permanently deleted.`, confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
     try { await PF.deleteTraining(t.id); setTrainings((ts) => ts.filter((x) => x.id !== t.id)); } catch (e) { flash(e.message, true); }
   };
 
@@ -288,8 +296,8 @@ function TrainingTab({ staff, flash }) {
 /* ---- Main PerformanceApp ------------------------------------------------------------ */
 export default function PerformanceApp({ staff }) {
   const [tab, setTab] = useState('goals');
-  const [toast, setToast] = useState(null);
-  const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 2800); };
+  const { flash, toastNode } = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
   return (
     <div>
@@ -298,10 +306,11 @@ export default function PerformanceApp({ staff }) {
         <button className={`lv-tab ${tab === 'reviews' ? 'active' : ''}`} onClick={() => setTab('reviews')}>Reviews</button>
         <button className={`lv-tab ${tab === 'training' ? 'active' : ''}`} onClick={() => setTab('training')}>Training &amp; certifications</button>
       </div>
-      {tab === 'goals'    && <GoalsTab staff={staff} flash={flash} />}
+      {tab === 'goals'    && <GoalsTab staff={staff} flash={flash} confirm={confirm} />}
       {tab === 'reviews'  && <ReviewsTab staff={staff} flash={flash} />}
-      {tab === 'training' && <TrainingTab staff={staff} flash={flash} />}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {tab === 'training' && <TrainingTab staff={staff} flash={flash} confirm={confirm} />}
+      {confirmNode}
+      {toastNode}
     </div>
   );
 }

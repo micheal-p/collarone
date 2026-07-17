@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as INV from './inventoryApi.js';
 import { getStaff } from '../tasks/taskApi.js';
+import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
 
-function Toast({ toast }) { if (!toast) return null; return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>; }
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 
 function WarehouseModal({ onClose, onSaved, flash }) {
@@ -17,19 +17,16 @@ function WarehouseModal({ onClose, onSaved, flash }) {
     catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Add warehouse</h2></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Add warehouse" onClose={onClose}>
+      <form onSubmit={submit}>
           <Field label="Name *"><input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></Field>
           <Field label="Location"><input className="input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Lagos warehouse" /></Field>
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add warehouse'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -46,10 +43,8 @@ function ItemModal({ onClose, onSaved, flash }) {
     catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Add stock item</h2></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Add stock item" onClose={onClose} wide>
+      <form onSubmit={submit}>
           <div className="form-grid">
             <Field label="SKU *"><input className="input" value={f.sku} onChange={(e) => set('sku', e.target.value)} required autoFocus /></Field>
             <Field label="Name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required /></Field>
@@ -71,9 +66,8 @@ function ItemModal({ onClose, onSaved, flash }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add item'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -91,10 +85,8 @@ function MovementModal({ items, warehouses, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Record stock movement</h2></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Record stock movement" onClose={onClose} wide>
+      <form onSubmit={submit}>
           <div className="form-grid">
             <Field label="Item *">
               <select className="select" value={f.itemId} onChange={(e) => set('itemId', e.target.value)} required>
@@ -127,9 +119,8 @@ function MovementModal({ items, warehouses, onClose, onSaved, flash }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Record movement'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -147,10 +138,8 @@ function ReserveModal({ items, warehouses, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Reserve stock (booking)</h2></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Reserve stock (booking)" onClose={onClose} wide>
+      <form onSubmit={submit}>
           <div className="form-grid">
             <Field label="Item *">
               <select className="select" value={f.itemId} onChange={(e) => set('itemId', e.target.value)} required>
@@ -171,9 +160,8 @@ function ReserveModal({ items, warehouses, onClose, onSaved, flash }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Reserve stock'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -198,17 +186,15 @@ function TakeoutModal({ items, warehouses, onClose, onSaved, flash }) {
         kind: 'Takeout Request', itemName: item?.name || '', quantity: f.quantity, unit: item?.unit || '',
         staffId: f.staffId, staffName: member?.name || '', approverId: saved.approved_by, approverName: saved.approver?.name || 'Approver', notes: f.notes,
       });
-      flash('Takeout recorded — request form downloaded and filed to Documents.');
+      flash('Takeout recorded. Form downloaded — filing to Documents in the background.');
       onSaved(saved);
       onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Tag a staff takeout</h2></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Tag a staff takeout" onClose={onClose} wide>
+      <form onSubmit={submit}>
           {staffItems.length === 0 ? (
             <p className="muted" style={{ fontSize: 13 }}>No items are marked "Staff can take out" yet — edit an item to enable this.</p>
           ) : (
@@ -237,9 +223,8 @@ function TakeoutModal({ items, warehouses, onClose, onSaved, flash }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy || staffItems.length === 0}>{busy ? <span className="spinner" /> : 'Tag & issue'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -257,8 +242,8 @@ export default function InventoryApp({ access }) {
   const [moveModal, setMoveModal] = useState(false);
   const [reserveModal, setReserveModal] = useState(false);
   const [takeoutModal, setTakeoutModal] = useState(false);
-  const [toast, setToast] = useState(null);
-  const flash = (msg, isErr = false) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000); };
+  const { flash, toastNode } = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -271,7 +256,8 @@ export default function InventoryApp({ access }) {
   useEffect(() => { load(); }, [load]);
 
   const removeItem = async (i) => {
-    if (!confirm(`Delete ${i.name}?`)) return;
+    const ok = await confirm({ title: `Delete ${i.name}?`, message: 'This removes the item and all of its stock records.', confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
     try { await INV.deleteItem(i.id); flash('Item deleted.'); load(); } catch (e) { flash(e.message, true); }
   };
 
@@ -279,11 +265,14 @@ export default function InventoryApp({ access }) {
   const heldReservations = reservations.filter((r) => r.status === 'held');
 
   const fulfill = async (r) => {
+    const ok = await confirm({ title: 'Fulfil this reservation?', message: 'The reserved stock moves out of the warehouse — this cannot be undone.', confirmLabel: 'Fulfil' });
+    if (!ok) return;
     try { const saved = await INV.fulfillReservation(r.id); flash('Reservation fulfilled — stock moved out.'); setReservations((rs) => rs.map((x) => (x.id === saved.id ? saved : x))); load(); }
     catch (e) { flash(e.message, true); }
   };
   const release = async (r) => {
-    if (!confirm('Release this reservation? The stock becomes available again.')) return;
+    const ok = await confirm({ title: 'Release this reservation?', message: 'The stock becomes available again.', confirmLabel: 'Release' });
+    if (!ok) return;
     try { const saved = await INV.releaseReservation(r.id); flash('Reservation released.'); setReservations((rs) => rs.map((x) => (x.id === saved.id ? saved : x))); }
     catch (e) { flash(e.message, true); }
   };
@@ -296,13 +285,14 @@ export default function InventoryApp({ access }) {
         kind: 'Return Form', itemName: t.item?.name || '', quantity: t.quantity, unit: t.item?.unit || '',
         staffId: t.staff_id, staffName: t.staff?.name || '', approverId: t.approved_by, approverName: t.approver?.name || 'Approver', notes: '',
       });
-      flash('Returned — return form downloaded and filed to Documents.');
+      flash('Returned. Form downloaded — filing to Documents in the background.');
       setTakeouts((ts) => ts.map((x) => (x.id === saved.id ? saved : x)));
       load();
     } catch (e) { flash(e.message, true); }
   };
   const cancelTakeout = async (t) => {
-    if (!confirm('Cancel this takeout? The stock returns to inventory.')) return;
+    const ok = await confirm({ title: 'Cancel this takeout?', message: 'The stock returns to inventory.', confirmLabel: 'Cancel takeout', cancelLabel: 'Keep takeout' });
+    if (!ok) return;
     try { const saved = await INV.cancelTakeout(t.id); flash('Takeout cancelled.'); setTakeouts((ts) => ts.map((x) => (x.id === saved.id ? saved : x))); load(); }
     catch (e) { flash(e.message, true); }
   };
@@ -341,7 +331,7 @@ export default function InventoryApp({ access }) {
           <table className="table">
             <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>On hand</th><th>Available</th><th>Reorder level</th>{isManager && <th></th>}</tr></thead>
             <tbody>
-              {items.length === 0 && <tr><td colSpan={isManager ? 7 : 6} className="td-empty">No stock items yet.</td></tr>}
+              {items.length === 0 && <tr><td colSpan={isManager ? 7 : 6} style={{ padding: 0 }}><EmptyState title="No stock items yet" hint={isManager ? 'Use "Add item" to start tracking stock.' : 'Items will appear here once a manager adds them.'} /></td></tr>}
               {items.map((i) => (
                 <tr key={i.id} style={INV.isLowStock(i) ? { background: '#fff8f8' } : {}}>
                   <td className="muted" style={{ fontSize: 13, fontFamily: 'monospace' }}>{i.sku}</td>
@@ -363,7 +353,7 @@ export default function InventoryApp({ access }) {
           <table className="table">
             <thead><tr><th>Item</th><th>Warehouse</th><th>Qty</th><th>Reference</th><th>Hold until</th><th>Status</th>{isManager && <th></th>}</tr></thead>
             <tbody>
-              {reservations.length === 0 && <tr><td colSpan={isManager ? 7 : 6} className="td-empty">No stock reservations yet.</td></tr>}
+              {reservations.length === 0 && <tr><td colSpan={isManager ? 7 : 6} style={{ padding: 0 }}><EmptyState title="No stock reservations yet" hint="Reserve stock to hold it for a customer or order." /></td></tr>}
               {reservations.map((r) => (
                 <tr key={r.id}>
                   <td style={{ fontWeight: 500 }}>{r.item?.name}</td>
@@ -390,7 +380,7 @@ export default function InventoryApp({ access }) {
           <table className="table">
             <thead><tr><th>Item</th><th>Staff</th><th>Qty</th><th>Tagged by</th><th>Status</th><th>When</th>{isManager && <th></th>}</tr></thead>
             <tbody>
-              {takeouts.length === 0 && <tr><td colSpan={isManager ? 7 : 6} className="td-empty">No staff takeouts yet.</td></tr>}
+              {takeouts.length === 0 && <tr><td colSpan={isManager ? 7 : 6} style={{ padding: 0 }}><EmptyState title="No staff takeouts yet" hint="Tag a takeout when a staff member borrows stock." /></td></tr>}
               {takeouts.map((t) => (
                 <tr key={t.id}>
                   <td style={{ fontWeight: 500 }}>{t.item?.name}</td>
@@ -417,7 +407,7 @@ export default function InventoryApp({ access }) {
           <table className="table">
             <thead><tr><th>Item</th><th>Type</th><th>Warehouse</th><th>Qty</th><th>Reference</th><th>By</th><th>When</th></tr></thead>
             <tbody>
-              {movements.length === 0 && <tr><td colSpan={7} className="td-empty">No movements recorded yet.</td></tr>}
+              {movements.length === 0 && <tr><td colSpan={7} style={{ padding: 0 }}><EmptyState title="No movements recorded yet" hint="Stock in, out and transfers will show here." /></td></tr>}
               {movements.map((m) => (
                 <tr key={m.id}>
                   <td style={{ fontWeight: 500 }}>{m.item?.name}</td>
@@ -439,7 +429,7 @@ export default function InventoryApp({ access }) {
           <table className="table">
             <thead><tr><th>Name</th><th>Location</th></tr></thead>
             <tbody>
-              {warehouses.length === 0 && <tr><td colSpan={2} className="td-empty">No warehouses yet.</td></tr>}
+              {warehouses.length === 0 && <tr><td colSpan={2} style={{ padding: 0 }}><EmptyState title="No warehouses yet" hint="Add a warehouse before recording stock." /></td></tr>}
               {warehouses.map((w) => (
                 <tr key={w.id}><td style={{ fontWeight: 500 }}>{w.name}</td><td className="muted" style={{ fontSize: 13 }}>{w.location || '—'}</td></tr>
               ))}
@@ -452,8 +442,9 @@ export default function InventoryApp({ access }) {
       {whModal && <WarehouseModal onClose={() => setWhModal(false)} onSaved={load} flash={flash} />}
       {moveModal && <MovementModal items={items} warehouses={warehouses} onClose={() => setMoveModal(false)} onSaved={load} flash={flash} />}
       {reserveModal && <ReserveModal items={items} warehouses={warehouses} onClose={() => setReserveModal(false)} onSaved={(r) => setReservations((rs) => [r, ...rs])} flash={flash} />}
-      {takeoutModal && <TakeoutModal items={items} warehouses={warehouses} onClose={() => setTakeoutModal(false)} onSaved={(t) => setTakeouts((ts) => [t, ...ts])} flash={flash} />}
-      <Toast toast={toast} />
+      {takeoutModal && <TakeoutModal items={items} warehouses={warehouses} onClose={() => setTakeoutModal(false)} onSaved={load} flash={flash} />}
+      {toastNode}
+      {confirmNode}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as F from './financeApi.js';
+import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
 
 const CSS = `
   .fn-badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; letter-spacing:.03em; }
@@ -9,7 +10,6 @@ const CSS = `
   .fn-s-paid     { background:#deecfd; color:#194b8f; }
 `;
 
-function Toast({ toast }) { if (!toast) return null; return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>; }
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 function StatusBadge({ status }) { const s = F.STATUS[status] || F.STATUS.pending; return <span className={`fn-badge ${s.cls}`}>{s.label}</span>; }
 
@@ -24,18 +24,15 @@ function CategoryModal({ onClose, onSaved, flash }) {
     catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Add expense category</h2></div>
-        <form className="modal-body" onSubmit={submit}>
-          <Field label="Name *"><input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></Field>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add category'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal title="Add expense category" onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label="Name *"><input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></Field>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add category'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -54,32 +51,29 @@ function ExpenseModal({ categories, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Submit expense</h2></div>
-        <form className="modal-body" onSubmit={submit}>
-          <Field label="Description *"><input className="input" value={f.description} onChange={(e) => set('description', e.target.value)} required autoFocus /></Field>
-          <div className="form-grid">
-            <Field label="Category">
-              <select className="select" value={f.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
-                <option value="">— Uncategorised —</option>
-                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Vendor"><input className="input" value={f.vendor} onChange={(e) => set('vendor', e.target.value)} /></Field>
-            <Field label="Amount (₦, excl. VAT)"><input className="input" type="number" value={f.amount} onChange={(e) => set('amount', e.target.value)} /></Field>
-            <Field label="VAT rate"><input className="input" type="number" step="0.001" value={f.vatRate} onChange={(e) => set('vatRate', e.target.value)} /></Field>
-            <Field label="Expense date"><input className="input" type="date" value={f.expenseDate} onChange={(e) => set('expenseDate', e.target.value)} /></Field>
-          </div>
-          <p style={{ fontSize: 13, margin: '0 0 12px' }}>Total (incl. VAT): <strong>{F.money(total)}</strong></p>
-          <Field label="Notes"><textarea className="input" rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Submit'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal title="Submit expense" onClose={onClose} wide>
+      <form onSubmit={submit}>
+        <Field label="Description *"><input className="input" value={f.description} onChange={(e) => set('description', e.target.value)} required autoFocus /></Field>
+        <div className="form-grid">
+          <Field label="Category">
+            <select className="select" value={f.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
+              <option value="">— Uncategorised —</option>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Vendor"><input className="input" value={f.vendor} onChange={(e) => set('vendor', e.target.value)} /></Field>
+          <Field label="Amount (₦, excl. VAT)"><input className="input" type="number" value={f.amount} onChange={(e) => set('amount', e.target.value)} /></Field>
+          <Field label="VAT rate"><input className="input" type="number" step="0.001" value={f.vatRate} onChange={(e) => set('vatRate', e.target.value)} /></Field>
+          <Field label="Expense date"><input className="input" type="date" value={f.expenseDate} onChange={(e) => set('expenseDate', e.target.value)} /></Field>
+        </div>
+        <p style={{ fontSize: 13, margin: '0 0 12px' }}>Total (incl. VAT): <strong>{F.money(total)}</strong></p>
+        <Field label="Notes"><textarea className="input" rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Submit'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -99,28 +93,25 @@ function BudgetModal({ categories, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Add budget line</h2></div>
-        <form className="modal-body" onSubmit={submit}>
-          <div className="form-grid">
-            <Field label="Category">
-              <select className="select" value={f.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
-                <option value="">— All categories —</option>
-                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Year *"><input className="input" type="number" value={f.periodYear} onChange={(e) => set('periodYear', e.target.value)} required /></Field>
-            <Field label="Month (blank = annual)"><input className="input" type="number" min="1" max="12" value={f.periodMonth} onChange={(e) => set('periodMonth', e.target.value)} /></Field>
-            <Field label="Amount (₦) *"><input className="input" type="number" value={f.amount} onChange={(e) => set('amount', e.target.value)} required /></Field>
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add budget'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal title="Add budget line" onClose={onClose} wide>
+      <form onSubmit={submit}>
+        <div className="form-grid">
+          <Field label="Category">
+            <select className="select" value={f.categoryId} onChange={(e) => set('categoryId', e.target.value)}>
+              <option value="">— All categories —</option>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Year *"><input className="input" type="number" value={f.periodYear} onChange={(e) => set('periodYear', e.target.value)} required /></Field>
+          <Field label="Month (blank = annual)"><input className="input" type="number" min="1" max="12" value={f.periodMonth} onChange={(e) => set('periodMonth', e.target.value)} /></Field>
+          <Field label="Amount (₦) *"><input className="input" type="number" value={f.amount} onChange={(e) => set('amount', e.target.value)} required /></Field>
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add budget'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -134,8 +125,8 @@ export default function FinanceApp({ access }) {
   const [expModal, setExpModal] = useState(false);
   const [budgetModal, setBudgetModal] = useState(false);
   const [catModal, setCatModal] = useState(false);
-  const [toast, setToast] = useState(null);
-  const flash = (msg, isErr = false) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000); };
+  const { flash, toastNode } = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -143,7 +134,7 @@ export default function FinanceApp({ access }) {
       const [e, b, c] = await Promise.all([F.getExpenses(), F.getBudgets(), F.getCategories()]);
       setExpenses(e); setBudgets(b); setCategories(c);
     } catch (e2) { flash(e2.message, true); } finally { setLoading(false); }
-  }, []);
+  }, [flash]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -151,18 +142,28 @@ export default function FinanceApp({ access }) {
     try { await F.decideExpense(e.id, action); flash(`Expense ${action}.`); load(); } catch (err) { flash(err.message, true); }
   };
   const removeExpense = async (e) => {
-    if (!confirm('Delete this expense?')) return;
+    const ok = await confirm({
+      title: 'Delete expense?',
+      message: `"${e.description}" and its approval trail will be permanently removed.`,
+      confirmLabel: 'Delete', danger: true,
+    });
+    if (!ok) return;
     try { await F.deleteExpense(e.id); flash('Expense deleted.'); load(); } catch (err) { flash(err.message, true); }
   };
   const removeBudget = async (b) => {
-    if (!confirm('Delete this budget line?')) return;
+    const ok = await confirm({
+      title: 'Delete budget line?',
+      message: `${b.category?.name || 'All categories'} — ${F.money(b.amount)} will be removed.`,
+      confirmLabel: 'Delete', danger: true,
+    });
+    if (!ok) return;
     try { await F.deleteBudget(b.id); flash('Budget deleted.'); load(); } catch (err) { flash(err.message, true); }
   };
 
   const report = useMemo(() => {
     const thisYear = new Date().getFullYear();
     const spentByCategory = {};
-    expenses.filter((e) => e.status !== 'rejected' && new Date(e.expense_date).getFullYear() === thisYear)
+    expenses.filter((e) => (e.status === 'approved' || e.status === 'paid') && new Date(e.expense_date).getFullYear() === thisYear)
       .forEach((e) => {
         const key = e.category?.id || 'uncategorised';
         spentByCategory[key] = (spentByCategory[key] || 0) + Number(e.total_amount);
@@ -195,13 +196,18 @@ export default function FinanceApp({ access }) {
       {!loading && tab === 'expenses' && (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Description</th><th>Category</th><th>Submitted by</th><th>Total</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Description</th><th>Category</th><th>Date</th><th>Submitted by</th><th>Total</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {expenses.length === 0 && <tr><td colSpan={6} className="td-empty">No expenses yet.</td></tr>}
+              {expenses.length === 0 && (
+                <tr><td colSpan={7} style={{ padding: 0 }}>
+                  <EmptyState title="No expenses yet" hint="Submit your first expense to start the approval trail." />
+                </td></tr>
+              )}
               {expenses.map((e) => (
                 <tr key={e.id}>
                   <td style={{ fontWeight: 500 }}>{e.description}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{e.category?.name || '—'}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{F.fmtDate(e.expense_date)}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{e.submitter?.name}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{F.money(e.total_amount)}</td>
                   <td><StatusBadge status={e.status} /></td>
@@ -266,7 +272,8 @@ export default function FinanceApp({ access }) {
       {expModal && <ExpenseModal categories={categories} onClose={() => setExpModal(false)} onSaved={load} flash={flash} />}
       {budgetModal && <BudgetModal categories={categories} onClose={() => setBudgetModal(false)} onSaved={load} flash={flash} />}
       {catModal && <CategoryModal onClose={() => setCatModal(false)} onSaved={load} flash={flash} />}
-      <Toast toast={toast} />
+      {confirmNode}
+      {toastNode}
     </div>
   );
 }

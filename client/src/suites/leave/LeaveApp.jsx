@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import * as L from './leaveApi.js';
 import LeaveApprovals from './LeaveApprovals.jsx';
 import LeaveCalendar from './LeaveCalendar.jsx';
+import { useToast, useConfirm } from '../../components/ui.jsx';
 
 const YEAR = new Date().getFullYear();
 const fmt = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -21,9 +22,7 @@ export default function LeaveApp({ access }) {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [applyOpen, setApplyOpen] = useState(false);
-  const [toast, setToast] = useState(null);
-
-  const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 2800); };
+  const { flash, toastNode } = useToast();
 
   const load = async () => {
     try {
@@ -68,7 +67,7 @@ export default function LeaveApp({ access }) {
           onDone={() => { setApplyOpen(false); load(); flash('Leave request submitted.'); }}
           onError={(m) => flash(m, true)} />
       )}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {toastNode}
     </div>
   );
 }
@@ -107,8 +106,16 @@ function Overview({ balances, requests }) {
 }
 
 function MyRequests({ requests, onChange, flash }) {
+  const { confirm, confirmNode } = useConfirm();
   const cancel = async (r) => {
-    if (!confirm('Cancel this leave request?')) return;
+    const ok = await confirm({
+      title: 'Cancel leave request',
+      message: `Your ${r.leave_types?.name || 'leave'} request starting ${fmt(r.start_date)} will be cancelled.`,
+      confirmLabel: 'Cancel request',
+      cancelLabel: 'Keep request',
+      danger: true,
+    });
+    if (!ok) return;
     try { await L.cancelRequest(r.id); onChange(); flash('Request cancelled.'); }
     catch (e) { flash(e.message, true); }
   };
@@ -131,6 +138,7 @@ function MyRequests({ requests, onChange, flash }) {
           ))}
         </tbody>
       </table>
+      {confirmNode}
     </div>
   );
 }

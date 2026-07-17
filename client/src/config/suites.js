@@ -1,7 +1,11 @@
 // Mirrors server/src/config/suites.js. The SERVER is authoritative for access in
 // real mode; in demo mode this list also drives the mock API.
 export const SUITES = [
-  { key: 'hr',          name: 'HR & Staff',         tier: 'core',     status: 'live', desc: 'Employee records, org structure, onboarding.' },
+  // companions: suites that come along whenever this one is granted — they stay
+  // separate modules (own tiles, own screens) but the paid experience is
+  // connected: HR files letters into Documents, the Employee 360 reads Payroll
+  // and Benefits. Granting HR auto-selects these in the grant picker.
+  { key: 'hr',          name: 'HR & Staff',         tier: 'core',     status: 'live', desc: 'Employee 360 records, letters, org structure, recruiting, onboarding.', companions: ['benefits', 'payroll', 'documents'] },
   { key: 'leave',       name: 'Leave Management',   tier: 'core',     status: 'live', desc: 'Requests, approvals and balance tracking.' },
   { key: 'tasks',       name: 'Task & Report',      tier: 'core',     status: 'live', desc: 'Assignments, priorities and productivity reports.' },
   { key: 'visitors',    name: 'Visitor Management', tier: 'core',     status: 'live', desc: 'Front-desk check-in, host alerts, visitor logs.' },

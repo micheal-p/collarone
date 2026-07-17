@@ -1,10 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as A from './attendanceApi.js';
-
-function Toast({ toast }) {
-  if (!toast) return null;
-  return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>;
-}
+import { useToast } from '../../components/ui.jsx';
 
 function ClockCard({ mine, onChange, flash }) {
   const openShift = mine.find((r) => !r.clock_out_at);
@@ -16,8 +12,8 @@ function ClockCard({ mine, onChange, flash }) {
   };
 
   return (
-    <div className="vs-card" style={{ maxWidth: 420, marginBottom: 20 }}>
-      <div className="vs-card-name" style={{ marginBottom: 10 }}>
+    <div className="card" style={{ maxWidth: 420, marginBottom: 20, padding: 18 }}>
+      <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 10 }}>
         {openShift ? `Clocked in at ${A.fmtDt(openShift.clock_in_at)}` : 'Not clocked in'}
       </div>
       {!openShift && (
@@ -26,11 +22,11 @@ function ClockCard({ mine, onChange, flash }) {
         </button>
       )}
       {openShift && (
-        <button className="btn btn-primary" style={{ background: '#a4262c' }} disabled={busy} onClick={() => act(A.clockOut, 'Clocked out.')}>
+        <button className="btn btn-danger" disabled={busy} onClick={() => act(A.clockOut, 'Clocked out.')}>
           {busy ? <span className="spinner" /> : 'Clock out'}
         </button>
       )}
-      <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>Your device location is captured (if permitted) so a manager can review it — nothing is enforced against a job site yet.</p>
+      <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>Your device coordinates are recorded with each entry (when location access is allowed).</p>
     </div>
   );
 }
@@ -54,7 +50,7 @@ function RecordsTable({ records, showEmployee }) {
               <tr key={r.id}>
                 {showEmployee && <td style={{ fontWeight: 500 }}>{r.employee?.name}</td>}
                 <td className="muted" style={{ fontSize: 13 }}>{A.fmtDt(r.clock_in_at)}</td>
-                <td className="muted" style={{ fontSize: 13 }}>{r.clock_out_at ? A.fmtDt(r.clock_out_at) : <span style={{ color: '#1a6a1a', fontWeight: 600 }}>Open</span>}</td>
+                <td className="muted" style={{ fontSize: 13 }}>{r.clock_out_at ? A.fmtDt(r.clock_out_at) : <span className="st-pill st-success">Open</span>}</td>
                 <td className="muted" style={{ fontSize: 13 }}>{hours != null ? hours.toFixed(1) : '—'}</td>
                 <td className="muted" style={{ fontSize: 13 }}>{ot != null && ot > 0 ? `${ot.toFixed(1)}h` : '—'}</td>
               </tr>
@@ -72,8 +68,7 @@ export default function AttendanceApp({ access }) {
   const [all, setAll] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('mine');
-  const [toast, setToast] = useState(null);
-  const flash = useCallback((msg, isErr = false) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000); }, []);
+  const { flash, toastNode } = useToast();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -102,7 +97,7 @@ export default function AttendanceApp({ access }) {
         </>
       )}
       {!loading && tab === 'team' && <RecordsTable records={all} showEmployee />}
-      <Toast toast={toast} />
+      {toastNode}
     </div>
   );
 }

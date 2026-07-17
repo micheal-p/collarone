@@ -1,11 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as B from './benefitsApi.js';
 import { apiGet } from '../../api/client.js';
+import { useToast, useConfirm, Modal } from '../../components/ui.jsx';
 
-function Toast({ toast }) {
-  if (!toast) return null;
-  return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>;
-}
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 
 function PlanModal({ plan, onClose, onSaved, flash }) {
@@ -27,25 +24,22 @@ function PlanModal({ plan, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>{plan ? 'Edit plan' : 'Add benefit plan'}</h2></div>
-        <form className="modal-body" onSubmit={submit}>
-          <Field label="Plan name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></Field>
-          <Field label="Type">
-            <select className="select" value={f.type} onChange={(e) => set('type', e.target.value)}>
-              {Object.entries(B.PLAN_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-            </select>
-          </Field>
-          <Field label="Provider"><input className="input" value={f.provider} onChange={(e) => set('provider', e.target.value)} /></Field>
-          <Field label="Notes"><textarea className="input" rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : plan ? 'Save changes' : 'Add plan'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal title={plan ? 'Edit plan' : 'Add benefit plan'} onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label="Plan name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></Field>
+        <Field label="Type">
+          <select className="select" value={f.type} onChange={(e) => set('type', e.target.value)}>
+            {Object.entries(B.PLAN_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          </select>
+        </Field>
+        <Field label="Provider"><input className="input" value={f.provider} onChange={(e) => set('provider', e.target.value)} /></Field>
+        <Field label="Notes"><textarea className="input" rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : plan ? 'Save changes' : 'Add plan'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -71,37 +65,34 @@ function EnrollModal({ plans, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Enroll employee</h2></div>
-        <form className="modal-body" onSubmit={submit}>
-          <div className="form-grid">
-            <Field label="Employee *">
-              <select className="select" value={f.employeeId} onChange={(e) => set('employeeId', e.target.value)} required>
-                <option value="">— Select —</option>
-                {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Plan *">
-              <select className="select" value={f.planId} onChange={(e) => set('planId', e.target.value)} required>
-                {plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({B.PLAN_TYPES[p.type]})</option>)}
-              </select>
-            </Field>
-            <Field label="Member / policy no."><input className="input" value={f.memberId} onChange={(e) => set('memberId', e.target.value)} /></Field>
-            {selectedPlan?.type === 'pension' && (
-              <>
-                <Field label="PFA name"><input className="input" value={f.pfaName} onChange={(e) => set('pfaName', e.target.value)} /></Field>
-                <Field label="RSA PIN"><input className="input" value={f.pfaPin} onChange={(e) => set('pfaPin', e.target.value)} /></Field>
-              </>
-            )}
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Enroll'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal title="Enroll employee" onClose={onClose} wide>
+      <form onSubmit={submit}>
+        <div className="form-grid">
+          <Field label="Employee *">
+            <select className="select" value={f.employeeId} onChange={(e) => set('employeeId', e.target.value)} required>
+              <option value="">— Select —</option>
+              {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Plan *">
+            <select className="select" value={f.planId} onChange={(e) => set('planId', e.target.value)} required>
+              {plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({B.PLAN_TYPES[p.type]})</option>)}
+            </select>
+          </Field>
+          <Field label="Member / policy no."><input className="input" value={f.memberId} onChange={(e) => set('memberId', e.target.value)} /></Field>
+          {selectedPlan?.type === 'pension' && (
+            <>
+              <Field label="PFA name"><input className="input" value={f.pfaName} onChange={(e) => set('pfaName', e.target.value)} /></Field>
+              <Field label="RSA PIN"><input className="input" value={f.pfaPin} onChange={(e) => set('pfaPin', e.target.value)} /></Field>
+            </>
+          )}
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Enroll'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -112,6 +103,7 @@ function ManagerView({ flash }) {
   const [tab, setTab] = useState('plans');
   const [planModal, setPlanModal] = useState(null);
   const [enrollModal, setEnrollModal] = useState(false);
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -122,11 +114,23 @@ function ManagerView({ flash }) {
   useEffect(() => { load(); }, [load]);
 
   const removePlan = async (p) => {
-    if (!confirm(`Delete ${p.name}? This removes all enrollments in it too.`)) return;
+    const ok = await confirm({
+      title: 'Delete benefit plan',
+      message: `${p.name} will be deleted, and every enrollment under this plan will be removed with it.`,
+      confirmLabel: 'Delete plan',
+      danger: true,
+    });
+    if (!ok) return;
     try { await B.deletePlan(p.id); flash('Plan deleted.'); load(); } catch (e) { flash(e.message, true); }
   };
   const removeEnrollment = async (en) => {
-    if (!confirm(`Remove ${en.employee?.name} from ${en.plan?.name}?`)) return;
+    const ok = await confirm({
+      title: 'Remove enrollment',
+      message: `${en.employee?.name} will be removed from ${en.plan?.name}.`,
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!ok) return;
     try { await B.deleteEnrollment(en.id); flash('Enrollment removed.'); load(); } catch (e) { flash(e.message, true); }
   };
 
@@ -153,8 +157,10 @@ function ManagerView({ flash }) {
                   <td className="muted" style={{ fontSize: 13 }}>{B.PLAN_TYPES[p.type]}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{p.provider || '—'}</td>
                   <td>
-                    <button className="iconbtn" onClick={() => setPlanModal(p)}>Edit</button>
-                    <button className="iconbtn" onClick={() => removePlan(p)}>Delete</button>
+                    <div className="row-actions">
+                      <button className="btn btn-ghost btn-sm" onClick={() => setPlanModal(p)}>Edit</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => removePlan(p)}>Delete</button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -174,8 +180,8 @@ function ManagerView({ flash }) {
                   <td style={{ fontWeight: 500 }}>{en.employee?.name}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{en.plan?.name}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{en.member_id || '—'}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{en.status}</td>
-                  <td><button className="iconbtn" onClick={() => removeEnrollment(en)}>Remove</button></td>
+                  <td><span className={`st-pill ${en.status === 'active' ? 'st-success' : 'st-neutral'}`}>{en.status}</span></td>
+                  <td><button className="btn btn-ghost btn-sm" onClick={() => removeEnrollment(en)}>Remove</button></td>
                 </tr>
               ))}
             </tbody>
@@ -187,6 +193,7 @@ function ManagerView({ flash }) {
         <PlanModal plan={planModal === 'new' ? null : planModal} onClose={() => setPlanModal(null)} onSaved={load} flash={flash} />
       )}
       {enrollModal && <EnrollModal plans={plans} onClose={() => setEnrollModal(false)} onSaved={load} flash={flash} />}
+      {confirmNode}
     </>
   );
 }
@@ -224,12 +231,11 @@ function StaffView({ flash }) {
 
 export default function BenefitsApp({ access }) {
   const isManager = access?.role === 'manager';
-  const [toast, setToast] = useState(null);
-  const flash = (msg, isErr = false) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000); };
+  const { flash, toastNode } = useToast();
   return (
     <div className="lv">
       {isManager ? <ManagerView flash={flash} /> : <StaffView flash={flash} />}
-      <Toast toast={toast} />
+      {toastNode}
     </div>
   );
 }

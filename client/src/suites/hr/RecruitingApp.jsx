@@ -1,6 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as L from './lifecycleApi.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
+import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
+
+/* ---- Stars — 5 small SVG stars, filled up to `rating` ----------------------- */
+function Stars({ rating }) {
+  return (
+    <span style={{ display:'inline-flex', gap:1, verticalAlign:'middle' }} aria-label={`${rating} of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <svg key={n} width="12" height="12" viewBox="0 0 24 24" fill={n <= rating ? 'currentColor' : 'none'}
+          stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
+          <path d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.3l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z" />
+        </svg>
+      ))}
+    </span>
+  );
+}
 
 const I = {
   add:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
@@ -41,11 +56,8 @@ function RequisitionModal({ req, departments, staff, onClose, onSaved, onError }
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>{req ? 'Edit requisition' : 'New requisition'}</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title={req ? 'Edit requisition' : 'New requisition'} onClose={onClose} wide>
+      <form onSubmit={submit}>
           <div className="field"><label>Role title</label>
             <input className="input" value={f.title} onChange={(e) => set('title', e.target.value)} required autoFocus /></div>
           <div className="form-grid">
@@ -90,9 +102,8 @@ function RequisitionModal({ req, departments, staff, onClose, onSaved, onError }
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : req ? 'Save' : 'Create requisition'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -119,11 +130,8 @@ function CandidateModal({ requisitionId, onClose, onSaved, onError }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Add candidate</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Add candidate" onClose={onClose} wide>
+      <form onSubmit={submit}>
           <div className="form-grid">
             <div className="field"><label>Full name</label>
               <input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></div>
@@ -147,9 +155,8 @@ function CandidateModal({ requisitionId, onClose, onSaved, onError }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add candidate'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -170,11 +177,8 @@ function InterviewModal({ applicationId, staff, onClose, onSaved, onError }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>Schedule interview</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Schedule interview" onClose={onClose}>
+      <form onSubmit={submit}>
           <div className="field"><label>Date &amp; time</label>
             <input className="input" type="datetime-local" value={f.scheduledAt} onChange={(e) => set('scheduledAt', e.target.value)} required autoFocus /></div>
           <div className="field"><label>Interviewer</label>
@@ -190,9 +194,8 @@ function InterviewModal({ applicationId, staff, onClose, onSaved, onError }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Schedule'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -204,7 +207,7 @@ function MatchScore({ score }) {
 }
 
 /* ---- ApplicationRow (expandable) ------------------------------------------------ */
-function ApplicationRow({ app, staff, myId, isHrManager, onUpdated, onDeleted, flash }) {
+function ApplicationRow({ app, staff, myId, isHrManager, onUpdated, onDeleted, flash, confirm }) {
   const [expanded, setExpanded] = useState(false);
   const [interviews, setInterviews] = useState(null);
   const [ivModal, setIvModal] = useState(false);
@@ -228,7 +231,13 @@ function ApplicationRow({ app, staff, myId, isHrManager, onUpdated, onDeleted, f
   };
 
   const remove = async () => {
-    if (!confirm(`Remove ${app.candidate.name} from this pipeline?`)) return;
+    const ok = await confirm({
+      title: 'Remove candidate',
+      message: `${app.candidate.name} will be removed from this pipeline.`,
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!ok) return;
     try { await L.deleteApplication(app.id); onDeleted(app.id); } catch (e) { flash(e.message, true); }
   };
 
@@ -256,7 +265,7 @@ function ApplicationRow({ app, staff, myId, isHrManager, onUpdated, onDeleted, f
         </td>
         <td className="muted" style={{ fontSize:13, textTransform:'capitalize' }}>{app.candidate.source.replace('_',' ')}</td>
         <td>{app.match_score != null ? <MatchScore score={app.match_score} /> : <span className="muted">—</span>}</td>
-        <td className="muted" style={{ fontSize:13 }}>{app.rating ? '★'.repeat(app.rating) + '☆'.repeat(5 - app.rating) : '—'}</td>
+        <td className="muted" style={{ fontSize:13 }}>{app.rating ? <Stars rating={app.rating} /> : '—'}</td>
         <td>
           {app.candidate.resume_path && (
             <button className="iconbtn" title="Resume" onClick={async () => { try { window.open(await L.getResumeUrl(app.candidate.resume_path), '_blank'); } catch (e) { flash(e.message, true); } }}>{I.resume}</button>
@@ -364,7 +373,7 @@ function ApplicationRow({ app, staff, myId, isHrManager, onUpdated, onDeleted, f
 }
 
 /* ---- PipelineView ---------------------------------------------------------------- */
-function PipelineView({ req, staff, myId, isHrManager, onBack, flash }) {
+function PipelineView({ req, staff, myId, isHrManager, onBack, flash, confirm }) {
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
@@ -392,7 +401,7 @@ function PipelineView({ req, staff, myId, isHrManager, onBack, flash }) {
               {apps.length === 0 && <tr><td colSpan={6} className="td-empty">No candidates yet.</td></tr>}
               {apps.map((app) => (
                 <ApplicationRow key={app.id} app={app} staff={staff} myId={myId} isHrManager={isHrManager}
-                  onUpdated={upsert} onDeleted={(id) => setApps((l) => l.filter((a) => a.id !== id))} flash={flash} />
+                  onUpdated={upsert} onDeleted={(id) => setApps((l) => l.filter((a) => a.id !== id))} flash={flash} confirm={confirm} />
               ))}
             </tbody>
           </table>
@@ -421,7 +430,7 @@ export function MyInterviewsView({ myId, flash }) {
   };
 
   if (interviews === null) return <div className="suite-loading"><div className="boot-spinner" /></div>;
-  if (interviews.length === 0) return <p className="muted" style={{ padding:'24px 0' }}>No interviews assigned to you.</p>;
+  if (interviews.length === 0) return <EmptyState title="No interviews assigned to you" hint="Interviews appear here when HR schedules you as the interviewer." />;
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:10, marginTop:8 }}>
@@ -453,10 +462,10 @@ export default function RecruitingApp({ access, departments, staff, myId }) {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [openReq, setOpenReq] = useState(null);
-  const [toast, setToast] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
+  const { flash, toastNode } = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
-  const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 2800); };
   const load = () => { setLoading(true); L.getRequisitions().then(setReqs).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); };
   useEffect(load, []); // eslint-disable-line
 
@@ -464,7 +473,15 @@ export default function RecruitingApp({ access, departments, staff, myId }) {
 
   const view = useMemo(() => statusFilter ? reqs.filter((r) => r.status === statusFilter) : reqs, [reqs, statusFilter]);
 
-  if (openReq) return <PipelineView req={openReq} staff={staff} myId={myId} isHrManager={isHrManager} onBack={() => setOpenReq(null)} flash={flash} />;
+  if (openReq) {
+    return (
+      <div>
+        <PipelineView req={openReq} staff={staff} myId={myId} isHrManager={isHrManager} onBack={() => setOpenReq(null)} flash={flash} confirm={confirm} />
+        {confirmNode}
+        {toastNode}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -514,7 +531,8 @@ export default function RecruitingApp({ access, departments, staff, myId }) {
           onSaved={(r) => { upsert(r); setModal(null); flash(modal === 'create' ? 'Requisition created.' : 'Requisition updated.'); }}
           onError={(m) => flash(m, true)} />
       )}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {confirmNode}
+      {toastNode}
     </div>
   );
 }

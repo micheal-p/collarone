@@ -4,8 +4,8 @@ import { getContacts } from '../crm/crmApi.js';
 import { getVendors } from '../procurement/procurementApi.js';
 import { getWarehouses, getItems } from '../inventory/inventoryApi.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
+import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
 
-function Toast({ toast }) { if (!toast) return null; return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>; }
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 
 // Best-effort cross-suite lookups — an org may have Trade Documents without
@@ -88,7 +88,7 @@ function LineItems({ type, items, setItems, stockItems }) {
                 <td><input className="input" type="number" min="0" step="0.01" value={row.qty} onChange={(e) => setRow(i, { qty: e.target.value })} /></td>
                 {!isStock && <td><input className="input" type="number" min="0" step="0.01" value={row.unit_price} onChange={(e) => setRow(i, { unit_price: e.target.value })} /></td>}
                 {!isStock && <td className="muted" style={{ fontSize: 13 }}>{TD.money((Number(row.qty) || 0) * (Number(row.unit_price) || 0))}</td>}
-                <td><button type="button" className="iconbtn" onClick={() => removeRow(i)}>✕</button></td>
+                <td><button type="button" className="iconbtn" aria-label="Remove line" onClick={() => removeRow(i)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button></td>
               </tr>
             ))}
           </tbody>
@@ -138,10 +138,8 @@ function CreateModal({ docType, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>New {meta.label}</h2></div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title={`New ${meta.label}`} onClose={onClose} wide>
+      <form onSubmit={submit}>
           <div className="form-grid">
             <Field label={docType === 'grn' ? 'Vendor name *' : 'Customer / party name *'}>
               <input className="input" value={f.partyName} onChange={(e) => set('partyName', e.target.value)} required autoFocus />
@@ -207,14 +205,16 @@ function CreateModal({ docType, onClose, onSaved, flash }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : `Create ${meta.label}`}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
 const TEMPLATE_CSS = `
   .tdt-doc { --accent: #0A0E1A; font-family: Georgia, serif; }
+  /* the letterhead preview renders inside a ~718px overflow-hidden box — the
+     global .table min-width (760px) would clip the Amount column */
+  .tdt-doc .table { min-width: 0; }
   .tdt-band { display: none; }
   .tdt-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 4px; }
   .tdt-logo { max-height: 56px; max-width: 180px; object-fit: contain; margin-bottom: 6px; }
@@ -294,14 +294,12 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()} style={mode === 'preview' ? { maxWidth: 760 } : undefined}>
-        <div className="modal-head"><h2>Letterhead settings</h2></div>
-        <div className="lv-tabs" style={{ margin: '0 20px' }}>
-          <button type="button" className={`lv-tab ${mode === 'edit' ? 'active' : ''}`} onClick={() => setMode('edit')}>Edit</button>
-          <button type="button" className={`lv-tab ${mode === 'preview' ? 'active' : ''}`} onClick={() => setMode('preview')}>Preview</button>
-        </div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Letterhead settings" onClose={onClose} wide>
+      <div className="lv-tabs" style={{ marginBottom: 12 }}>
+        <button type="button" className={`lv-tab ${mode === 'edit' ? 'active' : ''}`} onClick={() => setMode('edit')}>Edit</button>
+        <button type="button" className={`lv-tab ${mode === 'preview' ? 'active' : ''}`} onClick={() => setMode('preview')}>Preview</button>
+      </div>
+      <form onSubmit={submit}>
           {mode === 'edit' ? (
             <>
               <div className="form-grid">
@@ -365,9 +363,8 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save letterhead'}</button>
           </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -445,27 +442,22 @@ function DocPreviewBody({ doc, settings }) {
 function PrintView({ doc, settings, onClose }) {
   const meta = TD.DOC_TYPES[doc.doc_type];
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 720 }}>
-        <div className="modal-head no-print"><h2>{meta.label} {doc.doc_no}</h2></div>
-        <div className="modal-body">
-          <style>{`
-            ${TEMPLATE_CSS}
-            @media print {
-              body * { visibility: hidden; }
-              #td-print-area, #td-print-area * { visibility: visible; }
-              #td-print-area { position: absolute; top: 0; left: 0; width: 100%; }
-              .no-print { display: none !important; }
-            }
-          `}</style>
-          <DocPreviewBody doc={doc} settings={settings} />
-        </div>
-        <div className="modal-actions no-print">
-          <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
-          <button type="button" className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
-        </div>
+    <Modal title={`${meta.label} ${doc.doc_no}`} onClose={onClose} wide>
+      <style>{`
+        ${TEMPLATE_CSS}
+        @media print {
+          body * { visibility: hidden; }
+          #td-print-area, #td-print-area * { visibility: visible; }
+          #td-print-area { position: absolute; top: 0; left: 0; width: 100%; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
+      <DocPreviewBody doc={doc} settings={settings} />
+      <div className="modal-actions no-print">
+        <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
+        <button type="button" className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -480,8 +472,8 @@ export default function TradeDocsApp({ access }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [viewDoc, setViewDoc] = useState(null);
-  const [toast, setToast] = useState(null);
-  const flash = (msg, isErr = false) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000); };
+  const { flash, toastNode } = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -494,14 +486,21 @@ export default function TradeDocsApp({ access }) {
 
   const rows = docs.filter((d) => d.doc_type === tab);
   const meta = TD.DOC_TYPES[tab];
+  const colCount = 4 + (meta.hasVat ? 1 : 0) + (meta.hasStatus ? 1 : 0);
 
   const markStatus = async (doc, status) => {
+    if (status === 'void') {
+      const ok = await confirm({ title: 'Void this document?', message: `${doc.doc_no} will be marked void.`, confirmLabel: 'Void', danger: true });
+      // force a re-render so the controlled <select> snaps back to the saved status
+      if (!ok) { setDocs((ds) => [...ds]); return; }
+    }
     try { const saved = await TD.setDocumentStatus(doc.id, status); flash(`Marked ${TD.STATUS_LABELS[status].toLowerCase()}.`); setDocs((ds) => ds.map((d) => (d.id === saved.id ? saved : d))); }
     catch (e) { flash(e.message, true); }
   };
 
   const remove = async (doc) => {
-    if (!confirm(`Delete ${doc.doc_no}? This can't be undone.`)) return;
+    const ok = await confirm({ title: `Delete ${doc.doc_no}?`, message: "This can't be undone.", confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
     try { await TD.deleteDocument(doc.id); flash('Deleted.'); setDocs((ds) => ds.filter((d) => d.id !== doc.id)); }
     catch (e) { flash(e.message, true); }
   };
@@ -527,7 +526,7 @@ export default function TradeDocsApp({ access }) {
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={6} className="td-empty">No {meta.label.toLowerCase()}s yet.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={colCount} style={{ padding: 0 }}><EmptyState title={`No ${meta.label.toLowerCase()}s yet`} hint={`Create one with the "New ${meta.label}" button above.`} /></td></tr>}
               {rows.map((d) => (
                 <tr key={d.id}>
                   <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{d.doc_no}</td>
@@ -555,7 +554,8 @@ export default function TradeDocsApp({ access }) {
       {createOpen && <CreateModal docType={tab} onClose={() => setCreateOpen(false)} onSaved={(d) => setDocs((ds) => [d, ...ds])} flash={flash} />}
       {settingsOpen && <SettingsModal orgId={orgId} settings={settings} onClose={() => setSettingsOpen(false)} onSaved={setSettings} flash={flash} />}
       {viewDoc && <PrintView doc={viewDoc} settings={settings} onClose={() => setViewDoc(null)} />}
-      <Toast toast={toast} />
+      {toastNode}
+      {confirmNode}
     </div>
   );
 }

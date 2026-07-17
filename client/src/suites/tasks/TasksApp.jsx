@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiGet } from '../../api/client.js';
 import * as T from './taskApi.js';
+import { EmptyState, Modal, searchMatcher, useConfirm, useToast } from '../../components/ui.jsx';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
@@ -51,13 +52,8 @@ function TaskModal({ task, staff, myDeptId, onClose, onSaved, onError, isSupervi
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h2>{task ? 'Edit task' : 'New task'}</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button>
-        </div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title={task ? 'Edit task' : 'New task'} onClose={onClose} wide>
+        <form onSubmit={submit}>
           <div className="field"><label>Title</label>
             <input className="input" value={f.title} onChange={(e) => set('title', e.target.value)} required autoFocus />
           </div>
@@ -92,8 +88,7 @@ function TaskModal({ task, staff, myDeptId, onClose, onSaved, onError, isSupervi
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : task ? 'Save' : 'Create task'}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -121,13 +116,8 @@ function ReportModal({ taskId, onClose, onSaved, onError }) {
   };
 
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <h2>Submit report</h2>
-          <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button>
-        </div>
-        <form className="modal-body" onSubmit={submit}>
+    <Modal title="Submit report" onClose={onClose} wide>
+        <form onSubmit={submit}>
           <div className="field"><label>Report *</label>
             <textarea className="input" rows={6} value={body} onChange={(e) => setBody(e.target.value)}
               required autoFocus placeholder="Describe progress, blockers, outcome…"
@@ -149,8 +139,7 @@ function ReportModal({ taskId, onClose, onSaved, onError }) {
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Submit report'}</button>
           </div>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -336,9 +325,8 @@ function ReportsView({ flash }) {
   }, []); // eslint-disable-line
 
   const view = useMemo(() => {
-    if (!q.trim()) return reports;
-    const rx = new RegExp(q.trim(), 'i');
-    return reports.filter((r) => rx.test(r.author?.name) || rx.test(r.body) || rx.test(r.task?.title));
+    const match = searchMatcher(q);
+    return reports.filter((r) => match(r.author?.name, r.body, r.task?.title));
   }, [reports, q]);
 
   const download = async (att) => {
@@ -401,12 +389,12 @@ export default function TasksApp({ access }) {
   const [loading,  setLoading]  = useState(true);
   const [tab,      setTab]      = useState('queue');
   const [modal,    setModal]    = useState(null);
-  const [toast,    setToast]    = useState(null);
   const [q,        setQ]        = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [locked,   setLocked]   = useState(true); // protects tasks not assigned to you
 
-  const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 2800); };
+  const { flash, toastNode } = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -432,11 +420,8 @@ export default function TasksApp({ access }) {
   const view = useMemo(() => {
     let list = tasks;
     if (statusFilter) list = list.filter((t) => t.status === statusFilter);
-    if (q.trim()) {
-      const rx = new RegExp(q.trim(), 'i');
-      list = list.filter((t) => rx.test(t.title) || rx.test(t.description || '') || rx.test(t.assignee?.name || ''));
-    }
-    return list;
+    const match = searchMatcher(q);
+    return list.filter((t) => match(t.title, t.description, t.assignee?.name));
   }, [tasks, statusFilter, q]);
 
   const upsert = (task) => setTasks((l) => {
@@ -450,7 +435,13 @@ export default function TasksApp({ access }) {
   };
 
   const onDelete = async (task) => {
-    if (!confirm(`Delete "${task.title}"?`)) return;
+    const ok = await confirm({
+      title: 'Delete this task?',
+      message: `Delete "${task.title}"? Its reports and attachments go with it. This cannot be undone.`,
+      confirmLabel: 'Delete task',
+      danger: true,
+    });
+    if (!ok) return;
     try { await T.deleteTask(task.id); setTasks((l) => l.filter((t) => t.id !== task.id)); flash('Task deleted.'); }
     catch (e) { flash(e.message, true); }
   };
@@ -558,7 +549,14 @@ export default function TasksApp({ access }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {view.length === 0 && <tr><td colSpan={6} className="td-empty">No tasks found.</td></tr>}
+                    {view.length === 0 && (
+                      <tr><td colSpan={6}>
+                        {tasks.length === 0
+                          ? <EmptyState title="No tasks yet"
+                              hint={isSupervisor ? 'Create a task and assign it to someone on your team.' : 'Tasks assigned to you will appear here.'} />
+                          : <span className="td-empty" style={{ display: 'block' }}>No tasks match your filters.</span>}
+                      </td></tr>
+                    )}
                     {view.map((task) => (
                       <TaskRow key={task.id} task={task} isSupervisor={isSupervisor} myId={myId} locked={locked}
                         onEdit={(t) => setModal(t)}
@@ -587,7 +585,8 @@ export default function TasksApp({ access }) {
           onSaved={(saved) => { upsert(saved); setModal(null); flash(modal === 'create' ? 'Task created.' : 'Task updated.'); }}
           onError={(m) => flash(m, true)} />
       )}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {toastNode}
+      {confirmNode}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as PR from './projectsApi.js';
 import { apiGet } from '../../api/client.js';
+import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
 
 const CSS = `
   .pj-badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; letter-spacing:.03em; }
@@ -21,7 +22,6 @@ const CSS = `
   .pj-p-urgent    { background:#fde7e9; color:#a4262c; }
 `;
 
-function Toast({ toast }) { if (!toast) return null; return <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>; }
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 function ProjectStatusBadge({ status }) { const s = PR.PROJECT_STATUS[status] || PR.PROJECT_STATUS.active; return <span className={`pj-badge ${s.cls}`}>{s.label}</span>; }
 
@@ -37,23 +37,20 @@ function ProjectModal({ onClose, onSaved, flash }) {
     catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>New project</h2></div>
-        <form className="modal-body" onSubmit={submit}>
-          <Field label="Project name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></Field>
-          <Field label="Description"><textarea className="input" rows={2} value={f.description} onChange={(e) => set('description', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
-          <div className="form-grid">
-            <Field label="Start date"><input className="input" type="date" value={f.startDate} onChange={(e) => set('startDate', e.target.value)} /></Field>
-            <Field label="Target date"><input className="input" type="date" value={f.targetDate} onChange={(e) => set('targetDate', e.target.value)} /></Field>
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Create project'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal title="New project" onClose={onClose} wide>
+      <form onSubmit={submit}>
+        <Field label="Project name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></Field>
+        <Field label="Description"><textarea className="input" rows={2} value={f.description} onChange={(e) => set('description', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
+        <div className="form-grid">
+          <Field label="Start date"><input className="input" type="date" value={f.startDate} onChange={(e) => set('startDate', e.target.value)} /></Field>
+          <Field label="Target date"><input className="input" type="date" value={f.targetDate} onChange={(e) => set('targetDate', e.target.value)} /></Field>
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Create project'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -65,42 +62,39 @@ function TaskModal({ milestones, members, onClose, onSaved, flash }) {
     e.preventDefault();
     if (!f.title.trim()) return flash('Task title is required.', true);
     setBusy(true);
-    try { const saved = await onSaved(f); onClose(); }
+    try { await onSaved(f); onClose(); }
     catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
   return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head"><h2>New task</h2></div>
-        <form className="modal-body" onSubmit={submit}>
-          <Field label="Title *"><input className="input" value={f.title} onChange={(e) => set('title', e.target.value)} required autoFocus /></Field>
-          <div className="form-grid">
-            <Field label="Milestone">
-              <select className="select" value={f.milestoneId} onChange={(e) => set('milestoneId', e.target.value)}>
-                <option value="">— None —</option>
-                {milestones.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
-              </select>
-            </Field>
-            <Field label="Assignee">
-              <select className="select" value={f.assignedTo} onChange={(e) => set('assignedTo', e.target.value)}>
-                <option value="">— Unassigned —</option>
-                {members.map((m) => <option key={m.user.id} value={m.user.id}>{m.user.name}</option>)}
-              </select>
-            </Field>
-            <Field label="Priority">
-              <select className="select" value={f.priority} onChange={(e) => set('priority', e.target.value)}>
-                <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option>
-              </select>
-            </Field>
-            <Field label="Due date"><input className="input" type="date" value={f.dueDate} onChange={(e) => set('dueDate', e.target.value)} /></Field>
-          </div>
-          <div className="modal-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add task'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal title="New task" onClose={onClose} wide>
+      <form onSubmit={submit}>
+        <Field label="Title *"><input className="input" value={f.title} onChange={(e) => set('title', e.target.value)} required autoFocus /></Field>
+        <div className="form-grid">
+          <Field label="Milestone">
+            <select className="select" value={f.milestoneId} onChange={(e) => set('milestoneId', e.target.value)}>
+              <option value="">— None —</option>
+              {milestones.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}
+            </select>
+          </Field>
+          <Field label="Assignee">
+            <select className="select" value={f.assignedTo} onChange={(e) => set('assignedTo', e.target.value)}>
+              <option value="">— Unassigned —</option>
+              {members.map((m) => <option key={m.user.id} value={m.user.id}>{m.user.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Priority">
+            <select className="select" value={f.priority} onChange={(e) => set('priority', e.target.value)}>
+              <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option>
+            </select>
+          </Field>
+          <Field label="Due date"><input className="input" type="date" value={f.dueDate} onChange={(e) => set('dueDate', e.target.value)} /></Field>
+        </div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add task'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -115,6 +109,7 @@ function ProjectDetail({ project, onBack, flash }) {
   const [msTitle, setMsTitle] = useState('');
   const [msDue, setMsDue] = useState('');
   const [addUserId, setAddUserId] = useState('');
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -127,7 +122,16 @@ function ProjectDetail({ project, onBack, flash }) {
   useEffect(() => { load(); apiGet('/staff').then((d) => setStaff(d.staff)).catch(() => {}); }, [load]);
 
   const moveTask = async (task, status) => {
-    try { await PR.updateTask(project.id, task.id, { status }); load(); } catch (e) { flash(e.message, true); }
+    const prevStatus = task.status;
+    // Optimistic: move the card immediately; revert on failure. No full load() —
+    // that would blank the whole board to a spinner for a single card move.
+    setTasks((ts) => ts.map((t) => (t.id === task.id ? { ...t, status } : t)));
+    try {
+      await PR.updateTask(project.id, task.id, { status });
+    } catch (e) {
+      setTasks((ts) => ts.map((t) => (t.id === task.id ? { ...t, status: prevStatus } : t)));
+      flash(e.message, true);
+    }
   };
   const addMilestone = async (e) => {
     e.preventDefault();
@@ -140,8 +144,14 @@ function ProjectDetail({ project, onBack, flash }) {
     try { await PR.addMember(project.id, { userId: addUserId }); setAddUserId(''); flash('Member added.'); load(); }
     catch (e) { flash(e.message, true); }
   };
-  const removeMember_ = async (userId) => {
-    try { await PR.removeMember(project.id, userId); flash('Member removed.'); load(); } catch (e) { flash(e.message, true); }
+  const removeMember_ = async (m) => {
+    const ok = await confirm({
+      title: 'Remove member?',
+      message: `${m.user?.name || 'This member'} loses access to the project's board and tasks — this can include the project lead.`,
+      confirmLabel: 'Remove', danger: true,
+    });
+    if (!ok) return;
+    try { await PR.removeMember(project.id, m.user_id); flash('Member removed.'); load(); } catch (e) { flash(e.message, true); }
   };
   const nonMembers = staff.filter((s) => !members.some((m) => m.user_id === s.id));
 
@@ -231,7 +241,7 @@ function ProjectDetail({ project, onBack, flash }) {
                   <tr key={m.id}>
                     <td style={{ fontWeight: 500 }}>{m.user?.name}</td>
                     <td className="muted" style={{ fontSize: 13 }}>{m.role}</td>
-                    <td><button className="iconbtn" onClick={() => removeMember_(m.user_id)}>Remove</button></td>
+                    <td><button className="iconbtn" onClick={() => removeMember_(m)}>Remove</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -246,6 +256,7 @@ function ProjectDetail({ project, onBack, flash }) {
           onSaved={async (f) => { await PR.createTask(project.id, f); flash('Task added.'); load(); }}
         />
       )}
+      {confirmNode}
     </>
   );
 }
@@ -255,18 +266,23 @@ export default function ProjectsApp() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const [active, setActive] = useState(null);
-  const [toast, setToast] = useState(null);
-  const flash = (msg, isErr = false) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000); };
+  const { flash, toastNode } = useToast();
+  const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
     setLoading(true);
     try { setProjects(await PR.getProjects()); } catch (e) { flash(e.message, true); } finally { setLoading(false); }
-  }, []);
+  }, [flash]);
 
   useEffect(() => { load(); }, [load]);
 
   const removeProject = async (p) => {
-    if (!confirm(`Delete ${p.name}? This removes all its milestones and tasks too.`)) return;
+    const ok = await confirm({
+      title: `Delete ${p.name}?`,
+      message: 'This removes all its milestones and tasks too.',
+      confirmLabel: 'Delete project', danger: true,
+    });
+    if (!ok) return;
     try { await PR.deleteProject(p.id); flash('Project deleted.'); load(); } catch (e) { flash(e.message, true); }
   };
 
@@ -275,7 +291,7 @@ export default function ProjectsApp() {
       <div className="lv">
         <style>{CSS}</style>
         <ProjectDetail project={active} onBack={() => { setActive(null); load(); }} flash={flash} />
-        <Toast toast={toast} />
+        {toastNode}
       </div>
     );
   }
@@ -293,7 +309,11 @@ export default function ProjectsApp() {
           <table className="table">
             <thead><tr><th>Project</th><th>Owner</th><th>Target date</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {projects.length === 0 && <tr><td colSpan={5} className="td-empty">No projects yet.</td></tr>}
+              {projects.length === 0 && (
+                <tr><td colSpan={5} style={{ padding: 0 }}>
+                  <EmptyState title="No projects yet" hint="Create a project to start tracking tasks and milestones." />
+                </td></tr>
+              )}
               {projects.map((p) => (
                 <tr key={p.id}>
                   <td style={{ fontWeight: 500, cursor: 'pointer' }} onClick={() => setActive(p)}>{p.name}</td>
@@ -311,7 +331,8 @@ export default function ProjectsApp() {
         </div>
       )}
       {modal && <ProjectModal onClose={() => setModal(false)} onSaved={load} flash={flash} />}
-      <Toast toast={toast} />
+      {confirmNode}
+      {toastNode}
     </div>
   );
 }
