@@ -1,0 +1,50 @@
+/* Contact page — wider two-column layout on top of the legal chrome:
+   channel cards on the left, the message form in a card on the right. */
+.ct-body { max-width: 1060px; margin: 0 auto; padding: 56px 24px 80px; display: grid; grid-template-columns: 1fr 1.15fr; gap: 56px; align-items: start; }
+
+.ct-left .lg-kicker { margin-bottom: 10px; }
+.ct-h1 { font-size: 38px; font-weight: 650; letter-spacing: -.02em; line-height: 1.12; margin: 0 0 14px; color: #0A0E1A; }
+.ct-h1 em { font-style: italic; font-family: Georgia, "Iowan Old Style", serif; color: #C24614; }
+.ct-lede { font-size: 15.5px; line-height: 1.7; color: rgba(10,14,26,0.68); margin: 0 0 30px; max-width: 420px; }
+
+.ct-channels { display: flex; flex-direction: column; gap: 12px; }
+.ct-ch { display: flex; align-items: center; gap: 14px; padding: 15px 17px; border: 1px solid rgba(10,14,26,0.1); border-radius: 15px; background: #fff; text-decoration: none; color: #0A0E1A; transition: border-color .15s, transform .15s, box-shadow .15s; }
+.ct-ch:hover { border-color: rgba(10,14,26,0.28); transform: translateY(-1px); box-shadow: 0 8px 24px rgba(10,14,26,0.07); }
+.ct-ch-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; flex: none; background: #F4F1EA; color: #0A0E1A; }
+.ct-ch.wa .ct-ch-ic { background: #E8F8EE; color: #128C4B; }
+.ct-ch.tel .ct-ch-ic { background: #FFF1EA; color: #C24614; }
+.ct-ch-t { font-size: 14.5px; font-weight: 650; }
+.ct-ch-s { font-size: 12.5px; color: rgba(10,14,26,0.55); margin-top: 2px; }
+.ct-ch-arrow { margin-left: auto; color: rgba(10,14,26,0.3); flex: none; }
+.ct-ch:hover .ct-ch-arrow { color: #FF5B1F; }
+
+.ct-note { margin-top: 26px; display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.6; color: rgba(10,14,26,0.55); max-width: 400px; }
+.ct-note svg { flex: none; margin-top: 2px; color: #C24614; }
+
+.ct-card { background: #fff; border: 1px solid rgba(10,14,26,0.1); border-radius: 20px; padding: 30px; box-shadow: 0 18px 50px rgba(10,14,26,0.07); }
+.ct-card-t { font-size: 17px; font-weight: 650; margin: 0 0 4px; color: #0A0E1A; }
+.ct-card-s { font-size: 13px; color: rgba(10,14,26,0.55); margin: 0 0 22px; }
+.ct-form { display: flex; flex-direction: column; gap: 15px; }
+.ct-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ct-form .field label { font-size: 12.5px; font-weight: 650; color: rgba(10,14,26,0.7); display: block; margin-bottom: 6px; letter-spacing: .01em; }
+.ct-form .input { width: 100%; border: 1px solid rgba(10,14,26,0.14); border-radius: 11px; padding: 11px 13px; font-size: 14px; background: #FCFBF9; color: #0A0E1A; transition: border-color .15s, box-shadow .15s, background .15s; }
+.ct-form .input:focus { outline: none; border-color: #FF5B1F; background: #fff; box-shadow: 0 0 0 3px rgba(255,91,31,0.13); }
+.ct-form textarea.input { resize: vertical; font-family: inherit; min-height: 110px; }
+.ct-err { color: #C0392B; font-size: 13px; margin: 0; background: #FDF1EF; border: 1px solid rgba(192,57,43,0.25); border-radius: 10px; padding: 10px 13px; }
+.ct-send { display: inline-flex; align-items: center; justify-content: center; gap: 9px; width: 100%; border: 0; cursor: pointer; background: #FF5B1F; color: #fff; font-size: 14.5px; font-weight: 650; padding: 13px 20px; border-radius: 100px; transition: background .15s, transform .15s; }
+.ct-send:hover:not(:disabled) { background: #E04D18; transform: translateY(-1px); }
+.ct-send:disabled { opacity: .6; cursor: default; }
+.ct-fine { font-size: 12px; color: rgba(10,14,26,0.45); text-align: center; margin: 2px 0 0; }
+
+.ct-sent { text-align: center; padding: 26px 10px 14px; }
+.ct-sent-ic { width: 54px; height: 54px; border-radius: 50%; background: #E8F8EE; color: #128C4B; display: grid; place-items: center; margin: 0 auto 16px; }
+.ct-sent strong { display: block; font-size: 18px; margin-bottom: 8px; color: #0A0E1A; }
+.ct-sent p { font-size: 14px; line-height: 1.65; color: rgba(10,14,26,0.65); margin: 0 auto; max-width: 340px; }
+.ct-sent a { color: #C24614; font-weight: 600; }
+
+@media (max-width: 880px) {
+  .ct-body { grid-template-columns: 1fr; gap: 36px; padding-top: 40px; }
+  .ct-h1 { font-size: 30px; }
+  .ct-card { padding: 22px 18px; }
+  .ct-row2 { grid-template-columns: 1fr; gap: 15px; }
+}

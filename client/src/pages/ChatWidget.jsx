@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { answerQuestion } from './chatKnowledge';
 
 /* =========================================================================
-   Collarone assistant — floating chat on the landing page. The AI replies
-   come from /api/chat (grounded in the business knowledge pack there); this
-   widget owns the conversation UX and the talk-to-a-human escalation:
-   WhatsApp · call · the contact desk. If the AI backend isn't configured
-   or fails, visitors get a warm fallback plus the human card — never a
-   dead end.
+   Collarone assistant — floating chat on the landing page. Fully in-house:
+   answers come from the grounded knowledge base in chatKnowledge.js (no
+   external AI, no API keys, works offline-of-backend). It computes real
+   price quotes, and anything it can't answer confidently escalates to a
+   human: WhatsApp · call · the contact desk. Never a dead end.
    ========================================================================= */
 
 const WA = 'https://wa.me/2348148128551';
@@ -50,39 +50,37 @@ export default function ChatWidget({ visible = true }) {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [showHuman, setShowHuman] = useState(false);
+  const [chips, setChips] = useState(QUICK_CHIPS);
   const bodyRef = useRef(null);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     try { sessionStorage.setItem('cl_chat', JSON.stringify(msgs.slice(-20))); } catch { /* private mode */ }
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-  }, [msgs, busy, showHuman, open]);
+  }, [msgs, busy, showHuman, open, chips]);
 
-  const send = async (text) => {
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+
+  const send = (text) => {
     const content = (text || input).trim();
     if (!content || busy) return;
     setInput('');
+    setChips([]);
     if (isHumanAsk(content) && content.length < 60) {
       setMsgs((m) => [...m, { role: 'user', content }, { role: 'assistant', content: 'Of course — here’s the team, pick whichever suits you:' }]);
       setShowHuman(true);
       return;
     }
-    const next = [...msgs, { role: 'user', content }];
-    setMsgs(next);
+    setMsgs((m) => [...m, { role: 'user', content }]);
     setBusy(true);
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: next.slice(-20).map((m) => ({ role: m.role, content: String(m.content).slice(0, 1000) })) }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.reply) throw new Error(data.error || 'no_reply');
-      setMsgs((m) => [...m, { role: 'assistant', content: data.reply }]);
-      if (data.suggestHuman) setShowHuman(true);
-    } catch {
-      setMsgs((m) => [...m, { role: 'assistant', content: 'I’m still warming up — but a real person is one tap away and replies fast:' }]);
-      setShowHuman(true);
-    } finally { setBusy(false); }
+    const { reply, human, chips: next } = answerQuestion(content);
+    // A short beat before replying keeps the exchange feeling conversational.
+    timerRef.current = setTimeout(() => {
+      setMsgs((m) => [...m, { role: 'assistant', content: reply }]);
+      if (human) setShowHuman(true);
+      setChips(next || []);
+      setBusy(false);
+    }, 450 + Math.min(650, reply.length * 3));
   };
 
   return (
@@ -130,9 +128,9 @@ export default function ChatWidget({ visible = true }) {
               ))}
               {busy && <div className="clw-msg bot clw-typing"><span /><span /><span /></div>}
               {showHuman && <HumanCard />}
-              {msgs.length === 0 && (
+              {!busy && chips.length > 0 && (
                 <div className="clw-chips">
-                  {QUICK_CHIPS.map((c) => (
+                  {chips.map((c) => (
                     <button key={c} type="button" className="clw-chip" onClick={() => send(c)}>{c}</button>
                   ))}
                 </div>
