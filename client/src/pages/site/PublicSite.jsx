@@ -11,6 +11,23 @@ export default function PublicSite() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [activeSlug, setActiveSlug] = useState(null);
+  const [payResult, setPayResult] = useState(null); // { paid, orderNo } after a Paystack redirect
+
+  // Returning from the store's Paystack checkout (?payref=…): confirm the
+  // payment server-side — the order marks itself paid, no proof-of-transfer.
+  useEffect(() => {
+    const ref = searchParams.get('payref') || searchParams.get('reference');
+    if (!ref || !slug) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    fetch('/api/site-pay', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'verify', orgSlug: slug, reference: ref }),
+    })
+      .then((r) => r.json())
+      .then((d) => setPayResult({ paid: Boolean(d.paid), orderNo: d.orderNo || '' }))
+      .catch(() => setPayResult({ paid: false, orderNo: '' }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +70,14 @@ export default function PublicSite() {
       {isPreview && (
         <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#111', color: '#fff', textAlign: 'center', padding: '6px 12px', fontSize: 12.5 }}>
           Preview mode — {data.published ? 'this site is live.' : 'not published yet, only you can see this.'}
+        </div>
+      )}
+      {payResult && (
+        <div style={{ position: 'sticky', top: 0, zIndex: 51, background: payResult.paid ? '#12833F' : '#B7791F', color: '#fff', textAlign: 'center', padding: '10px 14px', fontSize: 13.5 }}>
+          {payResult.paid
+            ? <>Payment confirmed — order <strong>{payResult.orderNo}</strong> is paid. The store has your order.</>
+            : <>We couldn't confirm that payment yet. If you were debited, the store will still see it — or contact them directly.</>}
+          <button onClick={() => setPayResult(null)} aria-label="Dismiss" style={{ marginLeft: 12, background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 12 }}>Dismiss</button>
         </div>
       )}
       <Layout data={{ ...data, isPreview }} activeSlug={activeSlug} setActiveSlug={setActiveSlug} />

@@ -46,6 +46,8 @@ create policy site_orders_org_update on public.site_orders
   with check (public.same_org(org_id));
 -- inserts only through public_place_order below
 
+-- SUPERSEDED by site_paystack.sql (adds the 'card' method + orderId in the
+-- return) — do not re-run this definition after that file has been applied.
 -- Anonymous checkout. Prices are re-read from site_products server-side —
 -- the client only sends product ids and quantities, so a tampered cart
 -- can't change what anything costs.

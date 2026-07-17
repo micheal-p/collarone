@@ -355,6 +355,7 @@ function CartDrawer({ site, v }) {
   const set = (k, val) => setF((s) => ({ ...s, [k]: val }));
   const pay = site.payments || { enableTransfer: true, enableCod: true };
   const methods = [
+    pay.enableCard && ['card', 'Pay with card', 'Card, bank or USSD — secure checkout by Paystack, straight to the store.'],
     pay.enableTransfer && ['transfer', 'Bank transfer', 'Pay into the store’s account — details shown after you order.'],
     pay.enableCod && ['cod', 'Pay on delivery', 'Pay cash or transfer when your order arrives.'],
   ].filter(Boolean);
@@ -371,12 +372,26 @@ function CartDrawer({ site, v }) {
     if (!f.name.trim()) return setError('Your name is required.');
     if (!f.phone.trim()) return setError('Your phone number is required — it’s how the store reaches you.');
     if (!f.method) return setError('Choose how you want to pay.');
+    if (f.method === 'card' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return setError('A valid email is required for card payment — your receipt goes there.');
     setBusy(true); setError('');
     try {
       const d = await apiPost('/site/order', {
         orgSlug: site.slug, name: f.name, phone: f.phone, email: f.email, address: f.address, note: f.note,
         method: f.method, items: cart.items.map((x) => ({ id: x.id, qty: x.qty })),
       });
+      if (f.method === 'card') {
+        // Hand over to the store's own Paystack checkout; the callback lands
+        // back on this site with ?payref=… which PublicSite verifies.
+        const r = await fetch('/api/site-pay', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'init', orgSlug: site.slug, orderId: d.orderId }),
+        });
+        const pd = await r.json().catch(() => ({}));
+        if (!r.ok || !pd.authorizationUrl) throw new Error(pd.message || 'Could not start the card payment — try another method.');
+        cart.clear();
+        window.location.href = pd.authorizationUrl;
+        return;
+      }
       setReceipt(d);
       cart.clear();
       setView('done');
@@ -423,7 +438,7 @@ function CartDrawer({ site, v }) {
               <div style={{ marginBottom: 10 }}><span style={label}>Phone / WhatsApp *</span><input style={input} value={f.phone} onChange={(e) => set('phone', e.target.value)} required placeholder="0801 234 5678" /></div>
               <div style={{ marginBottom: 10 }}><span style={label}>Delivery address</span><textarea style={{ ...input, resize: 'vertical' }} rows={2} value={f.address} onChange={(e) => set('address', e.target.value)} /></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-                <div><span style={label}>Email</span><input style={input} type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></div>
+                <div><span style={label}>Email{f.method === 'card' ? ' *' : ''}</span><input style={input} type="email" value={f.email} onChange={(e) => set('email', e.target.value)} required={f.method === 'card'} /></div>
                 <div><span style={label}>Note to the store</span><input style={input} value={f.note} onChange={(e) => set('note', e.target.value)} /></div>
               </div>
               <span style={{ ...label, marginBottom: 8 }}>How will you pay? *</span>
@@ -499,7 +514,9 @@ function CartDrawer({ site, v }) {
               ) : (
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setView('cart')} style={{ ...btnStyle(v, false), color: '#14161a', flex: '0 0 auto' }}>Back</button>
-                <button form="co-checkout" disabled={busy} style={{ ...btnStyle(v), flex: 1, textAlign: 'center', border: 'none', opacity: busy ? 0.7 : 1 }}>{busy ? 'Placing order…' : `Place order · ${fmtN(cart.total)}`}</button>
+                <button form="co-checkout" disabled={busy} style={{ ...btnStyle(v), flex: 1, textAlign: 'center', border: 'none', opacity: busy ? 0.7 : 1 }}>
+                  {busy ? (f.method === 'card' ? 'Opening secure payment…' : 'Placing order…') : f.method === 'card' ? `Pay ${fmtN(cart.total)} by card` : `Place order · ${fmtN(cart.total)}`}
+                </button>
               </div>
               )
             )}

@@ -265,6 +265,8 @@ grant execute on function public.delete_org_site() to authenticated;
 --                        gap: there was previously NO way to preview an
 --                        unpublished site at all)
 -- ============================================================================
+-- SUPERSEDED by site_paystack.sql (payments gains enableCard) — do not
+-- re-run this definition after that file has been applied.
 create or replace function public._build_site_payload(v_org_id uuid)
 returns jsonb language plpgsql stable security definer set search_path = public as $$
 declare

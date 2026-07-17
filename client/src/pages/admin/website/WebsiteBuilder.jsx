@@ -524,7 +524,14 @@ function OrdersTab({ orgId, flash }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 8 }}>
             <strong style={{ fontSize: 14 }}>{o.order_no}</strong>
             <span style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 10px', borderRadius: 100, background: `${ORDER_TINT[o.status]}18`, color: ORDER_TINT[o.status] }}>{ORDER_STATUS[o.status]}</span>
-            <span style={{ fontSize: 12.5, color: 'var(--text-2)' }}>{o.payment_method === 'transfer' ? 'Bank transfer' : 'Pay on delivery'}</span>
+            <span style={{ fontSize: 12.5, color: 'var(--text-2)' }}>
+              {o.payment_method === 'card' ? 'Card (Paystack)' : o.payment_method === 'transfer' ? 'Bank transfer' : 'Pay on delivery'}
+            </span>
+            {o.payment_method === 'card' && (
+              o.paid_at
+                ? <span style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 10px', borderRadius: 100, background: 'rgba(18,131,63,0.12)', color: '#12833F' }}>PAID</span>
+                : <span style={{ fontSize: 11.5, fontWeight: 700, padding: '3px 10px', borderRadius: 100, background: 'rgba(183,121,31,0.12)', color: '#B7791F' }}>PAYMENT PENDING</span>
+            )}
             <span style={{ flex: 1 }} />
             <strong style={{ fontSize: 14.5 }}>{naira(o.total_naira)}</strong>
           </div>
@@ -630,6 +637,14 @@ function SettingsTab({ site, orgId, orgSlug, isStore, onSave, flash }) {
   const fileRef = useRef(null);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
 
+  // Whether this store's own Paystack gateway is switched on (admin-gated;
+  // the flag rides in the same payload the public site reads).
+  const [cardEnabled, setCardEnabled] = useState(false);
+  useEffect(() => {
+    if (!isStore) return;
+    W.getPreviewSite().then((d) => setCardEnabled(Boolean(d?.payments?.enableCard))).catch(() => {});
+  }, [isStore]);
+
   const pickLogo = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -698,6 +713,23 @@ function SettingsTab({ site, orgId, orgSlug, isStore, onSave, flash }) {
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, marginBottom: 16, cursor: 'pointer' }}>
             <input type="checkbox" checked={f.enableCod} onChange={(e) => set('enableCod', e.target.checked)} /> Accept pay on delivery
           </label>
+          <div style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '13px 15px', marginBottom: 16, background: 'var(--surface-2)' }}>
+            <div style={{ fontSize: 13.5, fontWeight: 650, marginBottom: 4 }}>
+              Card payments{cardEnabled ? ' — ON' : ''}
+            </div>
+            {cardEnabled ? (
+              <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
+                Your store takes card, bank and USSD payments through your own Paystack account — money settles
+                straight into your bank, and paid orders confirm themselves in the Orders tab.
+              </p>
+            ) : (
+              <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
+                Want customers to pay by card, bank or USSD at checkout? It runs on your own Paystack account, at no
+                extra Collarone charge — <a href={`https://wa.me/2348148128551?text=${encodeURIComponent('Hello Collarone — please enable card payments (Paystack) for my store. My company handle is: ')}`} target="_blank" rel="noreferrer" style={{ fontWeight: 650 }}>contact your system admin</a> with
+                your store handle and your Paystack account details to switch it on.
+              </p>
+            )}
+          </div>
 
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', border: '1px dashed var(--line)', borderRadius: 12, padding: 14 }}>
             <span style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--surface-2)', display: 'grid', placeItems: 'center', flexShrink: 0, color: 'var(--text-2)' }}>

@@ -165,6 +165,37 @@ export default async function handler(req, res) {
       return json(res, 200, { tokenHash: link.properties.hashed_token, name: target.name, email: target.email, orgName: org?.name || 'this organization' });
     }
 
+    // Per-merchant Paystack gateway — the merchant's OWN keys, so card
+    // payments settle directly to their bank (Collarone never touches the
+    // money). Keys live in org_payment_gateways, which has RLS enabled with
+    // no policies: only this service role can read or write them, and they
+    // are never echoed back or logged — the get mode returns a masked state.
+    if (action === 'payment-gateway') {
+      await requirePlatformAdmin();
+      const { orgId, mode } = body;
+      if (!orgId) return json(res, 400, { message: 'orgId is required.' });
+
+      if (mode === 'get') {
+        const { data: gw } = await admin.from('org_payment_gateways').select('enabled, public_key, secret_key, updated_at').eq('org_id', orgId).maybeSingle();
+        return json(res, 200, {
+          enabled: Boolean(gw?.enabled),
+          hasKeys: Boolean(gw?.secret_key),
+          publicKeyMasked: gw?.public_key ? `${gw.public_key.slice(0, 12)}…` : '',
+          updatedAt: gw?.updated_at || null,
+        });
+      }
+
+      const { publicKey, secretKey, enabled } = body;
+      if (enabled && (!publicKey || !secretKey)) return json(res, 400, { message: 'Both Paystack keys are required to enable card payments.' });
+      const patch = { org_id: orgId, enabled: Boolean(enabled), enabled_by: user.id, updated_at: new Date().toISOString() };
+      if (publicKey) patch.public_key = String(publicKey).trim();
+      if (secretKey) patch.secret_key = String(secretKey).trim();
+      const { error: gwErr } = await admin.from('org_payment_gateways').upsert(patch, { onConflict: 'org_id' });
+      if (gwErr) return json(res, 400, { message: gwErr.message });
+      await logAudit('payment_gateway', orgId, { enabled: Boolean(enabled) });
+      return json(res, 200, { ok: true, enabled: Boolean(enabled) });
+    }
+
     // Payroll runs Nigerian PAYE/pension/NHF only — it isn't built for any
     // other country's statutory regime. Gating on the org's self-reported
     // `country` field isn't enough (that's just a form field at signup), so

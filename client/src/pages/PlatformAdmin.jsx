@@ -10,7 +10,7 @@ import ThemePreviewModal from '../components/ThemePreview.jsx';
 const GUEST_KEY = 'collarone_guest_mode';
 
 const STATUS_LABEL = { pending_payment: 'Pending payment', active: 'Active', suspended: 'Suspended', cancelled: 'Cancelled' };
-const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', delete_org: 'Deleted organization', impersonate: 'Impersonated admin (retired)', guest_mode: 'Guested into organization' };
+const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', delete_org: 'Deleted organization', impersonate: 'Impersonated admin (retired)', guest_mode: 'Guested into organization', payment_gateway: 'Changed card-payment gateway' };
 const ALL_SUITE_KEYS = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents'];
 const COUNTRY_NAME = { NG: 'Nigeria', GH: 'Ghana', KE: 'Kenya', ZA: 'South Africa', EG: 'Egypt', GB: 'United Kingdom', US: 'United States' };
 
@@ -254,6 +254,58 @@ function DeleteOrgModal({ org, onClose, onConfirm, busy }) {
   );
 }
 
+// Merchant's own Paystack keys — stored via the service role, never readable
+// from the browser, never displayed back (only a masked prefix). Card
+// payments settle to the MERCHANT's bank; Collarone never touches money.
+function GatewayModal({ org, onClose, flash }) {
+  const [state, setState] = useState(null); // {enabled, hasKeys, publicKeyMasked}
+  const [f, setF] = useState({ publicKey: '', secretKey: '' });
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    apiPost('/platform/payment-gateway', { orgId: org.id, mode: 'get' }).then(setState).catch((e) => flash(e.message, true));
+  }, [org.id]); // eslint-disable-line
+
+  const save = async (enabled) => {
+    setBusy(true);
+    try {
+      const d = await apiPost('/platform/payment-gateway', { orgId: org.id, mode: 'set', publicKey: f.publicKey, secretKey: f.secretKey, enabled });
+      flash(enabled ? `Card payments enabled for ${org.name}.` : `Card payments disabled for ${org.name}.`);
+      setState((s) => ({ ...s, enabled: d.enabled, hasKeys: s?.hasKeys || Boolean(f.secretKey) }));
+      onClose();
+    } catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="pc-scrim" onMouseDown={onClose}>
+      <div className="pc-modal" onMouseDown={(e) => e.stopPropagation()}>
+        <h2 style={{ fontSize: 16, margin: '0 0 6px' }}>Card payments — {org.name}</h2>
+        <p style={{ fontSize: 12.5, color: 'var(--dim)', lineHeight: 1.6, margin: '0 0 14px' }}>
+          The merchant's OWN Paystack keys — payments settle to their bank, Collarone never holds funds.
+          {state && (state.hasKeys
+            ? ` Keys on file (${state.publicKeyMasked || 'set'}), currently ${state.enabled ? 'ENABLED' : 'disabled'}. Paste new keys only to replace them.`
+            : ' No keys on file yet.')}
+        </p>
+        <label className="pc-field" style={{ marginBottom: 10 }}>
+          <span>Paystack public key</span>
+          <input className="pc-input" value={f.publicKey} onChange={(e) => setF((s) => ({ ...s, publicKey: e.target.value }))} placeholder="pk_live_…" />
+        </label>
+        <label className="pc-field">
+          <span>Paystack secret key</span>
+          <input className="pc-input" type="password" value={f.secretKey} onChange={(e) => setF((s) => ({ ...s, secretKey: e.target.value }))} placeholder="sk_live_…" />
+        </label>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 }}>
+          <button className="pc-btn" onClick={onClose}>Cancel</button>
+          {state?.enabled && <button className="pc-btn danger" disabled={busy} onClick={() => save(false)}>Disable</button>}
+          <button className="pc-btn primary" disabled={busy || (!state?.hasKeys && (!f.publicKey || !f.secretKey))} onClick={() => save(true)}>
+            {busy ? '…' : 'Enable card payments'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OrgSiteCell({ org, site, themes }) {
   const themeName = site && (themes.find((t) => t.key === site.theme_key)?.name || site.theme_key);
   if (site) {
@@ -289,6 +341,7 @@ export default function PlatformAdmin() {
   const [expandedOrg, setExpandedOrg] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [gatewayOrg, setGatewayOrg] = useState(null);
 
   const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3200); };
 
@@ -509,6 +562,9 @@ export default function PlatformAdmin() {
                               {guestingOrg === o.id ? '…' : 'Guest in'}
                             </button>
                           )}
+                          {o.status === 'active' && siteByOrg[o.id] && (
+                            <button className="pc-btn sm" onClick={() => setGatewayOrg(o)}>Card payments</button>
+                          )}
                           {o.id !== FOUNDING_ORG_ID && (
                             <button className="pc-btn sm danger" onClick={() => setDeleteTarget(o)}>Delete</button>
                           )}
@@ -589,6 +645,7 @@ export default function PlatformAdmin() {
       {deleteTarget && (
         <DeleteOrgModal org={deleteTarget} busy={deleting} onClose={() => setDeleteTarget(null)} onConfirm={deleteOrg} />
       )}
+      {gatewayOrg && <GatewayModal org={gatewayOrg} onClose={() => setGatewayOrg(null)} flash={flash} />}
       {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
     </PlatformShell>
   );

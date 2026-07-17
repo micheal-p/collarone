@@ -94,7 +94,7 @@ const INTENTS = [
     id: 'website',
     phrases: ['website builder', 'build a website', 'do i get a website', 'already have a website', 'online store'],
     keys: ['website', 'site', 'store', 'ecommerce', 'themes', 'domain'],
-    answer: 'Every tier includes the website builder — 10 themes across online store (with cart and bank-transfer or pay-on-delivery checkout), landing pages and company profiles, all edited in place. Already have a website? Just link it at sign-up — enquiries from your existing site can still land in your Collarone CRM through an embeddable form.',
+    answer: 'Every tier includes the website builder — 10 themes across online store, landing pages and company profiles, all edited in place, and every new site starts fully written with sample content you just swap out. Stores get a real cart and checkout: bank transfer or pay on delivery by default, and card/bank/USSD payments through your OWN Paystack account at no extra Collarone charge (ask the team to switch it on — money settles straight to your bank). Already have a website? Just link it at sign-up.',
     chips: ['What does it cost?', 'How do I get started?'],
   },
   {
