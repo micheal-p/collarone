@@ -57,7 +57,7 @@ function LetterPreview({ letterhead, letter, scale = 1 }) {
 }
 
 /* ---- Compose tab ------------------------------------------------------------- */
-function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me, issued, folders }) {
+function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me, issued, folders, confirm, onFolderCreated }) {
   const initialType = prefill?.letterType || 'confirmation';
   const [f, setF] = useState(() => ({
     employeeId: prefill?.employeeId || '', letterType: initialType,
@@ -81,10 +81,30 @@ function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me, issued, f
   const emp = staff.find((s) => s.id === f.employeeId);
   const type = LETTER_TYPES[f.letterType] || LETTER_TYPES.custom;
   const title = emp ? `${type.label} — ${emp.name}` : type.label;
+  const existingNames = useMemo(() => new Set((folders || []).map((x) => x.name)), [folders]);
   const folderOptions = useMemo(() => {
-    const names = new Set([f.folderName, ...Object.values(LETTER_FOLDER_SUGGESTION), ...(folders || []).map((x) => x.name)]);
+    const names = new Set([f.folderName, ...Object.values(LETTER_FOLDER_SUGGESTION), ...existingNames]);
     return [...names];
-  }, [folders, f.folderName]);
+  }, [existingNames, f.folderName]);
+
+  // "+ New folder…" — creates the folder in Documents right away (it appears
+  // in the Documents suite immediately), then selects it here.
+  const createFolder = async () => {
+    const res = await confirm({
+      title: 'New Documents folder', confirmLabel: 'Create folder',
+      message: 'The folder is created in the Documents suite now and this letter will file into it.',
+      input: { label: 'Folder name', placeholder: 'e.g. HR Letters — Promotions', required: true },
+    });
+    if (!res) return;
+    const name = res.value.trim();
+    if (existingNames.has(name)) { set('folderName', name); return; }
+    try {
+      const folder = await D.createFolder({ name });
+      onFolderCreated?.(folder);
+      set('folderName', name);
+      flash(`Folder "${name}" created in Documents.`);
+    } catch (e) { flash(`Could not create the folder: ${e.message}`, true); }
+  };
 
   const ctx = () => ({
     letterType: f.letterType, letterTypeLabel: type.label,
@@ -174,8 +194,12 @@ function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me, issued, f
           <div className="field"><label>Our ref <span className="muted">(auto)</span></label>
             <input className="input" value={f.reference} onChange={(e) => setF((s) => ({ ...s, reference: e.target.value, refTouched: true }))} /></div>
           <div className="field"><label>File into <span className="muted">(Documents folder)</span></label>
-            <select className="select" value={f.folderName} onChange={(e) => set('folderName', e.target.value)}>
-              {folderOptions.map((n) => <option key={n} value={n}>{n}</option>)}
+            <select className="select" value={f.folderName}
+              onChange={(e) => { if (e.target.value === '__new__') { e.target.value = f.folderName; createFolder(); } else set('folderName', e.target.value); }}>
+              {folderOptions.map((n) => (
+                <option key={n} value={n}>{n}{existingNames.has(n) ? '' : ' (created on issue)'}</option>
+              ))}
+              <option value="__new__">+ New folder…</option>
             </select></div>
         </div>
         <div className="form-grid">
@@ -498,6 +522,7 @@ export default function LettersApp({ staff, flash, externalPrefill = null, onPre
       {tab === 'compose' && (
         <ComposeTab key={prefill ? `${prefill.requestId || ''}-${prefill.employeeId || ''}-${prefill.letterType || ''}-${prefill.caseId || ''}` : 'blank'}
           staff={staff} letterhead={defaultLetterhead} flash={flash} me={me} prefill={prefill} issued={issued} folders={folders}
+          confirm={confirm} onFolderCreated={(fl) => setFolders((xs) => [fl, ...xs])}
           onIssued={(l) => { setIssued((xs) => [l, ...xs]); setRequests((rs) => rs.map((r) => (r.id === l.request_id ? { ...r, status: 'issued' } : r))); setPrefill(null); }} />
       )}
       {tab === 'requests' && (
