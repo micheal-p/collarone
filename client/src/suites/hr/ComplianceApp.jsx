@@ -141,23 +141,51 @@ function CaseModal({ staff, onClose, onSaved, onError }) {
   );
 }
 
-function CasesTab({ staff, flash, confirm }) {
+function CasesTab({ staff, flash, confirm, onComposeLetter }) {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
   const load = () => { setLoading(true); C.getCases().then(setCases).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); };
   useEffect(load, []); // eslint-disable-line
 
-  const resolve = async (c) => {
+  const patchCase = async (id, body) => {
+    try { const updated = await C.updateCase(id, body); setCases((cs) => cs.map((x) => (x.id === updated.id ? updated : x))); return updated; }
+    catch (e) { flash(e.message, true); return null; }
+  };
+
+  // Fair-hearing sequence: query letter -> employee's written response ->
+  // outcome. Each step is recorded on the case; letters go through the
+  // Letters engine and are stamped back onto the case.
+  const recordResponse = async (c) => {
     const res = await confirm({
-      title: 'Mark case resolved',
-      message: 'The case will move to Resolved.',
-      confirmLabel: 'Resolve',
-      input: { label: 'Resolution notes', required: false },
+      title: 'Record employee response',
+      message: `${c.employee?.name}'s written response to the query.`,
+      confirmLabel: 'Record',
+      input: { label: 'Summary of the response (the signed original goes in Documents)', required: true },
     });
     if (!res) return;
-    try { const updated = await C.updateCase(c.id, { status: 'resolved', resolutionNotes: res.value }); setCases((cs) => cs.map((x) => (x.id === updated.id ? updated : x))); }
-    catch (e) { flash(e.message, true); }
+    if (await patchCase(c.id, { responseNote: res.value })) flash('Response recorded.');
+  };
+
+  const recordOutcome = async (c, outcome) => {
+    const labels = { cleared: 'Cleared — no sanction', warning: 'Formal warning', suspension: 'Suspension', termination: 'Termination' };
+    const res = await confirm({
+      title: `Outcome: ${labels[outcome]}`,
+      message: outcome === 'cleared'
+        ? 'The case will be resolved with no sanction.'
+        : outcome === 'termination'
+          ? 'Record the decision here, then run the exit itself from the Offboarding tab.'
+          : 'The decision is recorded on the case.',
+      confirmLabel: 'Record outcome',
+      danger: outcome === 'termination',
+      input: { label: 'Decision notes', required: false },
+    });
+    if (!res) return;
+    const done = await patchCase(c.id, { outcome, status: 'resolved', resolutionNotes: res.value || labels[outcome] });
+    if (done) flash(`Outcome recorded — ${labels[outcome]}.`);
+    if (done && outcome === 'warning' && onComposeLetter) {
+      onComposeLetter({ employeeId: c.employee?.id, letterType: 'warning', caseId: c.id, caseField: 'outcomeLetterId' });
+    }
   };
 
   return (
@@ -179,8 +207,39 @@ function CasesTab({ staff, flash, confirm }) {
               </div>
               <p style={{ fontSize:13, margin:'8px 0 0', whiteSpace:'pre-wrap' }}>{c.description}</p>
               <div className="muted" style={{ fontSize:12, marginTop:4 }}>Opened by {c.openedBy?.name} · {C.fmtDate(c.created_at)}</div>
+
+              {/* fair-hearing stage trail */}
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:8 }}>
+                <span className={`st-pill ${c.query_letter_id ? 'st-success' : 'st-neutral'}`}>1 · Query {c.query_letter_id ? 'issued' : 'not issued'}</span>
+                <span className={`st-pill ${c.response_note ? 'st-success' : 'st-neutral'}`}>2 · Response {c.response_note ? `recorded ${C.fmtDate(c.response_at)}` : 'pending'}</span>
+                <span className={`st-pill ${c.outcome ? (c.outcome === 'cleared' ? 'st-success' : 'st-warn') : 'st-neutral'}`}>3 · {c.outcome ? `Outcome: ${c.outcome}` : 'Outcome pending'}</span>
+              </div>
+              {c.response_note && <p style={{ fontSize:13, margin:'8px 0 0' }}><b>Response:</b> {c.response_note}</p>}
               {c.status === 'resolved' && c.resolution_notes && <p style={{ fontSize:13, margin:'8px 0 0' }}><b>Resolution:</b> {c.resolution_notes}</p>}
-              {c.status === 'open' && <button className="btn btn-ghost" style={{ marginTop:8, fontSize:12, padding:'3px 12px' }} onClick={() => resolve(c)}>Mark resolved</button>}
+
+              {c.status === 'open' && (
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:10 }}>
+                  {!c.query_letter_id && onComposeLetter && (
+                    <button className="btn btn-primary btn-sm" onClick={() => onComposeLetter({ employeeId: c.employee?.id, letterType: 'query', caseId: c.id, caseField: 'queryLetterId', instructions: `Regarding: ${c.description.slice(0, 140)}` })}>
+                      Issue query letter
+                    </button>
+                  )}
+                  {c.query_letter_id && !c.response_note && (
+                    <button className="btn btn-primary btn-sm" onClick={() => recordResponse(c)}>Record response</button>
+                  )}
+                  {c.query_letter_id && c.response_note && (
+                    <>
+                      <button className="btn btn-primary btn-sm" onClick={() => recordOutcome(c, 'cleared')}>Cleared</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => recordOutcome(c, 'warning')}>Warning letter</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => recordOutcome(c, 'suspension')}>Suspension</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => recordOutcome(c, 'termination')}>Termination</button>
+                    </>
+                  )}
+                  {!onComposeLetter && !c.query_letter_id && (
+                    <span className="muted" style={{ fontSize:12 }}>Issue the query letter from the Letters tab, then continue here.</span>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -193,7 +252,7 @@ function CasesTab({ staff, flash, confirm }) {
 }
 
 /* ---- Main ComplianceApp ------------------------------------------------------------ */
-export default function ComplianceApp({ staff }) {
+export default function ComplianceApp({ staff, onComposeLetter }) {
   const [tab, setTab] = useState('documents');
   const { flash, toastNode } = useToast();
   const { confirm, confirmNode } = useConfirm();
@@ -205,7 +264,7 @@ export default function ComplianceApp({ staff }) {
         <button className={`lv-tab ${tab === 'cases' ? 'active' : ''}`} onClick={() => setTab('cases')}>Cases</button>
       </div>
       {tab === 'documents' && <DocumentsTab staff={staff} flash={flash} confirm={confirm} />}
-      {tab === 'cases'     && <CasesTab staff={staff} flash={flash} confirm={confirm} />}
+      {tab === 'cases'     && <CasesTab staff={staff} flash={flash} confirm={confirm} onComposeLetter={onComposeLetter} />}
       {confirmNode}
       {toastNode}
     </div>

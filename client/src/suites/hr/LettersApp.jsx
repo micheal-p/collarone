@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiGet } from '../../api/client.js';
 import { useConfirm, EmptyState } from '../../components/ui.jsx';
 import * as L from './lettersApi.js';
+import * as C from './complianceApi.js';
 import * as D from '../documents/documentsApi.js';
 import { LETTER_TYPES, LETTERHEAD_TEMPLATES, LETTERHEAD_CSS, letterHeadHtml, letterBodyHtml, buildLetterDocument } from './letterheadTemplates.js';
 
@@ -59,7 +60,8 @@ function LetterPreview({ letterhead, letter, scale = 1 }) {
 function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me }) {
   const [f, setF] = useState(() => ({
     employeeId: prefill?.employeeId || '', letterType: prefill?.letterType || 'confirmation',
-    reference: '', instructions: '', body: '', requestId: prefill?.requestId || null,
+    reference: '', instructions: prefill?.instructions || '', body: '', requestId: prefill?.requestId || null,
+    caseId: prefill?.caseId || null, caseField: prefill?.caseField || null,
     signerName: me?.name || '', signerRole: 'Human Resources',
   }));
   const [aiBusy, setAiBusy] = useState(false);
@@ -107,11 +109,15 @@ function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me }) {
       if (f.requestId) {
         try { await L.decideLetter(f.requestId, { status: 'issued', issuedFilePath: filePath }); } catch { /* request row may already be decided */ }
       }
+      if (f.caseId && f.caseField) {
+        // Disciplinary flow: stamp the query/outcome letter onto the case.
+        try { await C.updateCase(f.caseId, { [f.caseField]: saved.id }); } catch { /* case link is best-effort */ }
+      }
       downloadHtml(html, `${title.replace(/[^a-zA-Z0-9]+/g, '-')}.html`);
       fileToDocuments({ html, title, employeeId: emp.id }).catch(() => {});
       flash('Letter issued — downloaded, filed to Documents in the background.');
       onIssued(saved);
-      setF((s) => ({ ...s, body: '', reference: '', instructions: '', requestId: null }));
+      setF((s) => ({ ...s, body: '', reference: '', instructions: '', requestId: null, caseId: null, caseField: null }));
     } catch (e) { flash(e.message, true); }
     finally { setBusy(false); }
   };
@@ -386,7 +392,7 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved }) {
 }
 
 /* ---- Main -------------------------------------------------------------------------- */
-export default function LettersApp({ staff, flash }) {
+export default function LettersApp({ staff, flash, externalPrefill = null, onPrefillConsumed }) {
   const [tab, setTab] = useState('compose');
   const [letterheads, setLetterheads] = useState([]);
   const [requests, setRequests] = useState([]);
@@ -394,8 +400,14 @@ export default function LettersApp({ staff, flash }) {
   const [me, setMe] = useState(null);
   const [orgName, setOrgName] = useState('');
   const [loading, setLoading] = useState(true);
-  const [prefill, setPrefill] = useState(null);
+  const [prefill, setPrefill] = useState(externalPrefill);
   const { confirm, confirmNode } = useConfirm();
+
+  // Another tab (probation confirm, disciplinary query) sent us here with a
+  // prefilled composer — consume it once.
+  useEffect(() => {
+    if (externalPrefill) { setPrefill(externalPrefill); setTab('compose'); onPrefillConsumed?.(); }
+  }, [externalPrefill]); // eslint-disable-line
 
   useEffect(() => {
     Promise.allSettled([
@@ -432,7 +444,8 @@ export default function LettersApp({ staff, flash }) {
       </div>
 
       {tab === 'compose' && (
-        <ComposeTab key={prefill ? prefill.requestId : 'blank'} staff={staff} letterhead={defaultLetterhead} flash={flash} me={me} prefill={prefill}
+        <ComposeTab key={prefill ? `${prefill.requestId || ''}-${prefill.employeeId || ''}-${prefill.letterType || ''}-${prefill.caseId || ''}` : 'blank'}
+          staff={staff} letterhead={defaultLetterhead} flash={flash} me={me} prefill={prefill}
           onIssued={(l) => { setIssued((xs) => [l, ...xs]); setRequests((rs) => rs.map((r) => (r.id === l.request_id ? { ...r, status: 'issued' } : r))); setPrefill(null); }} />
       )}
       {tab === 'requests' && (

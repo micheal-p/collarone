@@ -14,7 +14,12 @@ export const STATUS = {
   retired: { label: 'Retired', cls: 'ia-s-retired' },
 };
 
+export const HISTORY_ACTIONS = { assigned: 'Assigned', returned: 'Returned', repaired: 'Sent to repair', retired: 'Retired', note: 'Note' };
+
 export const fmtDate = (d) => d
   ? new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  : '—';
+export const fmtWhen = (ts) => ts
+  ? new Date(ts).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   : '—';
 export const money = (n) => n == null ? '—' : `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

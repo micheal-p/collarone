@@ -517,7 +517,11 @@ export default function PlatformAdmin() {
       const d = await apiPost('/platform/guest-mode', { orgId: org.id });
       const { error } = await supabase.auth.verifyOtp({ type: 'magiclink', token_hash: d.tokenHash });
       if (error) throw new Error(error.message);
-      sessionStorage.setItem(GUEST_KEY, JSON.stringify({ orgId: org.id, orgName: d.orgName, startedAt: Date.now() }));
+      // localStorage, NOT sessionStorage: the auth session itself lives in
+      // localStorage, so the guest marker must survive a closed tab too —
+      // otherwise you reopen the browser silently logged into a customer's
+      // org with no banner. AppLayout enforces a hard expiry on this marker.
+      localStorage.setItem(GUEST_KEY, JSON.stringify({ orgId: org.id, orgName: d.orgName, startedAt: Date.now() }));
       window.location.href = '/workspace';
     } catch (e) { flash(e.message, true); setGuestingOrg(null); }
   };

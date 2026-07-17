@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as IA from './itAssetsApi.js';
 import { apiGet } from '../../api/client.js';
-import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
+import { useToast, useConfirm, Modal, EmptyState, searchMatcher } from '../../components/ui.jsx';
 
 const CSS = `
   .ia-badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; letter-spacing:.03em; }
@@ -93,12 +93,62 @@ function AssignModal({ asset, onClose, onSaved, flash }) {
   );
 }
 
+const HIST_CLS = { assigned: 'ia-s-inuse', returned: 'ia-s-spare', repaired: 'ia-s-repair', retired: 'ia-s-retired', note: 'ia-s-spare' };
+
+function HistoryModal({ asset, onClose, flash }) {
+  const [rows, setRows] = useState(null);
+  useEffect(() => {
+    IA.getHistory(asset.id).then(setRows).catch((e) => { flash(e.message, true); setRows([]); });
+  }, [asset.id, flash]);
+  return (
+    <Modal title={`History — ${asset.name}`} onClose={onClose}>
+      {rows === null && <div className="suite-loading"><div className="boot-spinner" /></div>}
+      {rows !== null && rows.length === 0 && (
+        <EmptyState title="No history yet" hint="Assign, return, repair and retire actions are recorded here." />
+      )}
+      {rows !== null && rows.length > 0 && (
+        <div>
+          {rows.map((h, i) => (
+            <div key={h.id} style={{ padding: '10px 0', borderBottom: i === rows.length - 1 ? 'none' : '1px solid var(--line-strong)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <span className={`ia-badge ${HIST_CLS[h.action] || 'ia-s-spare'}`}>{IA.HISTORY_ACTIONS[h.action] || h.action}</span>
+                {h.employee?.name && <span style={{ fontSize: 13, fontWeight: 500 }}>{h.employee.name}</span>}
+                <span className="muted" style={{ fontSize: 12, marginLeft: 'auto' }}>{IA.fmtWhen(h.created_at)}</span>
+              </div>
+              {h.notes && <p style={{ margin: '6px 0 0', fontSize: 13, color: 'var(--text-2)', whiteSpace: 'pre-wrap' }}>{h.notes}</p>}
+              {h.author?.name && <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>by {h.author.name}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+const FILTERS = [
+  { key: 'all', label: 'All' },
+  { key: 'in_use', label: 'In use' },
+  { key: 'spare', label: 'Spare' },
+  { key: 'repair', label: 'Repair' },
+  { key: 'retired', label: 'Retired' },
+];
+
 function ManagerView({ flash }) {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [assignFor, setAssignFor] = useState(null);
+  const [historyFor, setHistoryFor] = useState(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [q, setQ] = useState('');
   const { confirm, confirmNode } = useConfirm();
+
+  const shown = useMemo(() => {
+    const match = searchMatcher(q);
+    return assets.filter((a) =>
+      (statusFilter === 'all' || a.status === statusFilter)
+      && match(a.name, a.asset_tag, a.serial_number, a.employee?.name));
+  }, [assets, statusFilter, q]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -109,6 +159,19 @@ function ManagerView({ flash }) {
 
   const returnAsset = async (a) => {
     try { await IA.updateAsset(a.id, { action: 'return' }); flash('Asset returned.'); load(); } catch (e) { flash(e.message, true); }
+  };
+  const sendToRepair = async (a) => {
+    const res = await confirm({
+      title: `Send ${a.name} to repair?`,
+      message: 'Status moves to Repair. Use "Back to stock" when it comes back.',
+      confirmLabel: 'Send to repair',
+      input: { label: 'Note (optional)', placeholder: 'What is wrong with it?' },
+    });
+    if (!res) return;
+    try { await IA.updateAsset(a.id, { action: 'repair', notes: res.value }); flash('Sent to repair.'); load(); } catch (e) { flash(e.message, true); }
+  };
+  const backToStock = async (a) => {
+    try { await IA.updateAsset(a.id, { action: 'return' }); flash('Back in stock as spare.'); load(); } catch (e) { flash(e.message, true); }
   };
   const retireAsset = async (a) => {
     const ok = await confirm({
@@ -132,7 +195,16 @@ function ManagerView({ flash }) {
   return (
     <>
       <div className="filterbar" style={{ marginTop: 8 }}>
-        <span className="count">{assets.length} asset{assets.length === 1 ? '' : 's'}</span>
+        <div className="filter-pills">
+          {FILTERS.map((f) => (
+            <button key={f.key} className={`pill ${statusFilter === f.key ? 'active' : ''}`} onClick={() => setStatusFilter(f.key)}>{f.label}</button>
+          ))}
+        </div>
+        <div className="cmd-search" style={{ marginLeft: 'auto' }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+          <input placeholder="Search name, tag, serial, assignee…" value={q} onChange={(e) => setQ(e.target.value)} style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, marginLeft: 6, width: 210 }} />
+        </div>
+        <span className="count">{shown.length} asset{shown.length === 1 ? '' : 's'}</span>
         <button className="btn btn-primary lv-apply" onClick={() => setModal('new')}>Add asset</button>
       </div>
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
@@ -141,12 +213,14 @@ function ManagerView({ flash }) {
           <table className="table">
             <thead><tr><th>Tag</th><th>Name</th><th>Category</th><th>Cost</th><th>Purchased</th><th>Status</th><th>Assigned to</th><th></th></tr></thead>
             <tbody>
-              {assets.length === 0 && (
+              {shown.length === 0 && (
                 <tr><td colSpan={8} style={{ padding: 0 }}>
-                  <EmptyState title="No assets yet" hint="Add an asset to start the register." />
+                  {assets.length === 0
+                    ? <EmptyState title="No assets yet" hint="Add an asset to start the register." />
+                    : <EmptyState title="No assets match" hint="Try a different filter or search." />}
                 </td></tr>
               )}
-              {assets.map((a) => (
+              {shown.map((a) => (
                 <tr key={a.id}>
                   <td className="muted" style={{ fontSize: 13, fontFamily: 'monospace' }}>{a.asset_tag}</td>
                   <td style={{ fontWeight: 500 }}>{a.name}</td>
@@ -156,8 +230,11 @@ function ManagerView({ flash }) {
                   <td><StatusBadge status={a.status} /></td>
                   <td className="muted" style={{ fontSize: 13 }}>{a.employee?.name || '—'}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
-                    {a.status !== 'retired' && !a.assigned_to && <button className="iconbtn" onClick={() => setAssignFor(a)}>Assign</button>}
-                    {a.assigned_to && <button className="iconbtn" onClick={() => returnAsset(a)}>Return</button>}
+                    {!['retired', 'repair'].includes(a.status) && !a.assigned_to && <button className="iconbtn" onClick={() => setAssignFor(a)}>Assign</button>}
+                    {a.status !== 'repair' && a.assigned_to && <button className="iconbtn" onClick={() => returnAsset(a)}>Return</button>}
+                    {['in_use', 'spare'].includes(a.status) && <button className="iconbtn" onClick={() => sendToRepair(a)}>Send to repair</button>}
+                    {a.status === 'repair' && <button className="iconbtn" onClick={() => backToStock(a)}>Back to stock</button>}
+                    <button className="iconbtn" onClick={() => setHistoryFor(a)}>History</button>
                     <button className="iconbtn" onClick={() => setModal(a)}>Edit</button>
                     {a.status !== 'retired' && <button className="iconbtn" onClick={() => retireAsset(a)}>Retire</button>}
                     <button className="iconbtn" onClick={() => removeAsset(a)}>Delete</button>
@@ -172,6 +249,7 @@ function ManagerView({ flash }) {
         <AssetModal asset={modal === 'new' ? null : modal} onClose={() => setModal(null)} onSaved={load} flash={flash} />
       )}
       {assignFor && <AssignModal asset={assignFor} onClose={() => setAssignFor(null)} onSaved={load} flash={flash} />}
+      {historyFor && <HistoryModal asset={historyFor} onClose={() => setHistoryFor(null)} flash={flash} />}
       {confirmNode}
     </>
   );
@@ -185,10 +263,10 @@ function StaffView({ flash }) {
   return (
     <div className="table-wrap">
       <table className="table">
-        <thead><tr><th>Tag</th><th>Name</th><th>Category</th><th>Serial no.</th></tr></thead>
+        <thead><tr><th>Tag</th><th>Name</th><th>Category</th><th>Serial no.</th><th>Status</th></tr></thead>
         <tbody>
           {assets.length === 0 && (
-            <tr><td colSpan={4} style={{ padding: 0 }}>
+            <tr><td colSpan={5} style={{ padding: 0 }}>
               <EmptyState title="No assets assigned to you" hint="Assets show up here once IT assigns them to you." />
             </td></tr>
           )}
@@ -198,6 +276,7 @@ function StaffView({ flash }) {
               <td style={{ fontWeight: 500 }}>{a.name}</td>
               <td className="muted" style={{ fontSize: 13 }}>{IA.CATEGORIES[a.category]}</td>
               <td className="muted" style={{ fontSize: 13 }}>{a.serial_number || '—'}</td>
+              <td><StatusBadge status={a.status} /></td>
             </tr>
           ))}
         </tbody>

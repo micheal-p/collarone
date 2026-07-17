@@ -36,8 +36,12 @@ function CategoryModal({ onClose, onSaved, flash }) {
   );
 }
 
-function ExpenseModal({ categories, onClose, onSaved, flash }) {
-  const [f, setF] = useState({ categoryId: '', vendor: '', description: '', amount: '', vatRate: 0.075, expenseDate: new Date().toISOString().slice(0, 10), notes: '' });
+function ExpenseModal({ categories, expense = null, onClose, onSaved, flash }) {
+  const [f, setF] = useState(expense ? {
+    categoryId: expense.category?.id || '', vendor: expense.vendor || '', description: expense.description || '',
+    amount: expense.amount ?? '', vatRate: expense.vat_rate ?? 0.075,
+    expenseDate: expense.expense_date || new Date().toISOString().slice(0, 10), notes: expense.notes || '',
+  } : { categoryId: '', vendor: '', description: '', amount: '', vatRate: 0.075, expenseDate: new Date().toISOString().slice(0, 10), notes: '' });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const total = (Number(f.amount) || 0) * (1 + (Number(f.vatRate) || 0));
@@ -46,12 +50,14 @@ function ExpenseModal({ categories, onClose, onSaved, flash }) {
     e.preventDefault();
     if (!f.description.trim()) return flash('Description is required.', true);
     setBusy(true);
-    try { const saved = await F.createExpense(f); flash('Expense submitted.'); onSaved(saved); onClose(); }
-    catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+    try {
+      const saved = expense ? await F.updateExpense(expense.id, f) : await F.createExpense(f);
+      flash(expense ? 'Expense updated.' : 'Expense submitted.'); onSaved(saved); onClose();
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
 
   return (
-    <Modal title="Submit expense" onClose={onClose} wide>
+    <Modal title={expense ? 'Edit expense' : 'Submit expense'} onClose={onClose} wide>
       <form onSubmit={submit}>
         <Field label="Description *"><input className="input" value={f.description} onChange={(e) => set('description', e.target.value)} required autoFocus /></Field>
         <div className="form-grid">
@@ -70,7 +76,7 @@ function ExpenseModal({ categories, onClose, onSaved, flash }) {
         <Field label="Notes"><textarea className="input" rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Submit'}</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : (expense ? 'Save changes' : 'Submit')}</button>
         </div>
       </form>
     </Modal>
@@ -123,6 +129,7 @@ export default function FinanceApp({ access }) {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('expenses');
   const [expModal, setExpModal] = useState(false);
+  const [editExp, setEditExp] = useState(null);
   const [budgetModal, setBudgetModal] = useState(false);
   const [catModal, setCatModal] = useState(false);
   const { flash, toastNode } = useToast();
@@ -219,7 +226,12 @@ export default function FinanceApp({ access }) {
                       </>
                     )}
                     {isManager && e.status === 'approved' && <button className="iconbtn" onClick={() => decide(e, 'paid')}>Mark paid</button>}
-                    <button className="iconbtn" onClick={() => removeExpense(e)}>Delete</button>
+                    {e.status === 'pending' && (
+                      <button className="iconbtn" title="Edit expense" aria-label="Edit expense" onClick={() => setEditExp(e)}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3.5a2.4 2.4 0 0 1 3.4 3.4L7.5 19.8 3 21l1.2-4.5z" /></svg>
+                      </button>
+                    )}
+                    {(e.status === 'pending' || e.status === 'rejected') && <button className="iconbtn" onClick={() => removeExpense(e)}>Delete</button>}
                   </td>
                 </tr>
               ))}
@@ -270,6 +282,7 @@ export default function FinanceApp({ access }) {
       )}
 
       {expModal && <ExpenseModal categories={categories} onClose={() => setExpModal(false)} onSaved={load} flash={flash} />}
+      {editExp && <ExpenseModal categories={categories} expense={editExp} onClose={() => setEditExp(null)} onSaved={load} flash={flash} />}
       {budgetModal && <BudgetModal categories={categories} onClose={() => setBudgetModal(false)} onSaved={load} flash={flash} />}
       {catModal && <CategoryModal onClose={() => setCatModal(false)} onSaved={load} flash={flash} />}
       {confirmNode}

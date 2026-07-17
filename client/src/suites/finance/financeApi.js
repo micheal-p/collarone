@@ -5,6 +5,7 @@ export const createCategory = (body) => apiPost('/finance/categories', body).the
 
 export const getExpenses   = () => apiGet('/finance/expenses').then((d) => d.expenses);
 export const createExpense = (body) => apiPost('/finance/expenses', body).then((d) => d.expense);
+export const updateExpense = (id, body) => apiPatch(`/finance/expenses/${id}`, body).then((d) => d.expense);
 export const decideExpense = (id, action) => apiPatch(`/finance/expenses/${id}`, { action }).then((d) => d.expense);
 export const deleteExpense = (id) => apiDelete(`/finance/expenses/${id}`);
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import * as P from './procurementApi.js';
 import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
 
@@ -14,8 +14,10 @@ const CSS = `
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 function StatusBadge({ status }) { const s = P.STATUS[status] || P.STATUS.pending; return <span className={`pr-badge ${s.cls}`}>{s.label}</span>; }
 
-function VendorModal({ onClose, onSaved, flash }) {
-  const [f, setF] = useState({ name: '', contactName: '', phone: '', email: '', address: '', notes: '' });
+function VendorModal({ vendor = null, onClose, onSaved, flash }) {
+  const [f, setF] = useState(vendor
+    ? { name: vendor.name || '', contactName: vendor.contact_name || '', phone: vendor.phone || '', email: vendor.email || '', address: vendor.address || '', notes: vendor.notes || '' }
+    : { name: '', contactName: '', phone: '', email: '', address: '', notes: '' });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
 
@@ -23,16 +25,20 @@ function VendorModal({ onClose, onSaved, flash }) {
     e.preventDefault();
     if (!f.name.trim()) return flash('Vendor name is required.', true);
     setBusy(true);
-    try { const saved = await P.createVendor(f); flash('Vendor added.'); onSaved(saved); onClose(); }
-    catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+    try {
+      const saved = vendor
+        ? await P.editVendor(vendor.id, { name: f.name.trim(), phone: f.phone, email: f.email, address: f.address, notes: f.notes })
+        : await P.createVendor(f);
+      flash(vendor ? 'Vendor updated.' : 'Vendor added.'); onSaved(saved); onClose();
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
 
   return (
-    <Modal title="Add vendor" onClose={onClose} wide>
+    <Modal title={vendor ? 'Edit vendor' : 'Add vendor'} onClose={onClose} wide>
       <form onSubmit={submit}>
         <div className="form-grid">
           <Field label="Vendor name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></Field>
-          <Field label="Contact person"><input className="input" value={f.contactName} onChange={(e) => set('contactName', e.target.value)} /></Field>
+          <Field label="Contact person"><input className="input" value={f.contactName} onChange={(e) => set('contactName', e.target.value)} disabled={!!vendor} title={vendor ? 'Contact person cannot be changed after creation.' : undefined} /></Field>
           <Field label="Phone"><input className="input" value={f.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
           <Field label="Email"><input className="input" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
         </div>
@@ -40,15 +46,17 @@ function VendorModal({ onClose, onSaved, flash }) {
         <Field label="Notes"><textarea className="input" rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add vendor'}</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : (vendor ? 'Save changes' : 'Add vendor')}</button>
         </div>
       </form>
     </Modal>
   );
 }
 
-function RequestModal({ vendors, onClose, onSaved, flash }) {
-  const [f, setF] = useState({ vendorId: '', itemDescription: '', quantity: 1, unitCost: '', vatRate: 0.075, notes: '' });
+function RequestModal({ vendors, request = null, onClose, onSaved, flash }) {
+  const [f, setF] = useState(request
+    ? { vendorId: request.vendor?.id || '', itemDescription: request.item_description || '', quantity: request.quantity ?? 1, unitCost: request.unit_cost ?? '', vatRate: request.vat_rate ?? 0.075, notes: request.notes || '' }
+    : { vendorId: '', itemDescription: '', quantity: 1, unitCost: '', vatRate: 0.075, notes: '' });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const total = (Number(f.quantity) || 0) * (Number(f.unitCost) || 0) * (1 + (Number(f.vatRate) || 0));
@@ -57,12 +65,14 @@ function RequestModal({ vendors, onClose, onSaved, flash }) {
     e.preventDefault();
     if (!f.itemDescription.trim()) return flash('Item description is required.', true);
     setBusy(true);
-    try { const saved = await P.createRequest(f); flash('Purchase request submitted.'); onSaved(saved); onClose(); }
-    catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+    try {
+      const saved = request ? await P.updateRequest(request.id, f) : await P.createRequest(f);
+      flash(request ? 'Request updated.' : 'Purchase request submitted.'); onSaved(saved); onClose();
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
 
   return (
-    <Modal title="New purchase request" onClose={onClose} wide>
+    <Modal title={request ? 'Edit purchase request' : 'New purchase request'} onClose={onClose} wide>
       <form onSubmit={submit}>
         <Field label="Item description *"><input className="input" value={f.itemDescription} onChange={(e) => set('itemDescription', e.target.value)} required autoFocus /></Field>
         <div className="form-grid">
@@ -80,7 +90,7 @@ function RequestModal({ vendors, onClose, onSaved, flash }) {
         <Field label="Notes"><textarea className="input" rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Submit request'}</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : (request ? 'Save changes' : 'Submit request')}</button>
         </div>
       </form>
     </Modal>
@@ -95,6 +105,9 @@ export default function ProcurementApp({ access }) {
   const [tab, setTab] = useState('requests');
   const [reqModal, setReqModal] = useState(false);
   const [vendorModal, setVendorModal] = useState(false);
+  const [editReq, setEditReq] = useState(null);
+  const [editVendor, setEditVendor] = useState(null);
+  const [openVendor, setOpenVendor] = useState(null); // vendor id with details row expanded
   const { flash, toastNode } = useToast();
   const { confirm, confirmNode } = useConfirm();
 
@@ -167,6 +180,7 @@ export default function ProcurementApp({ access }) {
                     )}
                     {isManager && r.status === 'approved' && <button className="iconbtn" onClick={() => decide(r, 'ordered')}>Mark ordered</button>}
                     {isManager && r.status === 'ordered' && <button className="iconbtn" onClick={() => decide(r, 'received')}>Mark received</button>}
+                    {r.status === 'pending' && <button className="iconbtn" onClick={() => setEditReq(r)}>Edit</button>}
                     <button className="iconbtn" onClick={() => removeRequest(r)}>Delete</button>
                   </td>
                 </tr>

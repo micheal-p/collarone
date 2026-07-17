@@ -2,10 +2,12 @@ import { apiGet, apiPost, apiPatch, apiDelete } from '../../api/client.js';
 
 export const getVendors   = () => apiGet('/procurement/vendors').then((d) => d.vendors);
 export const createVendor = (body) => apiPost('/procurement/vendors', body).then((d) => d.vendor);
+export const editVendor   = (id, body) => apiPatch(`/procurement/vendors/${id}`, body).then((d) => d.vendor);
 export const deleteVendor = (id) => apiDelete(`/procurement/vendors/${id}`);
 
 export const getRequests   = () => apiGet('/procurement/requests').then((d) => d.requests);
 export const createRequest = (body) => apiPost('/procurement/requests', body).then((d) => d.request);
+export const updateRequest = (id, body) => apiPatch(`/procurement/requests/${id}`, body).then((d) => d.request);
 export const decideRequest = (id, action) => apiPatch(`/procurement/requests/${id}`, { action }).then((d) => d.request);
 export const deleteRequest = (id) => apiDelete(`/procurement/requests/${id}`);
 

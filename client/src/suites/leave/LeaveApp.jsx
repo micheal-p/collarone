@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as L from './leaveApi.js';
 import LeaveApprovals from './LeaveApprovals.jsx';
+import LeaveSettings from './LeaveSettings.jsx';
 import LeaveCalendar from './LeaveCalendar.jsx';
 import { useToast, useConfirm } from '../../components/ui.jsx';
 
@@ -39,7 +40,7 @@ export default function LeaveApp({ access }) {
   const tabs = [
     { key: 'overview', label: 'Overview' },
     { key: 'requests', label: 'My requests' },
-    ...(isApprover ? [{ key: 'approvals', label: 'Approvals' }] : []),
+    ...(isApprover ? [{ key: 'approvals', label: 'Approvals' }, { key: 'settings', label: 'Settings' }] : []),
     { key: 'calendar', label: 'Calendar' },
   ];
 
@@ -57,6 +58,7 @@ export default function LeaveApp({ access }) {
           {tab === 'overview' && <Overview balances={balances} requests={requests} />}
           {tab === 'requests' && <MyRequests requests={requests} onChange={load} flash={flash} />}
           {tab === 'approvals' && isApprover && <LeaveApprovals flash={flash} />}
+          {tab === 'settings' && isApprover && <LeaveSettings flash={flash} onChange={load} />}
           {tab === 'calendar' && <LeaveCalendar year={YEAR} holidays={holidays} myRequests={requests} isApprover={isApprover} />}
         </>
       )}

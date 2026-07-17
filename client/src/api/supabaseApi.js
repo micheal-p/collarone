@@ -525,6 +525,17 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { history: data };
   }
+  // Correct a mis-entered structure (UI restricts this to the latest one so
+  // history stays honest).
+  if (method === 'PATCH' && seg[0] === 'payroll' && seg[1] === 'salary' && seg.length === 3) {
+    const patch = {};
+    ['basic','housing','transport'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
+    if (body.otherAllowances !== undefined) patch.other_allowances = body.otherAllowances;
+    if (body.effectiveDate !== undefined) patch.effective_date = body.effectiveDate;
+    const { data, error } = await supabase.from('salary_structures').update(patch).eq('id', seg[2]).select().single();
+    if (error) fail(400, error.message);
+    return { structure: data };
+  }
   if (head === 'POST /payroll' && seg[1] === 'salary') {
     const { employeeId, basic, housing, transport, otherAllowances, effectiveDate } = body;
     if (!employeeId) fail(400, 'employeeId is required.');
@@ -935,10 +946,11 @@ export async function supabaseApi(path, opts = {}) {
   }
   if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'cases' && seg.length === 3) {
     const patch = {};
-    ['category','description','resolutionNotes'].forEach((k) => {
-      const col = { resolutionNotes: 'resolution_notes' }[k] || k;
+    ['category','description','resolutionNotes','responseNote','outcome','queryLetterId','outcomeLetterId'].forEach((k) => {
+      const col = { resolutionNotes: 'resolution_notes', responseNote: 'response_note', queryLetterId: 'query_letter_id', outcomeLetterId: 'outcome_letter_id' }[k] || k;
       if (body[k] !== undefined) patch[col] = body[k];
     });
+    if (body.responseNote !== undefined) patch.response_at = new Date().toISOString();
     if (body.status !== undefined) { patch.status = body.status; if (body.status === 'resolved') patch.resolved_at = new Date().toISOString(); }
     const { data, error } = await supabase.from('disciplinary_cases').update(patch).eq('id', seg[2]).select('*, employee:profiles!employee_id(id,name), openedBy:profiles!opened_by(id,name)').single();
     if (error) fail(400, error.message);
@@ -1382,6 +1394,17 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { records: data };
   }
+  // Manager correction of a shift — RLS already allows managers to update
+  // records; this closes the "forgot to clock out" dead end.
+  if (method === 'PATCH' && seg[0] === 'attendance' && seg[1] === 'records' && seg.length === 3) {
+    const patch = {};
+    if (body.clockInAt !== undefined) patch.clock_in_at = body.clockInAt;
+    if (body.clockOutAt !== undefined) patch.clock_out_at = body.clockOutAt;
+    if (body.notes !== undefined) patch.notes = body.notes;
+    const { data, error } = await supabase.from('attendance_records').update(patch).eq('id', seg[2]).select(ATT_SELECT).single();
+    if (error) fail(400, error.message);
+    return { record: data };
+  }
   if (head === 'GET /attendance' && seg[1] === 'mine') {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('attendance_records').select('*').eq('employee_id', user.id).order('clock_in_at', { ascending: false });
@@ -1540,6 +1563,13 @@ export async function supabaseApi(path, opts = {}) {
       name: name.trim(), contact_name: contactName || '', phone: phone || '', email: email || '',
       address: address || '', notes: notes || '', created_by: user.id, org_id: await myOrgId(),
     }).select().single();
+    if (error) fail(400, error.message);
+    return { vendor: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'procurement' && seg[1] === 'vendors' && seg.length === 3) {
+    const patch = {};
+    ['name','phone','email','address','notes'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
+    const { data, error } = await supabase.from('vendors').update(patch).eq('id', seg[2]).select().single();
     if (error) fail(400, error.message);
     return { vendor: data };
   }

@@ -29,6 +29,7 @@ const ADMIN_LINKS = [
 ];
 
 const GUEST_KEY = 'collarone_guest_mode';
+const GUEST_TTL_MS = 60 * 60 * 1000; // guest sessions hard-expire after 1 hour
 
 export default function AppLayout({ breadcrumb = [], title, commandBar, children }) {
   const { user, logout } = useAuth();
@@ -41,7 +42,14 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
   const [sbQ, setSbQ] = useState('');
   const [sbUsers, setSbUsers] = useState([]);
   const [guestMode, setGuestMode] = useState(() => {
-    try { return JSON.parse(sessionStorage.getItem(GUEST_KEY) || 'null'); } catch { return null; }
+    // localStorage (matching where the auth session lives) — a guest marker
+    // must outlive the tab, or a closed tab leaves you logged into a
+    // customer's org with no banner. sessionStorage is read once for
+    // markers written by older builds.
+    try {
+      return JSON.parse(localStorage.getItem(GUEST_KEY) || 'null')
+        || JSON.parse(sessionStorage.getItem(GUEST_KEY) || 'null');
+    } catch { return null; }
   });
   const waffleRef = useRef(null);
   const menuRef = useRef(null);
@@ -58,16 +66,28 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
     const params = new URLSearchParams(window.location.search);
     if (params.get('guest') === '1') {
       const info = { orgId: params.get('guestOrgId'), orgName: params.get('guestOrgName') || 'this organization', startedAt: Date.now() };
-      sessionStorage.setItem(GUEST_KEY, JSON.stringify(info));
+      localStorage.setItem(GUEST_KEY, JSON.stringify(info));
       setGuestMode(info);
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
 
   const exitGuestMode = () => {
+    localStorage.removeItem(GUEST_KEY);
     sessionStorage.removeItem(GUEST_KEY);
     logout();
   };
+
+  // Hard expiry: a guest session self-terminates after GUEST_TTL_MS even if
+  // the platform admin walked away — being logged into a customer's org must
+  // never be a persistent state.
+  useEffect(() => {
+    if (!guestMode?.startedAt) return;
+    const remaining = guestMode.startedAt + GUEST_TTL_MS - Date.now();
+    if (remaining <= 0) { exitGuestMode(); return; }
+    const t = setTimeout(exitGuestMode, remaining);
+    return () => clearTimeout(t);
+  }, [guestMode]); // eslint-disable-line
 
   useEffect(() => {
     apiGet('/me/suites').then((d) => setSuites(d.suites)).catch(() => {});
@@ -156,6 +176,9 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
             <img src={logoMark} alt="Collarone" className="sb-logo" />
             <span className="sb-title">Collar<em style={{ fontStyle: 'italic', color: 'var(--brand)' }}>One</em></span>
           </Link>
+          {user?.org?.name && (
+            <span className="sb-org" title={`You are working in ${user.org.name}'s workspace`}>{user.org.name}</span>
+          )}
         </div>
 
         <div className="sb-search" ref={sbRef}>

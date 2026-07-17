@@ -1,8 +1,39 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useToast, searchMatcher } from '../../components/ui.jsx';
+import { useToast, useConfirm, Modal, searchMatcher } from '../../components/ui.jsx';
 import * as H from './hrApi.js';
 import * as L from './lifecycleApi.js';
 import LifecycleTaskList from './LifecycleTaskList.jsx';
+
+const daysPast = (d) => (d ? Math.floor((Date.now() - new Date(`${d}T00:00:00`)) / 86400000) : null);
+
+/* Probation decision — the end of probation is a decision point, not a date
+   that quietly passes: confirm (and issue the letter), extend, or exit. */
+function DecisionModal({ emp, onClose, onConfirm, onExtend }) {
+  const [extendTo, setExtendTo] = useState('');
+  const over = daysPast(emp.probationEndDate);
+  return (
+    <Modal title={`Probation decision — ${emp.name}`} onClose={onClose}>
+      <p className="muted" style={{ fontSize: 13, margin: '0 0 14px' }}>
+        {emp.name}&rsquo;s probation {over > 0 ? `ended ${over} day${over === 1 ? '' : 's'} ago` : `ends ${H.fmtDate(emp.probationEndDate)}`}.
+        Choose how to proceed:
+      </p>
+      <div style={{ display: 'grid', gap: 10 }}>
+        <button className="btn btn-primary" onClick={() => onConfirm(true)}>Confirm — and compose the confirmation letter</button>
+        <button className="btn btn-ghost" onClick={() => onConfirm(false)}>Confirm without a letter</button>
+        <div className="card" style={{ padding: '12px 14px' }}>
+          <div style={{ fontSize: 13, fontWeight: 650, marginBottom: 8 }}>Extend probation</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="input" type="date" value={extendTo} onChange={(e) => setExtendTo(e.target.value)} style={{ flex: 1 }} />
+            <button className="btn btn-ghost" disabled={!extendTo} onClick={() => onExtend(extendTo)}>Extend</button>
+          </div>
+        </div>
+        <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+          Not working out? Use the <b>Offboarding</b> tab to start a proper exit instead.
+        </p>
+      </div>
+    </Modal>
+  );
+}
 
 const I = {
   expand: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>,
@@ -42,7 +73,12 @@ function EmployeeRow({ emp, isHrManager, onProbationChange, onConfirm, flash }) 
           {confirmed
             ? <span className="lc-badge lc-exit-done">Confirmed {H.fmtDate(emp.confirmedAt)}</span>
             : isHrManager
-              ? <button className="btn btn-ghost" style={{ fontSize:12, padding:'3px 10px' }} onClick={() => onConfirm(emp.id)}>{I.badge} Confirm</button>
+              ? (
+                <div style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
+                  <button className={`btn ${daysPast(emp.probationEndDate) > 0 ? 'btn-primary' : 'btn-ghost'}`} style={{ fontSize:12, padding:'3px 10px', height:'auto' }} onClick={() => onConfirm(emp)}>{I.badge} Decide</button>
+                  {daysPast(emp.probationEndDate) > 0 && <span className="st-pill st-warn">{daysPast(emp.probationEndDate)}d overdue</span>}
+                </div>
+              )
               : <span className="lc-badge lc-exit-init">Pending</span>}
         </td>
       </tr>

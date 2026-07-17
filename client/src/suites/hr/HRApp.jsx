@@ -172,6 +172,10 @@ export default function HRApp({ access }) {
   const [recordEmp, setRecordEmp] = useState(null); // Employee 360 (HR managers)
   const [editEmp, setEditEmp] = useState(null);
   const [myId, setMyId] = useState(null);
+  // Other tabs (probation confirmations, disciplinary) can open the Letters
+  // composer prefilled — e.g. "Confirm" generates the confirmation letter.
+  const [lettersPrefill, setLettersPrefill] = useState(null);
+  const composeLetter = (p) => { setRecordEmp(null); setLettersPrefill(p); setTab('letters'); };
   const { flash, toastNode } = useToast();
 
   useEffect(() => { apiGet('/me').then((d) => setMyId(d.user.id)).catch(() => {}); }, []);
@@ -345,11 +349,11 @@ export default function HRApp({ access }) {
           {tab === 'orgchart' && <OrgChart staff={staff} />}
           {tab === 'myinterviews' && <MyInterviewsView myId={myId} flash={flash} />}
           {tab === 'recruiting'  && <RecruitingApp access={access} departments={departments} staff={staff} myId={myId} />}
-          {tab === 'letters'     && <LettersApp staff={staff} flash={flash} />}
-          {tab === 'onboarding'  && <OnboardingApp access={access} />}
+          {tab === 'letters'     && <LettersApp staff={staff} flash={flash} externalPrefill={lettersPrefill} onPrefillConsumed={() => setLettersPrefill(null)} />}
+          {tab === 'onboarding'  && <OnboardingApp access={access} onComposeLetter={composeLetter} />}
           {tab === 'offboarding' && <OffboardingApp access={access} staff={staff} />}
           {tab === 'performance' && <PerformanceApp staff={staff} />}
-          {tab === 'compliance'  && <ComplianceApp staff={staff} />}
+          {tab === 'compliance'  && <ComplianceApp staff={staff} onComposeLetter={composeLetter} />}
         </>
       )}
 

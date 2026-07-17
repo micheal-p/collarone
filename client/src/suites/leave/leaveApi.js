@@ -62,6 +62,81 @@ export const decideRequest = (id, decision, comment = '') =>
   rpc('decide_leave_request', { _id: id, _decision: decision, _comment: comment });
 export const cancelRequest = (id) => rpc('cancel_leave_request', { _id: id });
 
+// ---- settings (approver admin surface) --------------------------------------
+
+let profileCache = null; // { org_id, role } — stable for the session
+export async function getMyProfile() {
+  if (!profileCache) {
+    const u = await me();
+    const { data, error } = await supabase.from('profiles').select('org_id, role').eq('id', u.id).single();
+    if (error) throw new Error(error.message);
+    profileCache = data;
+  }
+  return profileCache;
+}
+
+export async function addHoliday({ name, day }) {
+  const { org_id } = await getMyProfile();
+  const { error } = await supabase.from('holidays').insert({ name, day, org_id });
+  if (error) throw new Error(error.code === '23505' ? 'A holiday already exists on that date.' : error.message);
+}
+
+export async function deleteHoliday(id) {
+  const { data, error } = await supabase.from('holidays').delete().eq('id', id).select();
+  if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error('Holiday not deleted — statutory holidays cannot be removed.');
+}
+
+// All types (including inactive) for the settings screen; getTypes() stays active-only.
+export async function getAllTypes() {
+  const { data, error } = await supabase.from('leave_types').select('*').order('sort');
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+const TYPE_RLS_MSG = 'Only the System Administrator can change leave types.';
+const isRls = (e) => e?.code === '42501' || /security|policy/i.test(e?.message || '');
+const slug = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+export async function createType({ name, color, default_days, active, sort }) {
+  const { org_id } = await getMyProfile();
+  const { error } = await supabase.from('leave_types').insert({
+    org_id, key: slug(name) || `type_${Date.now()}`, name, color, default_days, active, sort,
+  });
+  if (error) throw new Error(isRls(error) ? TYPE_RLS_MSG : error.message);
+}
+
+export async function updateType(id, patch) {
+  const { data, error } = await supabase.from('leave_types').update(patch).eq('id', id).select();
+  if (error) throw new Error(isRls(error) ? TYPE_RLS_MSG : error.message);
+  if (!data?.length) throw new Error(TYPE_RLS_MSG); // RLS filters silently on update
+}
+
+export async function getOrgStaff() {
+  const { data, error } = await supabase.from('profiles').select('id, name, email').eq('status', 'active').order('name');
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function getBalanceRow(userId, typeId, year) {
+  const { data, error } = await supabase.from('leave_balances').select('*')
+    .eq('user_id', userId).eq('leave_type_id', typeId).eq('year', year).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data; // null when no override row exists yet
+}
+
+export const getAvailable = (userId, typeId, year) =>
+  rpc('leave_available', { _user: userId, _type: typeId, _year: year });
+
+export async function saveBalance({ userId, typeId, year, entitled, carried_over, adjustment }) {
+  const { org_id } = await getMyProfile();
+  const { error } = await supabase.from('leave_balances').upsert(
+    { org_id, user_id: userId, leave_type_id: typeId, year, entitled, carried_over, adjustment },
+    { onConflict: 'user_id,leave_type_id,year' },
+  );
+  if (error) throw new Error(error.message);
+}
+
 // ---- client-side helpers (display only; the DB is authoritative) ----
 export function workingDays(start, end, half, holidaySet) {
   if (!start || !end || end < start) return 0;

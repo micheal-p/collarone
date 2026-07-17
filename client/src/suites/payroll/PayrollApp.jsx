@@ -14,9 +14,11 @@ const I = {
 const NG_STATES = ['Abia','Adamawa','Akwa Ibom','Anambra','Bauchi','Bayelsa','Benue','Borno','Cross River','Delta','Ebonyi','Edo','Ekiti','Enugu','FCT (Abuja)','Gombe','Imo','Jigawa','Kaduna','Kano','Katsina','Kebbi','Kogi','Kwara','Lagos','Nasarawa','Niger','Ogun','Ondo','Osun','Oyo','Plateau','Rivers','Sokoto','Taraba','Yobe','Zamfara'];
 
 /* ---- SalaryModal ------------------------------------------------------------- */
-function SalaryModal({ employee, onClose, onSaved, onError }) {
+function SalaryModal({ employee, structure = null, onClose, onSaved, onError }) {
   const { user } = useAuth();
-  const [f, setF] = useState({ basic:'', housing:'', transport:'', otherAllowances:'', effectiveDate: new Date().toISOString().slice(0,10) });
+  const [f, setF] = useState(() => structure
+    ? { basic: String(structure.basic), housing: String(structure.housing), transport: String(structure.transport), otherAllowances: String(structure.other_allowances), effectiveDate: structure.effective_date }
+    : { basic:'', housing:'', transport:'', otherAllowances:'', effectiveDate: new Date().toISOString().slice(0,10) });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const gross = ['basic','housing','transport','otherAllowances'].reduce((s, k) => s + (Number(f[k]) || 0), 0);
@@ -29,14 +31,19 @@ function SalaryModal({ employee, onClose, onSaved, onError }) {
         employeeId: employee.id, basic: Number(f.basic) || 0, housing: Number(f.housing) || 0,
         transport: Number(f.transport) || 0, otherAllowances: Number(f.otherAllowances) || 0, effectiveDate: f.effectiveDate,
       };
-      const saved = await P.addSalaryStructure(body);
-      // Every salary agreement generates a real contract document, filed
-      // into the company's Documents — best-effort, never blocks the save.
-      P.generateContractDocument({
-        employeeId: employee.id, employeeName: employee.name, companyName: user?.org?.name || 'Collarone',
-        jobTitle: employee.jobTitle, ...body,
-      }).catch(() => {});
-      onSaved(saved);
+      if (structure) {
+        // Correcting the latest structure — no new contract for a typo fix.
+        onSaved(await P.updateSalaryStructure(structure.id, body));
+      } else {
+        const saved = await P.addSalaryStructure(body);
+        // Every salary agreement generates a real contract document, filed
+        // into the company's Documents — best-effort, never blocks the save.
+        P.generateContractDocument({
+          employeeId: employee.id, employeeName: employee.name, companyName: user?.org?.name || 'Collarone',
+          jobTitle: employee.jobTitle, ...body,
+        }).catch(() => {});
+        onSaved(saved);
+      }
     } catch (e2) { onError(e2.message); } finally { setBusy(false); }
   };
 
@@ -110,6 +117,16 @@ function EmployeeRow({ emp, onFlash, isPayrollManager }) {
   const [history, setHistory] = useState(null);
   const [accounts, setAccounts] = useState(null);
   const [salaryModal, setSalaryModal] = useState(false);
+  const [editStructure, setEditStructure] = useState(null);
+  const { confirm, confirmNode } = useConfirm();
+
+  const removeAccount = async (a) => {
+    const ok = await confirm({ title: 'Remove bank account', danger: true, confirmLabel: 'Remove',
+      message: `${a.bank_name} ·${' '}${a.account_number} will be removed from ${emp.name}'s record.` });
+    if (!ok) return;
+    try { await P.deleteBankAccount(a.id); setAccounts((l) => (l || []).filter((x) => x.id !== a.id)); onFlash('Bank account removed.'); }
+    catch (e) { onFlash(e.message, true); }
+  };
   const [bankModal, setBankModal] = useState(false);
   const [state, setState] = useState(emp.stateOfResidence || '');
 
@@ -167,6 +184,9 @@ function EmployeeRow({ emp, onFlash, isPayrollManager }) {
                     Basic {P.money(h.basic)} · Housing {P.money(h.housing)} · Transport {P.money(h.transport)} · Other {P.money(h.other_allowances)}
                   </div>
                   <div className="muted" style={{ fontSize:11, marginTop:2 }}>Effective {new Date(h.effective_date).toLocaleDateString('en-GB')}</div>
+                  {i === 0 && isPayrollManager && (
+                    <button className="btn btn-ghost btn-sm" style={{ marginTop:6, fontSize:12 }} onClick={() => setEditStructure(h)}>Edit</button>
+                  )}
                 </div>
               ))}
             </div>
@@ -179,6 +199,9 @@ function EmployeeRow({ emp, onFlash, isPayrollManager }) {
                 <div key={a.id} className="lc-interview-card">
                   <div style={{ fontSize:13, fontWeight:500 }}>{a.account_name} {a.is_primary && <span className="lc-badge lc-exit-done" style={{ marginLeft:6 }}>Primary</span>}</div>
                   <div className="muted" style={{ fontSize:12, marginTop:2 }}>{a.bank_name} ({a.bank_code || '—'}) · {a.account_number}</div>
+                  {!a.is_primary && isPayrollManager && (
+                    <button className="btn btn-danger btn-sm" style={{ marginTop:6, fontSize:12 }} onClick={() => removeAccount(a)}>Remove</button>
+                  )}
                 </div>
               ))}
             </div>
@@ -190,6 +213,12 @@ function EmployeeRow({ emp, onFlash, isPayrollManager }) {
           onSaved={(s) => { setHistory((h) => [s, ...(h || [])]); setSalaryModal(false); onFlash('Salary structure saved.'); }}
           onError={(m) => onFlash(m, true)} />
       )}
+      {editStructure && (
+        <SalaryModal employee={emp} structure={editStructure} onClose={() => setEditStructure(null)}
+          onSaved={(s) => { setHistory((h) => (h || []).map((x) => (x.id === s.id ? s : x))); setEditStructure(null); onFlash('Salary structure corrected.'); }}
+          onError={(m) => onFlash(m, true)} />
+      )}
+      {confirmNode}
       {bankModal && (
         <BankModal employee={emp} onClose={() => setBankModal(false)}
           onSaved={(a) => { setAccounts((l) => [a, ...(l || []).map((x) => a.is_primary ? { ...x, is_primary:false } : x)]); setBankModal(false); onFlash('Bank account saved.'); }}

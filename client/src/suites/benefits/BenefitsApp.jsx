@@ -43,39 +43,53 @@ function PlanModal({ plan, onClose, onSaved, flash }) {
   );
 }
 
-function EnrollModal({ plans, onClose, onSaved, flash }) {
+function EnrollModal({ plans, enrollment = null, onClose, onSaved, flash }) {
   const [staff, setStaff] = useState([]);
-  const [f, setF] = useState({ employeeId: '', planId: plans[0]?.id || '', memberId: '', pfaName: '', pfaPin: '' });
+  const [f, setF] = useState(() => enrollment
+    ? { employeeId: enrollment.employee_id, planId: enrollment.plan?.id || enrollment.plan_id, memberId: enrollment.member_id || '', pfaName: enrollment.pfa_name || '', pfaPin: enrollment.pfa_pin || '', status: enrollment.status || 'active' }
+    : { employeeId: '', planId: plans[0]?.id || '', memberId: '', pfaName: '', pfaPin: '', status: 'active' });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
 
-  useEffect(() => { apiGet('/staff').then((d) => setStaff(d.staff)).catch(() => {}); }, []);
+  useEffect(() => { if (!enrollment) apiGet('/staff').then((d) => setStaff(d.staff)).catch(() => flash('Could not load the staff list.', true)); }, []); // eslint-disable-line
 
   const selectedPlan = plans.find((p) => p.id === f.planId);
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!f.employeeId || !f.planId) return flash('Employee and plan are required.', true);
+    if (!enrollment && (!f.employeeId || !f.planId)) return flash('Employee and plan are required.', true);
     setBusy(true);
     try {
-      const saved = await B.enroll(f);
-      flash('Employee enrolled.');
+      const saved = enrollment
+        ? await B.updateEnrollment(enrollment.id, { memberId: f.memberId, pfaName: f.pfaName, pfaPin: f.pfaPin, status: f.status })
+        : await B.enroll(f);
+      flash(enrollment ? 'Enrollment updated.' : 'Employee enrolled.');
       onSaved(saved); onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
 
   return (
-    <Modal title="Enroll employee" onClose={onClose} wide>
+    <Modal title={enrollment ? `Edit enrollment — ${enrollment.employee?.name || ''}` : 'Enroll employee'} onClose={onClose} wide>
       <form onSubmit={submit}>
         <div className="form-grid">
+          {!enrollment && (
           <Field label="Employee *">
             <select className="select" value={f.employeeId} onChange={(e) => set('employeeId', e.target.value)} required>
               <option value="">— Select —</option>
               {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </Field>
+          )}
+          {enrollment && (
+          <Field label="Status">
+            <select className="select" value={f.status} onChange={(e) => set('status', e.target.value)}>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </Field>
+          )}
           <Field label="Plan *">
-            <select className="select" value={f.planId} onChange={(e) => set('planId', e.target.value)} required>
+            <select className="select" value={f.planId} onChange={(e) => set('planId', e.target.value)} required disabled={Boolean(enrollment)}>
               {plans.map((p) => <option key={p.id} value={p.id}>{p.name} ({B.PLAN_TYPES[p.type]})</option>)}
             </select>
           </Field>
@@ -103,6 +117,7 @@ function ManagerView({ flash }) {
   const [tab, setTab] = useState('plans');
   const [planModal, setPlanModal] = useState(null);
   const [enrollModal, setEnrollModal] = useState(false);
+  const [editEnrollment, setEditEnrollment] = useState(null);
   const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
@@ -172,16 +187,22 @@ function ManagerView({ flash }) {
       {!loading && tab === 'enrollments' && (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Employee</th><th>Plan</th><th>Member/Policy no.</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Employee</th><th>Plan</th><th>Member/Policy no.</th><th>PFA / RSA PIN</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {enrollments.length === 0 && <tr><td colSpan={5} className="td-empty">No enrollments yet.</td></tr>}
+              {enrollments.length === 0 && <tr><td colSpan={6} className="td-empty">No enrollments yet.</td></tr>}
               {enrollments.map((en) => (
                 <tr key={en.id}>
                   <td style={{ fontWeight: 500 }}>{en.employee?.name}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{en.plan?.name}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{en.member_id || '—'}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{en.pfa_name ? `${en.pfa_name}${en.pfa_pin ? ` · ${en.pfa_pin}` : ''}` : '—'}</td>
                   <td><span className={`st-pill ${en.status === 'active' ? 'st-success' : 'st-neutral'}`}>{en.status}</span></td>
-                  <td><button className="btn btn-ghost btn-sm" onClick={() => removeEnrollment(en)}>Remove</button></td>
+                  <td>
+                    <div className="row-actions" style={{ display: 'inline-flex', gap: 6 }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setEditEnrollment(en)}>Edit</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => removeEnrollment(en)}>Remove</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -193,6 +214,7 @@ function ManagerView({ flash }) {
         <PlanModal plan={planModal === 'new' ? null : planModal} onClose={() => setPlanModal(null)} onSaved={load} flash={flash} />
       )}
       {enrollModal && <EnrollModal plans={plans} onClose={() => setEnrollModal(false)} onSaved={load} flash={flash} />}
+      {editEnrollment && <EnrollModal plans={plans} enrollment={editEnrollment} onClose={() => setEditEnrollment(null)} onSaved={load} flash={flash} />}
       {confirmNode}
     </>
   );
@@ -211,15 +233,16 @@ function StaffView({ flash }) {
   return (
     <div className="table-wrap">
       <table className="table">
-        <thead><tr><th>Plan</th><th>Type</th><th>Provider</th><th>Member/Policy no.</th><th>Enrolled</th></tr></thead>
+        <thead><tr><th>Plan</th><th>Type</th><th>Provider</th><th>Member/Policy no.</th><th>PFA / RSA PIN</th><th>Enrolled</th></tr></thead>
         <tbody>
-          {mine.length === 0 && <tr><td colSpan={5} className="td-empty">You are not enrolled in any benefit plans yet.</td></tr>}
+          {mine.length === 0 && <tr><td colSpan={6} className="td-empty">You are not enrolled in any benefit plans yet.</td></tr>}
           {mine.map((en) => (
             <tr key={en.id}>
               <td style={{ fontWeight: 500 }}>{en.plan?.name}</td>
               <td className="muted" style={{ fontSize: 13 }}>{B.PLAN_TYPES[en.plan?.type] || en.plan?.type}</td>
               <td className="muted" style={{ fontSize: 13 }}>{en.plan?.provider || '—'}</td>
               <td className="muted" style={{ fontSize: 13 }}>{en.member_id || '—'}</td>
+              <td className="muted" style={{ fontSize: 13 }}>{en.pfa_name ? `${en.pfa_name}${en.pfa_pin ? ` · ${en.pfa_pin}` : ''}` : '—'}</td>
               <td className="muted" style={{ fontSize: 13 }}>{B.fmtDate(en.enrollment_date)}</td>
             </tr>
           ))}

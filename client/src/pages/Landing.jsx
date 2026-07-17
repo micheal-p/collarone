@@ -119,8 +119,8 @@ function RotatingWord() {
 
 const GALLERY_SHOTS = [
   { src: shotHome, url: 'collarone.app/home', caption: 'Your whole workspace, one login' },
-  { src: shotTasks, url: 'Task & Report', caption: 'Assign work, track it to done' },
-  { src: shotCrm, url: 'CRM — Messages', caption: 'Website messages, answered in one tap' },
+  { src: shotTasks, url: 'HR — Employee 360', caption: 'Everything about one employee, on one page' },
+  { src: shotCrm, url: 'HR — Letters', caption: 'Company letters on your letterhead, drafted by Collarone AI' },
 ];
 
 const marqueeItems = ['Staff Directory', 'Leave Management', 'Task Tracking', 'Visitor Sign-in', 'Recruiting & Careers', 'Onboarding', 'Performance Reviews', 'Compliance Vault', 'Payroll — PAYE · Pension · NHF', 'Customer CRM', 'Website Builder', 'Invoicing & GRNs', 'Automation'];

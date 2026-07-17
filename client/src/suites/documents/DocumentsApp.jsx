@@ -51,6 +51,50 @@ function UploadModal({ folders, defaultFolderId, onClose, onSaved, flash }) {
   );
 }
 
+function DocEditModal({ doc, folders, onClose, onSaved, flash }) {
+  const [name, setName] = useState(doc.name);
+  const [folderId, setFolderId] = useState(doc.folder?.id || '');
+  const [visibility, setVisibility] = useState(doc.visibility || 'org');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!name.trim()) return flash('Name is required.', true);
+    setBusy(true);
+    try {
+      const saved = await D.updateDocument(doc.id, { name: name.trim(), folderId: folderId || null, visibility });
+      flash('Document updated.'); onSaved(saved); onClose();
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title={`Edit — ${doc.name}`} onClose={onClose}>
+      <form onSubmit={submit}>
+        <Field label="Name *"><input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></Field>
+        <Field label="Folder">
+          <select className="select" value={folderId} onChange={(e) => setFolderId(e.target.value)}>
+            <option value="">— No folder —</option>
+            {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Visibility">
+          <select className="select" value={visibility} onChange={(e) => setVisibility(e.target.value)}>
+            <option value="org">Anyone with Documents access</option>
+            <option value="restricted">Restricted (only me + granted people)</option>
+          </select>
+        </Field>
+        {visibility === 'restricted' && (
+          <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px' }}>Use the Access button on the row to grant specific people access.</p>
+        )}
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save changes'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function VersionModal({ doc, onClose, flash }) {
   const [versions, setVersions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -210,6 +254,7 @@ export default function DocumentsApp({ access }) {
   const [uploadModal, setUploadModal] = useState(false);
   const [versionDoc, setVersionDoc] = useState(null);
   const [permDoc, setPermDoc] = useState(null);
+  const [editDoc, setEditDoc] = useState(null);
   const { flash, toastNode } = useToast();
   const { confirm, confirmNode } = useConfirm();
 
@@ -224,6 +269,8 @@ export default function DocumentsApp({ access }) {
   const download = async (doc) => {
     try { window.open(await D.getDownloadUrl(doc.file_path), '_blank'); } catch (e) { flash(e.message, true); }
   };
+  // Swap the updated document into place without a full reload.
+  const applyDocUpdate = (saved) => setDocs((ds) => ds.map((d) => (d.id === saved.id ? saved : d)));
   const remove = async (doc) => {
     const ok = await confirm({
       title: 'Delete document?',
@@ -281,6 +328,7 @@ export default function DocumentsApp({ access }) {
                       <td style={{ whiteSpace: 'nowrap' }}>
                         <button className="iconbtn" onClick={() => download(d)}>Download</button>
                         <button className="iconbtn" onClick={() => setVersionDoc(d)}>Versions</button>
+                        <button className="iconbtn" onClick={() => setEditDoc(d)}>Edit</button>
                         {d.visibility === 'restricted' && <button className="iconbtn" onClick={() => setPermDoc(d)}>Access</button>}
                         <button className="iconbtn" onClick={() => remove(d)}>Delete</button>
                       </td>
@@ -294,6 +342,7 @@ export default function DocumentsApp({ access }) {
       )}
 
       {uploadModal && <UploadModal folders={folders} defaultFolderId={activeFolder} onClose={() => setUploadModal(false)} onSaved={load} flash={flash} />}
+      {editDoc && <DocEditModal doc={editDoc} folders={folders} onClose={() => setEditDoc(null)} onSaved={applyDocUpdate} flash={flash} />}
       {versionDoc && <VersionModal doc={versionDoc} onClose={() => { setVersionDoc(null); load(); }} flash={flash} />}
       {permDoc && <PermissionsModal doc={permDoc} onClose={() => setPermDoc(null)} flash={flash} />}
       {confirmNode}

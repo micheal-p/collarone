@@ -9,6 +9,7 @@ export const setEmployeeState = (employeeId, state) => apiPatch(`/payroll/employ
 
 export const getSalaryHistory = (employeeId) => apiGet(`/payroll/salary/${employeeId}`).then((d) => d.history);
 export const addSalaryStructure = (body) => apiPost('/payroll/salary', body).then((d) => d.structure);
+export const updateSalaryStructure = (id, body) => apiPatch(`/payroll/salary/${id}`, body).then((d) => d.structure);
 
 export const getBankAccounts = (employeeId) => apiGet(`/payroll/bank/${employeeId}`).then((d) => d.accounts);
 export const addBankAccount = (body) => apiPost('/payroll/bank', body).then((d) => d.account);
