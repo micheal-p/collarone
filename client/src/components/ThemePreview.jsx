@@ -17,22 +17,57 @@ const IMG = {
   faceM: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
 };
 
+// Per-theme art direction for sample content — ten themes sharing four
+// photos read as one site; each theme now previews with imagery that matches
+// its personality (all long-lived Unsplash CDN IDs).
+const THEME_ART = {
+  'storefront-classic': {
+    hero: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=1600&q=80',
+    products: [
+      ['Classic Sneakers', 25000, 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=80'],
+      ['Wireless Headphones', 60000, 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80'],
+      ['Smart Watch', 85000, 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'],
+    ],
+  },
+  'boutique-noir': {
+    hero: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1600&q=80',
+    products: [
+      ['Silk Evening Scarf', 38000, 'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?auto=format&fit=crop&w=800&q=80'],
+      ['Leather Handbag', 145000, 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=800&q=80'],
+      ['Gold-Tone Timepiece', 220000, 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&w=800&q=80'],
+    ],
+  },
+  'market-fresh': {
+    hero: 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1600&q=80',
+    products: [
+      ['Fresh Fruit Basket', 12000, 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=800&q=80'],
+      ['Farm Vegetables Box', 9500, 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=800&q=80'],
+      ['Artisan Bread', 3500, 'https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=800&q=80'],
+    ],
+  },
+  'launch-bold': { hero: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1600&q=80' },
+  'minimal-pitch': { hero: 'https://images.unsplash.com/photo-1497032628192-86f99bcd76bc?auto=format&fit=crop&w=1600&q=80' },
+  'feature-focus': { hero: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1600&q=80' },
+  'corporate-clean': { hero: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=1600&q=80' },
+  'agency-modern': { hero: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=1600&q=80' },
+  'professional-services': { hero: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1600&q=80' },
+};
+
 export function samplePayload(t) {
+  const art = THEME_ART[t.key] || {};
   const base = {
-    orgName: 'Acme Nigeria', siteName: 'Acme Nigeria', tagline: '', logoUrl: '', slug: 'preview', published: true, isPreview: true,
+    orgName: 'Acme Nigeria', siteName: 'Acme Nigeria', tagline: t.category === 'ecommerce' ? 'Delivering nationwide' : 'Lagos, Nigeria', logoUrl: '', slug: 'preview', published: true, isPreview: true,
     contactEmail: 'hello@acme.ng', contactPhone: '0801 234 5678', contactWhatsapp: '+2348012345678',
     theme: { key: t.key, name: t.name, category: t.category, layoutKey: t.layout_key || t.layoutKey, accent: t.accent, fontPair: t.font_pair || t.fontPair, tone: t.tone, accentColor: '' },
     products: [],
   };
   if (t.category === 'ecommerce') {
-    base.products = [
-      { id: 1, name: 'Classic Sneakers', price: 25000, imageUrl: IMG.sneaker },
-      { id: 2, name: 'Leather Handbag', price: 45000, imageUrl: IMG.bag },
-      { id: 3, name: 'Wireless Headphones', price: 60000, imageUrl: IMG.phones },
-    ];
+    base.products = (art.products || [
+      ['Classic Sneakers', 25000, IMG.sneaker], ['Leather Handbag', 45000, IMG.bag], ['Wireless Headphones', 60000, IMG.phones],
+    ]).map(([name, price, imageUrl], i) => ({ id: i + 1, name, price, imageUrl }));
     base.pages = [
       { slug: 'home', title: 'Home', is_home: true, blocks: [
-        { type: 'hero', content: { heading: 'Acme Nigeria', subheading: 'Quality products, fair prices, delivered anywhere in Nigeria.', button_text: 'Shop now', button_link: '#shop', image_url: IMG.store } },
+        { type: 'hero', content: { heading: 'Acme Nigeria', subheading: 'Quality products, fair prices, delivered anywhere in Nigeria.', button_text: 'Shop now', button_link: '#shop', image_url: art.hero || IMG.store } },
         { type: 'products', content: { heading: 'Featured products', limit: 3 } },
         { type: 'cta', content: { heading: 'Ready to order?', button_text: 'Chat with us', button_link: '#contact' } },
       ] },
@@ -42,7 +77,7 @@ export function samplePayload(t) {
   } else if (t.category === 'landing') {
     base.pages = [
       { slug: 'home', title: 'Home', is_home: true, blocks: [
-        { type: 'hero', content: { heading: 'Acme Nigeria', subheading: 'One clear sentence about the problem you solve — this line does the selling.', button_text: 'Get started', button_link: '#contact', image_url: IMG.laptop } },
+        { type: 'hero', content: { heading: 'Acme Nigeria', subheading: 'One clear sentence about the problem you solve — this line does the selling.', button_text: 'Get started', button_link: '#contact', image_url: art.hero || IMG.laptop } },
         { type: 'features', content: { heading: 'Why it works', items: [
           { title: 'Saves you time', body: 'Lead with your strongest benefit.' },
           { title: 'Built for Nigeria', body: 'Naira payments, same-day support.' },
@@ -55,7 +90,7 @@ export function samplePayload(t) {
   } else {
     base.pages = [
       { slug: 'home', title: 'Home', is_home: true, blocks: [
-        { type: 'hero', content: { heading: 'Acme Nigeria', subheading: 'What your company does and who you serve — one confident sentence.', button_text: 'Get in touch', button_link: '#contact', image_url: IMG.office } },
+        { type: 'hero', content: { heading: 'Acme Nigeria', subheading: 'What your company does and who you serve — one confident sentence.', button_text: 'Get in touch', button_link: '#contact', image_url: art.hero || IMG.office } },
         { type: 'text', content: { heading: 'About us', body: 'Use this space to tell your story: when you were founded, the problem you set out to solve, and what you stand for today.' } },
         { type: 'image', content: { image_url: IMG.team, alt: 'Our team', caption: 'Our team at work.' } },
       ] },

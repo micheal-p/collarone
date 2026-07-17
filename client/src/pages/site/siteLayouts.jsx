@@ -22,6 +22,68 @@ const FONT_STACKS = {
   'serif-display': "'Georgia', 'Times New Roman', serif",
 };
 
+// Each theme owns a real typeface pairing (display + body, loaded from Google
+// Fonts) — three shared system stacks made ten themes read as one site.
+const THEME_FONTS = {
+  'storefront-classic':    { display: "'Sora', sans-serif",               body: "'Inter', sans-serif",         q: 'family=Sora:wght@600;700;800&family=Inter:wght@400;500;600' },
+  'boutique-noir':         { display: "'Cormorant Garamond', serif",      body: "'Jost', sans-serif",          q: 'family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@300;400;500' },
+  'market-fresh':          { display: "'Baloo 2', sans-serif",            body: "'DM Sans', sans-serif",       q: 'family=Baloo+2:wght@600;700;800&family=DM+Sans:wght@400;500' },
+  'launch-bold':           { display: "'Archivo', sans-serif",            body: "'Inter', sans-serif",         q: 'family=Archivo:wght@700;800;900&family=Inter:wght@400;500;600' },
+  'minimal-pitch':         { display: "'Fraunces', serif",                body: "'Inter', sans-serif",         q: 'family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500' },
+  'startup-gradient':      { display: "'Space Grotesk', sans-serif",      body: "'Inter', sans-serif",         q: 'family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500' },
+  'feature-focus':         { display: "'Manrope', sans-serif",            body: "'Manrope', sans-serif",       q: 'family=Manrope:wght@400;600;800' },
+  'corporate-clean':       { display: "'IBM Plex Serif', serif",          body: "'IBM Plex Sans', sans-serif", q: 'family=IBM+Plex+Serif:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600' },
+  'agency-modern':         { display: "'Archivo Black', sans-serif",      body: "'Archivo', sans-serif",       q: 'family=Archivo+Black&family=Archivo:wght@400;500;600' },
+  'professional-services': { display: "'Lora', serif",                    body: "'Source Sans 3', sans-serif", q: 'family=Lora:wght@500;600&family=Source+Sans+3:wght@400;600' },
+};
+
+// Hover, motion and entrance polish shared by every theme — injected once.
+// All of it dies under prefers-reduced-motion.
+const SITE_CSS = `
+  .cs-btn { transition: transform .18s ease, filter .18s ease, box-shadow .18s ease; }
+  .cs-btn:hover { transform: translateY(-2px); filter: brightness(1.06); box-shadow: 0 10px 24px rgba(10,12,18,0.18); }
+  .cs-card { transition: transform .35s cubic-bezier(.2,.7,.3,1), box-shadow .35s cubic-bezier(.2,.7,.3,1); }
+  .cs-card:hover { transform: translateY(-6px); box-shadow: 0 20px 44px rgba(10,12,18,0.14); }
+  .cs-imgzoom { overflow: hidden; }
+  .cs-imgzoom img { transition: transform .6s cubic-bezier(.2,.7,.3,1); }
+  .cs-card:hover .cs-imgzoom img { transform: scale(1.06); }
+  .cs-nl { position: relative; }
+  .cs-nl::after { content: ''; position: absolute; left: 0; bottom: -5px; height: 2px; width: 0; background: var(--site-accent-ui); transition: width .25s ease; }
+  .cs-nl:hover::after { width: 100%; }
+  @keyframes cs-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  .cs-hero-in > * { animation: cs-rise .65s cubic-bezier(.2,.7,.3,1) both; }
+  .cs-hero-in > *:nth-child(2) { animation-delay: .1s; }
+  .cs-hero-in > *:nth-child(3) { animation-delay: .2s; }
+  .cs-hero-in > *:nth-child(4) { animation-delay: .3s; }
+  @media (prefers-reduced-motion: reduce) {
+    .cs-btn, .cs-card, .cs-imgzoom img, .cs-nl::after { transition: none !important; }
+    .cs-hero-in > * { animation: none !important; }
+  }
+`;
+
+// Load the theme's Google Fonts + the shared polish stylesheet into <head>.
+function useThemeAssets(theme) {
+  useEffect(() => {
+    const fonts = THEME_FONTS[theme?.key];
+    if (fonts && !document.getElementById(`cs-fonts-${theme.key}`)) {
+      const pre = document.createElement('link');
+      pre.rel = 'preconnect'; pre.href = 'https://fonts.gstatic.com'; pre.crossOrigin = 'anonymous';
+      document.head.appendChild(pre);
+      const link = document.createElement('link');
+      link.id = `cs-fonts-${theme.key}`;
+      link.rel = 'stylesheet';
+      link.href = `https://fonts.googleapis.com/css2?${fonts.q}&display=swap`;
+      document.head.appendChild(link);
+    }
+    if (!document.getElementById('cs-site-style')) {
+      const style = document.createElement('style');
+      style.id = 'cs-site-style';
+      style.textContent = SITE_CSS;
+      document.head.appendChild(style);
+    }
+  }, [theme?.key]);
+}
+
 /* ---- the design decisions each theme owns ------------------------------- */
 /* Beyond buttons and fonts, each theme owns a COMPOSITION:
    h2Mode  — how section headings are set (center / center-rule / left-kicker /
@@ -79,6 +141,7 @@ function useThemeVars(theme) {
   return useMemo(() => {
     const dark = theme.tone === 'dark';
     const accent = theme.accentColor || theme.accent;
+    const fonts = THEME_FONTS[theme.key];
     return {
       '--site-accent': accent,
       // accent used as TEXT or thin borders: a near-black accent (Agency
@@ -90,7 +153,8 @@ function useThemeVars(theme) {
       '--site-muted': dark ? '#a5a5ad' : '#5c5f66',
       '--site-surface': dark ? '#181b21' : '#f7f7f8',
       '--site-line': dark ? '#2a2e37' : '#e7e7ea',
-      '--site-font': FONT_STACKS[theme.fontPair] || FONT_STACKS['sans-clean'],
+      '--site-font': fonts?.body || FONT_STACKS[theme.fontPair] || FONT_STACKS['sans-clean'],
+      '--site-font-display': fonts?.display || FONT_STACKS[theme.fontPair] || FONT_STACKS['sans-clean'],
     };
   }, [theme]);
 }
@@ -130,7 +194,7 @@ function Sec({ v, i = 0, w = 960, style, children }) {
 // distinct treatments, chosen per theme.
 const H2 = ({ v, children, align = 'center', kicker, i }) => {
   const size = `clamp(${22 * v.display}px, ${3 * v.display}vw, ${28 * v.display}px)`;
-  const base = { fontSize: size, margin: '0 0 24px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, ...(v.navCaps ? { letterSpacing: '.04em' } : {}) };
+  const base = { fontSize: size, margin: '0 0 24px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight, ...(v.navCaps ? { letterSpacing: '.04em' } : {}) };
 
   if (v.h2Mode === 'left-kicker') {
     return (
@@ -170,22 +234,23 @@ const H2 = ({ v, children, align = 'center', kicker, i }) => {
 };
 
 /* ---- hero ------------------------------------------------------------------ */
-function Hero({ c, v }) {
+function Hero({ c, v, site }) {
   const img = c.image_url;
   const h1Size = `clamp(${30 * v.display}px, ${6 * v.display}vw, ${46 * v.display}px)`;
+  const eyebrow = (site?.tagline || '').trim();
   const button = c.button_text && (
-    <a href={c.button_link || '#'} style={{ ...btnStyle(v), boxShadow: img || v.hero === 'gradient' ? '0 10px 28px rgba(0,0,0,0.3)' : 'none' }}>{c.button_text}</a>
+    <a className="cs-btn" href={c.button_link || '#'} style={{ ...btnStyle(v), boxShadow: img || v.hero === 'gradient' ? '0 10px 28px rgba(0,0,0,0.3)' : 'none' }}>{c.button_text}</a>
   );
 
   if (v.hero === 'editorial') {
     return (
       <section style={{
-        position: 'relative', minHeight: 520, display: 'flex', alignItems: 'flex-end', padding: 'clamp(28px, 5vw, 64px)',
-        ...(img ? { backgroundImage: `linear-gradient(100deg, rgba(6,7,10,0.78) 8%, rgba(6,7,10,0.25) 60%, rgba(6,7,10,0.55)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff' } : { background: 'var(--site-surface)' }),
+        position: 'relative', minHeight: 560, display: 'flex', alignItems: 'flex-end', padding: 'clamp(28px, 5vw, 64px)',
+        ...(img ? { backgroundImage: `linear-gradient(100deg, rgba(6,7,10,0.82) 8%, rgba(6,7,10,0.22) 60%, rgba(6,7,10,0.5)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff' } : { background: 'var(--site-surface)' }),
       }}>
-        <div style={{ maxWidth: 640 }}>
-          <div style={{ fontSize: 12, letterSpacing: '.34em', textTransform: 'uppercase', color: img ? 'rgba(255,255,255,0.75)' : 'var(--site-accent)', marginBottom: 18 }}>— Est. Lagos</div>
-          <h1 style={{ fontSize: h1Size, lineHeight: 1.05, margin: '0 0 16px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, letterSpacing: '.01em' }}>{c.heading}</h1>
+        <div className="cs-hero-in" style={{ maxWidth: 680 }}>
+          {eyebrow && <div style={{ fontSize: 12, letterSpacing: '.34em', textTransform: 'uppercase', color: img ? 'rgba(255,255,255,0.75)' : 'var(--site-accent-ui)', marginBottom: 18 }}>— {eyebrow}</div>}
+          <h1 style={{ fontSize: `clamp(${34 * v.display}px, ${6.5 * v.display}vw, ${54 * v.display}px)`, lineHeight: 1.04, margin: '0 0 16px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight, letterSpacing: '.01em' }}>{c.heading}</h1>
           {c.subheading && <p style={{ fontSize: 16.5, lineHeight: 1.65, color: img ? 'rgba(255,255,255,0.82)' : 'var(--site-muted)', maxWidth: 480, margin: '0 0 28px' }}>{c.subheading}</p>}
           {button}
         </div>
@@ -196,9 +261,9 @@ function Hero({ c, v }) {
   if (v.hero === 'split') {
     return (
       <section style={{ display: 'grid', gridTemplateColumns: img ? 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' : '1fr', minHeight: 460 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(28px, 5vw, 64px)', background: 'var(--site-surface)' }}>
-          <span style={{ alignSelf: 'flex-start', fontSize: 12.5, fontWeight: 800, background: 'var(--site-accent)', color: '#fff', borderRadius: 999, padding: '6px 16px', marginBottom: 20 }}>Now delivering nationwide</span>
-          <h1 style={{ fontSize: h1Size, lineHeight: 1.08, margin: '0 0 14px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight }}>{c.heading}</h1>
+        <div className="cs-hero-in" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(28px, 5vw, 64px)', background: 'color-mix(in srgb, var(--site-accent) 7%, var(--site-bg))' }}>
+          {eyebrow && <span style={{ alignSelf: 'flex-start', fontSize: 12.5, fontWeight: 800, background: 'var(--site-accent)', color: '#fff', borderRadius: 999, padding: '6px 16px', marginBottom: 20 }}>{eyebrow}</span>}
+          <h1 style={{ fontSize: h1Size, lineHeight: 1.08, margin: '0 0 14px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight }}>{c.heading}</h1>
           {c.subheading && <p style={{ fontSize: 16.5, lineHeight: 1.65, color: 'var(--site-muted)', margin: '0 0 26px', maxWidth: 440 }}>{c.subheading}</p>}
           <div>{button}</div>
         </div>
@@ -213,18 +278,20 @@ function Hero({ c, v }) {
         padding: 'clamp(80px, 13vw, 130px) 24px', textAlign: 'center', color: '#fff',
         background: `radial-gradient(700px 340px at 20% 0%, rgba(255,255,255,0.14), transparent 60%), radial-gradient(600px 320px at 90% 100%, rgba(0,0,0,0.25), transparent 60%), linear-gradient(135deg, var(--site-accent) 0%, var(--site-accent-dark) 100%)`,
       }}>
-        <h1 style={{ fontSize: h1Size, lineHeight: 1.08, margin: '0 0 16px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, textShadow: '0 1px 8px rgba(0,0,0,0.15)' }}>{c.heading}</h1>
+        <div className="cs-hero-in">
+        <h1 style={{ fontSize: h1Size, lineHeight: 1.08, margin: '0 0 16px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight, textShadow: '0 1px 8px rgba(0,0,0,0.15)' }}>{c.heading}</h1>
         {c.subheading && <p style={{ fontSize: 17, lineHeight: 1.6, color: 'rgba(255,255,255,0.86)', maxWidth: 560, margin: '0 auto 30px' }}>{c.subheading}</p>}
-        {c.button_text && <a href={c.button_link || '#'} style={{ ...btnStyle(v), background: '#fff', color: 'var(--site-accent-dark)', boxShadow: '0 12px 32px rgba(0,0,0,0.25)' }}>{c.button_text}</a>}
+        {c.button_text && <a className="cs-btn" href={c.button_link || '#'} style={{ ...btnStyle(v), background: '#fff', color: 'var(--site-accent-dark)', boxShadow: '0 12px 32px rgba(0,0,0,0.25)' }}>{c.button_text}</a>}
+        </div>
       </section>
     );
   }
 
   if (v.hero === 'minimal') {
     return (
-      <section style={{ padding: 'clamp(72px, 11vw, 110px) 24px', textAlign: 'center' }}>
-        <div style={{ width: 34, height: 3, background: 'var(--site-accent)', margin: '0 auto 30px' }} />
-        <h1 style={{ fontSize: h1Size, lineHeight: 1.14, margin: '0 auto 16px', maxWidth: 640, fontFamily: 'var(--site-font)', fontWeight: v.headingWeight }}>{c.heading}</h1>
+      <section className="cs-hero-in" style={{ padding: 'clamp(72px, 11vw, 110px) 24px', textAlign: 'center' }}>
+        <div style={{ width: 34, height: 3, background: 'var(--site-accent-ui)', margin: '0 auto 30px' }} />
+        <h1 style={{ fontSize: h1Size, lineHeight: 1.14, margin: '0 auto 16px', maxWidth: 640, fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight }}>{c.heading}</h1>
         {c.subheading && <p style={{ fontSize: 16.5, lineHeight: 1.7, color: 'var(--site-muted)', maxWidth: 520, margin: '0 auto 30px' }}>{c.subheading}</p>}
         {button}
       </section>
@@ -235,8 +302,8 @@ function Hero({ c, v }) {
     return (
       <section style={{ borderBottom: '1px solid var(--site-line)' }}>
         <div style={{ maxWidth: 960, margin: '0 auto', padding: 'clamp(40px, 7vw, 64px) 24px', display: 'grid', gridTemplateColumns: img ? '1.2fr minmax(220px, 0.8fr)' : '1fr', gap: 36, alignItems: 'center' }}>
-          <div>
-            <h1 style={{ fontSize: h1Size, lineHeight: 1.15, margin: '0 0 14px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight }}>{c.heading}</h1>
+          <div className="cs-hero-in">
+            <h1 style={{ fontSize: h1Size, lineHeight: 1.15, margin: '0 0 14px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight }}>{c.heading}</h1>
             {c.subheading && <p style={{ fontSize: 16, lineHeight: 1.65, color: 'var(--site-muted)', margin: '0 0 24px', maxWidth: 480 }}>{c.subheading}</p>}
             {button}
           </div>
@@ -251,11 +318,13 @@ function Hero({ c, v }) {
   return (
     <section style={{
       padding: img ? `clamp(${tall ? 120 : 90}px, ${tall ? 20 : 16}vw, ${tall ? 200 : 150}px) 24px` : 'clamp(56px, 10vw, 84px) 24px', textAlign: 'center',
-      ...(img ? { backgroundImage: `linear-gradient(rgba(8,10,16,0.52), rgba(8,10,16,0.62)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff' } : {}),
+      ...(img ? { backgroundImage: `linear-gradient(165deg, color-mix(in srgb, var(--site-accent) ${tall ? 42 : 28}%, rgba(8,10,16,0.92)) 0%, rgba(8,10,16,0.5) 55%, rgba(8,10,16,0.68) 100%), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff' } : {}),
     }}>
-      <h1 style={{ fontSize: tall ? `clamp(38px, 8vw, 64px)` : h1Size, lineHeight: 1.1, margin: '0 0 14px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, ...(img ? { textShadow: '0 2px 18px rgba(0,0,0,0.35)' } : {}) }}>{c.heading}</h1>
+      <div className="cs-hero-in">
+      <h1 style={{ fontSize: tall ? `clamp(40px, 8.5vw, 74px)` : h1Size, lineHeight: 1.1, margin: '0 0 14px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight, ...(img ? { textShadow: '0 2px 18px rgba(0,0,0,0.35)' } : {}) }}>{c.heading}</h1>
       {c.subheading && <p style={{ fontSize: 'clamp(15px, 2.4vw, 18px)', color: img ? 'rgba(255,255,255,0.88)' : 'var(--site-muted)', maxWidth: 560, margin: '0 auto 26px', lineHeight: 1.6 }}>{c.subheading}</p>}
       {button}
+      </div>
     </section>
   );
 }
@@ -291,7 +360,7 @@ function Features({ c, v, i: si }) {
       {c.heading && <H2 v={v} i={si} kicker="What you get">{c.heading}</H2>}
       <div style={{ display: 'grid', gridTemplateColumns: v.narrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: v.card === 'minimal' ? 32 : 20 }}>
         {items.map((it, i) => (
-          <div key={i} style={{ ...(cardStyles[v.card] || cardStyles.bordered), ...(v.narrow ? { textAlign: 'center' } : {}) }}>
+          <div key={i} className={['bordered','rounded','glass'].includes(v.card) ? 'cs-card' : undefined} style={{ ...(cardStyles[v.card] || cardStyles.bordered), ...(v.narrow ? { textAlign: 'center' } : {}) }}>
             <h3 style={{ fontSize: 16, margin: '0 0 8px', fontWeight: 700, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 13.5 } : {}) }}>{it.title}</h3>
             <p style={{ fontSize: 13.5, color: 'var(--site-muted)', margin: 0, lineHeight: 1.65 }}>{it.body}</p>
           </div>
@@ -553,8 +622,8 @@ function ProductsSection({ c, site, v, i: si }) {
       {c.heading && <H2 v={v} i={si} kicker="Shop">{c.heading}</H2>}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${v.card === 'minimal' ? 240 : 210}px, 1fr))`, gap: v.card === 'minimal' ? 32 : 18 }}>
         {products.map((p) => (
-          <div key={p.id} style={cardChrome}>
-            <div style={{ aspectRatio: v.card === 'minimal' ? '4/5' : '1/1', background: 'var(--site-surface)', overflow: 'hidden', borderRadius: imgRadius }}>
+          <div key={p.id} className="cs-card" style={cardChrome}>
+            <div className="cs-imgzoom" style={{ aspectRatio: v.card === 'minimal' ? '4/5' : '1/1', background: 'var(--site-surface)', overflow: 'hidden', borderRadius: imgRadius }}>
               {p.imageUrl
                 ? <img src={p.imageUrl} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 : <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--site-muted)', fontSize: 12 }}>No image</div>}
@@ -757,7 +826,7 @@ function Block({ block, site, v, i }) {
   const leftish = v.h2Mode === 'left-kicker' || v.h2Mode === 'index';
   switch (block.type) {
     case 'hero':
-      return <Hero c={c} v={v} />;
+      return <Hero c={c} v={v} site={site} />;
     case 'text':
       return (
         <Sec v={v} i={i} w={720}>
@@ -808,7 +877,7 @@ function Block({ block, site, v, i }) {
                 ? { borderLeft: 'none', textAlign: 'center' }
                 : { borderLeft: '3px solid var(--site-accent-ui)', background: 'var(--site-surface)', borderRadius: v.card === 'rounded' ? 14 : 0 }),
             }}>
-              <p style={{ fontStyle: 'italic', margin: '0 0 10px', lineHeight: 1.6, ...(pull ? { fontSize: `clamp(17px, 2.4vw, ${21 * v.display}px)`, fontFamily: 'var(--site-font)' } : {}) }}>&ldquo;{it.quote}&rdquo;</p>
+              <p style={{ fontStyle: 'italic', margin: '0 0 10px', lineHeight: 1.6, ...(pull ? { fontSize: `clamp(17px, 2.4vw, ${21 * v.display}px)`, fontFamily: 'var(--site-font-display)' } : {}) }}>&ldquo;{it.quote}&rdquo;</p>
               <footer style={{ fontSize: 13, color: 'var(--site-muted)', ...(pull ? { letterSpacing: '.12em', textTransform: 'uppercase', fontSize: 11.5 } : {}) }}>— {it.author}</footer>
             </blockquote>
           ))}
@@ -847,9 +916,9 @@ function Block({ block, site, v, i }) {
       const onColor = mode !== 'surface';
       return (
         <section style={{ padding: `${Math.min(v.secPad + 8, 80)}px 24px`, textAlign: 'center', ...bandStyle }}>
-          <h2 style={{ fontSize: `clamp(${22 * v.display}px, 3vw, ${30 * v.display}px)`, margin: '0 0 18px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.08em' } : {}) }}>{c.heading}</h2>
+          <h2 style={{ fontSize: `clamp(${22 * v.display}px, 3vw, ${30 * v.display}px)`, margin: '0 0 18px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.08em' } : {}) }}>{c.heading}</h2>
           {c.button_text && (
-            <a href={c.button_link || '#contact'} style={{
+            <a className="cs-btn" href={c.button_link || '#contact'} style={{
               ...btnStyle(v),
               ...(onColor ? { background: mode === 'invert' ? 'var(--site-bg)' : '#fff', color: mode === 'invert' ? 'var(--site-fg)' : (mode === 'accent' ? 'var(--site-accent-dark)' : 'var(--site-accent-dark)') } : {}),
             }}>
@@ -898,7 +967,7 @@ function SiteFooter({ site, v = DEFAULT_VARIANT }) {
   if (v.footerMode === 'serif') {
     return (
       <footer style={{ padding: '44px 24px', textAlign: 'center', borderTop: '1px solid var(--site-line)' }}>
-        <div style={{ fontFamily: 'var(--site-font)', fontSize: 19, letterSpacing: '.06em', marginBottom: 10 }}>{name}</div>
+        <div style={{ fontFamily: 'var(--site-font-display)', fontSize: 19, letterSpacing: '.06em', marginBottom: 10 }}>{name}</div>
         {(site.contactPhone || site.contactEmail) && (
           <div style={{ fontSize: 12.5, color: 'var(--site-muted)', letterSpacing: '.08em', marginBottom: 12 }}>
             {[site.contactPhone, site.contactEmail].filter(Boolean).join('   ·   ')}
@@ -940,6 +1009,7 @@ const navLink = (v, active) => ({
 
 function EcommerceSite({ data, activeSlug, setActiveSlug }) {
   const vars = useThemeVars(data.theme);
+  useThemeAssets(data.theme);
   const v = variantFor(data.theme);
   const page = data.pages.find((p) => p.slug === activeSlug) || data.pages.find((p) => p.is_home) || data.pages[0];
   const shop = data.pages.find((p) => p.slug === 'shop');
@@ -953,10 +1023,10 @@ function EcommerceSite({ data, activeSlug, setActiveSlug }) {
           </div>
           <nav style={{ display: 'flex', alignItems: 'center', gap: v.navCaps ? 26 : 18, flexWrap: 'wrap' }}>
             {data.pages.filter((p) => p.slug !== 'shop').map((p) => (
-              <a key={p.slug} href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }} style={navLink(v, page?.slug === p.slug)}>{p.title}</a>
+              <a key={p.slug} className="cs-nl" href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }} style={navLink(v, page?.slug === p.slug)}>{p.title}</a>
             ))}
             {shop && (
-              <a href="#shop" onClick={(e) => { e.preventDefault(); setActiveSlug('shop'); }} style={navLink(v, page?.slug === 'shop')}>
+              <a className="cs-nl" href="#shop" onClick={(e) => { e.preventDefault(); setActiveSlug('shop'); }} style={navLink(v, page?.slug === 'shop')}>
                 Shop
               </a>
             )}
@@ -973,6 +1043,7 @@ function EcommerceSite({ data, activeSlug, setActiveSlug }) {
 
 function LandingSite({ data }) {
   const vars = useThemeVars(data.theme);
+  useThemeAssets(data.theme);
   const v = variantFor(data.theme);
   const home = data.pages.find((p) => p.is_home) || data.pages[0];
   const ctaBlock = (home?.blocks || []).find((b) => b.type === 'cta' || b.type === 'hero');
@@ -995,6 +1066,7 @@ function LandingSite({ data }) {
 
 function CompanySite({ data, activeSlug, setActiveSlug }) {
   const vars = useThemeVars(data.theme);
+  useThemeAssets(data.theme);
   const v = variantFor(data.theme);
   const page = data.pages.find((p) => p.slug === activeSlug) || data.pages.find((p) => p.is_home) || data.pages[0];
   return (
@@ -1006,13 +1078,13 @@ function CompanySite({ data, activeSlug, setActiveSlug }) {
         </div>
       )}
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: v.navCaps ? '24px 28px' : '18px 24px', borderBottom: '1px solid var(--site-line)', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: v.navCaps ? 15 : 18, fontFamily: 'var(--site-font)', ...(v.navCaps ? { letterSpacing: '.22em', textTransform: 'uppercase' } : {}) }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: v.navCaps ? 15 : 18, fontFamily: 'var(--site-font-display)', ...(v.navCaps ? { letterSpacing: '.22em', textTransform: 'uppercase' } : {}) }}>
           {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 32, height: 32, borderRadius: v.card === 'minimal' ? 2 : 6, objectFit: 'cover' }} />}
           {data.siteName || data.orgName}
         </div>
         <nav style={{ display: 'flex', gap: v.navCaps ? '10px 28px' : '10px 22px', flexWrap: 'wrap' }}>
           {data.pages.map((p) => (
-            <a key={p.slug} href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }} style={navLink(v, page?.slug === p.slug)}>
+            <a key={p.slug} className="cs-nl" href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }} style={navLink(v, page?.slug === p.slug)}>
               {p.title}
             </a>
           ))}
