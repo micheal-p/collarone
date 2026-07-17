@@ -23,21 +23,42 @@ const FONT_STACKS = {
 };
 
 /* ---- the design decisions each theme owns ------------------------------- */
-const DEFAULT_VARIANT = { hero: 'overlay', card: 'bordered', btnRadius: 8, navCaps: false, narrow: false, display: 1, headingWeight: 700 };
+/* Beyond buttons and fonts, each theme owns a COMPOSITION:
+   h2Mode  — how section headings are set (center / center-rule / left-kicker /
+             pill / index) — the single loudest "different site" signal
+   band    — section backgrounds: none (whitespace), alt (white/grey stripes),
+             tint (accent-washed stripes)
+   secPad  — vertical rhythm: airy boutiques vs compact markets
+   ctaMode — the call-to-action band: surface / accent / gradient / invert
+   footerMode — simple line / corporate columns / centered serif / agency caps */
+const DEFAULT_VARIANT = {
+  hero: 'overlay', card: 'bordered', btnRadius: 8, navCaps: false, narrow: false, display: 1, headingWeight: 700,
+  h2Mode: 'center', band: 'none', secPad: 56, ctaMode: 'surface', footerMode: 'simple',
+};
 const VARIANTS = {
   // ecommerce
-  'storefront-classic':    { hero: 'overlay',   card: 'bordered', btnRadius: 8,   headingWeight: 700 },
-  'boutique-noir':         { hero: 'editorial', card: 'minimal',  btnRadius: 0,   navCaps: true, display: 1.12, headingWeight: 500 },
-  'market-fresh':          { hero: 'split',     card: 'rounded',  btnRadius: 999, display: 1.05, headingWeight: 800 },
+  'storefront-classic':    { hero: 'overlay',   card: 'bordered', btnRadius: 8,   headingWeight: 700,
+                             h2Mode: 'left-kicker', band: 'alt', secPad: 56, ctaMode: 'accent', footerMode: 'columns' },
+  'boutique-noir':         { hero: 'editorial', card: 'minimal',  btnRadius: 0,   navCaps: true, display: 1.12, headingWeight: 500,
+                             h2Mode: 'center-rule', band: 'none', secPad: 88, ctaMode: 'surface', footerMode: 'serif' },
+  'market-fresh':          { hero: 'split',     card: 'rounded',  btnRadius: 999, display: 1.05, headingWeight: 800,
+                             h2Mode: 'pill', band: 'tint', secPad: 48, ctaMode: 'accent', footerMode: 'simple' },
   // landing
-  'launch-bold':           { hero: 'full',      card: 'bordered', btnRadius: 4,   display: 1.3, headingWeight: 800 },
-  'minimal-pitch':         { hero: 'minimal',   card: 'plain',    btnRadius: 8,   narrow: true, display: 0.92, headingWeight: 600 },
-  'startup-gradient':      { hero: 'gradient',  card: 'glass',    btnRadius: 999, display: 1.1, headingWeight: 800 },
-  'feature-focus':         { hero: 'overlay',   card: 'zigzag',   btnRadius: 10,  headingWeight: 700 },
+  'launch-bold':           { hero: 'full',      card: 'bordered', btnRadius: 4,   display: 1.3, headingWeight: 800,
+                             h2Mode: 'center', band: 'none', secPad: 64, ctaMode: 'accent', footerMode: 'simple' },
+  'minimal-pitch':         { hero: 'minimal',   card: 'plain',    btnRadius: 8,   narrow: true, display: 0.92, headingWeight: 600,
+                             h2Mode: 'center-rule', band: 'none', secPad: 72, ctaMode: 'surface', footerMode: 'simple' },
+  'startup-gradient':      { hero: 'gradient',  card: 'glass',    btnRadius: 999, display: 1.1, headingWeight: 800,
+                             h2Mode: 'center', band: 'none', secPad: 64, ctaMode: 'gradient', footerMode: 'simple' },
+  'feature-focus':         { hero: 'overlay',   card: 'zigzag',   btnRadius: 10,  headingWeight: 700,
+                             h2Mode: 'left-kicker', band: 'alt', secPad: 56, ctaMode: 'accent', footerMode: 'simple' },
   // company
-  'corporate-clean':       { hero: 'boxed',     card: 'bordered', btnRadius: 4,   display: 0.9, headingWeight: 700 },
-  'agency-modern':         { hero: 'editorial', card: 'minimal',  btnRadius: 0,   navCaps: true, display: 1.25, headingWeight: 800, btnInvert: true },
-  'professional-services': { hero: 'minimal',   card: 'bordered', btnRadius: 8,   display: 0.95, headingWeight: 600 },
+  'corporate-clean':       { hero: 'boxed',     card: 'bordered', btnRadius: 4,   display: 0.9, headingWeight: 700,
+                             h2Mode: 'left-kicker', band: 'alt', secPad: 56, ctaMode: 'accent', footerMode: 'columns' },
+  'agency-modern':         { hero: 'editorial', card: 'minimal',  btnRadius: 0,   navCaps: true, display: 1.25, headingWeight: 800, btnInvert: true,
+                             h2Mode: 'index', band: 'none', secPad: 84, ctaMode: 'invert', footerMode: 'caps' },
+  'professional-services': { hero: 'minimal',   card: 'bordered', btnRadius: 8,   display: 0.95, headingWeight: 600,
+                             h2Mode: 'center-rule', band: 'alt', secPad: 64, ctaMode: 'surface', footerMode: 'serif' },
 };
 const variantFor = (theme) => ({ ...DEFAULT_VARIANT, ...(VARIANTS[theme?.key] || {}) });
 
@@ -89,13 +110,64 @@ const btnStyle = (v, filled = true) => ({
 });
 
 const secWidth = (v, base = 960) => (v.narrow ? Math.min(base, 660) : base);
-const H2 = ({ v, children, align = 'center' }) => (
-  <h2 style={{
-    fontSize: `clamp(${22 * v.display}px, ${3 * v.display}vw, ${28 * v.display}px)`, marginBottom: 24,
-    textAlign: align, fontFamily: 'var(--site-font)', fontWeight: v.headingWeight,
-    ...(v.navCaps ? { letterSpacing: '.04em' } : {}),
-  }}>{children}</h2>
-);
+
+// Full-bleed section wrapper: owns the theme's vertical rhythm and band
+// pattern (the background must bleed edge-to-edge, so the max-width lives on
+// an inner div, not the section itself). `i` is the block's index on the page.
+function Sec({ v, i = 0, w = 960, style, children }) {
+  const band =
+    v.band === 'alt' ? (i % 2 ? 'var(--site-surface)' : 'transparent')
+    : v.band === 'tint' ? (i % 2 ? 'color-mix(in srgb, var(--site-accent) 6%, var(--site-bg))' : 'transparent')
+    : 'transparent';
+  return (
+    <section style={{ background: band, padding: `${v.secPad}px 24px`, ...style }}>
+      <div style={{ maxWidth: secWidth(v, w), margin: '0 auto' }}>{children}</div>
+    </section>
+  );
+}
+
+// Section headings are the loudest "this is a different site" signal — five
+// distinct treatments, chosen per theme.
+const H2 = ({ v, children, align = 'center', kicker, i }) => {
+  const size = `clamp(${22 * v.display}px, ${3 * v.display}vw, ${28 * v.display}px)`;
+  const base = { fontSize: size, margin: '0 0 24px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, ...(v.navCaps ? { letterSpacing: '.04em' } : {}) };
+
+  if (v.h2Mode === 'left-kicker') {
+    return (
+      <div style={{ marginBottom: 26 }}>
+        {kicker && <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--site-accent-ui)', marginBottom: 8 }}>{kicker}</div>}
+        <h2 style={{ ...base, margin: 0, textAlign: 'left' }}>{children}</h2>
+        <div style={{ width: 44, height: 3, background: 'var(--site-accent-ui)', marginTop: 12 }} />
+      </div>
+    );
+  }
+  if (v.h2Mode === 'center-rule') {
+    return (
+      <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{ width: 30, height: 2, background: 'var(--site-accent-ui)', margin: '0 auto 16px' }} />
+        <h2 style={{ ...base, margin: 0, letterSpacing: '.02em' }}>{children}</h2>
+        {kicker && <div style={{ fontSize: 12.5, letterSpacing: '.22em', textTransform: 'uppercase', color: 'var(--site-muted)', marginTop: 10 }}>{kicker}</div>}
+      </div>
+    );
+  }
+  if (v.h2Mode === 'pill') {
+    return (
+      <div style={{ textAlign: 'center', marginBottom: 26 }}>
+        {kicker && <span style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', background: 'color-mix(in srgb, var(--site-accent) 14%, var(--site-bg))', color: 'var(--site-accent-ui)', borderRadius: 999, padding: '5px 14px', marginBottom: 12 }}>{kicker}</span>}
+        <h2 style={{ ...base, margin: 0 }}>{children}</h2>
+      </div>
+    );
+  }
+  if (v.h2Mode === 'index') {
+    return (
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 18, borderTop: '1px solid var(--site-line)', paddingTop: 22, marginBottom: 34 }}>
+        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: '.18em', color: 'var(--site-muted)', flexShrink: 0 }}>{String((i ?? 0) + 1).padStart(2, '0')} /</span>
+        <h2 style={{ ...base, margin: 0, textAlign: 'left', textTransform: 'uppercase', letterSpacing: '.06em' }}>{children}</h2>
+      </div>
+    );
+  }
+  return <h2 style={{ ...base, textAlign: align, marginBottom: 24 }}>{children}</h2>;
+};
 
 /* ---- hero ------------------------------------------------------------------ */
 function Hero({ c, v }) {
@@ -189,12 +261,12 @@ function Hero({ c, v }) {
 }
 
 /* ---- features --------------------------------------------------------------- */
-function Features({ c, v }) {
+function Features({ c, v, i: si }) {
   const items = c.items || [];
   if (v.card === 'zigzag') {
     return (
-      <section style={{ padding: '56px 24px', maxWidth: 860, margin: '0 auto' }}>
-        {c.heading && <H2 v={v}>{c.heading}</H2>}
+      <Sec v={v} i={si} w={860}>
+        {c.heading && <H2 v={v} i={si} kicker="What you get">{c.heading}</H2>}
         {items.map((it, i) => (
           <div key={i} style={{ display: 'flex', gap: 26, alignItems: 'flex-start', flexDirection: i % 2 ? 'row-reverse' : 'row', padding: '26px 0', borderTop: i > 0 ? '1px solid var(--site-line)' : 'none' }}>
             <div style={{ fontSize: 44, fontWeight: 800, color: 'var(--site-accent)', opacity: 0.25, lineHeight: 1, fontFamily: 'var(--site-font)', flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</div>
@@ -204,7 +276,7 @@ function Features({ c, v }) {
             </div>
           </div>
         ))}
-      </section>
+      </Sec>
     );
   }
   const cardStyles = {
@@ -215,8 +287,8 @@ function Features({ c, v }) {
     plain: { padding: 0 },
   };
   return (
-    <section style={{ padding: '56px 24px', maxWidth: secWidth(v), margin: '0 auto' }}>
-      {c.heading && <H2 v={v}>{c.heading}</H2>}
+    <Sec v={v} i={si}>
+      {c.heading && <H2 v={v} i={si} kicker="What you get">{c.heading}</H2>}
       <div style={{ display: 'grid', gridTemplateColumns: v.narrow ? '1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: v.card === 'minimal' ? 32 : 20 }}>
         {items.map((it, i) => (
           <div key={i} style={{ ...(cardStyles[v.card] || cardStyles.bordered), ...(v.narrow ? { textAlign: 'center' } : {}) }}>
@@ -225,7 +297,7 @@ function Features({ c, v }) {
           </div>
         ))}
       </div>
-    </section>
+    </Sec>
   );
 }
 
@@ -444,7 +516,7 @@ function CartDrawer({ site, v }) {
 }
 
 /* ---- products (with cart + CRM enquiry + WhatsApp order) ---------------------- */
-function ProductsSection({ c, site, v }) {
+function ProductsSection({ c, site, v, i: si }) {
   const cart = useContext(CartCtx); // present on store sites; null elsewhere → Enquire fallback
   const [enquire, setEnquire] = useState(null); // product | null
   const products = (site.products || []).slice(0, c.limit > 0 ? c.limit : undefined);
@@ -460,9 +532,9 @@ function ProductsSection({ c, site, v }) {
   const imgRadius = v.card === 'minimal' ? 2 : 0;
 
   return (
-    <section style={{ padding: '56px 24px', maxWidth: 1000, margin: '0 auto' }}>
-      {c.heading && <H2 v={v}>{c.heading}</H2>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: v.card === 'minimal' ? 28 : 18 }}>
+    <Sec v={v} i={si} w={1000}>
+      {c.heading && <H2 v={v} i={si} kicker="Shop">{c.heading}</H2>}
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${v.card === 'minimal' ? 240 : 210}px, 1fr))`, gap: v.card === 'minimal' ? 32 : 18 }}>
         {products.map((p) => (
           <div key={p.id} style={cardChrome}>
             <div style={{ aspectRatio: v.card === 'minimal' ? '4/5' : '1/1', background: 'var(--site-surface)', overflow: 'hidden', borderRadius: imgRadius }}>
@@ -501,7 +573,7 @@ function ProductsSection({ c, site, v }) {
         {products.length === 0 && <p style={{ gridColumn: '1/-1', textAlign: 'center', color: 'var(--site-muted)' }}>No products listed yet.</p>}
       </div>
       {enquire && <EnquiryModal product={enquire} site={site} v={v} onClose={() => setEnquire(null)} />}
-    </section>
+    </Sec>
   );
 }
 
@@ -562,7 +634,7 @@ function EnquiryModal({ product, site, v, onClose }) {
 }
 
 /* ---- mailing-list signup → CRM contact ---------------------------------------- */
-function SubscribeSection({ c, site, v }) {
+function SubscribeSection({ c, site, v, i: si }) {
   const [email, setEmail] = useState('');
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -582,9 +654,9 @@ function SubscribeSection({ c, site, v }) {
   };
 
   return (
-    <section style={{ padding: '52px 24px', background: v.hero === 'gradient' ? 'transparent' : 'var(--site-surface)' }}>
+    <section style={{ padding: `${Math.min(v.secPad, 64)}px 24px`, background: v.hero === 'gradient' ? 'transparent' : 'var(--site-surface)' }}>
       <div style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
-        <H2 v={v}>{c.heading || 'Stay in the loop'}</H2>
+        <H2 v={v} i={si} kicker="Newsletter">{c.heading || 'Stay in the loop'}</H2>
         <p style={{ fontSize: 14.5, color: 'var(--site-muted)', margin: '-10px 0 22px', lineHeight: 1.6 }}>
           {c.blurb || 'New arrivals, offers and updates — straight to your inbox. No spam.'}
         </p>
@@ -605,7 +677,7 @@ function SubscribeSection({ c, site, v }) {
 }
 
 /* ---- contact form (lead capture) ---------------------------------------------- */
-function ContactFormSection({ site, v }) {
+function ContactFormSection({ site, v, i: si }) {
   const [f, setF] = useState({ name: '', email: '', phone: '', message: '' });
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -627,9 +699,9 @@ function ContactFormSection({ site, v }) {
   };
 
   return (
-    <section id="contact" style={{ padding: '48px 24px', maxWidth: 520, margin: '0 auto' }}>
-      <H2 v={v}>Get in touch</H2>
-      <p style={{ fontSize: 14, color: 'var(--site-muted)', textAlign: 'center', margin: '-10px 0 22px' }}>Send a message and we'll get back to you.</p>
+    <section id="contact" style={{ padding: `${Math.min(v.secPad, 64)}px 24px`, maxWidth: 520, margin: '0 auto' }}>
+      <H2 v={v} i={si} kicker="Contact">Get in touch</H2>
+      <p style={{ fontSize: 14, color: 'var(--site-muted)', textAlign: v.h2Mode === 'left-kicker' || v.h2Mode === 'index' ? 'left' : 'center', margin: '-10px 0 22px' }}>Send a message and we'll get back to you.</p>
 
       {done ? (
         <div style={{ textAlign: 'center', padding: '26px 16px', background: 'var(--site-surface)', border: '1px solid var(--site-line)', borderRadius: 12 }}>
@@ -663,17 +735,18 @@ function ContactFormSection({ site, v }) {
 }
 
 /* ---- block dispatcher --------------------------------------------------------- */
-function Block({ block, site, v }) {
+function Block({ block, site, v, i }) {
   const c = block.content || {};
+  const leftish = v.h2Mode === 'left-kicker' || v.h2Mode === 'index';
   switch (block.type) {
     case 'hero':
       return <Hero c={c} v={v} />;
     case 'text':
       return (
-        <section style={{ padding: '48px 24px', maxWidth: secWidth(v, 720), margin: '0 auto' }}>
-          {c.heading && <H2 v={v} align="left">{c.heading}</H2>}
-          <p style={{ fontSize: 15.5, lineHeight: 1.75, color: 'var(--site-muted)', whiteSpace: 'pre-wrap' }}>{c.body}</p>
-        </section>
+        <Sec v={v} i={i} w={720}>
+          {c.heading && <H2 v={v} i={i} align="left" kicker="Our story">{c.heading}</H2>}
+          <p style={{ fontSize: 15.5, lineHeight: 1.75, color: 'var(--site-muted)', whiteSpace: 'pre-wrap', margin: 0 }}>{c.body}</p>
+        </Sec>
       );
     case 'image':
       return c.image_url ? (
@@ -683,75 +756,92 @@ function Block({ block, site, v }) {
         </section>
       ) : null;
     case 'features':
-      return <Features c={c} v={v} />;
+      return <Features c={c} v={v} i={i} />;
     case 'team':
       return (
-        <section style={{ padding: '48px 24px', maxWidth: secWidth(v), margin: '0 auto' }}>
-          {c.heading && <H2 v={v}>{c.heading}</H2>}
+        <Sec v={v} i={i}>
+          {c.heading && <H2 v={v} i={i} kicker="Our people">{c.heading}</H2>}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 20 }}>
             {(c.items || []).length === 0 && <p style={{ textAlign: 'center', color: 'var(--site-muted)', gridColumn: '1/-1' }}>Team members coming soon.</p>}
-            {(c.items || []).map((it, i) => (
-              <div key={i} style={{ textAlign: 'center' }}>
-                {it.photo_url && <img src={it.photo_url} alt={it.name} style={{ width: 96, height: 96, borderRadius: v.card === 'minimal' ? 4 : '50%', objectFit: 'cover', margin: '0 auto 10px' }} />}
-                <div style={{ fontWeight: 600 }}>{it.name}</div>
-                <div style={{ fontSize: 13, color: 'var(--site-muted)' }}>{it.role}</div>
+            {(c.items || []).map((it, ti) => (
+              <div key={ti} style={{ textAlign: leftish ? 'left' : 'center' }}>
+                {it.photo_url && <img src={it.photo_url} alt={it.name} style={{
+                  width: leftish ? '100%' : 96, height: leftish ? 150 : 96, maxWidth: leftish ? 200 : 96,
+                  borderRadius: v.card === 'minimal' ? 2 : leftish ? 8 : '50%', objectFit: 'cover',
+                  margin: leftish ? '0 0 10px' : '0 auto 10px', display: 'block',
+                }} />}
+                <div style={{ fontWeight: 600, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 13.5 } : {}) }}>{it.name}</div>
+                <div style={{ fontSize: 13, color: 'var(--site-muted)', marginTop: 2 }}>{it.role}</div>
               </div>
             ))}
           </div>
-        </section>
+        </Sec>
       );
-    case 'testimonials':
+    case 'testimonials': {
+      // Serif/centered themes set testimonials as large pull-quotes; the rest
+      // keep the carded treatment.
+      const pull = v.card === 'minimal' || v.h2Mode === 'center-rule';
       return (
-        <section style={{ padding: '48px 24px', maxWidth: secWidth(v, 720), margin: '0 auto' }}>
-          {c.heading && <H2 v={v}>{c.heading}</H2>}
-          {(c.items || []).map((it, i) => (
-            <blockquote key={i} style={{
-              margin: '0 0 20px', padding: '16px 20px',
-              ...(v.card === 'minimal'
-                ? { borderLeft: 'none', textAlign: 'center', fontSize: 17, fontFamily: 'var(--site-font)' }
+        <Sec v={v} i={i} w={720}>
+          {c.heading && <H2 v={v} i={i} kicker="Kind words">{c.heading}</H2>}
+          {(c.items || []).map((it, ti) => (
+            <blockquote key={ti} style={{
+              margin: '0 0 24px', padding: pull ? '8px 12px' : '16px 20px',
+              ...(pull
+                ? { borderLeft: 'none', textAlign: 'center' }
                 : { borderLeft: '3px solid var(--site-accent-ui)', background: 'var(--site-surface)', borderRadius: v.card === 'rounded' ? 14 : 0 }),
             }}>
-              <p style={{ fontStyle: 'italic', margin: '0 0 8px', lineHeight: 1.65 }}>&ldquo;{it.quote}&rdquo;</p>
-              <footer style={{ fontSize: 13, color: 'var(--site-muted)' }}>— {it.author}</footer>
+              <p style={{ fontStyle: 'italic', margin: '0 0 10px', lineHeight: 1.6, ...(pull ? { fontSize: `clamp(17px, 2.4vw, ${21 * v.display}px)`, fontFamily: 'var(--site-font)' } : {}) }}>&ldquo;{it.quote}&rdquo;</p>
+              <footer style={{ fontSize: 13, color: 'var(--site-muted)', ...(pull ? { letterSpacing: '.12em', textTransform: 'uppercase', fontSize: 11.5 } : {}) }}>— {it.author}</footer>
             </blockquote>
           ))}
-        </section>
+        </Sec>
       );
+    }
     case 'faq':
       return (
-        <section style={{ padding: '48px 24px', maxWidth: secWidth(v, 640), margin: '0 auto' }}>
-          {c.heading && <H2 v={v}>{c.heading}</H2>}
-          {(c.items || []).map((it, i) => (
-            <div key={i} style={{ marginBottom: 14, ...(v.card === 'bordered' ? { padding: '14px 16px', border: '1px solid var(--site-line)', borderRadius: 10, background: 'var(--site-surface)' } : {}) }}>
+        <Sec v={v} i={i} w={640}>
+          {c.heading && <H2 v={v} i={i} kicker="Questions">{c.heading}</H2>}
+          {(c.items || []).map((it, ti) => (
+            <div key={ti} style={{ marginBottom: 14, ...(v.card === 'bordered' || v.card === 'rounded'
+              ? { padding: '14px 16px', border: '1px solid var(--site-line)', borderRadius: v.card === 'rounded' ? 14 : 10, background: 'var(--site-bg)' }
+              : { paddingBottom: 14, borderBottom: '1px solid var(--site-line)' }) }}>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>{it.q}</div>
               <div style={{ fontSize: 14, color: 'var(--site-muted)', lineHeight: 1.6 }}>{it.a}</div>
             </div>
           ))}
-        </section>
+        </Sec>
       );
     case 'contact_form':
-      return <ContactFormSection site={site} v={v} />;
+      return <ContactFormSection site={site} v={v} i={i} />;
     case 'subscribe':
-      return <SubscribeSection c={c} site={site} v={v} />;
+      return <SubscribeSection c={c} site={site} v={v} i={i} />;
     case 'products':
-      return <ProductsSection c={c} site={site} v={v} />;
-    case 'cta':
+      return <ProductsSection c={c} site={site} v={v} i={i} />;
+    case 'cta': {
+      // The closing band is a theme signature: flat accent, brand gradient,
+      // stark inverse, or a quiet surface.
+      const mode = v.ctaMode;
+      const bandStyle =
+        mode === 'gradient' ? { background: `linear-gradient(135deg, var(--site-accent) 0%, var(--site-accent-dark) 100%)`, color: '#fff' }
+        : mode === 'accent' ? { background: 'var(--site-accent)', color: '#fff' }
+        : mode === 'invert' ? { background: 'var(--site-fg)', color: 'var(--site-bg)' }
+        : { background: 'var(--site-surface)' };
+      const onColor = mode !== 'surface';
       return (
-        <section style={{
-          padding: '56px 24px', textAlign: 'center',
-          background: v.hero === 'gradient'
-            ? `linear-gradient(135deg, var(--site-accent) 0%, var(--site-accent-dark) 100%)`
-            : 'var(--site-surface)',
-          color: v.hero === 'gradient' ? '#fff' : 'inherit',
-        }}>
-          <h2 style={{ fontSize: `clamp(${22 * v.display}px, 3vw, ${28 * v.display}px)`, marginBottom: 16, fontFamily: 'var(--site-font)', fontWeight: v.headingWeight }}>{c.heading}</h2>
+        <section style={{ padding: `${Math.min(v.secPad + 8, 80)}px 24px`, textAlign: 'center', ...bandStyle }}>
+          <h2 style={{ fontSize: `clamp(${22 * v.display}px, 3vw, ${30 * v.display}px)`, margin: '0 0 18px', fontFamily: 'var(--site-font)', fontWeight: v.headingWeight, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.08em' } : {}) }}>{c.heading}</h2>
           {c.button_text && (
-            <a href={c.button_link || '#contact'} style={{ ...btnStyle(v), ...(v.hero === 'gradient' ? { background: '#fff', color: 'var(--site-accent-dark)' } : {}) }}>
+            <a href={c.button_link || '#contact'} style={{
+              ...btnStyle(v),
+              ...(onColor ? { background: mode === 'invert' ? 'var(--site-bg)' : '#fff', color: mode === 'invert' ? 'var(--site-fg)' : (mode === 'accent' ? 'var(--site-accent-dark)' : 'var(--site-accent-dark)') } : {}),
+            }}>
               {c.button_text}
             </a>
           )}
         </section>
       );
+    }
     case 'footer':
       return c.note ? (
         <section style={{ padding: '18px 24px', textAlign: 'center', fontSize: 12.5, color: 'var(--site-muted)' }}>{c.note}</section>
@@ -761,16 +851,63 @@ function Block({ block, site, v }) {
   }
 }
 
-function SiteFooter({ site }) {
+function SiteFooter({ site, v = DEFAULT_VARIANT }) {
+  const year = new Date().getFullYear();
+  const name = site.siteName || site.orgName;
+
+  if (v.footerMode === 'columns') {
+    return (
+      <footer style={{ borderTop: '1px solid var(--site-line)', background: 'var(--site-surface)' }}>
+        <div style={{ maxWidth: 960, margin: '0 auto', padding: '36px 24px 28px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 24 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15.5, marginBottom: 6 }}>{name}</div>
+            {site.tagline && <div style={{ fontSize: 13, color: 'var(--site-muted)', lineHeight: 1.6 }}>{site.tagline}</div>}
+          </div>
+          {(site.contactPhone || site.contactWhatsapp || site.contactEmail) && (
+            <div style={{ fontSize: 13.5, color: 'var(--site-muted)', lineHeight: 2 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--site-fg)', marginBottom: 4 }}>Contact</div>
+              {site.contactPhone && <div>{site.contactPhone}</div>}
+              {site.contactWhatsapp && <div>WhatsApp: {site.contactWhatsapp}</div>}
+              {site.contactEmail && <div>{site.contactEmail}</div>}
+            </div>
+          )}
+        </div>
+        <div style={{ borderTop: '1px solid var(--site-line)', padding: '14px 24px', textAlign: 'center', fontSize: 12, color: 'var(--site-muted)' }}>
+          &copy; {year} {name}. Built with Collarone.
+        </div>
+      </footer>
+    );
+  }
+  if (v.footerMode === 'serif') {
+    return (
+      <footer style={{ padding: '44px 24px', textAlign: 'center', borderTop: '1px solid var(--site-line)' }}>
+        <div style={{ fontFamily: 'var(--site-font)', fontSize: 19, letterSpacing: '.06em', marginBottom: 10 }}>{name}</div>
+        {(site.contactPhone || site.contactEmail) && (
+          <div style={{ fontSize: 12.5, color: 'var(--site-muted)', letterSpacing: '.08em', marginBottom: 12 }}>
+            {[site.contactPhone, site.contactEmail].filter(Boolean).join('   ·   ')}
+          </div>
+        )}
+        <div style={{ fontSize: 11.5, color: 'var(--site-muted)', letterSpacing: '.14em', textTransform: 'uppercase' }}>&copy; {year} · Built with Collarone</div>
+      </footer>
+    );
+  }
+  if (v.footerMode === 'caps') {
+    return (
+      <footer style={{ padding: '40px 24px', borderTop: '1px solid var(--site-line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ fontWeight: 800, letterSpacing: '.24em', textTransform: 'uppercase', fontSize: 13 }}>{name}</div>
+        <div style={{ fontSize: 11, color: 'var(--site-muted)', letterSpacing: '.14em', textTransform: 'uppercase' }}>&copy; {year} — Built with Collarone</div>
+      </footer>
+    );
+  }
   return (
     <footer style={{ padding: '24px', textAlign: 'center', fontSize: 12.5, color: 'var(--site-muted)', borderTop: '1px solid var(--site-line)' }}>
-      &copy; {new Date().getFullYear()} {site.siteName || site.orgName}. Built with Collarone.
+      &copy; {year} {name}. Built with Collarone.
     </footer>
   );
 }
 
 function PageBody({ page, site, v }) {
-  return <main>{(page.blocks || []).map((b, i) => <Block key={i} block={b} site={site} v={v} />)}</main>;
+  return <main>{(page.blocks || []).map((b, i) => <Block key={i} block={b} site={site} v={v} i={i} />)}</main>;
 }
 
 /* ---- shells --------------------------------------------------------------------
@@ -810,7 +947,7 @@ function EcommerceSite({ data, activeSlug, setActiveSlug }) {
           </nav>
         </header>
         {page && <PageBody page={page} site={data} v={v} />}
-        <SiteFooter site={data} />
+        <SiteFooter site={data} v={v} />
         <CartDrawer site={data} v={v} />
       </div>
     </CartProvider>
@@ -834,7 +971,7 @@ function LandingSite({ data }) {
         </a>
       </header>
       {home && <PageBody page={home} site={data} v={v} />}
-      <SiteFooter site={data} />
+      <SiteFooter site={data} v={v} />
     </div>
   );
 }
@@ -865,7 +1002,7 @@ function CompanySite({ data, activeSlug, setActiveSlug }) {
         </nav>
       </header>
       {page && <PageBody page={page} site={data} v={v} />}
-      <SiteFooter site={data} />
+      <SiteFooter site={data} v={v} />
     </div>
   );
 }
