@@ -279,12 +279,31 @@ export default function Landing() {
   const [navOpen, setNavOpen] = useState(false);
   const [walkIdx, setWalkIdx] = useState(0);
   const [walkAuto, setWalkAuto] = useState(true);
+  const walkDir = useRef(1);            // which way the stage slides
+  const walkTabRefs = useRef([]);
+  const goWalk = (next, manual = false) => {
+    setWalkIdx((cur) => {
+      const n = typeof next === 'function' ? next(cur) : next;
+      const len = GALLERY_SHOTS.length;
+      walkDir.current = ((n - cur + len) % len) <= len / 2 ? 1 : -1;
+      return n;
+    });
+    if (manual) setWalkAuto(false);
+  };
   // Guided tour auto-advances until the visitor takes over.
   useEffect(() => {
     if (reduce || !walkAuto) return undefined;
-    const t = setInterval(() => setWalkIdx((x) => (x + 1) % GALLERY_SHOTS.length), 5000);
+    const t = setInterval(() => goWalk((x) => (x + 1) % GALLERY_SHOTS.length), 5000);
     return () => clearInterval(t);
-  }, [reduce, walkAuto]);
+  }, [reduce, walkAuto]); // eslint-disable-line
+  // Mobile: the horizontal tab strip glides so the active pill enters with
+  // its image, marquee-style. No-op on desktop (tabs stack, nothing scrolls).
+  useEffect(() => {
+    const el = walkTabRefs.current[walkIdx];
+    if (el && el.parentElement && el.parentElement.scrollWidth > el.parentElement.clientWidth + 4) {
+      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }, [walkIdx, reduce]);
   const [faqCat, setFaqCat] = useState('All');
   const visibleFaqs = faqCat === 'All' ? faqs : faqs.filter((f) => f.cat === faqCat);
   useEffect(() => {
@@ -357,7 +376,7 @@ export default function Landing() {
               initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.18 }}
             >
-              {[['#platform', 'Platform'], ['#gallery', 'Product tour'], ['#pricing', 'Pricing'], ['#about', 'About'], ['#faq', 'FAQ']].map(([href, label]) => (
+              {[['#platform', 'Platform'], ['#gallery', 'Product tour'], ['#pricing', 'Pricing'], ['#about', 'About'], ['#faq', 'FAQ'], ['/jobs', 'Jobs board']].map(([href, label]) => (
                 <a key={href} className="cl-mm-link" href={href} onClick={() => setNavOpen(false)}>{label}</a>
               ))}
               <div className="cl-mm-actions">
@@ -529,8 +548,9 @@ export default function Landing() {
               {GALLERY_SHOTS.map((shot, i) => (
                 <button
                   key={shot.url} type="button" role="tab" aria-selected={i === walkIdx}
+                  ref={(el) => { walkTabRefs.current[i] = el; }}
                   className={`cl-walk-tab ${i === walkIdx ? 'on' : ''}`}
-                  onClick={() => { setWalkIdx(i); setWalkAuto(false); }}
+                  onClick={() => goWalk(i, true)}
                 >
                   <span className="cl-walk-tab-t">{shot.title}</span>
                   <span className="cl-walk-tab-d">{shot.caption}</span>
@@ -541,13 +561,19 @@ export default function Landing() {
               ))}
             </div>
             <div className="cl-walk-stage">
-              <AnimatePresence mode="wait">
+              <AnimatePresence mode="wait" custom={walkDir.current}>
                 <motion.button
                   key={walkIdx} type="button" className="cl-gallery-shot-btn"
+                  custom={walkDir.current}
                   onClick={() => { setLightboxIdx(walkIdx); setWalkAuto(false); }}
                   aria-label={`Preview: ${GALLERY_SHOTS[walkIdx].caption}`}
-                  initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3, ease: [0.2, 0.7, 0.3, 1] }}
+                  variants={{
+                    enter: (dir) => ({ opacity: 0, x: 56 * dir, scale: 0.975 }),
+                    center: { opacity: 1, x: 0, scale: 1 },
+                    exit: (dir) => ({ opacity: 0, x: -56 * dir, scale: 0.975 }),
+                  }}
+                  initial="enter" animate="center" exit="exit"
+                  transition={{ duration: 0.45, ease: [0.32, 0.72, 0.24, 1] }}
                 >
                   <div className="cl-browser-bar"><span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" /><span className="cl-url">{GALLERY_SHOTS[walkIdx].url}</span></div>
                   <div className="cl-shot-img-wrap">
@@ -750,7 +776,7 @@ export default function Landing() {
             <div className="cl-footer-col">
               <div className="cl-footer-h">Company</div>
               <a href="#about">About</a>
-              <a href="/careers">Careers</a>
+              <a href="/jobs">Jobs board</a>
               <Link to="/contact">Contact us</Link>
             </div>
             <div className="cl-footer-col">

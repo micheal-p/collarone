@@ -16,6 +16,7 @@ import PlatformAnalytics from './pages/PlatformAnalytics.jsx';
 import PublicSite from './pages/site/PublicSite.jsx';
 import Profile from './pages/Profile.jsx';
 import CareersIndex from './pages/careers/CareersIndex.jsx';
+import JobsBoard from './pages/careers/JobsBoard.jsx';
 import CareersApply from './pages/careers/CareersApply.jsx';
 import Terms from './pages/Terms.jsx';
 import Privacy from './pages/Privacy.jsx';
@@ -86,7 +87,8 @@ export default function App() {
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/status" element={<Status />} />
-      <Route path="/careers" element={<Navigate to="/careers/collarone" replace />} />
+      <Route path="/jobs" element={<JobsBoard />} />
+      <Route path="/careers" element={<Navigate to="/jobs" replace />} />
       <Route path="/careers/:orgSlug" element={<CareersIndex />} />
       <Route path="/careers/:orgSlug/:id" element={<CareersApply />} />
       <Route path="/site/:slug" element={<PublicSite />} />
