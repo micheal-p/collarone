@@ -50,7 +50,7 @@ export default async function handler(req, res) {
 
     if (action === 'create') {
       const {
-        planTier, orgName, orgSlug, themeColor = '#FF5B1F', logoUrl = '', websiteType = 'none', country = 'NG',
+        planTier, orgName, orgSlug, themeColor = '#FF5B1F', logoUrl = '', websiteType = 'none', country = 'NG', externalWebsiteUrl = '',
         ownerName, email, password, promoCode = '',
       } = body;
 
@@ -80,6 +80,7 @@ export default async function handler(req, res) {
       const { data: org, error: orgErr } = await admin.from('organizations').insert({
         name: orgName.trim(), slug, plan_tier: planTier, status: 'pending_payment',
         theme_color: themeColor, logo_url: logoUrl, website_type: websiteType, country, created_by: created.user.id,
+        external_website_url: (typeof externalWebsiteUrl === 'string' && /^https?:\/\/.{3,200}$/i.test(externalWebsiteUrl.trim())) ? externalWebsiteUrl.trim() : '',
       }).select('id').single();
       if (orgErr || !org) {
         await admin.auth.admin.deleteUser(created.user.id);

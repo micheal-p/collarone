@@ -64,6 +64,8 @@ export default function Signup() {
 
   const [themeColor, setThemeColor] = useState('#FF5B1F');
   const [websiteType, setWebsiteType] = useState('hr_corporate');
+  const [hasWebsite, setHasWebsite] = useState(false);
+  const [externalUrl, setExternalUrl] = useState('');
   const [country, setCountry] = useState('NG');
   const [logoUrl, setLogoUrl] = useState('');
   const [logoPreview, setLogoPreview] = useState('');
@@ -146,6 +148,7 @@ export default function Signup() {
   const next = () => {
     setErr('');
     if (step === 'company') {
+      if (hasWebsite && !externalUrl.trim()) return setErr("Enter your website address, or choose 'Not yet'.");
       if (!orgName.trim()) return setErr('Company name is required.');
       if (slugStatus.state !== 'ok') return setErr('Choose an available company handle before continuing.');
     }
@@ -163,7 +166,9 @@ export default function Signup() {
     setBusy(true);
     try {
       const d = await callSignup('create', {
-        planTier, orgName: orgName.trim(), orgSlug, themeColor, websiteType, logoUrl, country,
+        planTier, orgName: orgName.trim(), orgSlug, themeColor,
+        websiteType: hasWebsite ? 'none' : websiteType, logoUrl, country,
+        externalWebsiteUrl: hasWebsite ? (/^https?:\/\//i.test(externalUrl.trim()) ? externalUrl.trim() : `https://${externalUrl.trim()}`) : '',
         ownerName: ownerName.trim(), email, password, promoCode: promoStatus.state === 'ok' ? promoCode.trim() : '',
       });
       setResult(d);
@@ -233,6 +238,23 @@ export default function Signup() {
               {slugStatus.msg && <div className={`su-slug-msg ${slugStatus.state === 'ok' ? 'ok' : slugStatus.state === 'bad' ? 'bad' : ''}`}>{slugStatus.msg}</div>}
             </div>
             <div className="su-field">
+              <label>Does your company have a website already?</label>
+              <div className="su-web-types" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                <button type="button" className={`su-web-card ${!hasWebsite ? 'on' : ''}`} onClick={() => setHasWebsite(false)}>
+                  <div className="su-web-card-name">Not yet</div>
+                  <div className="su-web-card-desc">{orgSlug ? `${orgSlug}.collarone.app` : 'your-handle.collarone.app'} becomes your address — build your site inside Collarone.</div>
+                </button>
+                <button type="button" className={`su-web-card ${hasWebsite ? 'on' : ''}`} onClick={() => setHasWebsite(true)}>
+                  <div className="su-web-card-name">Yes, we have one</div>
+                  <div className="su-web-card-desc">We'll link your existing site — your workspace still lives on the handle above.</div>
+                </button>
+              </div>
+              {hasWebsite && (
+                <input className="su-input" style={{ marginTop: 10 }} value={externalUrl}
+                  onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://yourcompany.com" inputMode="url" />
+              )}
+            </div>
+            <div className="su-field">
               <label>Country</label>
               <select className="su-input" value={country} onChange={(e) => setCountry(e.target.value)}>
                 {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
@@ -270,17 +292,24 @@ export default function Signup() {
                 ))}
               </div>
             </div>
-            <div className="su-field">
-              <label>What kind of public website do you need?</label>
-              <div className="su-web-types">
-                {WEBSITE_TYPES.map((w) => (
-                  <button key={w.key} type="button" className={`su-web-card ${websiteType === w.key ? 'on' : ''}`} onClick={() => setWebsiteType(w.key)}>
-                    <div className="su-web-card-name">{w.name}</div>
-                    <div className="su-web-card-desc">{w.desc}</div>
-                  </button>
-                ))}
+            {hasWebsite ? (
+              <div className="su-field">
+                <label>Your website</label>
+                <p className="su-sub" style={{ margin: 0 }}>We'll use {externalUrl || 'your existing site'} — and you can still build a Collarone site later if you ever want one.</p>
               </div>
-            </div>
+            ) : (
+              <div className="su-field">
+                <label>What kind of public website do you need?</label>
+                <div className="su-web-types">
+                  {WEBSITE_TYPES.map((w) => (
+                    <button key={w.key} type="button" className={`su-web-card ${websiteType === w.key ? 'on' : ''}`} onClick={() => setWebsiteType(w.key)}>
+                      <div className="su-web-card-name">{w.name}</div>
+                      <div className="su-web-card-desc">{w.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="su-actions">
               <button type="button" className="su-btn su-btn-ghost" onClick={back}>Back</button>
               <button type="button" className="su-btn su-btn-primary" onClick={next}>Continue</button>
