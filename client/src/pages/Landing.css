@@ -81,6 +81,7 @@
 .cl-walk-tab-d { font-size: 12.5px; color: rgba(244,241,234,0.6); line-height: 1.4; }
 .cl-walk-progress { position: absolute; left: 0; right: 0; bottom: 0; height: 2.5px; background: var(--accent); transform-origin: 0 50%; }
 .cl-walk-stage .cl-gallery-shot-btn { width: 100%; }
+.cl-walk-stage .cl-shot-img { aspect-ratio: 1600 / 950; width: 100%; height: auto; object-fit: cover; object-position: top; display: block; }
 @media (max-width: 900px) {
   .cl-walk { grid-template-columns: 1fr; }
   .cl-walk-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }

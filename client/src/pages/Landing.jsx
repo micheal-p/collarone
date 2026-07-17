@@ -290,18 +290,29 @@ export default function Landing() {
     });
     if (manual) setWalkAuto(false);
   };
-  // Guided tour auto-advances until the visitor takes over.
+  // Guided tour auto-advances only while the section is on screen and until
+  // the visitor takes over — advancing (and gliding tabs) off-screen was
+  // scrolling the page around underneath people.
+  const [walkVisible, setWalkVisible] = useState(false);
   useEffect(() => {
-    if (reduce || !walkAuto) return undefined;
+    const sec = document.getElementById('gallery');
+    if (!sec || typeof IntersectionObserver === 'undefined') { setWalkVisible(true); return undefined; }
+    const io = new IntersectionObserver(([e]) => setWalkVisible(e.isIntersecting), { threshold: 0.25 });
+    io.observe(sec);
+    return () => io.disconnect();
+  }, []);
+  useEffect(() => {
+    if (reduce || !walkAuto || !walkVisible) return undefined;
     const t = setInterval(() => goWalk((x) => (x + 1) % GALLERY_SHOTS.length), 5000);
     return () => clearInterval(t);
-  }, [reduce, walkAuto]); // eslint-disable-line
-  // Mobile: the horizontal tab strip glides so the active pill enters with
-  // its image, marquee-style. No-op on desktop (tabs stack, nothing scrolls).
+  }, [reduce, walkAuto, walkVisible]); // eslint-disable-line
+  // Mobile: glide the ACTIVE pill to the strip's centre by scrolling the
+  // strip itself — never scrollIntoView, which also scrolls the page.
   useEffect(() => {
     const el = walkTabRefs.current[walkIdx];
-    if (el && el.parentElement && el.parentElement.scrollWidth > el.parentElement.clientWidth + 4) {
-      el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', inline: 'center', block: 'nearest' });
+    const strip = el?.parentElement;
+    if (el && strip && strip.scrollWidth > strip.clientWidth + 4) {
+      strip.scrollTo({ left: el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2, behavior: reduce ? 'auto' : 'smooth' });
     }
   }, [walkIdx, reduce]);
   const [faqCat, setFaqCat] = useState('All');
