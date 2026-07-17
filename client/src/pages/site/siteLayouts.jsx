@@ -37,8 +37,9 @@ const THEME_FONTS = {
   'professional-services': { display: "'Lora', serif",                    body: "'Source Sans 3', sans-serif", q: 'family=Lora:wght@500;600&family=Source+Sans+3:wght@400;600' },
 };
 
-// Hover, motion and entrance polish shared by every theme — injected once.
-// All of it dies under prefers-reduced-motion.
+// The craft layer shared by every theme — injected once. Real CSS (hover
+// states, pseudo-elements, media queries) that inline styles can't express.
+// All motion dies under prefers-reduced-motion.
 const SITE_CSS = `
   .cs-btn { transition: transform .18s ease, filter .18s ease, box-shadow .18s ease; }
   .cs-btn:hover { transform: translateY(-2px); filter: brightness(1.06); box-shadow: 0 10px 24px rgba(10,12,18,0.18); }
@@ -55,6 +56,30 @@ const SITE_CSS = `
   .cs-hero-in > *:nth-child(2) { animation-delay: .1s; }
   .cs-hero-in > *:nth-child(3) { animation-delay: .2s; }
   .cs-hero-in > *:nth-child(4) { animation-delay: .3s; }
+
+  /* sticky translucent nav — every theme */
+  .cs-nav { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+    padding: 15px clamp(20px, 4vw, 48px); border-bottom: 1px solid var(--site-line);
+    background: color-mix(in srgb, var(--site-bg) 80%, transparent); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .cs-wordmark { display: flex; align-items: center; gap: 10px; font-family: var(--site-font-display); font-weight: 700; font-size: 19px; }
+  .cs-navlinks { margin-left: auto; display: flex; align-items: center; gap: clamp(16px, 2.6vw, 32px); flex-wrap: wrap; justify-content: flex-end; }
+
+  /* store announcement bar (from the merchant's tagline) */
+  .cs-root { overflow-x: clip; }
+  .cs-announce { text-align: center; font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase;
+    padding: 8px 16px; background: var(--site-fg); color: var(--site-bg); }
+
+  /* oversized pull quote */
+  .cs-pull { position: relative; padding-top: 34px !important; }
+  .cs-pull::before { content: '\\201C'; position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+    font-family: Georgia, serif; font-size: 84px; line-height: 1; color: var(--site-accent-ui); opacity: .35; }
+
+  /* giant closing-band type */
+  .cs-cta-h { letter-spacing: -0.01em; }
+
+  /* product meta row */
+  .cs-prow { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+
   @media (prefers-reduced-motion: reduce) {
     .cs-btn, .cs-card, .cs-imgzoom img, .cs-nl::after { transition: none !important; }
     .cs-hero-in > * { animation: none !important; }
@@ -160,8 +185,8 @@ function useThemeVars(theme) {
 }
 
 const btnStyle = (v, filled = true) => ({
-  display: 'inline-block', padding: '13px 30px', borderRadius: v.btnRadius, textDecoration: 'none',
-  fontWeight: 650, fontSize: 14.5, cursor: 'pointer', border: '1px solid transparent',
+  display: 'inline-block', padding: '15px 34px', borderRadius: v.btnRadius, textDecoration: 'none',
+  fontWeight: 650, fontSize: 15, cursor: 'pointer', border: '1px solid transparent',
   ...(filled
     // btnInvert (Agency Modern): the accent is near-black, so a filled accent
     // button disappears on the dark surface — the editorial answer is a
@@ -237,7 +262,8 @@ const H2 = ({ v, children, align = 'center', kicker, i }) => {
 function Hero({ c, v, site }) {
   const img = c.image_url;
   const h1Size = `clamp(${30 * v.display}px, ${6 * v.display}vw, ${46 * v.display}px)`;
-  const eyebrow = (site?.tagline || '').trim();
+  // stores surface the tagline in the announcement bar — no double-billing
+  const eyebrow = site?.theme?.category === 'ecommerce' ? '' : (site?.tagline || '').trim();
   const button = c.button_text && (
     <a className="cs-btn" href={c.button_link || '#'} style={{ ...btnStyle(v), boxShadow: img || v.hero === 'gradient' ? '0 10px 28px rgba(0,0,0,0.3)' : 'none' }}>{c.button_text}</a>
   );
@@ -245,12 +271,12 @@ function Hero({ c, v, site }) {
   if (v.hero === 'editorial') {
     return (
       <section style={{
-        position: 'relative', minHeight: 560, display: 'flex', alignItems: 'flex-end', padding: 'clamp(28px, 5vw, 64px)',
+        position: 'relative', minHeight: 'min(86vh, 820px)', display: 'flex', alignItems: 'flex-end', padding: 'clamp(28px, 5vw, 72px)',
         ...(img ? { backgroundImage: `linear-gradient(100deg, rgba(6,7,10,0.82) 8%, rgba(6,7,10,0.22) 60%, rgba(6,7,10,0.5)), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff' } : { background: 'var(--site-surface)' }),
       }}>
         <div className="cs-hero-in" style={{ maxWidth: 680 }}>
           {eyebrow && <div style={{ fontSize: 12, letterSpacing: '.34em', textTransform: 'uppercase', color: img ? 'rgba(255,255,255,0.75)' : 'var(--site-accent-ui)', marginBottom: 18 }}>— {eyebrow}</div>}
-          <h1 style={{ fontSize: `clamp(${34 * v.display}px, ${6.5 * v.display}vw, ${54 * v.display}px)`, lineHeight: 1.04, margin: '0 0 16px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight, letterSpacing: '.01em' }}>{c.heading}</h1>
+          <h1 style={{ fontSize: `clamp(${36 * v.display}px, ${7 * v.display}vw, ${62 * v.display}px)`, lineHeight: 1.02, margin: '0 0 16px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight, letterSpacing: '.01em' }}>{c.heading}</h1>
           {c.subheading && <p style={{ fontSize: 16.5, lineHeight: 1.65, color: img ? 'rgba(255,255,255,0.82)' : 'var(--site-muted)', maxWidth: 480, margin: '0 0 28px' }}>{c.subheading}</p>}
           {button}
         </div>
@@ -260,7 +286,7 @@ function Hero({ c, v, site }) {
 
   if (v.hero === 'split') {
     return (
-      <section style={{ display: 'grid', gridTemplateColumns: img ? 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' : '1fr', minHeight: 460 }}>
+      <section style={{ display: 'grid', gridTemplateColumns: img ? 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' : '1fr', minHeight: 'min(74vh, 700px)' }}>
         <div className="cs-hero-in" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(28px, 5vw, 64px)', background: 'color-mix(in srgb, var(--site-accent) 7%, var(--site-bg))' }}>
           {eyebrow && <span style={{ alignSelf: 'flex-start', fontSize: 12.5, fontWeight: 800, background: 'var(--site-accent)', color: '#fff', borderRadius: 999, padding: '6px 16px', marginBottom: 20 }}>{eyebrow}</span>}
           <h1 style={{ fontSize: h1Size, lineHeight: 1.08, margin: '0 0 14px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight }}>{c.heading}</h1>
@@ -275,7 +301,7 @@ function Hero({ c, v, site }) {
   if (v.hero === 'gradient') {
     return (
       <section style={{
-        padding: 'clamp(80px, 13vw, 130px) 24px', textAlign: 'center', color: '#fff',
+        padding: 'clamp(100px, 17vw, 170px) 24px', textAlign: 'center', color: '#fff',
         background: `radial-gradient(700px 340px at 20% 0%, rgba(255,255,255,0.14), transparent 60%), radial-gradient(600px 320px at 90% 100%, rgba(0,0,0,0.25), transparent 60%), linear-gradient(135deg, var(--site-accent) 0%, var(--site-accent-dark) 100%)`,
       }}>
         <div className="cs-hero-in">
@@ -289,7 +315,7 @@ function Hero({ c, v, site }) {
 
   if (v.hero === 'minimal') {
     return (
-      <section className="cs-hero-in" style={{ padding: 'clamp(72px, 11vw, 110px) 24px', textAlign: 'center' }}>
+      <section className="cs-hero-in" style={{ padding: 'clamp(96px, 15vw, 150px) 24px', textAlign: 'center' }}>
         <div style={{ width: 34, height: 3, background: 'var(--site-accent-ui)', margin: '0 auto 30px' }} />
         <h1 style={{ fontSize: h1Size, lineHeight: 1.14, margin: '0 auto 16px', maxWidth: 640, fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight }}>{c.heading}</h1>
         {c.subheading && <p style={{ fontSize: 16.5, lineHeight: 1.7, color: 'var(--site-muted)', maxWidth: 520, margin: '0 auto 30px' }}>{c.subheading}</p>}
@@ -317,11 +343,11 @@ function Hero({ c, v, site }) {
   const tall = v.hero === 'full';
   return (
     <section style={{
-      padding: img ? `clamp(${tall ? 120 : 90}px, ${tall ? 20 : 16}vw, ${tall ? 200 : 150}px) 24px` : 'clamp(56px, 10vw, 84px) 24px', textAlign: 'center',
+      padding: img ? `clamp(${tall ? 140 : 100}px, ${tall ? 23 : 18}vw, ${tall ? 240 : 180}px) 24px` : 'clamp(72px, 12vw, 110px) 24px', textAlign: 'center',
       ...(img ? { backgroundImage: `linear-gradient(165deg, color-mix(in srgb, var(--site-accent) ${tall ? 42 : 28}%, rgba(8,10,16,0.92)) 0%, rgba(8,10,16,0.5) 55%, rgba(8,10,16,0.68) 100%), url(${img})`, backgroundSize: 'cover', backgroundPosition: 'center', color: '#fff' } : {}),
     }}>
       <div className="cs-hero-in">
-      <h1 style={{ fontSize: tall ? `clamp(40px, 8.5vw, 74px)` : h1Size, lineHeight: 1.1, margin: '0 0 14px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight, ...(img ? { textShadow: '0 2px 18px rgba(0,0,0,0.35)' } : {}) }}>{c.heading}</h1>
+      <h1 style={{ fontSize: tall ? `clamp(42px, 9vw, 84px)` : h1Size, lineHeight: 1.1, margin: '0 0 14px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight, ...(img ? { textShadow: '0 2px 18px rgba(0,0,0,0.35)' } : {}) }}>{c.heading}</h1>
       {c.subheading && <p style={{ fontSize: 'clamp(15px, 2.4vw, 18px)', color: img ? 'rgba(255,255,255,0.88)' : 'var(--site-muted)', maxWidth: 560, margin: '0 auto 26px', lineHeight: 1.6 }}>{c.subheading}</p>}
       {button}
       </div>
@@ -629,11 +655,16 @@ function ProductsSection({ c, site, v, i: si }) {
                 : <div style={{ height: '100%', display: 'grid', placeItems: 'center', color: 'var(--site-muted)', fontSize: 12 }}>No image</div>}
             </div>
             <div style={{ padding: v.card === 'minimal' ? '12px 0 0' : 14 }}>
-              <div style={{ fontWeight: 650, fontSize: 14, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.06em', fontSize: 12.5 } : {}) }}>{p.name}</div>
-              {p.price != null && (
-                v.card === 'rounded'
-                  ? <span style={{ display: 'inline-block', marginTop: 8, background: 'var(--site-accent)', color: '#fff', fontWeight: 700, fontSize: 12.5, borderRadius: 999, padding: '4px 12px' }}>{money(p.price)}</span>
-                  : <div style={{ color: v.card === 'minimal' ? 'var(--site-muted)' : 'var(--site-accent-ui)', fontWeight: v.card === 'minimal' ? 500 : 700, marginTop: 5, fontSize: 13.5 }}>{money(p.price)}</div>
+              {v.card === 'rounded' ? (
+                <>
+                  <div style={{ fontWeight: 650, fontSize: 14.5 }}>{p.name}</div>
+                  {p.price != null && <span style={{ display: 'inline-block', marginTop: 8, background: 'var(--site-accent)', color: '#fff', fontWeight: 700, fontSize: 12.5, borderRadius: 999, padding: '4px 12px' }}>{money(p.price)}</span>}
+                </>
+              ) : (
+                <div className="cs-prow">
+                  <div style={{ fontWeight: 650, fontSize: 14, minWidth: 0, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.06em', fontSize: 12.5 } : {}) }}>{p.name}</div>
+                  {p.price != null && <div style={{ color: v.card === 'minimal' ? 'var(--site-fg)' : 'var(--site-accent-ui)', fontWeight: 650, fontSize: 13.5, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{money(p.price)}</div>}
+                </div>
               )}
               <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                 {cart ? (
@@ -837,7 +868,7 @@ function Block({ block, site, v, i }) {
     case 'image':
       return c.image_url ? (
         <section style={{ padding: '24px', textAlign: 'center', maxWidth: secWidth(v, 1000), margin: '0 auto' }}>
-          <img src={c.image_url} alt={c.alt || ''} style={{ maxWidth: '100%', borderRadius: v.card === 'minimal' ? 0 : 10 }} />
+          <img src={c.image_url} alt={c.alt || ''} style={{ maxWidth: '100%', borderRadius: v.card === 'minimal' ? 0 : 16, boxShadow: v.card === 'minimal' ? 'none' : '0 30px 70px rgba(10,12,18,0.16)' }} />
           {c.caption && <p style={{ fontSize: 13, color: 'var(--site-muted)', marginTop: 8 }}>{c.caption}</p>}
         </section>
       ) : null;
@@ -871,13 +902,13 @@ function Block({ block, site, v, i }) {
         <Sec v={v} i={i} w={720}>
           {c.heading && <H2 v={v} i={i} kicker="Kind words">{c.heading}</H2>}
           {(c.items || []).map((it, ti) => (
-            <blockquote key={ti} style={{
-              margin: '0 0 24px', padding: pull ? '8px 12px' : '16px 20px',
+            <blockquote key={ti} className={pull ? 'cs-pull' : undefined} style={{
+              margin: '0 0 28px', padding: pull ? '8px 12px' : '16px 20px',
               ...(pull
                 ? { borderLeft: 'none', textAlign: 'center' }
                 : { borderLeft: '3px solid var(--site-accent-ui)', background: 'var(--site-surface)', borderRadius: v.card === 'rounded' ? 14 : 0 }),
             }}>
-              <p style={{ fontStyle: 'italic', margin: '0 0 10px', lineHeight: 1.6, ...(pull ? { fontSize: `clamp(17px, 2.4vw, ${21 * v.display}px)`, fontFamily: 'var(--site-font-display)' } : {}) }}>&ldquo;{it.quote}&rdquo;</p>
+              <p style={{ fontStyle: 'italic', margin: '0 0 10px', lineHeight: 1.6, ...(pull ? { fontSize: `clamp(20px, 3vw, ${30 * v.display}px)`, lineHeight: 1.45, fontFamily: 'var(--site-font-display)' } : {}) }}>&ldquo;{it.quote}&rdquo;</p>
               <footer style={{ fontSize: 13, color: 'var(--site-muted)', ...(pull ? { letterSpacing: '.12em', textTransform: 'uppercase', fontSize: 11.5 } : {}) }}>— {it.author}</footer>
             </blockquote>
           ))}
@@ -916,7 +947,7 @@ function Block({ block, site, v, i }) {
       const onColor = mode !== 'surface';
       return (
         <section style={{ padding: `${Math.min(v.secPad + 8, 80)}px 24px`, textAlign: 'center', ...bandStyle }}>
-          <h2 style={{ fontSize: `clamp(${22 * v.display}px, 3vw, ${30 * v.display}px)`, margin: '0 0 18px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.08em' } : {}) }}>{c.heading}</h2>
+          <h2 className="cs-cta-h" style={{ fontSize: `clamp(${26 * v.display}px, 4.4vw, ${42 * v.display}px)`, margin: '0 0 22px', fontFamily: 'var(--site-font-display)', fontWeight: v.headingWeight, ...(v.navCaps ? { textTransform: 'uppercase', letterSpacing: '.08em' } : {}) }}>{c.heading}</h2>
           {c.button_text && (
             <a className="cs-btn" href={c.button_link || '#contact'} style={{
               ...btnStyle(v),
@@ -1015,13 +1046,14 @@ function EcommerceSite({ data, activeSlug, setActiveSlug }) {
   const shop = data.pages.find((p) => p.slug === 'shop');
   return (
     <CartProvider slug={data.slug}>
-      <div style={{ ...vars, background: 'var(--site-bg)', color: 'var(--site-fg)', minHeight: '100vh', fontFamily: 'var(--site-font)' }}>
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: v.navCaps ? '22px 28px' : '16px 24px', borderBottom: '1px solid var(--site-line)', flexWrap: 'wrap', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: v.navCaps ? 15 : 17, ...(v.navCaps ? { letterSpacing: '.22em', textTransform: 'uppercase' } : {}) }}>
+      <div className="cs-root" style={{ ...vars, background: 'var(--site-bg)', color: 'var(--site-fg)', minHeight: '100vh', fontFamily: 'var(--site-font)' }}>
+        {(data.tagline || '').trim() && <div className="cs-announce">{data.tagline}</div>}
+        <header className="cs-nav">
+          <div className="cs-wordmark" style={{ ...(v.navCaps ? { letterSpacing: '.22em', textTransform: 'uppercase', fontSize: 15 } : {}) }}>
             {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 30, height: 30, borderRadius: v.card === 'minimal' ? 2 : 6, objectFit: 'cover' }} />}
             {data.siteName || data.orgName}
           </div>
-          <nav style={{ display: 'flex', alignItems: 'center', gap: v.navCaps ? 26 : 18, flexWrap: 'wrap' }}>
+          <nav className="cs-navlinks">
             {data.pages.filter((p) => p.slug !== 'shop').map((p) => (
               <a key={p.slug} className="cs-nl" href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }} style={navLink(v, page?.slug === p.slug)}>{p.title}</a>
             ))}
@@ -1048,12 +1080,13 @@ function LandingSite({ data }) {
   const home = data.pages.find((p) => p.is_home) || data.pages[0];
   const ctaBlock = (home?.blocks || []).find((b) => b.type === 'cta' || b.type === 'hero');
   return (
-    <div style={{ ...vars, background: 'var(--site-bg)', color: 'var(--site-fg)', minHeight: '100vh', fontFamily: 'var(--site-font)' }}>
-      <header style={{ position: 'sticky', top: 0, zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', background: v.hero === 'gradient' ? 'rgba(13,15,20,0.6)' : 'var(--site-bg)', backdropFilter: v.hero === 'gradient' ? 'blur(10px)' : 'none', borderBottom: v.hero === 'minimal' ? 'none' : '1px solid var(--site-line)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: 16 }}>
-          {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 26, height: 26, borderRadius: 6, objectFit: 'cover' }} />}
+    <div className="cs-root" style={{ ...vars, background: 'var(--site-bg)', color: 'var(--site-fg)', minHeight: '100vh', fontFamily: 'var(--site-font)' }}>
+      <header className="cs-nav" style={{ ...(v.hero === 'gradient' ? { background: 'rgba(13,15,20,0.55)' } : {}), ...(v.hero === 'minimal' ? { borderBottom: 'none' } : {}) }}>
+        <div className="cs-wordmark">
+          {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />}
           {data.siteName || data.orgName}
         </div>
+        <span style={{ marginLeft: 'auto' }} />
         <a href="#contact" style={{ ...btnStyle(v), padding: '9px 20px', fontSize: 13 }}>
           {ctaBlock?.content?.button_text || 'Get started'}
         </a>
@@ -1070,19 +1103,19 @@ function CompanySite({ data, activeSlug, setActiveSlug }) {
   const v = variantFor(data.theme);
   const page = data.pages.find((p) => p.slug === activeSlug) || data.pages.find((p) => p.is_home) || data.pages[0];
   return (
-    <div style={{ ...vars, background: 'var(--site-bg)', color: 'var(--site-fg)', minHeight: '100vh', fontFamily: 'var(--site-font)' }}>
+    <div className="cs-root" style={{ ...vars, background: 'var(--site-bg)', color: 'var(--site-fg)', minHeight: '100vh', fontFamily: 'var(--site-font)' }}>
       {(data.contactPhone || data.contactEmail) && (
         <div style={{ background: 'var(--site-surface)', padding: '6px 24px', fontSize: 12, color: 'var(--site-muted)', textAlign: 'right' }}>
           {data.contactPhone && <span style={{ marginRight: 16 }}>{data.contactPhone}</span>}
           {data.contactEmail && <span>{data.contactEmail}</span>}
         </div>
       )}
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: v.navCaps ? '24px 28px' : '18px 24px', borderBottom: '1px solid var(--site-line)', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: v.navCaps ? 15 : 18, fontFamily: 'var(--site-font-display)', ...(v.navCaps ? { letterSpacing: '.22em', textTransform: 'uppercase' } : {}) }}>
+      <header className="cs-nav">
+        <div className="cs-wordmark" style={{ ...(v.navCaps ? { letterSpacing: '.22em', textTransform: 'uppercase', fontSize: 15 } : {}) }}>
           {data.logoUrl && <img src={data.logoUrl} alt="" style={{ width: 32, height: 32, borderRadius: v.card === 'minimal' ? 2 : 6, objectFit: 'cover' }} />}
           {data.siteName || data.orgName}
         </div>
-        <nav style={{ display: 'flex', gap: v.navCaps ? '10px 28px' : '10px 22px', flexWrap: 'wrap' }}>
+        <nav className="cs-navlinks">
           {data.pages.map((p) => (
             <a key={p.slug} className="cs-nl" href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }} style={navLink(v, page?.slug === p.slug)}>
               {p.title}
