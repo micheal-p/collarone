@@ -83,11 +83,19 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
   // never be a persistent state.
   useEffect(() => {
     if (!guestMode?.startedAt) return;
+    // A marker orphaned by an earlier guest session must never terminate a
+    // later real login — if this session's org isn't the org the marker
+    // points at, the marker is stale: drop it and leave the session alone.
+    if (user?.org?.id && guestMode.orgId && guestMode.orgId !== user.org.id) {
+      try { localStorage.removeItem(GUEST_KEY); sessionStorage.removeItem(GUEST_KEY); } catch { /* no storage */ }
+      setGuestMode(null);
+      return;
+    }
     const remaining = guestMode.startedAt + GUEST_TTL_MS - Date.now();
     if (remaining <= 0) { exitGuestMode(); return; }
     const t = setTimeout(exitGuestMode, remaining);
     return () => clearTimeout(t);
-  }, [guestMode]); // eslint-disable-line
+  }, [guestMode, user]); // eslint-disable-line
 
   useEffect(() => {
     apiGet('/me/suites').then((d) => setSuites(d.suites)).catch(() => {});

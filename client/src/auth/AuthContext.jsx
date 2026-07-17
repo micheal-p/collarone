@@ -60,6 +60,10 @@ export function AuthProvider({ children }) {
     explicitAuthInFlight.current = true;
     try {
       const data = await apiPost('/auth/login', { email, password });
+      // An explicit password login is never a guest session — a marker left
+      // behind by an earlier guest-in must not attach (or its 1h hard expiry
+      // would sign this real session out).
+      try { localStorage.removeItem('collarone_guest_mode'); sessionStorage.removeItem('collarone_guest_mode'); } catch { /* no storage */ }
       setAccessToken(data.accessToken);
       setUser(data.user);
       applyOrgTheme(data.user?.org?.themeColor);
