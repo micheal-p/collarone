@@ -4,7 +4,7 @@ import { useConfirm, EmptyState } from '../../components/ui.jsx';
 import * as L from './lettersApi.js';
 import * as C from './complianceApi.js';
 import * as D from '../documents/documentsApi.js';
-import { LETTER_TYPES, LETTERHEAD_TEMPLATES, LETTERHEAD_CSS, letterHeadHtml, letterBodyHtml, buildLetterDocument, suggestReference, LETTER_FOLDER_SUGGESTION, compressLogo } from './letterheadTemplates.js';
+import { LETTER_TYPES, LETTERHEAD_TEMPLATES, LETTERHEAD_CSS, letterHeadHtml, letterBodyHtml, buildLetterDocument, suggestReference, LETTER_FOLDER_SUGGESTION, compressLogo, compressSignature } from './letterheadTemplates.js';
 
 /* =========================================================================
    HR Letters engine — compose company letters (manually or with Collarone
@@ -62,10 +62,13 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
   // plus a per-letter template override that doesn't touch the saved design.
   const [lhId, setLhId] = useState(letterhead?.id || null);
   const [tplOverride, setTplOverride] = useState('');
+  const [useSignature, setUseSignature] = useState(true);
   const chosenLetterhead = letterheads.find((x) => x.id === lhId) || letterhead;
   const effectiveLetterhead = tplOverride
     ? { ...chosenLetterhead, template_key: tplOverride }
     : chosenLetterhead;
+  const savedSignature = chosenLetterhead?.details?.signature || null;
+  const signature = useSignature ? savedSignature : null;
   const initialType = prefill?.letterType || 'confirmation';
   const [f, setF] = useState(() => ({
     employeeId: prefill?.employeeId || '', letterType: initialType,
@@ -140,7 +143,7 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
     try {
       const html = buildLetterDocument({
         letterhead: effectiveLetterhead, title, date: today(), reference: f.reference,
-        body: f.body, signerName: f.signerName, signerRole: f.signerRole,
+        body: f.body, signerName: f.signerName, signerRole: f.signerRole, signature,
       });
       let filePath = null;
       try { filePath = await L.uploadIssuedLetterHtml(html, title); } catch { /* register still records it */ }
@@ -216,6 +219,14 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
           <div className="field"><label>Signer title</label>
             <input className="input" value={f.signerRole} onChange={(e) => set('signerRole', e.target.value)} /></div>
         </div>
+        {savedSignature ? (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, margin: '0 0 14px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={useSignature} onChange={(e) => setUseSignature(e.target.checked)} style={{ width: 16, height: 16, accentColor: 'var(--brand)' }} />
+            Include the saved signature on this letter
+          </label>
+        ) : (
+          <p className="muted" style={{ fontSize: 12, margin: '0 0 14px' }}>Tip: upload an authorized signature in the Letterhead tab and it signs every letter automatically.</p>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button className="btn btn-primary" onClick={issue} disabled={busy}>
@@ -240,7 +251,7 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
           </select>
         </div>
         <LetterPreview letterhead={effectiveLetterhead} scale={0.82}
-          letter={{ date: today(), reference: f.reference, body: f.body || '(The letter body appears here as you write.)', signerName: f.signerName, signerRole: f.signerRole }} />
+          letter={{ date: today(), reference: f.reference, body: f.body || '(The letter body appears here as you write.)', signerName: f.signerName, signerRole: f.signerRole, signature }} />
       </div>
     </div>
   );
@@ -360,6 +371,7 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved, onDeleted, confir
     rcNumber: current?.details?.rcNumber || '', tagline: current?.details?.tagline || '',
     accent: current?.details?.accent || '#0A0E1A',
     logo: current?.details?.logo || null, headerStyle: current?.details?.headerStyle || 'logo-name',
+    signature: current?.details?.signature || null,
   }));
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -438,6 +450,22 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved, onDeleted, confir
                 </select>
                 {!d.logo && <span className="muted" style={{ fontSize: 12, marginTop: 4 }}>Upload a logo to unlock logo options.</span>}
               </div>
+            </div>
+
+            <div className="field"><label>Authorized signature <span className="muted">(optional — appears above the signer's name; compressed automatically)</span></label>
+              <input type="file" accept="image/*" style={{ fontSize: 13 }}
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  try { set('signature', await compressSignature(file)); flash('Signature saved to this letterhead.'); }
+                  catch (err) { flash(err.message, true); }
+                }} />
+              {d.signature && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                  <img src={d.signature} alt="Signature preview" style={{ maxHeight: 40, maxWidth: 150, objectFit: 'contain', border: '1px solid var(--line)', borderRadius: 6, padding: 3, background: '#fff' }} />
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => set('signature', null)}>Remove</button>
+                </div>
+              )}
             </div>
 
             <div className="field"><label>Template — {LETTERHEAD_TEMPLATES[tpl].label}</label>

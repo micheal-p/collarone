@@ -78,14 +78,14 @@ export const LETTER_FOLDER_SUGGESTION = {
   custom: 'HR Letters',
 };
 
-// Client-side logo compression: resize to letterhead scale and keep it small
+// Client-side image compression: resize to letterhead scale and keep it small
 // (PNG for transparency; falls back to JPEG when the PNG runs heavy).
-export const compressLogo = (file) => new Promise((resolve, reject) => {
+const compressImage = (file, maxW, maxH) => new Promise((resolve, reject) => {
   const img = new Image();
   const url = URL.createObjectURL(file);
   img.onload = () => {
     URL.revokeObjectURL(url);
-    const scale = Math.min(1, 320 / img.width, 160 / img.height);
+    const scale = Math.min(1, maxW / img.width, maxH / img.height);
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(img.width * scale);
     canvas.height = Math.round(img.height * scale);
@@ -97,6 +97,9 @@ export const compressLogo = (file) => new Promise((resolve, reject) => {
   img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that image.')); };
   img.src = url;
 });
+export const compressLogo = (file) => compressImage(file, 320, 160);
+// Signatures are wide and short — scan or photo of the ink signature.
+export const compressSignature = (file) => compressImage(file, 300, 100);
 
 export const LETTERHEAD_CSS = `
   .lh-page { background: #fff; color: #14161a; font-family: Georgia, 'Times New Roman', serif; line-height: 1.65; font-size: 13.5px; padding: 44px 52px; min-height: 640px; --accent: #0A0E1A; }
@@ -111,6 +114,7 @@ export const LETTERHEAD_CSS = `
   .lh-date { text-align: right; font-size: 12.5px; margin-bottom: 6px; }
   .lh-ref { font-size: 11.5px; color: #5a5a55; margin-bottom: 14px; }
   .lh-sig { margin-top: 34px; }
+  .lh-sig-img { display: block; max-height: 54px; max-width: 190px; object-fit: contain; margin-bottom: 2px; }
   .lh-sig-name { font-weight: 700; }
   .lh-sig-role { font-size: 12px; color: #5a5a55; }
   .lh-foot { margin-top: 40px; padding-top: 10px; border-top: 1px solid #e4e1da; font-size: 10px; color: #8a877f; text-align: center; }
@@ -172,24 +176,26 @@ export function letterHeadHtml(letterhead, { forPrint = false } = {}) {
     </div>`;
 }
 
-export function letterBodyHtml({ date, reference, body, signerName, signerRole }) {
+export function letterBodyHtml({ date, reference, body, signerName, signerRole, signature }) {
   return `
     <div class="lh-date">${esc(date)}</div>
     ${reference ? `<div class="lh-ref">Our ref: ${esc(reference)}</div>` : ''}
     <div class="lh-body">${esc(body)}</div>
     <div class="lh-sig">
+      ${signature ? `<img class="lh-sig-img" src="${signature}" alt="Signature"/>` : ''}
       <div class="lh-sig-name">${esc(signerName || '')}</div>
       <div class="lh-sig-role">${esc(signerRole || '')}</div>
     </div>`;
 }
 
 // Full standalone HTML document — used for download/print and Documents filing.
-export function buildLetterDocument({ letterhead, title, date, reference, body, signerName, signerRole }) {
+export function buildLetterDocument({ letterhead, title, date, reference, body, signerName, signerRole, signature }) {
   const sig = `
     <div class="lh-date">${esc(date)}</div>
     ${reference ? `<div class="lh-ref">Our ref: ${esc(reference)}</div>` : ''}
     <div class="lh-body">${esc(body)}</div>
     <div class="lh-sig">
+      ${signature ? `<img class="lh-sig-img" src="${signature}" alt="Signature"/>` : ''}
       <div class="lh-sig-name">${esc(signerName || '')}</div>
       <div class="lh-sig-role">${esc(signerRole || '')}</div>
     </div>`;
