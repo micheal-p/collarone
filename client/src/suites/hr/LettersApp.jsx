@@ -57,7 +57,15 @@ function LetterPreview({ letterhead, letter, scale = 1 }) {
 }
 
 /* ---- Compose tab ------------------------------------------------------------- */
-function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me, issued, folders, confirm, onFolderCreated }) {
+function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, prefill, me, issued, folders, confirm, onFolderCreated }) {
+  // Which saved letterhead this letter uses (defaults to the org default),
+  // plus a per-letter template override that doesn't touch the saved design.
+  const [lhId, setLhId] = useState(letterhead?.id || null);
+  const [tplOverride, setTplOverride] = useState('');
+  const chosenLetterhead = letterheads.find((x) => x.id === lhId) || letterhead;
+  const effectiveLetterhead = tplOverride
+    ? { ...chosenLetterhead, template_key: tplOverride }
+    : chosenLetterhead;
   const initialType = prefill?.letterType || 'confirmation';
   const [f, setF] = useState(() => ({
     employeeId: prefill?.employeeId || '', letterType: initialType,
@@ -109,7 +117,7 @@ function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me, issued, f
   const ctx = () => ({
     letterType: f.letterType, letterTypeLabel: type.label,
     employeeName: emp?.name || '', jobTitle: emp?.jobTitle || '', department: emp?.deptName || '',
-    startDate: emp?.startDate || '', companyName: letterhead?.details?.companyName || '',
+    startDate: emp?.startDate || '', companyName: effectiveLetterhead?.details?.companyName || '',
     tone: 'formal Nigerian business correspondence', instructions: f.instructions,
   });
 
@@ -131,14 +139,14 @@ function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me, issued, f
     setBusy(true);
     try {
       const html = buildLetterDocument({
-        letterhead, title, date: today(), reference: f.reference,
+        letterhead: effectiveLetterhead, title, date: today(), reference: f.reference,
         body: f.body, signerName: f.signerName, signerRole: f.signerRole,
       });
       let filePath = null;
       try { filePath = await L.uploadIssuedLetterHtml(html, title); } catch { /* register still records it */ }
       const saved = await L.issueLetter({
         employeeId: emp.id, letterType: f.letterType, title, letterBody: f.body,
-        letterheadId: letterhead?.id || null, requestId: f.requestId, filePath,
+        letterheadId: chosenLetterhead?.id || null, requestId: f.requestId, filePath,
       });
       if (f.requestId) {
         try { await L.decideLetter(f.requestId, { status: 'issued', issuedFilePath: filePath }); } catch { /* request row may already be decided */ }
@@ -217,10 +225,21 @@ function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me, issued, f
       </div>
 
       <div className="lt-preview">
-        <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700, marginBottom: 8 }}>
-          Live preview — {LETTERHEAD_TEMPLATES[letterhead?.template_key]?.label || 'Classic'} letterhead
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+          <span className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700 }}>Live preview</span>
+          {letterheads.length > 1 && (
+            <select className="select" style={{ width: 'auto', height: 30, fontSize: 12, padding: '0 8px' }}
+              value={lhId || ''} onChange={(e) => setLhId(e.target.value)} title="Saved letterhead">
+              {letterheads.map((x) => <option key={x.id} value={x.id}>{x.name}{x.is_default ? ' (default)' : ''}</option>)}
+            </select>
+          )}
+          <select className="select" style={{ width: 'auto', height: 30, fontSize: 12, padding: '0 8px' }}
+            value={tplOverride} onChange={(e) => setTplOverride(e.target.value)} title="Template for this letter">
+            <option value="">Saved template — {LETTERHEAD_TEMPLATES[chosenLetterhead?.template_key]?.label || 'Classic'}</option>
+            {Object.entries(LETTERHEAD_TEMPLATES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
         </div>
-        <LetterPreview letterhead={letterhead} scale={0.82}
+        <LetterPreview letterhead={effectiveLetterhead} scale={0.82}
           letter={{ date: today(), reference: f.reference, body: f.body || '(The letter body appears here as you write.)', signerName: f.signerName, signerRole: f.signerRole }} />
       </div>
     </div>
@@ -330,10 +349,11 @@ function IssuedTab({ issued, letterheads, flash }) {
 }
 
 /* ---- Letterhead settings --------------------------------------------------------- */
-function LetterheadTab({ letterheads, orgName, flash, onSaved }) {
+function LetterheadTab({ letterheads, orgName, flash, onSaved, onDeleted, confirm }) {
   const current = letterheads.find((l) => l.is_default) || letterheads[0] || null;
   const [mode, setMode] = useState(current?.mode || 'generated');
   const [tpl, setTpl] = useState(current?.template_key || 'classic');
+  const [lhName, setLhName] = useState(current?.name || '');
   const [d, setD] = useState(() => ({
     companyName: current?.details?.companyName || orgName || '', address: current?.details?.address || '',
     phone: current?.details?.phone || '', email: current?.details?.email || '',
@@ -347,7 +367,7 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved }) {
 
   const previewLh = useMemo(() => ({ template_key: tpl, details: d }), [tpl, d]);
 
-  const save = async () => {
+  const save = async (saveAsNew = false) => {
     setBusy(true);
     try {
       let filePath = current?.file_path || null;
@@ -355,10 +375,10 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved }) {
         if (!file && !filePath) { flash('Choose a .docx or .pdf letterhead file.', true); setBusy(false); return; }
         if (file) filePath = await L.uploadLetterheadFile(file);
       }
-      const body = { name: d.companyName || 'Company letterhead', mode, templateKey: tpl, details: d, filePath, isDefault: true };
-      const saved = current?.id ? await L.updateLetterhead(current.id, body) : await L.saveLetterhead(body);
+      const body = { name: lhName.trim() || d.companyName || 'Company letterhead', mode, templateKey: tpl, details: d, filePath, isDefault: true };
+      const saved = (current?.id && !saveAsNew) ? await L.updateLetterhead(current.id, body) : await L.saveLetterhead(body);
       onSaved(saved);
-      flash('Letterhead saved — it will be used for every letter you issue.');
+      flash(saveAsNew ? 'Saved as a new letterhead and set as default.' : 'Letterhead saved — it will be used for every letter you issue.');
     } catch (e) { flash(e.message, true); }
     finally { setBusy(false); }
   };
@@ -446,9 +466,42 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved }) {
           </>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="btn btn-primary" onClick={save} disabled={busy}>{busy ? <span className="spinner" /> : 'Save letterhead'}</button>
+        <div className="field"><label>Letterhead name <span className="muted">(how it appears in the composer)</span></label>
+          <input className="input" value={lhName} onChange={(e) => setLhName(e.target.value)} placeholder="e.g. Head office letterhead" /></div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          {current?.id && <button className="btn btn-ghost" onClick={() => save(true)} disabled={busy}>Save as new</button>}
+          <button className="btn btn-primary" onClick={() => save(false)} disabled={busy}>{busy ? <span className="spinner" /> : current?.id ? 'Update letterhead' : 'Save letterhead'}</button>
         </div>
+
+        {letterheads.length > 0 && (
+          <div className="card" style={{ marginTop: 18, padding: '12px 16px' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-3)', marginBottom: 8 }}>Saved letterheads</div>
+            {letterheads.map((l) => (
+              <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderTop: '1px solid var(--line)', fontSize: 13.5 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <b>{l.name}</b>{' '}
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    {l.mode === 'upload' ? 'Uploaded file' : (LETTERHEAD_TEMPLATES[l.template_key]?.label || l.template_key)}
+                  </span>
+                </div>
+                {l.is_default
+                  ? <span className="st-pill st-success">Default</span>
+                  : <button className="btn btn-ghost btn-sm" onClick={async () => {
+                      try { onSaved(await L.updateLetterhead(l.id, { isDefault: true })); flash(`"${l.name}" is now the default letterhead.`); }
+                      catch (e) { flash(e.message, true); }
+                    }}>Make default</button>}
+                {!l.is_default && (
+                  <button className="btn btn-danger btn-sm" onClick={async () => {
+                    const ok = await confirm({ title: 'Delete letterhead', danger: true, confirmLabel: 'Delete', message: `"${l.name}" will be removed. Letters already issued keep their copies.` });
+                    if (!ok) return;
+                    try { await L.deleteLetterhead(l.id); onDeleted(l.id); flash('Letterhead deleted.'); }
+                    catch (e) { flash(e.message, true); }
+                  }}>Delete</button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="lt-preview">
@@ -532,8 +585,9 @@ export default function LettersApp({ staff, flash, externalPrefill = null, onPre
       )}
       {tab === 'issued' && <IssuedTab issued={issued} letterheads={letterheads} flash={flash} />}
       {tab === 'letterhead' && (
-        <LetterheadTab letterheads={letterheads} orgName={orgName} flash={flash}
-          onSaved={(lh) => setLetterheads((xs) => { const rest = xs.filter((x) => x.id !== lh.id).map((x) => ({ ...x, is_default: false })); return [lh, ...rest]; })} />
+        <LetterheadTab letterheads={letterheads} orgName={orgName} flash={flash} confirm={confirm}
+          onSaved={(lh) => setLetterheads((xs) => { const rest = xs.filter((x) => x.id !== lh.id).map((x) => (lh.is_default ? { ...x, is_default: false } : x)); return [lh, ...rest]; })}
+          onDeleted={(id) => setLetterheads((xs) => xs.filter((x) => x.id !== id))} />
       )}
       {confirmNode}
     </div>
