@@ -9,6 +9,20 @@ export const createRequisition = (body) => apiPost('/hr/requisitions', body).the
 export const updateRequisition = (id, body) => apiPatch(`/hr/requisitions/${id}`, body).then((d) => d.requisition);
 export const deleteRequisition = (id) => apiDelete(`/hr/requisitions/${id}`);
 
+/* One query for the whole requisitions list — per-requisition stage counts.
+   Deliberately a single unfiltered select (RLS-scoped) instead of N+1 pipeline
+   fetches; callers should treat a failure as "no counts available". */
+export const getStageCounts = async () => {
+  const { data, error } = await supabase.from('applications').select('requisition_id, stage');
+  if (error) throw new Error(error.message);
+  const map = {};
+  for (const a of data) {
+    const m = map[a.requisition_id] || (map[a.requisition_id] = {});
+    m[a.stage] = (m[a.stage] || 0) + 1;
+  }
+  return map;
+};
+
 /* ---- Candidates & applications ----------------------------------------------- */
 export const getPipeline = (requisitionId) => apiGet(`/hr/requisitions/${requisitionId}/pipeline`).then((d) => d.applications);
 export const addCandidate = (requisitionId, body) => apiPost(`/hr/requisitions/${requisitionId}/pipeline`, body).then((d) => d.application);

@@ -190,7 +190,7 @@ export async function demoApi(path, opts = {}) {
   // Enough believable, deterministic data that the HR directory and the
   // Employee 360 record render fully in demo mode. Derived from db.users so
   // ids always line up; regenerated per call (nothing persisted).
-  if (seg[0] === 'hr' || (seg[0] === 'departments') || (seg[0] === 'payroll' && ['salary', 'bank'].includes(seg[1])) || (seg[0] === 'attendance' && seg[1] === 'records') || (seg[0] === 'itassets' && seg[1] === 'assets') || (seg[0] === 'benefits' && seg[1] === 'enrollments') || route === 'GET /tasks') {
+  if (seg[0] === 'hr' || (seg[0] === 'departments') || (seg[0] === 'payroll' && ['salary', 'bank'].includes(seg[1])) || seg[0] === 'attendance' || route === 'GET /tasks') {
     requireAuth();
     const DEPTS = [{ id: 1, name: 'IT' }, { id: 2, name: 'People Ops' }, { id: 3, name: 'Operations' }, { id: 4, name: 'Logistics' }];
     const ET = ['full_time', 'full_time', 'contract', 'full_time'];
@@ -213,6 +213,14 @@ export async function demoApi(path, opts = {}) {
     if (route === 'GET /hr/staff') return { staff };
     if (seg[0] === 'departments') return { departments: DEPTS };
     if (seg[0] === 'payroll' && seg[1] === 'salary') {
+      // Mutations echo a sensible structure — history itself is deterministic.
+      if (method === 'PATCH' && seg.length === 3) {
+        return { structure: { id: seg[2], basic: body.basic ?? 0, housing: body.housing ?? 0, transport: body.transport ?? 0, other_allowances: body.otherAllowances ?? 0, effective_date: body.effectiveDate || new Date().toISOString().slice(0, 10) } };
+      }
+      if (method === 'POST') {
+        if (!body.employeeId) fail(400, 'employeeId is required.');
+        return { structure: { id: 'sn' + Math.random().toString(36).slice(2, 8), employee_id: body.employeeId, basic: body.basic || 0, housing: body.housing || 0, transport: body.transport || 0, other_allowances: body.otherAllowances || 0, effective_date: body.effectiveDate || new Date().toISOString().slice(0, 10) } };
+      }
       const i = byIdx(seg[2]);
       const basic = 250000 + i * 90000;
       return { history: [
@@ -221,23 +229,43 @@ export async function demoApi(path, opts = {}) {
       ] };
     }
     if (seg[0] === 'payroll' && seg[1] === 'bank') {
+      if (method === 'DELETE' && seg.length === 3) return { ok: true };
+      if (method === 'POST') {
+        if (!body.employeeId || !body.bankName || !body.accountNumber || !body.accountName) fail(400, 'Employee, bank, account number and account name are required.');
+        return { account: { id: 'bn' + Math.random().toString(36).slice(2, 8), employee_id: body.employeeId, bank_name: body.bankName, bank_code: body.bankCode || '', account_number: body.accountNumber, account_name: body.accountName, is_primary: body.isPrimary !== false } };
+      }
       const i = byIdx(seg[2]);
       return { accounts: [{ id: 'b' + i, bank_name: ['GTBank', 'Access Bank', 'Zenith Bank', 'UBA'][i % 4], account_name: db.users[i]?.name, account_number: String(1234567890 + i * 1111111).slice(0, 10), is_primary: true }] };
     }
     if (seg[0] === 'attendance') {
-      const records = staff.flatMap((s, si) => Array.from({ length: 8 }, (_, d) => {
+      // Real shifts the demo user opens/closes persist; the backdrop of team
+      // records stays deterministic (regenerated per call).
+      if (!db.attShifts) { db.attShifts = []; save(); }
+      const me = session.get();
+      if (method === 'POST' && seg[1] === 'clockin') {
+        if (db.attShifts.some((r) => r.employee_id === me.id && !r.clock_out_at)) fail(400, 'You already have an open shift — clock out first.');
+        const rec = { id: 'sh' + Math.random().toString(36).slice(2, 8), employee_id: me.id, employee: { id: me.id, name: me.name, email: me.email }, clock_in_at: new Date().toISOString(), clock_out_at: null, notes: '' };
+        db.attShifts.unshift(rec); save(); return { record: rec };
+      }
+      if (method === 'POST' && seg[1] === 'clockout') {
+        const rec = db.attShifts.find((r) => r.employee_id === me.id && !r.clock_out_at) || fail(400, 'No open shift to close.');
+        rec.clock_out_at = new Date().toISOString(); save(); return { record: rec };
+      }
+      const gen = staff.flatMap((s, si) => Array.from({ length: 8 }, (_, d) => {
         const day = d * 3 + (si % 3);
         const cin = new Date(Date.now() - day * 86400000); cin.setHours(8, 40 + si * 5, 0, 0);
         const cout = new Date(cin); cout.setHours(17, 10 + si * 7, 0, 0);
         return { id: `att${si}-${d}`, employee_id: s.id, employee: { id: s.id, name: s.name, email: s.email }, clock_in_at: cin.toISOString(), clock_out_at: d === 0 && si === 1 ? null : cout.toISOString() };
       }));
-      return { records };
-    }
-    if (seg[0] === 'itassets') {
-      return { assets: staff.slice(0, 3).map((s, i) => ({ id: 'a' + i, name: ['MacBook Air M2', 'Dell Latitude 5440', 'iPhone 13'][i], category: ['Laptop', 'Laptop', 'Phone'][i], asset_tag: `CLR-00${i + 1}`, serial_number: '', status: 'in_use', assigned_to: s.id, employee: { id: s.id, name: s.name } })) };
-    }
-    if (seg[0] === 'benefits') {
-      return { enrollments: staff.map((s, i) => ({ id: 'en' + i, employee_id: s.id, employee: { id: s.id, name: s.name }, status: 'active', plan: { id: 'p1', name: i % 2 ? 'Axa Mansard HMO — Gold' : 'Stanbic IBTC Pension (RSA)', type: i % 2 ? 'hmo' : 'pension', provider: i % 2 ? 'Axa Mansard' : 'Stanbic IBTC' } })) };
+      if (method === 'PATCH' && seg[1] === 'records' && seg.length === 3) {
+        const rec = db.attShifts.find((r) => r.id === seg[2]) || gen.find((r) => r.id === seg[2]) || fail(404, 'Record not found.');
+        if (body.clockInAt !== undefined) rec.clock_in_at = body.clockInAt;
+        if (body.clockOutAt !== undefined) rec.clock_out_at = body.clockOutAt;
+        if (body.notes !== undefined) rec.notes = body.notes;
+        save(); return { record: rec };
+      }
+      if (seg[1] === 'mine') return { records: [...db.attShifts.filter((r) => r.employee_id === me.id), ...gen.filter((r) => r.employee_id === me.id)] };
+      return { records: [...db.attShifts, ...gen] };
     }
     if (route === 'GET /tasks') {
       return { tasks: staff.flatMap((s, i) => [
@@ -306,6 +334,479 @@ export async function demoApi(path, opts = {}) {
     }
 
     if (seg[0] === 'hr') return fail(404, `Demo API has no route for ${route}`);
+  }
+
+  // ---- operational suites (benefits, procurement, crm, finance, documents,
+  // projects, it-assets) — small seeded lists persisted via db/save() so
+  // demo mutations survive a reload. Ids deliberately avoid a leading 'u'
+  // (the route-normalization regex above rewrites /u…/ segments to /:id), so
+  // PATCH/DELETE handlers match on seg, not `route`.
+  if (['staff', 'benefits', 'procurement', 'crm', 'finance', 'documents', 'docfolders', 'projects', 'itassets'].includes(seg[0])) {
+    const me = requireAuth();
+    const meRef = { id: me.id, name: me.name, email: me.email };
+    const now = () => new Date().toISOString();
+    const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString();
+    const rid = (p) => p + Math.random().toString(36).slice(2, 8);
+    const active = db.users.filter((u) => u.status === 'active');
+    const uref = (u) => (u ? { id: u.id, name: u.name, email: u.email } : null);
+
+    // shared people picker used by projects / documents / it-assets UIs
+    if (route === 'GET /staff') return { staff: active.map((u) => ({ id: u.id, name: u.name, email: u.email, department_id: null })) };
+
+    // ---- benefits ----
+    if (seg[0] === 'benefits') {
+      if (!db.benefitPlans) {
+        db.benefitPlans = [
+          { id: 'bp1', name: 'Stanbic IBTC Pension (RSA)', type: 'pension', provider: 'Stanbic IBTC', notes: '', active: true, created_at: daysAgo(400) },
+          { id: 'bp2', name: 'Axa Mansard HMO — Gold', type: 'hmo', provider: 'Axa Mansard', notes: '', active: true, created_at: daysAgo(400) },
+        ];
+        db.benefitEnrollments = active.map((u, i) => {
+          const p = db.benefitPlans[i % 2];
+          return { id: 'en' + i, employee_id: u.id, employee: uref(u), plan_id: p.id, plan: { id: p.id, name: p.name, type: p.type, provider: p.provider }, status: 'active', enrollment_date: daysAgo(220).slice(0, 10), member_id: '', pfa_name: p.type === 'pension' ? 'Stanbic IBTC Pension Managers' : '', pfa_pin: '', notes: '', created_at: daysAgo(220) };
+        });
+        save();
+      }
+      const planRef = (p) => ({ id: p.id, name: p.name, type: p.type, provider: p.provider });
+      if (route === 'GET /benefits/plans') return { plans: db.benefitPlans };
+      if (route === 'POST /benefits/plans') {
+        if (!body.name?.trim()) fail(400, 'Plan name is required.');
+        const p = { id: rid('bp'), name: body.name.trim(), type: body.type || 'hmo', provider: body.provider || '', notes: body.notes || '', active: true, created_at: now() };
+        db.benefitPlans.push(p); save(); return { plan: p };
+      }
+      if (method === 'PATCH' && seg[1] === 'plans' && seg.length === 3) {
+        const p = db.benefitPlans.find((x) => x.id === seg[2]) || fail(404, 'Plan not found.');
+        ['name', 'type', 'provider', 'notes', 'active'].forEach((k) => { if (body[k] !== undefined) p[k] = body[k]; });
+        save(); return { plan: p };
+      }
+      if (method === 'DELETE' && seg[1] === 'plans' && seg.length === 3) {
+        db.benefitPlans = db.benefitPlans.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+      }
+      if (route === 'GET /benefits/enrollments') return { enrollments: db.benefitEnrollments };
+      if (route === 'GET /benefits/mine') return { enrollments: db.benefitEnrollments.filter((e) => e.employee_id === me.id) };
+      if (route === 'POST /benefits/enrollments') {
+        if (!body.employeeId || !body.planId) fail(400, 'Employee and plan are required.');
+        if (db.benefitEnrollments.some((e) => e.employee_id === body.employeeId && e.plan_id === body.planId)) fail(400, 'Employee is already enrolled in this plan.');
+        const p = db.benefitPlans.find((x) => x.id === body.planId) || fail(404, 'Plan not found.');
+        const e = { id: rid('en'), employee_id: body.employeeId, employee: uref(db.users.find((u) => u.id === body.employeeId)), plan_id: p.id, plan: planRef(p), status: 'active', enrollment_date: body.enrollmentDate || now().slice(0, 10), member_id: body.memberId || '', pfa_name: body.pfaName || '', pfa_pin: body.pfaPin || '', notes: body.notes || '', created_at: now() };
+        db.benefitEnrollments.unshift(e); save(); return { enrollment: e };
+      }
+      if (method === 'PATCH' && seg[1] === 'enrollments' && seg.length === 3) {
+        const e = db.benefitEnrollments.find((x) => x.id === seg[2]) || fail(404, 'Enrollment not found.');
+        [['status', 'status'], ['memberId', 'member_id'], ['pfaName', 'pfa_name'], ['pfaPin', 'pfa_pin'], ['notes', 'notes']].forEach(([k, col]) => { if (body[k] !== undefined) e[col] = body[k]; });
+        save(); return { enrollment: e };
+      }
+      if (method === 'DELETE' && seg[1] === 'enrollments' && seg.length === 3) {
+        db.benefitEnrollments = db.benefitEnrollments.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+      }
+    }
+
+    // ---- procurement ----
+    if (seg[0] === 'procurement') {
+      if (!db.vendors) {
+        db.vendors = [
+          { id: 'vx1', name: 'TechDepot NG', contact_name: 'Sola Ajayi', phone: '08031234567', email: 'sales@techdepot.ng', address: '12 Adeola Odeku St, Victoria Island, Lagos', notes: '', created_at: daysAgo(300) },
+          { id: 'vx2', name: 'Swift Office Supplies', contact_name: 'Ngozi Eze', phone: '08087654321', email: 'orders@swiftoffice.ng', address: '4 Allen Avenue, Ikeja, Lagos', notes: '', created_at: daysAgo(180) },
+        ];
+        const req = active[2] || active[0];
+        db.purchaseRequests = [
+          { id: 'pq1', requested_by: req.id, requester: uref(req), vendor_id: 'vx1', vendor: { id: 'vx1', name: 'TechDepot NG' }, department_id: 3, dept: { id: 3, name: 'Operations' }, item_description: 'Dell Latitude 5440 laptops', quantity: 2, unit_cost: 850000, vat_rate: 0.075, notes: 'Replacements for field team', status: 'pending', created_at: daysAgo(2), decided_at: null },
+          { id: 'pq2', requested_by: req.id, requester: uref(req), vendor_id: 'vx2', vendor: { id: 'vx2', name: 'Swift Office Supplies' }, department_id: null, dept: null, item_description: 'A4 paper — 20 reams', quantity: 20, unit_cost: 4500, vat_rate: 0.075, notes: '', status: 'approved', created_at: daysAgo(9), decided_at: daysAgo(8) },
+        ];
+        save();
+      }
+      if (route === 'GET /procurement/vendors') return { vendors: db.vendors };
+      if (route === 'POST /procurement/vendors') {
+        if (!body.name?.trim()) fail(400, 'Vendor name is required.');
+        const v = { id: rid('vx'), name: body.name.trim(), contact_name: body.contactName || '', phone: body.phone || '', email: body.email || '', address: body.address || '', notes: body.notes || '', created_at: now() };
+        db.vendors.push(v); save(); return { vendor: v };
+      }
+      if (method === 'PATCH' && seg[1] === 'vendors' && seg.length === 3) {
+        const v = db.vendors.find((x) => x.id === seg[2]) || fail(404, 'Vendor not found.');
+        ['name', 'phone', 'email', 'address', 'notes'].forEach((k) => { if (body[k] !== undefined) v[k] = body[k]; });
+        if (body.contactName !== undefined) v.contact_name = body.contactName;
+        save(); return { vendor: v };
+      }
+      if (method === 'DELETE' && seg[1] === 'vendors' && seg.length === 3) {
+        db.vendors = db.vendors.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+      }
+      if (route === 'GET /procurement/requests') return { requests: db.purchaseRequests };
+      if (route === 'POST /procurement/requests') {
+        if (!body.itemDescription?.trim()) fail(400, 'Item description is required.');
+        const v = db.vendors.find((x) => x.id === body.vendorId) || null;
+        const r = { id: rid('pq'), requested_by: me.id, requester: meRef, vendor_id: v?.id || null, vendor: v ? { id: v.id, name: v.name } : null, department_id: body.departmentId || null, dept: null, item_description: body.itemDescription.trim(), quantity: body.quantity || 1, unit_cost: body.unitCost || 0, vat_rate: body.vatRate ?? 0.075, notes: body.notes || '', status: 'pending', created_at: now(), decided_at: null };
+        db.purchaseRequests.unshift(r); save(); return { request: r };
+      }
+      if (method === 'PATCH' && seg[1] === 'requests' && seg.length === 3) {
+        const r = db.purchaseRequests.find((x) => x.id === seg[2]) || fail(404, 'Request not found.');
+        if (body.action) { r.status = body.action; r.decided_at = now(); }
+        else {
+          [['itemDescription', 'item_description'], ['quantity', 'quantity'], ['unitCost', 'unit_cost'], ['vatRate', 'vat_rate'], ['notes', 'notes']].forEach(([k, col]) => { if (body[k] !== undefined) r[col] = body[k]; });
+          if (body.vendorId !== undefined) {
+            const v = db.vendors.find((x) => x.id === body.vendorId) || null;
+            r.vendor_id = v?.id || null; r.vendor = v ? { id: v.id, name: v.name } : null;
+          }
+        }
+        save(); return { request: r };
+      }
+      if (method === 'DELETE' && seg[1] === 'requests' && seg.length === 3) {
+        db.purchaseRequests = db.purchaseRequests.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+      }
+    }
+
+    // ---- crm (companies, contacts, activities, deals pipeline) ----
+    if (seg[0] === 'crm') {
+      const contactRef = (c) => (c ? { id: c.id, name: c.name, email: c.email, phone: c.phone, whatsapp: c.whatsapp } : null);
+      const companyRef = (c) => (c ? { id: c.id, name: c.name } : null);
+      if (!db.crmCompanies) {
+        db.crmCompanies = [{ id: 'co1', name: 'Sunrise Foods Ltd', industry: 'FMCG distribution', phone: '08033214567', email: 'info@sunrisefoods.ng', website: 'https://sunrisefoods.ng', address: 'Plot 8, Oregun Industrial Estate, Ikeja', notes: '', created_at: daysAgo(60) }];
+        db.crmContacts = [
+          { id: 'ct1', name: 'Tunde Bakare', company_id: 'co1', company: { id: 'co1', name: 'Sunrise Foods Ltd' }, job_title: 'Procurement Manager', email: 'tunde@sunrisefoods.ng', phone: '08051112233', whatsapp: '08051112233', notes: '', created_at: daysAgo(45) },
+          { id: 'ct2', name: 'Halima Yusuf', company_id: null, company: null, job_title: 'Founder, Halyu Stores', email: 'halima@halyustores.ng', phone: '08094445566', whatsapp: '08094445566', notes: 'Met at Lagos SME fair', created_at: daysAgo(20) },
+        ];
+        db.crmActivities = [
+          { id: 'ac1', contact_id: 'ct1', contact: contactRef(db.crmContacts[0]), company_id: 'co1', company: { id: 'co1', name: 'Sunrise Foods Ltd' }, type: 'call', notes: 'Intro call — wants bulk pricing before month end.', occurred_at: daysAgo(1), replied_at: null, follow_up_at: daysAgo(-1), author: uref(db.users[0]), created_at: daysAgo(1) },
+          { id: 'ac2', contact_id: 'ct2', contact: contactRef(db.crmContacts[1]), company_id: null, company: null, type: 'whatsapp', notes: 'Sent price list and delivery terms.', occurred_at: daysAgo(5), replied_at: daysAgo(4), follow_up_at: null, author: uref(db.users[0]), created_at: daysAgo(5) },
+        ];
+        db.crmDeals = [
+          { id: 'dl1', title: 'Sunrise Foods — Q3 bulk supply', contact_id: 'ct1', contact: contactRef(db.crmContacts[0]), company_id: 'co1', company: { id: 'co1', name: 'Sunrise Foods Ltd' }, value_naira: 4500000, stage: 'proposal', expected_close: daysAgo(-21).slice(0, 10), notes: '', created_at: daysAgo(12), updated_at: daysAgo(3) },
+          { id: 'dl2', title: 'Halyu Stores starter order', contact_id: 'ct2', contact: contactRef(db.crmContacts[1]), company_id: null, company: null, value_naira: 850000, stage: 'lead', expected_close: null, notes: '', created_at: daysAgo(6), updated_at: daysAgo(6) },
+          { id: 'dl3', title: 'Staff canteen supply contract', contact_id: 'ct1', contact: contactRef(db.crmContacts[0]), company_id: 'co1', company: { id: 'co1', name: 'Sunrise Foods Ltd' }, value_naira: 2200000, stage: 'won', expected_close: daysAgo(10).slice(0, 10), notes: '', created_at: daysAgo(40), updated_at: daysAgo(10) },
+        ];
+        save();
+      }
+      if (route === 'GET /crm/companies') return { companies: db.crmCompanies };
+      if (route === 'POST /crm/companies') {
+        if (!body.name?.trim()) fail(400, 'Company name is required.');
+        const c = { id: rid('co'), name: body.name.trim(), industry: body.industry || '', phone: body.phone || '', email: body.email || '', website: body.website || '', address: body.address || '', notes: body.notes || '', created_at: now() };
+        db.crmCompanies.push(c); save(); return { company: c };
+      }
+      if (method === 'PATCH' && seg[1] === 'companies' && seg.length === 3) {
+        const c = db.crmCompanies.find((x) => x.id === seg[2]) || fail(404, 'Company not found.');
+        ['name', 'industry', 'phone', 'email', 'website', 'address', 'notes'].forEach((k) => { if (body[k] !== undefined) c[k] = body[k]; });
+        save(); return { company: c };
+      }
+      if (method === 'DELETE' && seg[1] === 'companies' && seg.length === 3) {
+        db.crmCompanies = db.crmCompanies.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+      }
+      if (route === 'GET /crm/contacts') return { contacts: db.crmContacts };
+      if (route === 'POST /crm/contacts') {
+        if (!body.name?.trim()) fail(400, 'Contact name is required.');
+        const co = db.crmCompanies.find((x) => x.id === body.companyId) || null;
+        const c = { id: rid('ct'), name: body.name.trim(), company_id: co?.id || null, company: companyRef(co), job_title: body.jobTitle || '', email: body.email || '', phone: body.phone || '', whatsapp: body.whatsapp || '', notes: body.notes || '', created_at: now() };
+        db.crmContacts.push(c); save(); return { contact: c };
+      }
+      if (method === 'PATCH' && seg[1] === 'contacts' && seg.length === 3) {
+        const c = db.crmContacts.find((x) => x.id === seg[2]) || fail(404, 'Contact not found.');
+        [['name', 'name'], ['jobTitle', 'job_title'], ['email', 'email'], ['phone', 'phone'], ['whatsapp', 'whatsapp'], ['notes', 'notes']].forEach(([k, col]) => { if (body[k] !== undefined) c[col] = body[k]; });
+        if (body.companyId !== undefined) {
+          const co = db.crmCompanies.find((x) => x.id === body.companyId) || null;
+          c.company_id = co?.id || null; c.company = companyRef(co);
+        }
+        save(); return { contact: c };
+      }
+      if (method === 'DELETE' && seg[1] === 'contacts' && seg.length === 3) {
+        db.crmContacts = db.crmContacts.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+      }
+      if (route === 'GET /crm/activities') {
+        const contactId = (path.match(/contactId=([^&]*)/) || [])[1];
+        const companyId = (path.match(/companyId=([^&]*)/) || [])[1];
+        let list = db.crmActivities;
+        if (contactId) list = list.filter((a) => a.contact_id === contactId);
+        if (companyId) list = list.filter((a) => a.company_id === companyId);
+        return { activities: list };
+      }
+      if (route === 'POST /crm/activities') {
+        if (!body.contactId && !body.companyId) fail(400, 'Link this activity to a contact or company.');
+        const ct = db.crmContacts.find((x) => x.id === body.contactId) || null;
+        const co = db.crmCompanies.find((x) => x.id === body.companyId) || null;
+        const a = { id: rid('ac'), contact_id: ct?.id || null, contact: contactRef(ct), company_id: co?.id || null, company: companyRef(co), type: body.type || 'note', notes: body.notes || '', occurred_at: body.occurredAt || now(), replied_at: null, follow_up_at: null, author: meRef, created_at: now() };
+        db.crmActivities.unshift(a); save(); return { activity: a };
+      }
+      if (method === 'PATCH' && seg[1] === 'activities' && seg[2]) {
+        const a = db.crmActivities.find((x) => x.id === seg[2]) || fail(404, 'Activity not found.');
+        if (body.replied !== undefined) a.replied_at = body.replied ? now() : null;
+        if (body.followUpAt !== undefined) a.follow_up_at = body.followUpAt;
+        if (body.notes !== undefined) a.notes = body.notes;
+        save(); return { activity: a };
+      }
+      if (method === 'DELETE' && seg[1] === 'activities' && seg.length === 3) {
+        db.crmActivities = db.crmActivities.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+      }
+      if (route === 'GET /crm/deals') return { deals: db.crmDeals };
+      if (route === 'POST /crm/deals') {
+        if (!body.title?.trim()) fail(400, 'Deal title is required.');
+        const ct = db.crmContacts.find((x) => x.id === body.contactId) || null;
+        const co = db.crmCompanies.find((x) => x.id === body.companyId) || null;
+        const d = { id: rid('dl'), title: body.title.trim(), contact_id: ct?.id || null, contact: contactRef(ct), company_id: co?.id || null, company: companyRef(co), value_naira: Number(body.valueNaira) || 0, stage: body.stage || 'lead', expected_close: body.expectedClose || null, notes: body.notes || '', created_at: now(), updated_at: now() };
+        db.crmDeals.unshift(d); save(); return { deal: d };
+      }
+      if (method === 'PATCH' && seg[1] === 'deals' && seg.length === 3) {
+        const d = db.crmDeals.find((x) => x.id === seg[2]) || fail(404, 'Deal not found.');
+        if (body.title !== undefined) d.title = body.title;
+        if (body.valueNaira !== undefined) d.value_naira = Number(body.valueNaira) || 0;
+        if (body.stage !== undefined) d.stage = body.stage;
+        if (body.expectedClose !== undefined) d.expected_close = body.expectedClose || null;
+        if (body.notes !== undefined) d.notes = body.notes;
+        if (body.contactId !== undefined) {
+          const ct = db.crmContacts.find((x) => x.id === body.contactId) || null;
+          d.contact_id = ct?.id || null; d.contact = contactRef(ct);
+        }
+        if (body.companyId !== undefined) {
+          const co = db.crmCompanies.find((x) => x.id === body.companyId) || null;
+          d.company_id = co?.id || null; d.company = companyRef(co);
+        }
+        d.updated_at = now(); save(); return { deal: d };
+      }
+      if (method === 'DELETE' && seg[1] === 'deals' && seg.length === 3) {
+        db.crmDeals = db.crmDeals.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+      }
+    }
+
+    // ---- finance (expenses, categories, budgets) ----
+    if (seg[0] === 'finance') {
+      if (!db.expenseCategories) {
+        db.expenseCategories = [
+          { id: 'fc1', name: 'Office Supplies', created_at: daysAgo(200) },
+          { id: 'fc2', name: 'Travel & Transport', created_at: daysAgo(200) },
+        ];
+        const sub = active[1] || active[0];
+        db.expenses = [
+          { id: 'exp1', category_id: 'fc1', category: { id: 'fc1', name: 'Office Supplies' }, department_id: null, dept: null, vendor: 'Swift Office Supplies', description: 'Printer toner and stationery', amount: 86500, vat_rate: 0.075, expense_date: daysAgo(3).slice(0, 10), notes: '', receipt_path: null, status: 'pending', submitted_by: sub.id, submitter: uref(sub), created_at: daysAgo(3) },
+          { id: 'exp2', category_id: 'fc2', category: { id: 'fc2', name: 'Travel & Transport' }, department_id: null, dept: null, vendor: 'Uber', description: 'Client visits — Ikeja to Victoria Island', amount: 24300, vat_rate: 0, expense_date: daysAgo(8).slice(0, 10), notes: '', receipt_path: null, status: 'approved', submitted_by: sub.id, submitter: uref(sub), created_at: daysAgo(8) },
+          { id: 'exp3', category_id: 'fc1', category: { id: 'fc1', name: 'Office Supplies' }, department_id: null, dept: null, vendor: 'Chicken Republic', description: 'Team lunch — Q2 close', amount: 65000, vat_rate: 0.075, expense_date: daysAgo(15).slice(0, 10), notes: '', receipt_path: null, status: 'paid', submitted_by: sub.id, submitter: uref(sub), created_at: daysAgo(15) },
+        ];
+        db.budgets = [];
+        save();
+      }
+      const catRef = (c) => (c ? { id: c.id, name: c.name } : null);
+      if (route === 'GET /finance/categories') return { categories: db.expenseCategories };
+      if (route === 'POST /finance/categories') {
+        if (!body.name?.trim()) fail(400, 'Category name is required.');
+        if (db.expenseCategories.some((c) => c.name.toLowerCase() === body.name.trim().toLowerCase())) fail(400, 'That category already exists.');
+        const c = { id: rid('fc'), name: body.name.trim(), created_at: now() };
+        db.expenseCategories.push(c); save(); return { category: c };
+      }
+      if (route === 'GET /finance/expenses') return { expenses: db.expenses };
+      if (route === 'POST /finance/expenses') {
+        if (!body.description?.trim()) fail(400, 'Description is required.');
+        const cat = db.expenseCategories.find((c) => c.id === body.categoryId) || null;
+        const e = { id: rid('exp'), category_id: cat?.id || null, category: catRef(cat), department_id: body.departmentId || null, dept: null, vendor: body.vendor || '', description: body.description.trim(), amount: body.amount || 0, vat_rate: body.vatRate ?? 0.075, expense_date: body.expenseDate || now().slice(0, 10), notes: body.notes || '', receipt_path: body.receiptPath || null, status: 'pending', submitted_by: me.id, submitter: meRef, created_at: now() };
+        db.expenses.unshift(e); save(); return { expense: e };
+      }
+      if (method === 'PATCH' && seg[1] === 'expenses' && seg.length === 3) {
+        const e = db.expenses.find((x) => x.id === seg[2]) || fail(404, 'Expense not found.');
+        if (body.action) { e.status = body.action; }
+        else {
+          [['vendor', 'vendor'], ['description', 'description'], ['amount', 'amount'], ['vatRate', 'vat_rate'], ['notes', 'notes'], ['expenseDate', 'expense_date']].forEach(([k, col]) => { if (body[k] !== undefined) e[col] = body[k]; });
+          if (body.categoryId !== undefined) {
+            const cat = db.expenseCategories.find((c) => c.id === body.categoryId) || null;
+            e.category_id = cat?.id || null; e.category = catRef(cat);
+          }
+        }
+        save(); return { expense: e };
+      }
+      if (method === 'DELETE' && seg[1] === 'expenses' && seg.length === 3) {
+        db.expenses = db.expenses.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+      }
+      if (route === 'GET /finance/budgets') return { budgets: db.budgets };
+      if (route === 'POST /finance/budgets') {
+        if (!body.periodYear || !body.amount) fail(400, 'Period year and amount are required.');
+        const cat = db.expenseCategories.find((c) => c.id === body.categoryId) || null;
+        const b = { id: rid('bg'), department_id: body.departmentId || null, dept: null, category_id: cat?.id || null, category: catRef(cat), period_year: body.periodYear, period_month: body.periodMonth || null, amount: body.amount, notes: body.notes || '', created_at: now() };
+        db.budgets.unshift(b); save(); return { budget: b };
+      }
+      if (method === 'DELETE' && seg[1] === 'budgets' && seg.length === 3) {
+        db.budgets = db.budgets.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+      }
+    }
+
+    // ---- documents (files metadata + folders; storage itself is disabled) ----
+    if (seg[0] === 'docfolders' || seg[0] === 'documents') {
+      if (!db.docFolders) {
+        db.docFolders = [
+          { id: 'fd1', name: 'Company Policies', parent_folder_id: null, created_at: daysAgo(120) },
+          { id: 'fd2', name: 'Templates', parent_folder_id: null, created_at: daysAgo(120) },
+        ];
+        db.documents = [
+          { id: 'doc1', name: 'Employee Handbook 2026.pdf', folder_id: 'fd1', folder: { id: 'fd1', name: 'Company Policies' }, file_path: 'demo/handbook.pdf', file_size: 482133, visibility: 'org', current_version: 1, created_by: db.users[0].id, author: uref(db.users[0]), created_at: daysAgo(90), updated_at: daysAgo(90) },
+          { id: 'doc2', name: 'Letterhead Template.docx', folder_id: 'fd2', folder: { id: 'fd2', name: 'Templates' }, file_path: 'demo/letterhead.docx', file_size: 88214, visibility: 'org', current_version: 2, created_by: db.users[0].id, author: uref(db.users[0]), created_at: daysAgo(60), updated_at: daysAgo(40) },
+        ];
+        save();
+      }
+      if (route === 'GET /docfolders') return { folders: db.docFolders };
+      if (route === 'POST /docfolders') {
+        if (!body.name?.trim()) fail(400, 'Folder name is required.');
+        const f = { id: rid('fd'), name: body.name.trim(), parent_folder_id: body.parentFolderId || null, created_at: now() };
+        db.docFolders.push(f); save(); return { folder: f };
+      }
+      if (method === 'DELETE' && seg[0] === 'docfolders' && seg.length === 2) {
+        db.docFolders = db.docFolders.filter((x) => x.id !== seg[1]);
+        db.documents.forEach((d) => { if (d.folder_id === seg[1]) { d.folder_id = null; d.folder = null; } });
+        save(); return { ok: true };
+      }
+      if (route === 'GET /documents') return { documents: db.documents };
+      // storage-backed calls fail gracefully in demo
+      if (method === 'POST' && seg[0] === 'documents' && (seg.length === 1 || seg[2] === 'versions')) fail(400, 'Uploads are disabled in demo mode.');
+      if (method === 'PATCH' && seg[0] === 'documents' && seg.length === 2) {
+        const d = db.documents.find((x) => x.id === seg[1]) || fail(404, 'Document not found.');
+        if (body.name !== undefined) d.name = body.name;
+        if (body.folderId !== undefined) {
+          const f = db.docFolders.find((x) => x.id === body.folderId) || null;
+          d.folder_id = f?.id || null; d.folder = f ? { id: f.id, name: f.name } : null;
+        }
+        if (body.visibility !== undefined) d.visibility = body.visibility;
+        d.updated_at = now(); save(); return { document: d };
+      }
+      if (method === 'DELETE' && seg[0] === 'documents' && seg.length === 2) {
+        db.documents = db.documents.filter((x) => x.id !== seg[1]); save(); return { ok: true };
+      }
+      if (method === 'GET' && seg[2] === 'versions') {
+        const d = db.documents.find((x) => x.id === seg[1]) || fail(404, 'Document not found.');
+        return { versions: Array.from({ length: d.current_version || 1 }, (_, i) => ({ id: `dv-${d.id}-${i}`, document_id: d.id, version: (d.current_version || 1) - i, file_path: d.file_path, file_size: d.file_size, notes: i ? '' : 'Current version', uploaded_by: d.created_by, uploader: { id: d.created_by, name: d.author?.name }, created_at: i ? d.created_at : d.updated_at })) };
+      }
+      if (method === 'GET' && seg[2] === 'permissions') return { permissions: (db.docPermissions || []).filter((p) => p.document_id === seg[1]) };
+      if (method === 'POST' && seg[2] === 'permissions') {
+        if (!body.userId) fail(400, 'userId is required.');
+        db.docPermissions = db.docPermissions || [];
+        if (db.docPermissions.some((p) => p.document_id === seg[1] && p.user_id === body.userId)) fail(400, 'That person already has access.');
+        const p = { id: rid('dp'), document_id: seg[1], user_id: body.userId, user: uref(db.users.find((u) => u.id === body.userId)), granted_by: me.id, created_at: now() };
+        db.docPermissions.push(p); save(); return { permission: p };
+      }
+      if (method === 'DELETE' && seg[2] === 'permissions' && seg.length === 4) {
+        db.docPermissions = (db.docPermissions || []).filter((p) => !(p.document_id === seg[1] && p.user_id === seg[3])); save(); return { ok: true };
+      }
+    }
+
+    // ---- projects (project, members, milestones, tasks board) ----
+    if (seg[0] === 'projects') {
+      if (!db.projects) {
+        const owner = db.users[0];
+        const a = (i) => active[i % active.length];
+        db.projects = [{ id: 'pj1', name: 'Website Revamp', description: 'Relaunch the corporate site with the new brand.', status: 'active', owner_id: owner.id, owner: uref(owner), start_date: daysAgo(30).slice(0, 10), target_date: daysAgo(-45).slice(0, 10), created_at: daysAgo(30) }];
+        db.projectMembers = active.slice(0, 3).map((u, i) => ({ id: 'pm' + i, project_id: 'pj1', user_id: u.id, role: i === 0 ? 'lead' : 'member', user: uref(u) }));
+        db.projectMilestones = [];
+        db.projectTasks = [
+          { id: 'pt1', project_id: 'pj1', title: 'Audit current site content', description: '', status: 'done', priority: 'medium', due_date: daysAgo(20).slice(0, 10), assigned_to: a(1).id, assignee: uref(a(1)), milestone_id: null, milestone: null, created_at: daysAgo(28) },
+          { id: 'pt2', project_id: 'pj1', title: 'New homepage design', description: 'Hero, services grid, testimonials.', status: 'in_review', priority: 'high', due_date: daysAgo(2).slice(0, 10), assigned_to: a(2).id, assignee: uref(a(2)), milestone_id: null, milestone: null, created_at: daysAgo(24) },
+          { id: 'pt3', project_id: 'pj1', title: 'Migrate blog posts', description: '', status: 'in_progress', priority: 'medium', due_date: daysAgo(-7).slice(0, 10), assigned_to: a(3).id, assignee: uref(a(3)), milestone_id: null, milestone: null, created_at: daysAgo(18) },
+          { id: 'pt4', project_id: 'pj1', title: 'Set up analytics and uptime checks', description: '', status: 'todo', priority: 'low', due_date: daysAgo(-14).slice(0, 10), assigned_to: a(0).id, assignee: uref(a(0)), milestone_id: null, milestone: null, created_at: daysAgo(10) },
+        ];
+        save();
+      }
+      if (route === 'GET /projects') return { projects: db.projects };
+      if (route === 'POST /projects') {
+        if (!body.name?.trim()) fail(400, 'Project name is required.');
+        const p = { id: rid('pj'), name: body.name.trim(), description: body.description || '', status: 'active', owner_id: me.id, owner: meRef, start_date: body.startDate || null, target_date: body.targetDate || null, created_at: now() };
+        db.projects.unshift(p);
+        db.projectMembers.push({ id: rid('pm'), project_id: p.id, user_id: me.id, role: 'lead', user: meRef });
+        save(); return { project: p };
+      }
+      if (method === 'PATCH' && seg.length === 2) {
+        const p = db.projects.find((x) => x.id === seg[1]) || fail(404, 'Project not found.');
+        ['name', 'description', 'status'].forEach((k) => { if (body[k] !== undefined) p[k] = body[k]; });
+        if (body.startDate !== undefined) p.start_date = body.startDate || null;
+        if (body.targetDate !== undefined) p.target_date = body.targetDate || null;
+        save(); return { project: p };
+      }
+      if (method === 'DELETE' && seg.length === 2) {
+        db.projects = db.projects.filter((x) => x.id !== seg[1]);
+        db.projectTasks = db.projectTasks.filter((t) => t.project_id !== seg[1]);
+        db.projectMembers = db.projectMembers.filter((m) => m.project_id !== seg[1]);
+        db.projectMilestones = db.projectMilestones.filter((m) => m.project_id !== seg[1]);
+        save(); return { ok: true };
+      }
+      if (method === 'GET' && seg[2] === 'members') return { members: db.projectMembers.filter((m) => m.project_id === seg[1]) };
+      if (method === 'POST' && seg[2] === 'members') {
+        if (!body.userId) fail(400, 'userId is required.');
+        if (db.projectMembers.some((m) => m.project_id === seg[1] && m.user_id === body.userId)) fail(400, 'That person is already a member.');
+        const m = { id: rid('pm'), project_id: seg[1], user_id: body.userId, role: body.role || 'member', user: uref(db.users.find((u) => u.id === body.userId)) };
+        db.projectMembers.push(m); save(); return { member: m };
+      }
+      if (method === 'DELETE' && seg[2] === 'members' && seg.length === 4) {
+        db.projectMembers = db.projectMembers.filter((m) => !(m.project_id === seg[1] && m.user_id === seg[3])); save(); return { ok: true };
+      }
+      if (method === 'GET' && seg[2] === 'milestones') return { milestones: db.projectMilestones.filter((m) => m.project_id === seg[1]) };
+      if (method === 'POST' && seg[2] === 'milestones') {
+        if (!body.title?.trim()) fail(400, 'Milestone title is required.');
+        const m = { id: rid('ml'), project_id: seg[1], title: body.title.trim(), status: 'open', due_date: body.dueDate || null, sort_order: body.sortOrder || 0, created_at: now() };
+        db.projectMilestones.push(m); save(); return { milestone: m };
+      }
+      if (method === 'PATCH' && seg[2] === 'milestones' && seg.length === 4) {
+        const m = db.projectMilestones.find((x) => x.id === seg[3]) || fail(404, 'Milestone not found.');
+        [['title', 'title'], ['status', 'status'], ['sortOrder', 'sort_order']].forEach(([k, col]) => { if (body[k] !== undefined) m[col] = body[k]; });
+        if (body.dueDate !== undefined) m.due_date = body.dueDate || null;
+        save(); return { milestone: m };
+      }
+      if (method === 'DELETE' && seg[2] === 'milestones' && seg.length === 4) {
+        db.projectMilestones = db.projectMilestones.filter((x) => x.id !== seg[3]); save(); return { ok: true };
+      }
+      if (method === 'GET' && seg[2] === 'tasks') return { tasks: db.projectTasks.filter((t) => t.project_id === seg[1]) };
+      if (method === 'POST' && seg[2] === 'tasks') {
+        if (!body.title?.trim()) fail(400, 'Task title is required.');
+        const ms = db.projectMilestones.find((x) => x.id === body.milestoneId) || null;
+        const t = { id: rid('pt'), project_id: seg[1], title: body.title.trim(), description: body.description || '', status: 'todo', priority: body.priority || 'medium', due_date: body.dueDate || null, assigned_to: body.assignedTo || null, assignee: uref(db.users.find((u) => u.id === body.assignedTo)), milestone_id: ms?.id || null, milestone: ms ? { id: ms.id, title: ms.title } : null, created_at: now() };
+        db.projectTasks.unshift(t); save(); return { task: t };
+      }
+      if (method === 'PATCH' && seg[2] === 'tasks' && seg.length === 4) {
+        const t = db.projectTasks.find((x) => x.id === seg[3]) || fail(404, 'Task not found.');
+        ['title', 'description', 'status', 'priority'].forEach((k) => { if (body[k] !== undefined) t[k] = body[k]; });
+        if (body.dueDate !== undefined) t.due_date = body.dueDate || null;
+        if (body.assignedTo !== undefined) {
+          t.assigned_to = body.assignedTo || null;
+          t.assignee = uref(db.users.find((u) => u.id === body.assignedTo));
+        }
+        if (body.milestoneId !== undefined) {
+          const ms = db.projectMilestones.find((x) => x.id === body.milestoneId) || null;
+          t.milestone_id = ms?.id || null; t.milestone = ms ? { id: ms.id, title: ms.title } : null;
+        }
+        save(); return { task: t };
+      }
+      if (method === 'DELETE' && seg[2] === 'tasks' && seg.length === 4) {
+        db.projectTasks = db.projectTasks.filter((x) => x.id !== seg[3]); save(); return { ok: true };
+      }
+    }
+
+    // ---- it-assets (register, lifecycle actions, per-asset history) ----
+    if (seg[0] === 'itassets') {
+      if (!db.itAssets) {
+        const holders = active.slice(0, 3);
+        db.itAssets = holders.map((u, i) => ({
+          id: 'as' + (i + 1), asset_tag: `CLR-00${i + 1}`, name: ['MacBook Air M2', 'Dell Latitude 5440', 'iPhone 13'][i], category: ['Laptop', 'Laptop', 'Phone'][i], serial_number: '', purchase_date: daysAgo(300 + i * 90).slice(0, 10), purchase_cost: [1250000, 890000, 610000][i], status: 'in_use', assigned_to: u.id, employee: uref(u), notes: '', created_at: daysAgo(300 + i * 90),
+        }));
+        db.itHistory = db.itAssets.flatMap((a, i) => [
+          { id: `ih${i}a`, asset_id: a.id, action: 'assigned', employee_id: a.assigned_to, employee: { id: a.employee.id, name: a.employee.name }, notes: 'Issued on onboarding', author: uref(db.users[0]), created_at: daysAgo(200 + i * 30) },
+          { id: `ih${i}b`, asset_id: a.id, action: 'note', employee_id: null, employee: null, notes: 'Added to asset register', author: uref(db.users[0]), created_at: daysAgo(300 + i * 90) },
+        ]);
+        save();
+      }
+      if (route === 'GET /itassets/assets') return { assets: db.itAssets };
+      if (method === 'GET' && seg[1] === 'history' && seg.length === 3) return { history: db.itHistory.filter((h) => h.asset_id === seg[2]) };
+      if (route === 'POST /itassets/assets') {
+        if (!body.assetTag?.trim() || !body.name?.trim()) fail(400, 'Asset tag and name are required.');
+        if (db.itAssets.some((a) => a.asset_tag === body.assetTag.trim())) fail(400, 'That asset tag is already in use.');
+        const a = { id: rid('as'), asset_tag: body.assetTag.trim(), name: body.name.trim(), category: body.category || 'other', serial_number: body.serialNumber || '', purchase_date: body.purchaseDate || null, purchase_cost: body.purchaseCost || null, status: 'spare', assigned_to: null, employee: null, notes: '', created_at: now() };
+        db.itAssets.unshift(a); save(); return { asset: a };
+      }
+      if (method === 'PATCH' && seg[1] === 'assets' && seg.length === 3) {
+        const a = db.itAssets.find((x) => x.id === seg[2]) || fail(404, 'Asset not found.');
+        [['name', 'name'], ['category', 'category'], ['serialNumber', 'serial_number'], ['purchaseDate', 'purchase_date'], ['purchaseCost', 'purchase_cost']].forEach(([k, col]) => { if (body[k] !== undefined) a[col] = body[k]; });
+        const act = body.action;
+        if (!act && body.notes !== undefined) a.notes = body.notes;
+        if (act === 'assign') { a.status = 'in_use'; a.assigned_to = body.employeeId; a.employee = uref(db.users.find((u) => u.id === body.employeeId)); }
+        if (act === 'return') { a.status = 'spare'; a.assigned_to = null; a.employee = null; }
+        if (act === 'repair') a.status = 'repair';
+        if (act === 'retire') { a.status = 'retired'; a.assigned_to = null; a.employee = null; }
+        if (act) {
+          db.itHistory.unshift({ id: rid('ih'), asset_id: a.id, action: { assign: 'assigned', return: 'returned', repair: 'repaired', retire: 'retired' }[act] || 'note', employee_id: body.employeeId || null, employee: body.employeeId ? uref(db.users.find((u) => u.id === body.employeeId)) : null, notes: body.notes || '', author: meRef, created_at: now() });
+        }
+        save(); return { asset: a };
+      }
+      if (method === 'DELETE' && seg[1] === 'assets' && seg.length === 3) {
+        db.itAssets = db.itAssets.filter((x) => x.id !== seg[2]);
+        db.itHistory = db.itHistory.filter((h) => h.asset_id !== seg[2]);
+        save(); return { ok: true };
+      }
+    }
   }
 
   // storefront funnel — demo-safe stubs so a prospect clicking through a

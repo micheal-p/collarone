@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as D from './documentsApi.js';
 import { apiGet } from '../../api/client.js';
-import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
+import { useToast, useConfirm, Modal, EmptyState, searchMatcher, usePagedList, Paginator } from '../../components/ui.jsx';
 
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 
@@ -250,6 +250,7 @@ export default function DocumentsApp({ access }) {
   const [docs, setDocs] = useState([]);
   const [folders, setFolders] = useState([]);
   const [activeFolder, setActiveFolder] = useState(null); // null = "All documents"
+  const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
   const [uploadModal, setUploadModal] = useState(false);
   const [versionDoc, setVersionDoc] = useState(null);
@@ -291,13 +292,21 @@ export default function DocumentsApp({ access }) {
     catch (e) { flash(e.message, true); }
   };
 
-  const visibleDocs = activeFolder === null ? docs : docs.filter((d) => (d.folder?.id || null) === activeFolder);
+  // Folder filter first, then search — the two compose.
+  const visibleDocs = useMemo(() => {
+    const inFolder = activeFolder === null ? docs : docs.filter((d) => (d.folder?.id || null) === activeFolder);
+    const match = searchMatcher(q);
+    return inFolder.filter((d) => match(d.name, d.folder?.name));
+  }, [docs, activeFolder, q]);
+  const paged = usePagedList(visibleDocs, 25);
   const activeFolderName = activeFolder ? folders.find((f) => f.id === activeFolder)?.name : 'All documents';
 
   return (
     <div className="lv">
       <style>{FOLDER_CSS}</style>
       <div className="filterbar" style={{ marginTop: 8 }}>
+        <input className="input" placeholder="Search documents…" value={q} onChange={(e) => setQ(e.target.value)}
+          style={{ maxWidth: 240, padding: '6px 10px', fontSize: 13 }} />
         <span className="count">{visibleDocs.length} document{visibleDocs.length === 1 ? '' : 's'} in "{activeFolderName}"</span>
         <button className="btn btn-primary lv-apply" onClick={() => setUploadModal(true)}>Upload document</button>
       </div>
@@ -315,10 +324,11 @@ export default function DocumentsApp({ access }) {
                 <tbody>
                   {visibleDocs.length === 0 && (
                     <tr><td colSpan={6} style={{ padding: 0 }}>
-                      <EmptyState title="No documents in this folder yet" hint="Upload a document to get started." />
+                      <EmptyState title={q ? 'No documents match your search' : 'No documents in this folder yet'}
+                        hint={q ? 'Try a different search term.' : 'Upload a document to get started.'} />
                     </td></tr>
                   )}
-                  {visibleDocs.map((d) => (
+                  {paged.slice.map((d) => (
                     <tr key={d.id}>
                       <td style={{ fontWeight: 500 }}>{d.name}</td>
                       <td className="muted" style={{ fontSize: 13 }}>v{d.current_version}</td>
@@ -337,6 +347,7 @@ export default function DocumentsApp({ access }) {
                 </tbody>
               </table>
             </div>
+            <Paginator page={paged.page} pages={paged.pages} onPage={paged.setPage} total={paged.total} />
           </div>
         </div>
       )}

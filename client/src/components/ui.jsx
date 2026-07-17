@@ -116,6 +116,31 @@ function ConfirmDialog({ opts, onDone }) {
   );
 }
 
+/* ---- client-side pagination -------------------------------------------------
+   const { slice, page, pages, setPage, total } = usePagedList(filteredRows);
+   render {slice.map(...)} then <Paginator page={page} pages={pages} onPage={setPage} />
+   Resets to page 1 whenever the underlying list changes size (filter/search). */
+export function usePagedList(items, pageSize = 25) {
+  const [page, setPage] = useState(1);
+  const total = items.length;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  useEffect(() => { if (page > pages) setPage(1); }, [total, pages]); // eslint-disable-line
+  const safePage = Math.min(page, pages);
+  return { slice: items.slice((safePage - 1) * pageSize, safePage * pageSize), page: safePage, pages, setPage, total };
+}
+
+export function Paginator({ page, pages, onPage, total = null }) {
+  if (pages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, padding: '10px 4px' }}>
+      {total != null && <span className="muted" style={{ fontSize: 12.5, marginRight: 'auto' }}>{total} record{total === 1 ? '' : 's'}</span>}
+      <button className="btn btn-ghost btn-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>Previous</button>
+      <span className="muted" style={{ fontSize: 13 }}>Page {page} of {pages}</span>
+      <button className="btn btn-ghost btn-sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>Next</button>
+    </div>
+  );
+}
+
 /* ---- empty state ----------------------------------------------------------- */
 export function EmptyState({ icon = null, title, hint, action = null }) {
   return (

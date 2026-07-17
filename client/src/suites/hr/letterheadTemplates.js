@@ -55,10 +55,56 @@ export const LETTER_TYPES = {
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 
+// Reference numbers: <TYPE>/<YEAR>/<NNN>, sequenced from the org's issued
+// register — auto-suggested on compose, still editable before issuing.
+export const LETTER_TYPE_ABBREV = {
+  confirmation: 'CONF', promotion: 'PROM', introduction: 'INTR',
+  employment_verification: 'VERF', query: 'QRY', warning: 'WARN', custom: 'LTR',
+};
+export function suggestReference(letterType, issuedLetters) {
+  const year = new Date().getFullYear();
+  const n = (issuedLetters || []).filter((l) => String(l.issued_at || '').startsWith(String(year))).length + 1;
+  return `HR/${LETTER_TYPE_ABBREV[letterType] || 'LTR'}/${year}/${String(n).padStart(3, '0')}`;
+}
+
+// Safe-filing suggestions — which Documents folder a letter belongs in.
+export const LETTER_FOLDER_SUGGESTION = {
+  confirmation: 'HR Letters — Employment',
+  promotion: 'HR Letters — Employment',
+  introduction: 'HR Letters — Verifications',
+  employment_verification: 'HR Letters — Verifications',
+  query: 'HR Letters — Disciplinary',
+  warning: 'HR Letters — Disciplinary',
+  custom: 'HR Letters',
+};
+
+// Client-side logo compression: resize to letterhead scale and keep it small
+// (PNG for transparency; falls back to JPEG when the PNG runs heavy).
+export const compressLogo = (file) => new Promise((resolve, reject) => {
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const scale = Math.min(1, 320 / img.width, 160 / img.height);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+    const png = canvas.toDataURL('image/png');
+    if (png.length < 90000) return resolve(png); // ~65KB — fine for jsonb
+    resolve(canvas.toDataURL('image/jpeg', 0.85));
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that image.')); };
+  img.src = url;
+});
+
 export const LETTERHEAD_CSS = `
   .lh-page { background: #fff; color: #14161a; font-family: Georgia, 'Times New Roman', serif; line-height: 1.65; font-size: 13.5px; padding: 44px 52px; min-height: 640px; --accent: #0A0E1A; }
   .lh-head { margin-bottom: 26px; }
   .lh-name { font-weight: 700; font-size: 21px; letter-spacing: .01em; }
+  .lh-logo { display: block; max-height: 52px; max-width: 220px; object-fit: contain; margin-bottom: 6px; }
+  .lh-classic .lh-logo, .lh-elegant .lh-logo { margin-left: auto; margin-right: auto; }
+  .lh-executive .lh-logo { filter: none; }
   .lh-meta { font-size: 11px; color: #5a5a55; margin-top: 3px; line-height: 1.5; }
   .lh-tagline { font-size: 11px; font-style: italic; color: #7a7a72; margin-top: 2px; }
   .lh-body { white-space: pre-wrap; margin-top: 18px; }
@@ -107,11 +153,16 @@ export function letterHeadHtml(letterhead, { forPrint = false } = {}) {
   const d = letterhead?.details || {};
   const key = letterhead?.template_key || 'classic';
   const contact = [d.address, d.phone, d.email].filter(Boolean).join(' · ');
+  // headerStyle: 'name' (default) | 'logo' (logo only) | 'logo-name' (both)
+  const style = d.logo ? (d.headerStyle || 'logo-name') : 'name';
+  const logoImg = d.logo && style !== 'name' ? `<img class="lh-logo" src="${d.logo}" alt="${esc(d.companyName || 'Company logo')}"/>` : '';
+  const nameBlock = style === 'logo' ? '' : `<div class="lh-name">${esc(d.companyName || 'Your Company Ltd')}</div>`;
   return `
     <div class="lh-page lh-${esc(key)}" style="--accent: ${esc(d.accent || '#0A0E1A')}; ${forPrint ? 'padding:0; min-height:auto;' : ''}">
       <div class="lh-head">
         <div>
-          <div class="lh-name">${esc(d.companyName || 'Your Company Ltd')}</div>
+          ${logoImg}
+          ${nameBlock}
           ${d.tagline ? `<div class="lh-tagline">${esc(d.tagline)}</div>` : ''}
         </div>
         <div class="lh-meta">${esc(contact)}${d.rcNumber ? `${contact ? '<br/>' : ''}RC ${esc(d.rcNumber)}` : ''}</div>

@@ -25,6 +25,8 @@ const I = {
   resume: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
   edit:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2 2 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>,
   link:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.5-1.5"/></svg>,
+  trash:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>,
+  copy:   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
 };
 
 /* ---- RequisitionModal -------------------------------------------------------- */
@@ -206,15 +208,51 @@ function MatchScore({ score }) {
   return <span className={`lc-badge ${tier}`} title="Rubric-based fit score from experience, salary and application completeness — not a hiring decision.">{Math.round(score)} match</span>;
 }
 
-/* ---- ApplicationRow (expandable) ------------------------------------------------ */
-function ApplicationRow({ app, staff, myId, isHrManager, onUpdated, onDeleted, flash, confirm }) {
-  const [expanded, setExpanded] = useState(false);
+/* ---- ApplicationCard — kanban card: name, source, match, rating, stage move ---- */
+function ApplicationCard({ app, isHrManager, selected, onOpen, onStage }) {
+  const [busy, setBusy] = useState(false);
+
+  const move = async (stage) => {
+    setBusy(true);
+    try { await onStage(app, stage); } finally { setBusy(false); }
+  };
+
+  return (
+    <div onClick={() => onOpen(app)} role="button" tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter') onOpen(app); }}
+      style={{
+        background:'var(--surface)', border:`1px solid ${selected ? 'var(--brand)' : 'var(--line-strong)'}`,
+        borderRadius:8, padding:'9px 11px', cursor:'pointer',
+      }}>
+      <div style={{ fontWeight:500, fontSize:13.5, lineHeight:1.3 }}>{app.candidate.name}</div>
+      <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:5, flexWrap:'wrap' }}>
+        <span className="muted" style={{ fontSize:11.5, textTransform:'capitalize' }}>{app.candidate.source.replace('_',' ')}</span>
+        {app.match_score != null && <MatchScore score={app.match_score} />}
+        {app.rating ? <Stars rating={app.rating} /> : null}
+      </div>
+      {isHrManager && (
+        <select className="select" value={app.stage} disabled={busy}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => move(e.target.value)}
+          style={{ fontSize:12, padding:'2px 6px', height:'auto', width:'100%', marginTop:8 }}>
+          {L.STAGE_ORDER.map((s) => <option key={s} value={s}>{L.STAGE[s].label}</option>)}
+        </select>
+      )}
+    </div>
+  );
+}
+
+/* ---- ApplicationDetail — the pre-kanban expandable row body, now a panel
+   rendered below the board for the selected card ------------------------------- */
+function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated, onDeleted, onClose, flash, confirm }) {
   const [interviews, setInterviews] = useState(null);
   const [ivModal, setIvModal] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const loadInterviews = () => L.getInterviews(app.id).then(setInterviews).catch((e) => flash(e.message, true));
-  useEffect(() => { if (expanded && interviews === null) loadInterviews(); }, [expanded]); // eslint-disable-line
+  useEffect(() => {
+    setInterviews(null);
+    L.getInterviews(app.id).then(setInterviews).catch((e) => flash(e.message, true));
+  }, [app.id]); // eslint-disable-line
 
   const canScoreInterview = (iv) => isHrManager || iv.interviewer_id === myId;
 
@@ -238,44 +276,35 @@ function ApplicationRow({ app, staff, myId, isHrManager, onUpdated, onDeleted, f
       danger: true,
     });
     if (!ok) return;
-    try { await L.deleteApplication(app.id); onDeleted(app.id); } catch (e) { flash(e.message, true); }
+    try { await L.deleteApplication(app.id); onDeleted(app.id); onClose(); } catch (e) { flash(e.message, true); }
   };
 
-  const stage = L.STAGE[app.stage] || L.STAGE.applied;
+  const copyDetails = async () => {
+    try {
+      await navigator.clipboard.writeText(`Name: ${app.candidate.name}\nEmail: ${app.candidate.email}\nJob title: ${reqTitle}`);
+      flash('Details copied for account setup.');
+    } catch { flash('Could not copy to clipboard.', true); }
+  };
 
   return (
-    <>
-      <tr>
-        <td>
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <button className="iconbtn" onClick={() => setExpanded((v) => !v)} aria-label="Expand"
-              style={{ transform: expanded ? 'rotate(90deg)' : 'none', transition:'transform .15s' }}>{I.expand}</button>
-            <div>
-              <div style={{ fontWeight:500 }}>{app.candidate.name}</div>
-              <div className="muted" style={{ fontSize:12 }}>{app.candidate.email}</div>
-            </div>
+    <div style={{ marginTop:14, background:'var(--surface)', border:'1px solid var(--line-strong)', borderRadius:'var(--radius)', padding:'14px 16px 16px' }}>
+      <div style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
+        <div>
+          <div style={{ fontWeight:600, fontSize:15 }}>{app.candidate.name}</div>
+          <div className="muted" style={{ fontSize:12.5 }}>
+            {app.candidate.email}{app.candidate.phone ? ` · ${app.candidate.phone}` : ''}
           </div>
-        </td>
-        <td>
-          {isHrManager ? (
-            <select className="select" value={app.stage} disabled={busy} onChange={(e) => patch({ stage: e.target.value })} style={{ fontSize:13, padding:'3px 8px', height:'auto' }}>
-              {L.STAGE_ORDER.map((s) => <option key={s} value={s}>{L.STAGE[s].label}</option>)}
-            </select>
-          ) : <span className={`lc-badge ${stage.cls}`}>{stage.label}</span>}
-        </td>
-        <td className="muted" style={{ fontSize:13, textTransform:'capitalize' }}>{app.candidate.source.replace('_',' ')}</td>
-        <td>{app.match_score != null ? <MatchScore score={app.match_score} /> : <span className="muted">—</span>}</td>
-        <td className="muted" style={{ fontSize:13 }}>{app.rating ? <Stars rating={app.rating} /> : '—'}</td>
-        <td>
+        </div>
+        <span className={`lc-badge ${(L.STAGE[app.stage] || L.STAGE.applied).cls}`} style={{ marginTop:2 }}>{(L.STAGE[app.stage] || L.STAGE.applied).label}</span>
+        <div style={{ marginLeft:'auto', display:'flex', gap:2 }}>
           {app.candidate.resume_path && (
             <button className="iconbtn" title="Resume" onClick={async () => { try { window.open(await L.getResumeUrl(app.candidate.resume_path), '_blank'); } catch (e) { flash(e.message, true); } }}>{I.resume}</button>
           )}
-          {isHrManager && <button className="iconbtn danger-icon" onClick={remove} aria-label="Remove">{I.close}</button>}
-        </td>
-      </tr>
-      {expanded && (
-        <tr><td colSpan={6} style={{ padding:'0 16px 16px', background:'var(--surface)' }}>
-          <div className="lc-app-detail">
+          {isHrManager && <button className="iconbtn danger-icon" disabled={busy} onClick={remove} aria-label="Remove candidate" title="Remove from pipeline">{I.trash}</button>}
+          <button className="iconbtn" onClick={onClose} aria-label="Close details">{I.close}</button>
+        </div>
+      </div>
+      <div className="lc-app-detail">
             {app.candidate.notes && <p className="muted" style={{ fontSize:13, margin:'10px 0' }}>{app.candidate.notes}</p>}
             {app.candidate.portfolio_url && (
               <p style={{ fontSize:13, margin:'10px 0' }}><a href={app.candidate.portfolio_url} target="_blank" rel="noreferrer">{app.candidate.portfolio_url}</a></p>
@@ -326,6 +355,11 @@ function ApplicationRow({ app, staff, myId, isHrManager, onUpdated, onDeleted, f
             {app.stage === 'hired' && (
               <div className="callout-hint">
                 Hired — create the login in <b>Admin Center → Users</b>, then link it here so onboarding can be generated for them.
+                <div style={{ marginTop:8 }}>
+                  <button type="button" className="btn btn-ghost" style={{ fontSize:12, padding:'3px 12px' }} onClick={copyDetails}>
+                    {I.copy} Copy details for account setup
+                  </button>
+                </div>
                 <div className="form-grid" style={{ marginTop:8 }}>
                   <div className="field"><label>Linked account</label>
                     <select className="select" value={app.hired_profile_id || ''} onChange={(e) => patch({ hiredProfileId: e.target.value })}>
@@ -360,15 +394,13 @@ function ApplicationRow({ app, staff, myId, isHrManager, onUpdated, onDeleted, f
                 {!canScoreInterview(iv) && iv.feedback && <p style={{ fontSize:13, margin:'6px 0 0' }}>{iv.feedback}</p>}
               </div>
             ))}
-          </div>
-        </td></tr>
-      )}
+      </div>
       {ivModal && (
         <InterviewModal applicationId={app.id} staff={staff} onClose={() => setIvModal(false)}
           onSaved={(iv) => { setInterviews((ivs) => [iv, ...(ivs || [])]); setIvModal(false); flash('Interview scheduled.'); if (app.stage === 'applied' || app.stage === 'screening') patch({ stage: 'interview' }); }}
           onError={(m) => flash(m, true)} />
       )}
-    </>
+    </div>
   );
 }
 
@@ -377,11 +409,25 @@ function PipelineView({ req, staff, myId, isHrManager, onBack, flash, confirm })
   const [apps, setApps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [showRejected, setShowRejected] = useState(false);
 
   const load = () => { setLoading(true); L.getPipeline(req.id).then(setApps).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); };
   useEffect(load, [req.id]); // eslint-disable-line
 
   const upsert = (app) => setApps((l) => { const i = l.findIndex((a) => a.id === app.id); return i >= 0 ? l.map((a) => (a.id === app.id ? app : a)) : [app, ...l]; });
+
+  const byStage = useMemo(() => {
+    const m = Object.fromEntries(L.STAGE_ORDER.map((s) => [s, []]));
+    for (const a of apps) (m[a.stage] || m.applied).push(a);
+    return m;
+  }, [apps]);
+
+  const selected = selectedId ? apps.find((a) => a.id === selectedId) : null;
+
+  const setStage = async (app, stage) => {
+    try { upsert(await L.updateApplication(app.id, { stage })); } catch (e) { flash(e.message, true); }
+  };
 
   return (
     <div>
@@ -393,19 +439,45 @@ function PipelineView({ req, staff, myId, isHrManager, onBack, flash, confirm })
         </div>
         {isHrManager && <button className="btn btn-primary" style={{ marginLeft:'auto' }} onClick={() => setModal(true)}>{I.add} Add candidate</button>}
       </div>
-      {loading ? <div className="suite-loading"><div className="boot-spinner" /></div> : (
-        <div className="table-wrap">
-          <table className="table">
-            <thead><tr><th>Candidate</th><th>Stage</th><th>Source</th><th>Match</th><th>Rating</th><th></th></tr></thead>
-            <tbody>
-              {apps.length === 0 && <tr><td colSpan={6} className="td-empty">No candidates yet.</td></tr>}
-              {apps.map((app) => (
-                <ApplicationRow key={app.id} app={app} staff={staff} myId={myId} isHrManager={isHrManager}
-                  onUpdated={upsert} onDeleted={(id) => setApps((l) => l.filter((a) => a.id !== id))} flash={flash} confirm={confirm} />
-              ))}
-            </tbody>
-          </table>
+      {loading ? <div className="suite-loading"><div className="boot-spinner" /></div> : apps.length === 0 ? (
+        <EmptyState title="No candidates yet" hint={isHrManager ? 'Add a candidate or share the public apply link from the requisitions list.' : 'Candidates appear here once they apply or are added by HR.'} />
+      ) : (
+        <div style={{ display:'flex', gap:10, alignItems:'flex-start', overflowX:'auto', paddingBottom:6 }}>
+          {L.STAGE_ORDER.map((s) => {
+            const list = byStage[s];
+            const collapsed = s === 'rejected' && !showRejected;
+            return (
+              <div key={s} style={{
+                flex: collapsed ? '0 0 auto' : '1 0 185px', minWidth: collapsed ? 0 : 185, maxWidth: 260,
+                background:'var(--bg)', border:'1px solid var(--line)', borderRadius:'var(--radius)', padding:8,
+              }}>
+                <div style={{ display:'flex', alignItems:'center', gap:6, padding:'2px 2px 6px' }}>
+                  <span className={`lc-badge ${L.STAGE[s].cls}`}>{L.STAGE[s].label}</span>
+                  <span className="muted" style={{ fontSize:12, fontWeight:600 }}>{list.length}</span>
+                  {s === 'rejected' && (
+                    <button className="iconbtn" onClick={() => setShowRejected((v) => !v)}
+                      aria-label={collapsed ? 'Show rejected candidates' : 'Hide rejected candidates'}
+                      style={{ marginLeft:'auto', transform: collapsed ? 'none' : 'rotate(90deg)', transition:'transform .15s' }}>{I.expand}</button>
+                  )}
+                </div>
+                {!collapsed && (
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {list.length === 0 && <p className="muted" style={{ fontSize:12, textAlign:'center', margin:'10px 0' }}>—</p>}
+                    {list.map((app) => (
+                      <ApplicationCard key={app.id} app={app} isHrManager={isHrManager} selected={app.id === selectedId}
+                        onOpen={(a) => setSelectedId((id) => (id === a.id ? null : a.id))} onStage={setStage} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+      )}
+      {selected && (
+        <ApplicationDetail app={selected} reqTitle={req.title} staff={staff} myId={myId} isHrManager={isHrManager}
+          onUpdated={upsert} onDeleted={(id) => setApps((l) => l.filter((a) => a.id !== id))}
+          onClose={() => setSelectedId(null)} flash={flash} confirm={confirm} />
       )}
       {modal && (
         <CandidateModal requisitionId={req.id} onClose={() => setModal(false)}
@@ -463,11 +535,25 @@ export default function RecruitingApp({ access, departments, staff, myId }) {
   const [modal, setModal] = useState(null);
   const [openReq, setOpenReq] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
+  const [stageCounts, setStageCounts] = useState({});
   const { flash, toastNode } = useToast();
   const { confirm, confirmNode } = useConfirm();
 
   const load = () => { setLoading(true); L.getRequisitions().then(setReqs).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); };
   useEffect(load, []); // eslint-disable-line
+  // Single grouped query for all requisitions — no counts is fine (pills just don't render).
+  useEffect(() => { L.getStageCounts().then(setStageCounts).catch(() => {}); }, [openReq]); // refresh after visiting a pipeline
+
+  const removeReq = async (r) => {
+    const ok = await confirm({
+      title: 'Delete requisition',
+      message: `"${r.title}" and all of its candidates, applications and interviews will be permanently deleted.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try { await L.deleteRequisition(r.id); setReqs((l) => l.filter((x) => x.id !== r.id)); flash('Requisition deleted.'); } catch (e) { flash(e.message, true); }
+  };
 
   const upsert = (req) => setReqs((l) => { const i = l.findIndex((r) => r.id === req.id); return i >= 0 ? l.map((r) => (r.id === req.id ? req : r)) : [req, ...l]; });
 
@@ -502,9 +588,21 @@ export default function RecruitingApp({ access, departments, staff, myId }) {
               {view.length === 0 && <tr><td colSpan={6} className="td-empty">No requisitions yet.</td></tr>}
               {view.map((r) => {
                 const st = L.REQ_STATUS[r.status];
+                const counts = stageCounts[r.id];
                 return (
                   <tr key={r.id}>
-                    <td><a href="#" onClick={(e) => { e.preventDefault(); setOpenReq(r); }} style={{ fontWeight:500, color:'var(--ink,inherit)', textDecoration:'none' }}>{r.title}</a></td>
+                    <td>
+                      <a href="#" onClick={(e) => { e.preventDefault(); setOpenReq(r); }} style={{ fontWeight:500, color:'var(--ink,inherit)', textDecoration:'none' }}>{r.title}</a>
+                      {counts && (
+                        <div style={{ display:'flex', gap:4, flexWrap:'wrap', marginTop:4 }}>
+                          {L.STAGE_ORDER.map((s) => counts[s] ? (
+                            <span key={s} className={`lc-badge ${L.STAGE[s].cls}`} style={{ fontSize:10, padding:'1px 6px' }}>
+                              {counts[s]} {L.STAGE[s].label.toLowerCase()}
+                            </span>
+                          ) : null)}
+                        </div>
+                      )}
+                    </td>
                     <td className="muted" style={{ fontSize:13 }}>{r.dept?.name || '—'}</td>
                     <td className="muted" style={{ fontSize:13 }}>{r.hiringManager?.name || '—'}</td>
                     <td className="muted" style={{ fontSize:13 }}>{r.headcount}</td>
@@ -517,6 +615,9 @@ export default function RecruitingApp({ access, departments, staff, myId }) {
                         }}>{I.link}</button>
                       )}
                       {isHrManager && <button className="iconbtn" onClick={() => setModal(r)} aria-label="Edit">{I.edit}</button>}
+                      {isHrManager && (r.status === 'draft' || r.status === 'closed') && (
+                        <button className="iconbtn danger-icon" onClick={() => removeReq(r)} aria-label="Delete requisition" title="Delete requisition">{I.trash}</button>
+                      )}
                     </td>
                   </tr>
                 );

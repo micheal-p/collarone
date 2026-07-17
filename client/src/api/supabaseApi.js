@@ -1365,9 +1365,49 @@ export async function supabaseApi(path, opts = {}) {
   if (method === 'PATCH' && seg[0] === 'crm' && seg[1] === 'activities' && seg[2]) {
     const patch = {};
     if (body.replied !== undefined) patch.replied_at = body.replied ? new Date().toISOString() : null;
+    if (body.followUpAt !== undefined) patch.follow_up_at = body.followUpAt;
+    if (body.notes !== undefined) patch.notes = body.notes;
     const { data, error } = await supabase.from('crm_activities').update(patch).eq('id', seg[2]).select(ACTIVITY_SELECT).single();
     if (error) fail(400, error.message);
     return { activity: data };
+  }
+
+  // ---- crm: deals pipeline ----
+  const DEAL_SELECT = '*, contact:crm_contacts(id,name,phone,whatsapp), company:crm_companies(id,name)';
+  if (head === 'GET /crm' && seg[1] === 'deals') {
+    const { data, error } = await supabase.from('crm_deals').select(DEAL_SELECT).order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { deals: data };
+  }
+  if (head === 'POST /crm' && seg[1] === 'deals') {
+    const { title, contactId, companyId, valueNaira, stage, expectedClose, notes } = body;
+    if (!title?.trim()) fail(400, 'Deal title is required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('crm_deals').insert({
+      title: title.trim(), contact_id: contactId || null, company_id: companyId || null,
+      value_naira: Number(valueNaira) || 0, stage: stage || 'lead', expected_close: expectedClose || null,
+      notes: notes || '', created_by: user.id, org_id: await myOrgId(),
+    }).select(DEAL_SELECT).single();
+    if (error) fail(400, error.message);
+    return { deal: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'crm' && seg[1] === 'deals' && seg.length === 3) {
+    const patch = { updated_at: new Date().toISOString() };
+    if (body.title !== undefined) patch.title = body.title;
+    if (body.contactId !== undefined) patch.contact_id = body.contactId || null;
+    if (body.companyId !== undefined) patch.company_id = body.companyId || null;
+    if (body.valueNaira !== undefined) patch.value_naira = Number(body.valueNaira) || 0;
+    if (body.stage !== undefined) patch.stage = body.stage;
+    if (body.expectedClose !== undefined) patch.expected_close = body.expectedClose || null;
+    if (body.notes !== undefined) patch.notes = body.notes;
+    const { data, error } = await supabase.from('crm_deals').update(patch).eq('id', seg[2]).select(DEAL_SELECT).single();
+    if (error) fail(400, error.message);
+    return { deal: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'deals' && seg.length === 3) {
+    const { error } = await supabase.from('crm_deals').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
   }
   if (head === 'POST /crm' && seg[1] === 'activities') {
     const { contactId, companyId, type, notes, occurredAt } = body;

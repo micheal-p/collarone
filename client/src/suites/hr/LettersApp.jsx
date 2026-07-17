@@ -4,7 +4,7 @@ import { useConfirm, EmptyState } from '../../components/ui.jsx';
 import * as L from './lettersApi.js';
 import * as C from './complianceApi.js';
 import * as D from '../documents/documentsApi.js';
-import { LETTER_TYPES, LETTERHEAD_TEMPLATES, LETTERHEAD_CSS, letterHeadHtml, letterBodyHtml, buildLetterDocument } from './letterheadTemplates.js';
+import { LETTER_TYPES, LETTERHEAD_TEMPLATES, LETTERHEAD_CSS, letterHeadHtml, letterBodyHtml, buildLetterDocument, suggestReference, LETTER_FOLDER_SUGGESTION, compressLogo } from './letterheadTemplates.js';
 
 /* =========================================================================
    HR Letters engine — compose company letters (manually or with Collarone
@@ -32,9 +32,9 @@ const downloadHtml = (html, filename) => {
 
 // Best-effort filing into the Documents suite (same pattern as employment
 // contracts from Payroll) — never blocks issuing.
-async function fileToDocuments({ html, title, employeeId }) {
+async function fileToDocuments({ html, title, employeeId, folderName = 'HR Letters' }) {
   const folders = await D.getFolders();
-  const folder = folders.find((f) => f.name === 'HR Letters') || await D.createFolder({ name: 'HR Letters' });
+  const folder = folders.find((f) => f.name === folderName) || await D.createFolder({ name: folderName });
   const safe = title.replace(/[^a-zA-Z0-9]+/g, '-');
   const file = new File([html], `${safe}.html`, { type: 'text/html' });
   const { path, size } = await D.uploadFile(file, 'hr-letters/');
@@ -57,10 +57,13 @@ function LetterPreview({ letterhead, letter, scale = 1 }) {
 }
 
 /* ---- Compose tab ------------------------------------------------------------- */
-function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me }) {
+function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me, issued, folders }) {
+  const initialType = prefill?.letterType || 'confirmation';
   const [f, setF] = useState(() => ({
-    employeeId: prefill?.employeeId || '', letterType: prefill?.letterType || 'confirmation',
-    reference: '', instructions: prefill?.instructions || '', body: '', requestId: prefill?.requestId || null,
+    employeeId: prefill?.employeeId || '', letterType: initialType,
+    reference: suggestReference(initialType, issued), refTouched: false,
+    folderName: LETTER_FOLDER_SUGGESTION[initialType] || 'HR Letters',
+    instructions: prefill?.instructions || '', body: '', requestId: prefill?.requestId || null,
     caseId: prefill?.caseId || null, caseField: prefill?.caseField || null,
     signerName: me?.name || '', signerRole: 'Human Resources',
   }));
@@ -68,9 +71,20 @@ function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me }) {
   const [busy, setBusy] = useState(false);
 
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  // Changing letter type refreshes the auto ref (unless hand-edited) and the
+  // suggested filing folder.
+  const setType = (t) => setF((s) => ({
+    ...s, letterType: t,
+    reference: s.refTouched ? s.reference : suggestReference(t, issued),
+    folderName: LETTER_FOLDER_SUGGESTION[t] || 'HR Letters',
+  }));
   const emp = staff.find((s) => s.id === f.employeeId);
   const type = LETTER_TYPES[f.letterType] || LETTER_TYPES.custom;
   const title = emp ? `${type.label} — ${emp.name}` : type.label;
+  const folderOptions = useMemo(() => {
+    const names = new Set([f.folderName, ...Object.values(LETTER_FOLDER_SUGGESTION), ...(folders || []).map((x) => x.name)]);
+    return [...names];
+  }, [folders, f.folderName]);
 
   const ctx = () => ({
     letterType: f.letterType, letterTypeLabel: type.label,
@@ -114,10 +128,10 @@ function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me }) {
         try { await C.updateCase(f.caseId, { [f.caseField]: saved.id }); } catch { /* case link is best-effort */ }
       }
       downloadHtml(html, `${title.replace(/[^a-zA-Z0-9]+/g, '-')}.html`);
-      fileToDocuments({ html, title, employeeId: emp.id }).catch(() => {});
-      flash('Letter issued — downloaded, filed to Documents in the background.');
+      fileToDocuments({ html, title: `${title} · ${f.reference}`, employeeId: emp.id, folderName: f.folderName }).catch(() => {});
+      flash(`Letter issued — filing to "${f.folderName}" in the background.`);
       onIssued(saved);
-      setF((s) => ({ ...s, body: '', reference: '', instructions: '', requestId: null, caseId: null, caseField: null }));
+      setF((s) => ({ ...s, body: '', instructions: '', requestId: null, caseId: null, caseField: null, refTouched: false, reference: suggestReference(s.letterType, [saved, ...(issued || [])]) }));
     } catch (e) { flash(e.message, true); }
     finally { setBusy(false); }
   };
@@ -137,7 +151,7 @@ function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me }) {
               {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select></div>
           <div className="field"><label>Letter type</label>
-            <select className="select" value={f.letterType} onChange={(e) => set('letterType', e.target.value)}>
+            <select className="select" value={f.letterType} onChange={(e) => setType(e.target.value)}>
               {Object.entries(LETTER_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
             </select></div>
         </div>
@@ -157,13 +171,19 @@ function ComposeTab({ staff, letterhead, flash, onIssued, prefill, me }) {
         </div>
 
         <div className="form-grid">
-          <div className="field"><label>Our ref <span className="muted">(optional)</span></label>
-            <input className="input" value={f.reference} onChange={(e) => set('reference', e.target.value)} placeholder="e.g. HR/CONF/2026/014" /></div>
+          <div className="field"><label>Our ref <span className="muted">(auto)</span></label>
+            <input className="input" value={f.reference} onChange={(e) => setF((s) => ({ ...s, reference: e.target.value, refTouched: true }))} /></div>
+          <div className="field"><label>File into <span className="muted">(Documents folder)</span></label>
+            <select className="select" value={f.folderName} onChange={(e) => set('folderName', e.target.value)}>
+              {folderOptions.map((n) => <option key={n} value={n}>{n}</option>)}
+            </select></div>
+        </div>
+        <div className="form-grid">
           <div className="field"><label>Signed by</label>
             <input className="input" value={f.signerName} onChange={(e) => set('signerName', e.target.value)} /></div>
+          <div className="field"><label>Signer title</label>
+            <input className="input" value={f.signerRole} onChange={(e) => set('signerRole', e.target.value)} /></div>
         </div>
-        <div className="field"><label>Signer title</label>
-          <input className="input" value={f.signerRole} onChange={(e) => set('signerRole', e.target.value)} /></div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button className="btn btn-primary" onClick={issue} disabled={busy}>
@@ -295,6 +315,7 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved }) {
     phone: current?.details?.phone || '', email: current?.details?.email || '',
     rcNumber: current?.details?.rcNumber || '', tagline: current?.details?.tagline || '',
     accent: current?.details?.accent || '#0A0E1A',
+    logo: current?.details?.logo || null, headerStyle: current?.details?.headerStyle || 'logo-name',
   }));
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -349,6 +370,32 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved }) {
                 <input className="input" type="color" value={d.accent} onChange={(e) => set('accent', e.target.value)} style={{ padding: 4, height: 38 }} /></div>
             </div>
 
+            <div className="form-grid">
+              <div className="field"><label>Company logo <span className="muted">(optional — compressed automatically)</span></label>
+                <input type="file" accept="image/*" style={{ fontSize: 13 }}
+                  onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    try { set('logo', await compressLogo(file)); flash('Logo added — compressed for the letterhead.'); }
+                    catch (err) { flash(err.message, true); }
+                  }} />
+                {d.logo && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                    <img src={d.logo} alt="Logo preview" style={{ maxHeight: 36, maxWidth: 120, objectFit: 'contain', border: '1px solid var(--line)', borderRadius: 6, padding: 3, background: '#fff' }} />
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => set('logo', null)}>Remove</button>
+                  </div>
+                )}
+              </div>
+              <div className="field"><label>Letterhead header shows</label>
+                <select className="select" value={d.headerStyle} onChange={(e) => set('headerStyle', e.target.value)} disabled={!d.logo}>
+                  <option value="logo-name">Logo and company name</option>
+                  <option value="logo">Logo only</option>
+                  <option value="name">Company name only</option>
+                </select>
+                {!d.logo && <span className="muted" style={{ fontSize: 12, marginTop: 4 }}>Upload a logo to unlock logo options.</span>}
+              </div>
+            </div>
+
             <div className="field"><label>Template — {LETTERHEAD_TEMPLATES[tpl].label}</label>
               <div className="lt-tpl-grid">
                 {Object.entries(LETTERHEAD_TEMPLATES).map(([k, v]) => (
@@ -399,9 +446,14 @@ export default function LettersApp({ staff, flash, externalPrefill = null, onPre
   const [issued, setIssued] = useState([]);
   const [me, setMe] = useState(null);
   const [orgName, setOrgName] = useState('');
+  const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [prefill, setPrefill] = useState(externalPrefill);
   const { confirm, confirmNode } = useConfirm();
+
+  // Existing Documents folders feed the "File into" suggestions — best-effort,
+  // the letter still issues if the Documents suite isn't reachable.
+  useEffect(() => { D.getFolders().then(setFolders).catch(() => {}); }, []);
 
   // Another tab (probation confirm, disciplinary query) sent us here with a
   // prefilled composer — consume it once.
@@ -445,7 +497,7 @@ export default function LettersApp({ staff, flash, externalPrefill = null, onPre
 
       {tab === 'compose' && (
         <ComposeTab key={prefill ? `${prefill.requestId || ''}-${prefill.employeeId || ''}-${prefill.letterType || ''}-${prefill.caseId || ''}` : 'blank'}
-          staff={staff} letterhead={defaultLetterhead} flash={flash} me={me} prefill={prefill}
+          staff={staff} letterhead={defaultLetterhead} flash={flash} me={me} prefill={prefill} issued={issued} folders={folders}
           onIssued={(l) => { setIssued((xs) => [l, ...xs]); setRequests((rs) => rs.map((r) => (r.id === l.request_id ? { ...r, status: 'issued' } : r))); setPrefill(null); }} />
       )}
       {tab === 'requests' && (

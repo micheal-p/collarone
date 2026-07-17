@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import * as V from './visitorApi.js';
-import { EmptyState, searchMatcher, useConfirm, useToast } from '../../components/ui.jsx';
+import { EmptyState, Paginator, searchMatcher, useConfirm, usePagedList, useToast } from '../../components/ui.jsx';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
@@ -655,6 +655,8 @@ function ManagementView({ flash }) {
   const [loading,  setLoading]  = useState(true);
   const [tab,      setTab]      = useState('dashboard');
   const [q,        setQ]        = useState('');
+  const [from,     setFrom]     = useState('');
+  const [to,       setTo]       = useState('');
   const [modal,    setModal]    = useState(false);
   const [banModal, setBanModal] = useState(null);
   const { confirm, confirmNode } = useConfirm();
@@ -681,12 +683,34 @@ function ManagementView({ flash }) {
     import('../../api/client.js').then(({ apiGet }) => apiGet('/staff').then((d) => setStaff(d.staff)).catch(() => {}));
   }, []);
 
+  // Date range first, then search, then paginate — the three compose.
   const logView = useMemo(() => {
     let list = visits;
+    if (from) { const start = new Date(`${from}T00:00:00`); list = list.filter((v) => new Date(v.expected_at || v.created_at) >= start); }
+    if (to)   { const end = new Date(`${to}T23:59:59.999`); list = list.filter((v) => new Date(v.expected_at || v.created_at) <= end); }
     const match = searchMatcher(q);
     list = list.filter((v) => match(v.visitor?.name, v.host?.name, v.purpose, v.access_code));
     return list;
-  }, [visits, q]);
+  }, [visits, q, from, to]);
+  const logPaged = usePagedList(logView, 25);
+
+  // Security log export — current filtered view, client-side.
+  const downloadCsv = () => {
+    const esc = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
+    const rows = [
+      ['Visitor', 'Company', 'Host', 'Purpose', 'Expected', 'Status', 'Badge'],
+      ...logView.map((v) => [
+        v.visitor?.name, v.visitor?.company || 'Individual', v.host?.name || '',
+        v.purpose, V.fmtDt(v.expected_at), (V.STATUS[v.status] || {}).label || v.status, v.badge_number || '',
+      ]),
+    ];
+    const url = URL.createObjectURL(new Blob([rows.map((r) => r.map(esc).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `visitor-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const unban = async (vis) => {
     const ok = await confirm({ title: `Unban ${vis.name}?`, message: 'They will be allowed entry on future visits again.', confirmLabel: 'Unban' });
@@ -738,14 +762,20 @@ function ManagementView({ flash }) {
 
       {!loading && tab === 'log' && (
         <>
-          <div className="filterbar" style={{ marginTop:8 }}>
+          <div className="filterbar" style={{ marginTop:8, gap:8, flexWrap:'wrap' }}>
+            <span className="muted" style={{ fontSize:12.5 }}>From</span>
+            <input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ maxWidth:150, padding:'5px 8px', fontSize:13 }} />
+            <span className="muted" style={{ fontSize:12.5 }}>To</span>
+            <input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ maxWidth:150, padding:'5px 8px', fontSize:13 }} />
+            <button className="btn btn-ghost" style={{ fontSize:12.5 }} onClick={downloadCsv} disabled={logView.length === 0}>Download CSV</button>
             <div className="cmd-search" style={{ marginLeft:'auto' }}>
               {I.search}
               <input placeholder="Search visitor, host, purpose, code…" value={q} onChange={(e) => setQ(e.target.value)} style={{ border:'none', outline:'none', background:'transparent', fontSize:13, marginLeft:6, width:220 }} />
             </div>
             <span className="count">{logView.length} record{logView.length===1?'':'s'}</span>
           </div>
-          <VisitsTable visits={logView} canAct={false} flash={flash} onRefresh={load} onBan={setBanModal} />
+          <VisitsTable visits={logPaged.slice} canAct={false} flash={flash} onRefresh={load} onBan={setBanModal} />
+          <Paginator page={logPaged.page} pages={logPaged.pages} onPage={logPaged.setPage} total={logPaged.total} />
         </>
       )}
 

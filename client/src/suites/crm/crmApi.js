@@ -14,6 +14,24 @@ export const getActivities   = (qs = '') => apiGet(`/crm/activities${qs ? `?${qs
 export const createActivity  = (body) => apiPost('/crm/activities', body).then((d) => d.activity);
 export const deleteActivity  = (id) => apiDelete(`/crm/activities/${id}`);
 export const setActivityReplied = (id, replied) => apiPatch(`/crm/activities/${id}`, { replied }).then((d) => d.activity);
+export const setFollowUp = (activityId, followUpAt) => apiPatch(`/crm/activities/${activityId}`, { followUpAt }).then((d) => d.activity);
+
+export const getDeals   = () => apiGet('/crm/deals').then((d) => d.deals);
+export const createDeal = (body) => apiPost('/crm/deals', body).then((d) => d.deal);
+export const updateDeal = (id, body) => apiPatch(`/crm/deals/${id}`, body).then((d) => d.deal);
+export const deleteDeal = (id) => apiDelete(`/crm/deals/${id}`);
+
+// Ordered lead → lost; object key order drives the kanban column order.
+export const DEAL_STAGES = {
+  lead:      { label: 'Lead',      bg: '#deecfd', fg: '#194b8f' },
+  qualified: { label: 'Qualified', bg: '#f0e6ff', fg: '#5a2ca0' },
+  proposal:  { label: 'Proposal',  bg: '#fff4ce', fg: '#7a5200' },
+  won:       { label: 'Won',       bg: '#dff6dd', fg: '#1a6a1a' },
+  lost:      { label: 'Lost',      bg: '#fde7e9', fg: '#a4262c' },
+};
+
+export const fmtNaira = (v) => `₦${Number(v || 0).toLocaleString('en-NG')}`;
+export const fmtDay = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '—';
 
 export const ACTIVITY_TYPES = {
   call:        { label: 'Call',     cls: 'crm-t-call' },

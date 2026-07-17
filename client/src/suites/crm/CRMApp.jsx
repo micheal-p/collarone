@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import * as C from './crmApi.js';
 import { waDigits as normalizeWa } from '../../lib/whatsapp.js';
-import { EmptyState, Modal, searchMatcher, useConfirm, useToast } from '../../components/ui.jsx';
+import { EmptyState, Modal, Paginator, searchMatcher, useConfirm, usePagedList, useToast } from '../../components/ui.jsx';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
@@ -11,6 +11,7 @@ const I = {
   chev:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>,
   trash:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>,
   log:    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5"/></svg>,
+  clock:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>,
 };
 
 const CSS = `
@@ -39,6 +40,22 @@ const CSS = `
   .crm-activity-item:first-child { border-top:none; }
   .crm-activity-meta { font-size:12px; color:var(--text-2); margin-top:2px; }
   .crm-activity-empty { font-size:13px; color:var(--text-2); padding:10px 0; }
+
+  .crm-pill-row { display:flex; gap:8px; align-items:center; }
+  .crm-pill { font-size:12px; font-weight:600; padding:5px 12px; border-radius:100px; border:1px solid var(--line); background:var(--surface); color:var(--text-2); cursor:pointer; }
+  .crm-pill.active { background:#deecfd; border-color:#b3d3f7; color:#194b8f; }
+  .crm-fu-pill { display:inline-block; font-size:11px; font-weight:700; padding:2px 9px; border-radius:100px; background:#deecfd; color:#194b8f; white-space:nowrap; }
+  .crm-fu-pill.overdue { background:#fde7e9; color:#a4262c; }
+  .crm-fu-strip { border:1px solid var(--line); background:var(--surface); border-radius:12px; padding:12px 16px; margin:8px 0 14px; max-width:720px; }
+  .crm-kanban { display:flex; gap:12px; align-items:flex-start; overflow-x:auto; padding:4px 0 12px; }
+  .crm-kcol { flex:0 0 232px; min-width:232px; background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:10px; }
+  .crm-kcol-head { display:flex; align-items:center; gap:8px; }
+  .crm-kcol-total { font-size:12px; font-weight:600; color:var(--text-2); margin:6px 2px 10px; }
+  .crm-deal-card { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
+  .crm-deal-card:hover { border-color:var(--text-2); }
+  .crm-deal-title { font-weight:600; font-size:13.5px; margin-bottom:2px; }
+  .crm-deal-meta { font-size:12px; color:var(--text-2); }
+  .crm-overdue { color:#a4262c !important; font-weight:600; }
 `;
 
 /* ---- shared bits ------------------------------------------------------------ */
@@ -49,7 +66,49 @@ function ActivityBadge({ type }) {
   return <span className={`crm-badge ${t.cls}`}>{t.label}</span>;
 }
 
-function ActivityList({ activities, onDelete }) {
+function FollowUpPill({ at }) {
+  if (!at) return null;
+  const overdue = new Date(at).getTime() < Date.now();
+  return <span className={`crm-fu-pill ${overdue ? 'overdue' : ''}`}>Follow up {C.fmtDay(at)}</span>;
+}
+
+// datetime-local wants local wall-clock time, not the UTC ISO slice.
+const toLocalInput = (d) => { const t = new Date(d); t.setMinutes(t.getMinutes() - t.getTimezoneOffset()); return t.toISOString().slice(0, 16); };
+
+function FollowUpModal({ activity, onClose, onSaved, flash }) {
+  const [at, setAt] = useState(() => toLocalInput(activity.follow_up_at || Date.now() + 24 * 3600 * 1000));
+  const [busy, setBusy] = useState(false);
+
+  const save = async (value) => {
+    setBusy(true);
+    try {
+      const saved = await C.setFollowUp(activity.id, value);
+      flash(value ? 'Follow-up set.' : 'Follow-up cleared.');
+      onSaved(saved);
+      onClose();
+    } catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title="Set follow-up" onClose={onClose}>
+      <form onSubmit={(e) => { e.preventDefault(); save(new Date(at).toISOString()); }}>
+        <Field label="Follow up on">
+          <input className="input" type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} required autoFocus />
+        </Field>
+        <div className="modal-actions">
+          {activity.follow_up_at && (
+            <button type="button" className="btn btn-ghost" style={{ marginRight: 'auto', color: '#a4262c' }} disabled={busy} onClick={() => save(null)}>Clear follow-up</button>
+          )}
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function ActivityList({ activities, onDelete, onUpdated, flash }) {
+  const [fuFor, setFuFor] = useState(null);
   if (!activities?.length) return <div className="crm-activity-empty">No activity logged yet.</div>;
   return (
     <div>
@@ -57,12 +116,14 @@ function ActivityList({ activities, onDelete }) {
         <div className="crm-activity-item" key={a.id}>
           <ActivityBadge type={a.type} />
           <div style={{ flex: 1 }}>
-            <div>{a.notes || <span className="muted">No notes</span>}</div>
+            <div>{a.notes || <span className="muted">No notes</span>} {a.follow_up_at && <FollowUpPill at={a.follow_up_at} />}</div>
             <div className="crm-activity-meta">{C.fmtDt(a.occurred_at)} &bull; logged by {a.author?.name || '—'}</div>
           </div>
+          {onUpdated && <button className="iconbtn" aria-label="Set follow-up" title="Set follow-up" onClick={() => setFuFor(a)}>{I.clock}</button>}
           <button className="iconbtn" aria-label="Delete" onClick={() => onDelete(a.id)}>{I.trash}</button>
         </div>
       ))}
+      {fuFor && <FollowUpModal activity={fuFor} onClose={() => setFuFor(null)} onSaved={onUpdated} flash={flash} />}
     </div>
   );
 }
@@ -221,6 +282,7 @@ function CompaniesTab({ flash }) {
     const match = searchMatcher(q);
     return companies.filter((c) => match(c.name, c.industry));
   }, [companies, q]);
+  const { slice, page, pages, setPage, total } = usePagedList(view);
 
   const toggleExpand = async (c) => {
     if (expand === c.id) { setExpand(null); return; }
@@ -275,7 +337,7 @@ function CompaniesTab({ flash }) {
                     : <span className="td-empty" style={{ display: 'block' }}>No companies match your search.</span>}
                 </td></tr>
               )}
-              {view.map((c) => (
+              {slice.map((c) => (
                 <Fragment key={c.id}>
                   <tr>
                     <td style={{ fontWeight: 500 }}>{c.name}</td>
@@ -298,7 +360,8 @@ function CompaniesTab({ flash }) {
                         </div>
                         {c.notes && <p style={{ fontSize: 13, margin: '0 0 12px' }}>{c.notes}</p>}
                         <h4 style={{ fontSize: 13, margin: '0 0 4px' }}>Activity</h4>
-                        <ActivityList activities={activities[c.id]} onDelete={(id) => removeActivity(c.id, id)} />
+                        <ActivityList activities={activities[c.id]} onDelete={(id) => removeActivity(c.id, id)} flash={flash}
+                          onUpdated={(a) => setActivities((s) => ({ ...s, [c.id]: s[c.id].map((x) => (x.id === a.id ? a : x)) }))} />
                       </td>
                     </tr>
                   )}
@@ -306,6 +369,7 @@ function CompaniesTab({ flash }) {
               ))}
             </tbody>
           </table>
+          <Paginator page={page} pages={pages} onPage={setPage} total={total} />
         </div>
       )}
 
@@ -347,6 +411,7 @@ function ContactsTab({ flash }) {
     const match = searchMatcher(q);
     return contacts.filter((c) => match(c.name, c.company?.name, c.job_title));
   }, [contacts, q]);
+  const { slice, page, pages, setPage, total } = usePagedList(view);
 
   const toggleExpand = async (c) => {
     if (expand === c.id) { setExpand(null); return; }
@@ -401,7 +466,7 @@ function ContactsTab({ flash }) {
                     : <span className="td-empty" style={{ display: 'block' }}>No contacts match your search.</span>}
                 </td></tr>
               )}
-              {view.map((c) => (
+              {slice.map((c) => (
                 <Fragment key={c.id}>
                   <tr>
                     <td style={{ fontWeight: 500 }}>{c.name}</td>
@@ -424,7 +489,8 @@ function ContactsTab({ flash }) {
                         </div>
                         {c.notes && <p style={{ fontSize: 13, margin: '0 0 12px' }}>{c.notes}</p>}
                         <h4 style={{ fontSize: 13, margin: '0 0 4px' }}>Activity</h4>
-                        <ActivityList activities={activities[c.id]} onDelete={(id) => removeActivity(c.id, id)} />
+                        <ActivityList activities={activities[c.id]} onDelete={(id) => removeActivity(c.id, id)} flash={flash}
+                          onUpdated={(a) => setActivities((s) => ({ ...s, [c.id]: s[c.id].map((x) => (x.id === a.id ? a : x)) }))} />
                       </td>
                     </tr>
                   )}
@@ -432,6 +498,7 @@ function ContactsTab({ flash }) {
               ))}
             </tbody>
           </table>
+          <Paginator page={page} pages={pages} onPage={setPage} total={total} />
         </div>
       )}
 
@@ -463,6 +530,7 @@ const MsgIcons = {
 function MessagesTab({ flash }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all'); // all | awaiting | replied
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -483,22 +551,34 @@ function MessagesTab({ flash }) {
 
   const waDigits = (m) => normalizeWa(m.contact?.whatsapp || m.contact?.phone || '');
   const awaiting = messages.filter((m) => !m.replied_at).length;
+  const view = useMemo(
+    () => messages.filter((m) => filter === 'all' || (filter === 'awaiting' ? !m.replied_at : !!m.replied_at)),
+    [messages, filter],
+  );
 
   return (
     <>
       <div className="filterbar" style={{ marginTop: 8 }}>
+        <div className="crm-pill-row">
+          {[['all', 'All'], ['awaiting', 'Awaiting reply'], ['replied', 'Replied']].map(([k, label]) => (
+            <button key={k} className={`crm-pill ${filter === k ? 'active' : ''}`} onClick={() => setFilter(k)}>{label}</button>
+          ))}
+        </div>
         <span className="count">
           {messages.length} message{messages.length === 1 ? '' : 's'}{awaiting > 0 && ` · ${awaiting} awaiting reply`}
         </span>
       </div>
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
+      {!loading && messages.length > 0 && view.length === 0 && (
+        <div className="crm-activity-empty">No {filter === 'awaiting' ? 'messages awaiting reply' : 'replied messages'}.</div>
+      )}
       {!loading && messages.length === 0 && (
         <div className="crm-activity-empty" style={{ maxWidth: 560 }}>
           No messages yet. When a visitor fills the contact form on your website (or the embedded form on your own site),
           their message lands here with their details, ready to reply.
         </div>
       )}
-      {!loading && messages.map((m) => (
+      {!loading && view.map((m) => (
         <div className="crm-msg-card" key={m.id} style={{ maxWidth: 720, opacity: m.replied_at ? 0.72 : 1 }}>
           <div className="crm-msg-head">
             <strong style={{ fontSize: 14.5 }}>{m.contact?.name || 'Visitor'}</strong>
@@ -536,6 +616,7 @@ function MessagesTab({ flash }) {
 function ActivityTab({ flash }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fuFor, setFuFor] = useState(null);
   const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
@@ -565,13 +646,210 @@ function ActivityTab({ flash }) {
               <ActivityBadge type={a.type} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 500 }}>{a.contact?.name || a.company?.name}</div>
-                <div>{a.notes || <span className="muted">No notes</span>}</div>
+                <div>{a.notes || <span className="muted">No notes</span>} {a.follow_up_at && <FollowUpPill at={a.follow_up_at} />}</div>
                 <div className="crm-activity-meta">{C.fmtDt(a.occurred_at)} &bull; logged by {a.author?.name || '—'}</div>
               </div>
+              <button className="iconbtn" aria-label="Set follow-up" title="Set follow-up" onClick={() => setFuFor(a)}>{I.clock}</button>
               <button className="iconbtn" aria-label="Delete" onClick={() => removeActivity(a.id)}>{I.trash}</button>
             </div>
           ))}
         </div>
+      )}
+      {fuFor && (
+        <FollowUpModal activity={fuFor} onClose={() => setFuFor(null)} flash={flash}
+          onSaved={(saved) => setActivities((s) => s.map((x) => (x.id === saved.id ? saved : x)))} />
+      )}
+      {confirmNode}
+    </>
+  );
+}
+
+/* ---- PipelineTab — deals kanban ----------------------------------------------
+   Deals move lead → qualified → proposal → won/lost via the select on each
+   card. Won/lost columns collapse to count + value so the board stays about
+   what's still in play. */
+const dealLate = (d) =>
+  d.expected_close && !['won', 'lost'].includes(d.stage) && new Date(d.expected_close).setHours(23, 59, 59, 999) < Date.now();
+
+function DealModal({ deal, contacts, companies, onClose, onSaved, onDelete, flash }) {
+  const [f, setF] = useState(() => deal
+    ? { title: deal.title, contactId: deal.contact_id || '', companyId: deal.company_id || '', valueNaira: deal.value_naira || '', stage: deal.stage, expectedClose: (deal.expected_close || '').slice(0, 10), notes: deal.notes || '' }
+    : { title: '', contactId: '', companyId: '', valueNaira: '', stage: 'lead', expectedClose: '', notes: '' });
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!f.title.trim()) return flash('Deal title is required.', true);
+    setBusy(true);
+    try {
+      const payload = { ...f, contactId: f.contactId || null, companyId: f.companyId || null, expectedClose: f.expectedClose || null };
+      const saved = deal ? await C.updateDeal(deal.id, payload) : await C.createDeal(payload);
+      flash(deal ? 'Deal updated.' : 'Deal added.');
+      onSaved(saved);
+      onClose();
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title={deal ? 'Edit deal' : 'New deal'} onClose={onClose} wide>
+      <form onSubmit={submit}>
+        <Field label="Deal title *"><input className="input" value={f.title} onChange={(e) => set('title', e.target.value)} required autoFocus /></Field>
+        <div className="form-grid">
+          <Field label="Contact">
+            <select className="select" value={f.contactId} onChange={(e) => set('contactId', e.target.value)}>
+              <option value="">— No contact —</option>
+              {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Company">
+            <select className="select" value={f.companyId} onChange={(e) => set('companyId', e.target.value)}>
+              <option value="">— No company —</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Value (₦)"><input className="input" type="number" min="0" step="1" value={f.valueNaira} onChange={(e) => set('valueNaira', e.target.value)} /></Field>
+          <Field label="Stage">
+            <select className="select" value={f.stage} onChange={(e) => set('stage', e.target.value)}>
+              {Object.entries(C.DEAL_STAGES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </Field>
+          <Field label="Expected close"><input className="input" type="date" value={f.expectedClose} onChange={(e) => set('expectedClose', e.target.value)} /></Field>
+        </div>
+        <Field label="Notes"><textarea className="input" rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
+        <div className="modal-actions">
+          {deal && <button type="button" className="btn btn-ghost" style={{ marginRight: 'auto', color: '#a4262c' }} disabled={busy} onClick={() => onDelete(deal)}>Delete deal</button>}
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : deal ? 'Save changes' : 'Add deal'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function DealCard({ deal, onEdit, onStage }) {
+  const who = [deal.company?.name, deal.contact?.name].filter(Boolean).join(' · ');
+  return (
+    <div className="crm-deal-card" onClick={() => onEdit(deal)}>
+      <div className="crm-deal-title">{deal.title}</div>
+      <div className="crm-deal-meta">{who || '—'}</div>
+      <div style={{ fontWeight: 600, fontSize: 13, margin: '4px 0 2px' }}>{C.fmtNaira(deal.value_naira)}</div>
+      {deal.expected_close && <div className={`crm-deal-meta ${dealLate(deal) ? 'crm-overdue' : ''}`}>Close {C.fmtDay(deal.expected_close)}</div>}
+      <select className="select" value={deal.stage} onClick={(e) => e.stopPropagation()}
+        onChange={(e) => onStage(deal, e.target.value)} style={{ marginTop: 8, fontSize: 12, padding: '4px 8px', width: '100%' }}>
+        {Object.entries(C.DEAL_STAGES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function PipelineTab({ flash }) {
+  const [deals, setDeals] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [acts, setActs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(null); // null | 'new' | deal
+  const [openClosed, setOpenClosed] = useState({}); // { won: bool, lost: bool }
+  const { confirm, confirmNode } = useConfirm();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [ds, ct, co, ac] = await Promise.all([C.getDeals(), C.getContacts(), C.getCompanies(), C.getActivities()]);
+      setDeals(ds); setContacts(ct); setCompanies(co); setActs(ac);
+    } catch (e) { flash(e.message, true); } finally { setLoading(false); }
+  }, [flash]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const byStage = useMemo(() => {
+    const m = Object.fromEntries(Object.keys(C.DEAL_STAGES).map((k) => [k, []]));
+    deals.forEach((d) => (m[d.stage] || m.lead).push(d));
+    return m;
+  }, [deals]);
+
+  const dueFollowUps = useMemo(() => {
+    const cutoff = Date.now() + 24 * 3600 * 1000;
+    return acts
+      .filter((a) => a.follow_up_at && !a.replied_at && new Date(a.follow_up_at).getTime() <= cutoff)
+      .sort((a, b) => new Date(a.follow_up_at) - new Date(b.follow_up_at));
+  }, [acts]);
+
+  const upsert = (saved) => setDeals((s) => (s.some((d) => d.id === saved.id) ? s.map((d) => (d.id === saved.id ? saved : d)) : [saved, ...s]));
+
+  const moveStage = async (deal, stage) => {
+    try { upsert(await C.updateDeal(deal.id, { stage })); flash(`Moved to ${C.DEAL_STAGES[stage].label}.`); }
+    catch (e) { flash(e.message, true); }
+  };
+
+  const removeDeal = async (deal) => {
+    const ok = await confirm({ title: `Delete "${deal.title}"?`, message: 'The deal is removed from the pipeline permanently.', confirmLabel: 'Delete deal', danger: true });
+    if (!ok) return;
+    try { await C.deleteDeal(deal.id); setDeals((s) => s.filter((d) => d.id !== deal.id)); setModal(null); flash('Deal deleted.'); }
+    catch (e) { flash(e.message, true); }
+  };
+
+  const grandTotal = deals.reduce((s, d) => s + Number(d.value_naira || 0), 0);
+
+  return (
+    <>
+      <div className="filterbar" style={{ marginTop: 8 }}>
+        <span className="count">{deals.length} deal{deals.length === 1 ? '' : 's'} · {C.fmtNaira(grandTotal)}</span>
+        <button className="btn btn-primary lv-apply" onClick={() => setModal('new')}><span style={{ marginRight: 6 }}>{I.add}</span>New deal</button>
+      </div>
+
+      {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
+
+      {!loading && dueFollowUps.length > 0 && (
+        <div className="crm-fu-strip">
+          <h4 style={{ fontSize: 13, margin: '0 0 8px' }}>Follow-ups due</h4>
+          {dueFollowUps.map((a) => (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13, minWidth: 0 }}>
+              <FollowUpPill at={a.follow_up_at} />
+              <strong style={{ whiteSpace: 'nowrap' }}>{a.contact?.name || a.company?.name || '—'}</strong>
+              <span className="muted" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.notes || ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && deals.length === 0 && (
+        <EmptyState title="No deals yet" hint="Track every opportunity from lead to won — value, stage and expected close in one board."
+          action={<button className="btn btn-primary" onClick={() => setModal('new')}>New deal</button>} />
+      )}
+
+      {!loading && deals.length > 0 && (
+        <div className="crm-kanban">
+          {Object.entries(C.DEAL_STAGES).map(([key, s]) => {
+            const col = byStage[key];
+            const totalV = col.reduce((sum, d) => sum + Number(d.value_naira || 0), 0);
+            const closed = key === 'won' || key === 'lost';
+            const collapsed = closed && !openClosed[key];
+            return (
+              <div className="crm-kcol" key={key}>
+                <div className="crm-kcol-head">
+                  <span className="crm-badge" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
+                  <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>{col.length}</span>
+                  {closed && (
+                    <button className="iconbtn" style={{ marginLeft: 'auto' }} aria-label={collapsed ? 'Expand column' : 'Collapse column'}
+                      onClick={() => setOpenClosed((o) => ({ ...o, [key]: !o[key] }))}>
+                      <span style={{ display: 'inline-block', transform: collapsed ? 'none' : 'rotate(90deg)' }}>{I.chev}</span>
+                    </button>
+                  )}
+                </div>
+                <div className="crm-kcol-total">{C.fmtNaira(totalV)}</div>
+                {!collapsed && col.map((d) => <DealCard key={d.id} deal={d} onEdit={setModal} onStage={moveStage} />)}
+                {!collapsed && col.length === 0 && <div className="crm-activity-empty" style={{ padding: '2px 2px 6px' }}>No deals</div>}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {modal && (
+        <DealModal deal={modal === 'new' ? null : modal} contacts={contacts} companies={companies}
+          onClose={() => setModal(null)} onSaved={upsert} onDelete={removeDeal} flash={flash} />
       )}
       {confirmNode}
     </>
@@ -587,6 +865,7 @@ export default function CRMApp() {
 
   const TABS = [
     { key: 'messages',   label: 'Messages' },
+    { key: 'pipeline',   label: 'Pipeline' },
     { key: 'companies',  label: 'Companies' },
     { key: 'contacts',   label: 'Contacts' },
     { key: 'activities', label: 'Activity log' },
@@ -599,6 +878,7 @@ export default function CRMApp() {
         {TABS.map((t) => <button key={t.key} className={`lv-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
       </div>
       {tab === 'messages'   && <MessagesTab flash={flash} />}
+      {tab === 'pipeline'   && <PipelineTab flash={flash} />}
       {tab === 'companies'  && <CompaniesTab flash={flash} />}
       {tab === 'contacts'   && <ContactsTab flash={flash} />}
       {tab === 'activities' && <ActivityTab flash={flash} />}

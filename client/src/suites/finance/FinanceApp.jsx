@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as F from './financeApi.js';
-import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
+import { useToast, useConfirm, Modal, EmptyState, searchMatcher, usePagedList, Paginator } from '../../components/ui.jsx';
 
 const CSS = `
   .fn-badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; letter-spacing:.03em; }
@@ -8,7 +8,16 @@ const CSS = `
   .fn-s-approved { background:#dff6dd; color:#1a6a1a; }
   .fn-s-rejected { background:#fde7e9; color:#a4262c; }
   .fn-s-paid     { background:#deecfd; color:#194b8f; }
+
+  .fn-pills { display:flex; gap:6px; flex-wrap:wrap; }
+  .fn-pill { border:1px solid var(--line); background:var(--surface); border-radius:14px; padding:3px 12px; font-size:12.5px; cursor:pointer; color:var(--text-2); }
+  .fn-pill:hover { background:var(--surface-2); }
+  .fn-pill.active { background:var(--brand); border-color:var(--brand); color:#fff; font-weight:600; }
 `;
+
+const STATUS_PILLS = [
+  ['all', 'All'], ['pending', 'Pending'], ['approved', 'Approved'], ['paid', 'Paid'], ['rejected', 'Rejected'],
+];
 
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 function StatusBadge({ status }) { const s = F.STATUS[status] || F.STATUS.pending; return <span className={`fn-badge ${s.cls}`}>{s.label}</span>; }
@@ -128,6 +137,9 @@ export default function FinanceApp({ access }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('expenses');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [catFilter, setCatFilter] = useState('');
+  const [q, setQ] = useState('');
   const [expModal, setExpModal] = useState(false);
   const [editExp, setEditExp] = useState(null);
   const [budgetModal, setBudgetModal] = useState(false);
@@ -167,6 +179,16 @@ export default function FinanceApp({ access }) {
     try { await F.deleteBudget(b.id); flash('Budget deleted.'); load(); } catch (err) { flash(err.message, true); }
   };
 
+  // Status pill → category → search, in that order, then paginate.
+  const filteredExpenses = useMemo(() => {
+    let list = expenses;
+    if (statusFilter !== 'all') list = list.filter((e) => e.status === statusFilter);
+    if (catFilter) list = list.filter((e) => (e.category?.id || '') === catFilter);
+    const match = searchMatcher(q);
+    return list.filter((e) => match(e.description, e.submitter?.name));
+  }, [expenses, statusFilter, catFilter, q]);
+  const paged = usePagedList(filteredExpenses, 25);
+
   const report = useMemo(() => {
     const thisYear = new Date().getFullYear();
     const spentByCategory = {};
@@ -201,16 +223,32 @@ export default function FinanceApp({ access }) {
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
 
       {!loading && tab === 'expenses' && (
+        <>
+        <div className="filterbar" style={{ marginTop: 8, gap: 10, flexWrap: 'wrap' }}>
+          <div className="fn-pills">
+            {STATUS_PILLS.map(([k, label]) => (
+              <button key={k} type="button" className={`fn-pill ${statusFilter === k ? 'active' : ''}`} onClick={() => setStatusFilter(k)}>{label}</button>
+            ))}
+          </div>
+          <select className="select" value={catFilter} onChange={(e) => setCatFilter(e.target.value)} style={{ maxWidth: 180, padding: '5px 8px', fontSize: 13 }}>
+            <option value="">All categories</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <input className="input" placeholder="Search description, employee…" value={q} onChange={(e) => setQ(e.target.value)}
+            style={{ maxWidth: 220, padding: '6px 10px', fontSize: 13 }} />
+          <span className="count" style={{ marginLeft: 'auto' }}>{filteredExpenses.length} expense{filteredExpenses.length === 1 ? '' : 's'}</span>
+        </div>
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Description</th><th>Category</th><th>Date</th><th>Submitted by</th><th>Total</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {expenses.length === 0 && (
+              {filteredExpenses.length === 0 && (
                 <tr><td colSpan={7} style={{ padding: 0 }}>
-                  <EmptyState title="No expenses yet" hint="Submit your first expense to start the approval trail." />
+                  <EmptyState title={expenses.length === 0 ? 'No expenses yet' : 'No expenses match these filters'}
+                    hint={expenses.length === 0 ? 'Submit your first expense to start the approval trail.' : 'Adjust the status, category or search to see more.'} />
                 </td></tr>
               )}
-              {expenses.map((e) => (
+              {paged.slice.map((e) => (
                 <tr key={e.id}>
                   <td style={{ fontWeight: 500 }}>{e.description}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{e.category?.name || '—'}</td>
@@ -238,6 +276,8 @@ export default function FinanceApp({ access }) {
             </tbody>
           </table>
         </div>
+        <Paginator page={paged.page} pages={paged.pages} onPage={paged.setPage} total={paged.total} />
+        </>
       )}
 
       {!loading && tab === 'budgets' && isManager && (

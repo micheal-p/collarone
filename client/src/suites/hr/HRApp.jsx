@@ -5,6 +5,7 @@ import * as H from './hrApi.js';
 import RecruitingApp, { MyInterviewsView } from './RecruitingApp.jsx';
 import EmployeeRecord from './EmployeeRecord.jsx';
 import LettersApp from './LettersApp.jsx';
+import HrAnalytics from './HrAnalytics.jsx';
 import OnboardingApp from './OnboardingApp.jsx';
 import OffboardingApp from './OffboardingApp.jsx';
 import PerformanceApp from './PerformanceApp.jsx';
@@ -219,6 +220,7 @@ export default function HRApp({ access }) {
       { key: 'offboarding',  label: 'Offboarding' },
       { key: 'performance',  label: 'Performance' },
       { key: 'compliance',   label: 'Compliance' },
+      { key: 'analytics',    label: 'Analytics' },
     ] : []),
   ];
 
@@ -354,6 +356,7 @@ export default function HRApp({ access }) {
           {tab === 'offboarding' && <OffboardingApp access={access} staff={staff} />}
           {tab === 'performance' && <PerformanceApp staff={staff} />}
           {tab === 'compliance'  && <ComplianceApp staff={staff} onComposeLetter={composeLetter} />}
+          {tab === 'analytics'   && <HrAnalytics staff={staff} flash={flash} />}
         </>
       )}
 
