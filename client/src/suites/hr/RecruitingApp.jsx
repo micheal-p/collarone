@@ -334,17 +334,38 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
             )}
 
             {app.stage === 'offer' && isHrManager && (
-              <div className="form-grid" style={{ marginTop:12 }}>
-                <div className="field"><label>Offer salary (₦/yr)</label>
-                  <input className="input" type="number" defaultValue={app.offer_salary || ''} onBlur={(e) => patch({ offerSalary: e.target.value ? Number(e.target.value) : null })} /></div>
-                <div className="field"><label>Proposed start date</label>
-                  <input className="input" type="date" defaultValue={app.offer_start_date || ''} onBlur={(e) => patch({ offerStartDate: e.target.value || null })} /></div>
-                <div className="field"><label>Offer status</label>
-                  <select className="select" value={app.offer_status} onChange={(e) => patch({ offerStatus: e.target.value })}>
-                    <option value="none">— None —</option><option value="draft">Draft</option><option value="sent">Sent</option>
-                    <option value="accepted">Accepted</option><option value="declined">Declined</option><option value="withdrawn">Withdrawn</option>
-                  </select></div>
-              </div>
+              <>
+                <div className="form-grid" style={{ marginTop:12 }}>
+                  <div className="field"><label>Offer salary (₦/yr)</label>
+                    <input className="input" type="number" defaultValue={app.offer_salary || ''} onBlur={(e) => patch({ offerSalary: e.target.value ? Number(e.target.value) : null })} /></div>
+                  <div className="field"><label>Proposed start date</label>
+                    <input className="input" type="date" defaultValue={app.offer_start_date || ''} onBlur={(e) => patch({ offerStartDate: e.target.value || null })} /></div>
+                  <div className="field"><label>Offer status</label>
+                    <select className="select" value={app.offer_status} onChange={(e) => patch({ offerStatus: e.target.value })}>
+                      <option value="none">— None —</option><option value="draft">Draft</option><option value="sent">Sent</option>
+                      <option value="accepted">Accepted</option><option value="declined">Declined</option><option value="withdrawn">Withdrawn</option>
+                    </select></div>
+                </div>
+                <div className="field" style={{ marginTop:8 }}><label>Note shown to the candidate (optional)</label>
+                  <input className="input" defaultValue={app.offer_note || ''} placeholder="Benefits, conditions, who to contact…" onBlur={(e) => patch({ offerNote: e.target.value })} /></div>
+                {/* The private acceptance link — one click sends: stamps the offer
+                    'sent' and copies the URL the candidate opens to accept/decline. */}
+                <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginTop:10 }}>
+                  <button type="button" className="btn btn-primary" style={{ fontSize:12.5, padding:'6px 14px' }}
+                    onClick={async () => {
+                      if (app.offer_salary == null && !app.offer_note) { flash('Set the offer salary (or a note) first.', true); return; }
+                      if (app.offer_status !== 'sent') await patch({ offerStatus: 'sent', offerSentAt: new Date().toISOString() });
+                      const url = `${window.location.origin}/offer/${app.offer_token}`;
+                      try { await navigator.clipboard.writeText(url); flash('Offer link copied — send it to the candidate.'); }
+                      catch { window.prompt('Copy the offer link:', url); }
+                    }}>
+                    {app.offer_status === 'sent' ? 'Copy offer link' : 'Send offer — copy link'}
+                  </button>
+                  {app.offer_status === 'accepted' && <span className="pill" style={{ background:'#E8F6EC', color:'#1A7A3E', fontWeight:700, fontSize:11.5, padding:'3px 10px', borderRadius:100 }}>ACCEPTED{app.offer_decided_at ? ` · ${new Date(app.offer_decided_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short' })}` : ''}</span>}
+                  {app.offer_status === 'declined' && <span className="pill" style={{ background:'#F6ECEA', color:'#A03232', fontWeight:700, fontSize:11.5, padding:'3px 10px', borderRadius:100 }}>DECLINED</span>}
+                  {app.offer_status === 'sent' && <span className="muted" style={{ fontSize:12 }}>Awaiting the candidate's decision — refresh to see it.</span>}
+                </div>
+              </>
             )}
 
             {app.stage === 'rejected' && isHrManager && (

@@ -780,8 +780,8 @@ export async function supabaseApi(path, opts = {}) {
   }
   if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'applications' && seg.length === 3) {
     const patch = {};
-    ['stage','rating','rejectionReason','offerSalary','offerStartDate','offerStatus','hiredProfileId'].forEach((k) => {
-      const col = { rejectionReason: 'rejection_reason', offerSalary: 'offer_salary', offerStartDate: 'offer_start_date', offerStatus: 'offer_status', hiredProfileId: 'hired_profile_id' }[k] || k;
+    ['stage','rating','rejectionReason','offerSalary','offerStartDate','offerStatus','offerNote','offerSentAt','hiredProfileId'].forEach((k) => {
+      const col = { rejectionReason: 'rejection_reason', offerSalary: 'offer_salary', offerStartDate: 'offer_start_date', offerStatus: 'offer_status', offerNote: 'offer_note', offerSentAt: 'offer_sent_at', hiredProfileId: 'hired_profile_id' }[k] || k;
       if (body[k] !== undefined) patch[col] = body[k] || null;
     });
     const { data, error } = await supabase.from('applications').update(patch).eq('id', seg[2]).select(APP_SELECT).single();
