@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as L from './lifecycleApi.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
-import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
+import { useToast, useConfirm, Modal, EmptyState, SearchSelect } from '../../components/ui.jsx';
 
 /* ---- Stars — 5 small SVG stars, filled up to `rating` ----------------------- */
 function Stars({ rating }) {
@@ -383,10 +383,8 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
                 </div>
                 <div className="form-grid" style={{ marginTop:8 }}>
                   <div className="field"><label>Linked account</label>
-                    <select className="select" value={app.hired_profile_id || ''} onChange={(e) => patch({ hiredProfileId: e.target.value })}>
-                      <option value="">— Not linked —</option>
-                      {staff.map((s) => <option key={s.id} value={s.id}>{s.name} ({s.email})</option>)}
-                    </select></div>
+                    <SearchSelect value={app.hired_profile_id || ''} onChange={(v) => patch({ hiredProfileId: v })} emptyLabel="— Not linked yet —"
+                      options={staff.map((u) => ({ value: u.id, label: u.name, hint: u.email }))} /></div>
                 </div>
               </div>
             )}

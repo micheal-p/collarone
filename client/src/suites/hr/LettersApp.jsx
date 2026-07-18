@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiGet } from '../../api/client.js';
-import { useConfirm, EmptyState } from '../../components/ui.jsx';
+import { useConfirm, EmptyState, SearchSelect } from '../../components/ui.jsx';
 import * as L from './lettersApi.js';
 import * as C from './complianceApi.js';
 import * as D from '../documents/documentsApi.js';
@@ -177,10 +177,8 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
         )}
         <div className="form-grid">
           <div className="field"><label>Employee</label>
-            <select className="select" value={f.employeeId} onChange={(e) => set('employeeId', e.target.value)} autoFocus>
-              <option value="">— Select —</option>
-              {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select></div>
+            <SearchSelect autoFocus value={f.employeeId} onChange={(v) => set('employeeId', v)} emptyLabel="— Select —"
+              options={staff.map((s) => ({ value: s.id, label: s.name, hint: s.jobTitle || s.job_title || '' }))} /></div>
           <div className="field"><label>Letter type</label>
             <select className="select" value={f.letterType} onChange={(e) => setType(e.target.value)}>
               {Object.entries(LETTER_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}

@@ -154,3 +154,76 @@ export function EmptyState({ icon = null, title, hint, action = null }) {
     </div>
   );
 }
+
+/* ---- SearchSelect — a .select that you can type into ------------------------
+   For long option lists (staff pickers in a 100-person org). Closed, it looks
+   exactly like the app's .select; open, it's a filter input over a keyboard-
+   navigable list. options: [{ value, label, hint? }]. */
+export function SearchSelect({ options, value, onChange, placeholder = 'Type to search…', emptyLabel = '— Select —', disabled, autoFocus, style }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [hi, setHi] = useState(0);
+  const rootRef = useRef(null);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    const h = (e) => { if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  useEffect(() => { if (open) { setQ(''); setHi(0); setTimeout(() => inputRef.current?.focus(), 0); } }, [open]);
+
+  const selected = options.find((o) => String(o.value) === String(value));
+  const filtered = q.trim()
+    ? options.filter((o) => `${o.label} ${o.hint || ''}`.toLowerCase().includes(q.trim().toLowerCase()))
+    : options;
+
+  const pick = (o) => { onChange(o ? o.value : ''); setOpen(false); };
+
+  const onKey = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHi((i) => Math.min(i + 1, filtered.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((i) => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (filtered[hi]) pick(filtered[hi]); }
+    else if (e.key === 'Escape') { setOpen(false); }
+  };
+
+  return (
+    <div ref={rootRef} style={{ position: 'relative', ...style }}>
+      <button type="button" className="select" disabled={disabled} autoFocus={autoFocus}
+        onClick={() => setOpen((v) => !v)}
+        style={{ width: '100%', textAlign: 'left', cursor: disabled ? 'default' : 'pointer', color: selected ? undefined : 'var(--text-2)' }}>
+        {selected ? selected.label : emptyLabel}
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 60,
+          background: 'var(--surface, #fff)', border: '1px solid var(--line)', borderRadius: 10,
+          boxShadow: '0 16px 44px rgba(10,14,26,0.16)', overflow: 'hidden',
+        }}>
+          <input ref={inputRef} value={q} onChange={(e) => { setQ(e.target.value); setHi(0); }} onKeyDown={onKey}
+            placeholder={placeholder} aria-label={placeholder}
+            style={{ width: '100%', boxSizing: 'border-box', border: 'none', borderBottom: '1px solid var(--line)', padding: '10px 13px', fontSize: 13.5, outline: 'none', background: 'transparent', color: 'inherit', fontFamily: 'inherit' }} />
+          <div style={{ maxHeight: 236, overflowY: 'auto' }}>
+            <button type="button" onClick={() => pick(null)}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 13px', fontSize: 13, border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-2)', fontFamily: 'inherit' }}>
+              {emptyLabel}
+            </button>
+            {filtered.map((o, i) => (
+              <button key={o.value} type="button" onClick={() => pick(o)} onMouseEnter={() => setHi(i)}
+                style={{
+                  display: 'flex', gap: 8, alignItems: 'baseline', width: '100%', textAlign: 'left', padding: '9px 13px',
+                  fontSize: 13.5, border: 'none', cursor: 'pointer', fontFamily: 'inherit', color: 'inherit',
+                  background: i === hi ? 'var(--surface-2, rgba(10,14,26,0.05))' : 'transparent',
+                  fontWeight: String(o.value) === String(value) ? 650 : 400,
+                }}>
+                {o.label}
+                {o.hint && <span style={{ fontSize: 11.5, color: 'var(--text-2)' }}>{o.hint}</span>}
+              </button>
+            ))}
+            {filtered.length === 0 && <div style={{ padding: '12px 13px', fontSize: 13, color: 'var(--text-2)' }}>No match for “{q}”.</div>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
