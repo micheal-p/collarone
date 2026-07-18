@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /platform-admin
+Disallow: /admin/
+Disallow: /workspace
+Disallow: /change-password
+Disallow: /offer/
+
+Sitemap: https://collarone.app/sitemap.xml
