@@ -49,3 +49,15 @@ export const LOGGABLE_TYPES = Object.fromEntries(Object.entries(ACTIVITY_TYPES).
 export const fmtDt = (d) => d
   ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   : '—';
+
+// Bookings — the appointments a service business runs its day on.
+export const getBookings    = () => apiGet('/crm/bookings').then((d) => d.bookings);
+export const createBooking  = (body) => apiPost('/crm/bookings', body).then((d) => d.booking);
+export const updateBooking  = (id, body) => apiPatch(`/crm/bookings/${id}`, body).then((d) => d.booking);
+export const deleteBooking  = (id) => apiDelete(`/crm/bookings/${id}`);
+
+// Money owed — standalone receivables, aged by due date.
+export const getReceivables   = () => apiGet('/crm/receivables').then((d) => d.receivables);
+export const createReceivable = (body) => apiPost('/crm/receivables', body).then((d) => d.receivable);
+export const updateReceivable = (id, body) => apiPatch(`/crm/receivables/${id}`, body).then((d) => d.receivable);
+export const deleteReceivable = (id) => apiDelete(`/crm/receivables/${id}`);

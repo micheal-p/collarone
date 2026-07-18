@@ -1385,6 +1385,75 @@ export async function supabaseApi(path, opts = {}) {
 
   // ---- crm: deals pipeline ----
   const DEAL_SELECT = '*, contact:crm_contacts(id,name,phone,whatsapp), company:crm_companies(id,name)';
+  if (head === 'GET /crm' && seg[1] === 'bookings') {
+    const { data, error } = await supabase.from('crm_bookings').select('*').order('starts_at', { ascending: true });
+    if (error) fail(400, error.message);
+    return { bookings: data };
+  }
+  if (head === 'POST /crm' && seg[1] === 'bookings') {
+    const { customerName, phone, service, startsAt, durationMins, notes, contactId } = body;
+    if (!customerName?.trim()) fail(400, 'Customer name is required.');
+    if (!startsAt) fail(400, 'Booking date and time are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('crm_bookings').insert({
+      customer_name: customerName.trim(), phone: (phone || '').trim(), service: (service || '').trim(),
+      starts_at: startsAt, duration_mins: Number(durationMins) || 60, notes: notes || '',
+      contact_id: contactId || null, created_by: user.id, org_id: await myOrgId(),
+    }).select('*').single();
+    if (error) fail(400, error.message);
+    return { booking: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'crm' && seg[1] === 'bookings' && seg.length === 3) {
+    const patch = {};
+    if (body.status !== undefined) patch.status = body.status;
+    if (body.startsAt !== undefined) patch.starts_at = body.startsAt;
+    if (body.notes !== undefined) patch.notes = body.notes;
+    const { data, error } = await supabase.from('crm_bookings').update(patch).eq('id', seg[2]).select('*').single();
+    if (error) fail(400, error.message);
+    return { booking: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'bookings' && seg.length === 3) {
+    const { error } = await supabase.from('crm_bookings').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  if (head === 'GET /crm' && seg[1] === 'receivables') {
+    const { data, error } = await supabase.from('crm_receivables').select('*').order('due_date', { ascending: true, nullsFirst: false });
+    if (error) fail(400, error.message);
+    return { receivables: data };
+  }
+  if (head === 'POST /crm' && seg[1] === 'receivables') {
+    const { customerName, amountNaira, dueDate, note, contactId } = body;
+    if (!customerName?.trim()) fail(400, 'Customer name is required.');
+    if (!Number(amountNaira) || Number(amountNaira) <= 0) fail(400, 'Enter the amount owed.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('crm_receivables').insert({
+      customer_name: customerName.trim(), amount_naira: Number(amountNaira), due_date: dueDate || null,
+      note: note || '', contact_id: contactId || null, created_by: user.id, org_id: await myOrgId(),
+    }).select('*').single();
+    if (error) fail(400, error.message);
+    return { receivable: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'crm' && seg[1] === 'receivables' && seg.length === 3) {
+    const patch = {};
+    if (body.status !== undefined) {
+      patch.status = body.status;
+      patch.settled_at = body.status === 'paid' || body.status === 'written_off' ? new Date().toISOString() : null;
+    }
+    if (body.amountNaira !== undefined) patch.amount_naira = Number(body.amountNaira);
+    if (body.dueDate !== undefined) patch.due_date = body.dueDate || null;
+    if (body.note !== undefined) patch.note = body.note;
+    const { data, error } = await supabase.from('crm_receivables').update(patch).eq('id', seg[2]).select('*').single();
+    if (error) fail(400, error.message);
+    return { receivable: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'receivables' && seg.length === 3) {
+    const { error } = await supabase.from('crm_receivables').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
   if (head === 'GET /crm' && seg[1] === 'deals') {
     const { data, error } = await supabase.from('crm_deals').select(DEAL_SELECT).order('created_at', { ascending: false });
     if (error) fail(400, error.message);

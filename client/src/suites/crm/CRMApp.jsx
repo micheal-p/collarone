@@ -857,6 +857,218 @@ function PipelineTab({ flash }) {
 }
 
 /* =========================================================================
+   Bookings — the day-sheet of a service business
+   ========================================================================= */
+const fmtTime = (d) => new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+const fmtDay = (d) => new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+const BOOKING_STATUS = { booked: ['Booked', '#deecfd', '#194b8f'], completed: ['Done', '#dff6dd', '#1a6a1a'], cancelled: ['Cancelled', '#f2f1ef', '#5c5f66'], no_show: ['No-show', '#fde7e9', '#a4262c'] };
+
+function BookingsTab({ flash }) {
+  const [bookings, setBookings] = useState(null);
+  const [f, setF] = useState({ customerName: '', phone: '', service: '', date: '', time: '', durationMins: 60 });
+  const [busy, setBusy] = useState(false);
+  const [showPast, setShowPast] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const load = () => { C.getBookings().then(setBookings).catch((e) => flash(e.message, true)); };
+  useEffect(load, []); // eslint-disable-line
+
+  const add = async (e) => {
+    e.preventDefault();
+    if (!f.date || !f.time) return flash('Pick the booking date and time.', true);
+    setBusy(true);
+    try {
+      const b = await C.createBooking({ ...f, startsAt: new Date(`${f.date}T${f.time}`).toISOString() });
+      setBookings((s) => [...(s || []), b].sort((a, x) => new Date(a.starts_at) - new Date(x.starts_at)));
+      setF({ customerName: '', phone: '', service: '', date: '', time: '', durationMins: 60 });
+      flash('Booking added.');
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
+  const setStatus = async (b, status) => {
+    try {
+      const saved = await C.updateBooking(b.id, { status });
+      setBookings((s) => s.map((x) => (x.id === b.id ? saved : x)));
+    } catch (e2) { flash(e2.message, true); }
+  };
+
+  if (!bookings) return <div className="suite-loading"><div className="boot-spinner" /></div>;
+
+  const now = Date.now();
+  const soonCut = now + 48 * 3600000;
+  const upcoming = bookings.filter((b) => b.status === 'booked' && new Date(b.starts_at).getTime() >= now - 3600000);
+  const soon = upcoming.filter((b) => new Date(b.starts_at).getTime() <= soonCut);
+  const visible = (showPast ? bookings : upcoming);
+  const byDay = visible.reduce((m, b) => {
+    const k = new Date(b.starts_at).toDateString();
+    (m[k] = m[k] || []).push(b);
+    return m;
+  }, {});
+
+  return (
+    <div style={{ maxWidth: 860 }}>
+      {soon.length > 0 && (
+        <div className="callout-hint" style={{ marginBottom: 16 }}>
+          <b>{soon.length} booking{soon.length === 1 ? '' : 's'} in the next 48 hours</b> — {soon.slice(0, 3).map((b) => `${b.customer_name} (${fmtDay(b.starts_at)} ${fmtTime(b.starts_at)})`).join(', ')}{soon.length > 3 ? '…' : ''}. Confirm them on WhatsApp from the row buttons.
+        </div>
+      )}
+
+      <form onSubmit={add} className="card" style={{ padding: 16, marginBottom: 18 }}>
+        <div className="form-grid">
+          <div className="field"><label>Customer *</label><input className="input" value={f.customerName} onChange={(e) => set('customerName', e.target.value)} required /></div>
+          <div className="field"><label>Phone / WhatsApp</label><input className="input" value={f.phone} onChange={(e) => set('phone', e.target.value)} placeholder="0801 234 5678" /></div>
+          <div className="field"><label>Service</label><input className="input" value={f.service} onChange={(e) => set('service', e.target.value)} placeholder="Consultation, fitting, repair…" /></div>
+        </div>
+        <div className="form-grid" style={{ marginTop: 8 }}>
+          <div className="field"><label>Date *</label><input className="input" type="date" value={f.date} onChange={(e) => set('date', e.target.value)} required /></div>
+          <div className="field"><label>Time *</label><input className="input" type="time" value={f.time} onChange={(e) => set('time', e.target.value)} required /></div>
+          <div className="field"><label>Duration</label>
+            <select className="select" value={f.durationMins} onChange={(e) => set('durationMins', Number(e.target.value))}>
+              {[30, 45, 60, 90, 120, 180, 240].map((m) => <option key={m} value={m}>{m >= 60 ? `${m / 60}h${m % 60 ? ` ${m % 60}m` : ''}` : `${m} mins`}</option>)}
+            </select></div>
+        </div>
+        <button className="btn btn-primary" disabled={busy} style={{ marginTop: 12 }}>{busy ? <span className="spinner" /> : 'Add booking'}</button>
+      </form>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <span className="muted" style={{ fontSize: 12.5 }}>{upcoming.length} upcoming</span>
+        <span style={{ flex: 1 }} />
+        <button type="button" className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => setShowPast((v) => !v)}>{showPast ? 'Upcoming only' : 'Show all'}</button>
+      </div>
+
+      {Object.keys(byDay).length === 0 && <EmptyState title="No bookings yet" hint="Add the first one above — the day-sheet builds itself." />}
+      {Object.entries(byDay).map(([day, rows]) => (
+        <div key={day} style={{ marginBottom: 16 }}>
+          <p className="col-label" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-2)', margin: '0 0 6px' }}>{fmtDay(rows[0].starts_at)}</p>
+          {rows.map((b) => {
+            const [label, bg, fg] = BOOKING_STATUS[b.status] || BOOKING_STATUS.booked;
+            return (
+              <div key={b.id} className="card" style={{ padding: '10px 14px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtTime(b.starts_at)}</strong>
+                <span style={{ fontWeight: 600 }}>{b.customer_name}</span>
+                {b.service && <span className="muted" style={{ fontSize: 12.5 }}>{b.service}</span>}
+                <span style={{ fontSize: 11, fontWeight: 700, background: bg, color: fg, borderRadius: 100, padding: '2px 10px' }}>{label}</span>
+                <span style={{ flex: 1 }} />
+                {b.phone && (
+                  <a className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} target="_blank" rel="noreferrer"
+                    href={`https://wa.me/${normalizeWa(b.phone)}?text=${encodeURIComponent(`Hello ${b.customer_name.split(' ')[0]}, confirming your ${b.service || 'appointment'} on ${fmtDay(b.starts_at)} at ${fmtTime(b.starts_at)}.`)}`}>
+                    WhatsApp
+                  </a>
+                )}
+                {b.status === 'booked' && (
+                  <>
+                    <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => setStatus(b, 'completed')}>Done</button>
+                    <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px', color: '#a4262c' }} onClick={() => setStatus(b, 'no_show')}>No-show</button>
+                    <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => setStatus(b, 'cancelled')}>Cancel</button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* =========================================================================
+   Money owed — receivables aged by due date
+   ========================================================================= */
+const REC_STATUS = { outstanding: ['Outstanding', '#fff4ce', '#7a5200'], part_paid: ['Part paid', '#deecfd', '#194b8f'], paid: ['Paid', '#dff6dd', '#1a6a1a'], written_off: ['Written off', '#f2f1ef', '#5c5f66'] };
+const fmtNaira = (n) => `₦${Number(n).toLocaleString('en-NG')}`;
+
+function MoneyTab({ flash }) {
+  const [rows, setRows] = useState(null);
+  const [f, setF] = useState({ customerName: '', amountNaira: '', dueDate: '', note: '' });
+  const [busy, setBusy] = useState(false);
+  const [showSettled, setShowSettled] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  useEffect(() => { C.getReceivables().then(setRows).catch((e) => flash(e.message, true)); }, []); // eslint-disable-line
+
+  const add = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const r = await C.createReceivable(f);
+      setRows((s) => [r, ...(s || [])]);
+      setF({ customerName: '', amountNaira: '', dueDate: '', note: '' });
+      flash('Recorded.');
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
+  const setStatus = async (r, status) => {
+    try {
+      const saved = await C.updateReceivable(r.id, { status });
+      setRows((s) => s.map((x) => (x.id === r.id ? saved : x)));
+    } catch (e2) { flash(e2.message, true); }
+  };
+
+  if (!rows) return <div className="suite-loading"><div className="boot-spinner" /></div>;
+
+  const open = rows.filter((r) => r.status === 'outstanding' || r.status === 'part_paid');
+  const today = new Date().toISOString().slice(0, 10);
+  const overdue = open.filter((r) => r.due_date && r.due_date < today);
+  const totalOpen = open.reduce((s, r) => s + Number(r.amount_naira), 0);
+  const totalOverdue = overdue.reduce((s, r) => s + Number(r.amount_naira), 0);
+  const visible = showSettled ? rows : open;
+
+  return (
+    <div style={{ maxWidth: 860 }}>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+        <div className="card" style={{ padding: '12px 18px', flex: 1, minWidth: 180 }}>
+          <div className="muted" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.05em' }}>Owed to you</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtNaira(totalOpen)}</div>
+        </div>
+        <div className="card" style={{ padding: '12px 18px', flex: 1, minWidth: 180 }}>
+          <div className="muted" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.05em' }}>Overdue</div>
+          <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: totalOverdue > 0 ? '#a4262c' : 'inherit' }}>{fmtNaira(totalOverdue)}</div>
+          {overdue.length > 0 && <div className="muted" style={{ fontSize: 12 }}>{overdue.length} customer{overdue.length === 1 ? '' : 's'} — chase these first</div>}
+        </div>
+      </div>
+
+      <form onSubmit={add} className="card" style={{ padding: 16, marginBottom: 18 }}>
+        <div className="form-grid">
+          <div className="field"><label>Customer *</label><input className="input" value={f.customerName} onChange={(e) => set('customerName', e.target.value)} required /></div>
+          <div className="field"><label>Amount owed (₦) *</label><input className="input" type="number" min="1" value={f.amountNaira} onChange={(e) => set('amountNaira', e.target.value)} required /></div>
+          <div className="field"><label>Due date</label><input className="input" type="date" value={f.dueDate} onChange={(e) => set('dueDate', e.target.value)} /></div>
+        </div>
+        <div className="field" style={{ marginTop: 8 }}><label>Note</label><input className="input" value={f.note} onChange={(e) => set('note', e.target.value)} placeholder="What it's for — job, invoice ref…" /></div>
+        <button className="btn btn-primary" disabled={busy} style={{ marginTop: 12 }}>{busy ? <span className="spinner" /> : 'Record money owed'}</button>
+      </form>
+
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+        <span style={{ flex: 1 }} />
+        <button type="button" className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => setShowSettled((v) => !v)}>{showSettled ? 'Open only' : 'Show settled'}</button>
+      </div>
+
+      {visible.length === 0 && <EmptyState title="Nothing outstanding" hint="Record what customers owe and this becomes your chase list, aged by due date." />}
+      {visible.map((r) => {
+        const [label, bg, fg] = REC_STATUS[r.status] || REC_STATUS.outstanding;
+        const isOverdue = (r.status === 'outstanding' || r.status === 'part_paid') && r.due_date && r.due_date < today;
+        return (
+          <div key={r.id} className="card" style={{ padding: '10px 14px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600 }}>{r.customer_name}</span>
+            <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtNaira(r.amount_naira)}</strong>
+            <span style={{ fontSize: 11, fontWeight: 700, background: bg, color: fg, borderRadius: 100, padding: '2px 10px' }}>{label}</span>
+            {r.due_date && <span className="muted" style={{ fontSize: 12.5, color: isOverdue ? '#a4262c' : undefined, fontWeight: isOverdue ? 700 : 400 }}>{isOverdue ? 'was due' : 'due'} {new Date(r.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>}
+            {r.note && <span className="muted" style={{ fontSize: 12.5 }}>{r.note}</span>}
+            <span style={{ flex: 1 }} />
+            {(r.status === 'outstanding' || r.status === 'part_paid') && (
+              <>
+                <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => setStatus(r, 'paid')}>Mark paid</button>
+                {r.status === 'outstanding' && <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => setStatus(r, 'part_paid')}>Part paid</button>}
+                <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px', color: '#5c5f66' }} onClick={() => setStatus(r, 'written_off')}>Write off</button>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* =========================================================================
    Main CRMApp
    ========================================================================= */
 export default function CRMApp() {
@@ -866,6 +1078,8 @@ export default function CRMApp() {
   const TABS = [
     { key: 'messages',   label: 'Messages' },
     { key: 'pipeline',   label: 'Pipeline' },
+    { key: 'bookings',   label: 'Bookings' },
+    { key: 'money',      label: 'Money owed' },
     { key: 'companies',  label: 'Companies' },
     { key: 'contacts',   label: 'Contacts' },
     { key: 'activities', label: 'Activity log' },
@@ -879,6 +1093,8 @@ export default function CRMApp() {
       </div>
       {tab === 'messages'   && <MessagesTab flash={flash} />}
       {tab === 'pipeline'   && <PipelineTab flash={flash} />}
+      {tab === 'bookings'   && <BookingsTab flash={flash} />}
+      {tab === 'money'      && <MoneyTab flash={flash} />}
       {tab === 'companies'  && <CompaniesTab flash={flash} />}
       {tab === 'contacts'   && <ContactsTab flash={flash} />}
       {tab === 'activities' && <ActivityTab flash={flash} />}

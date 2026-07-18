@@ -455,6 +455,46 @@ export async function demoApi(path, opts = {}) {
 
     // ---- crm (companies, contacts, activities, deals pipeline) ----
     if (seg[0] === 'crm') {
+      // bookings + money owed — persisted demo CRUD
+      if (seg[1] === 'bookings') {
+        if (!db.crmBookings) {
+          db.crmBookings = [
+            { id: 'bk1', customer_name: 'Chidinma Okeke', phone: '08031234567', service: 'Consultation', starts_at: new Date(Date.now() + 26 * 3600000).toISOString(), duration_mins: 60, status: 'booked', notes: '' },
+            { id: 'bk2', customer_name: 'Tunde Bakare', phone: '08087654321', service: 'Fitting', starts_at: new Date(Date.now() + 50 * 3600000).toISOString(), duration_mins: 45, status: 'booked', notes: '' },
+          ]; save();
+        }
+        if (method === 'POST') {
+          const b = { id: 'bk' + Math.random().toString(36).slice(2, 8), customer_name: body.customerName, phone: body.phone || '', service: body.service || '', starts_at: body.startsAt, duration_mins: body.durationMins || 60, status: 'booked', notes: body.notes || '' };
+          db.crmBookings.push(b); save(); return { booking: b };
+        }
+        if (method === 'PATCH' && seg.length === 3) {
+          const b = db.crmBookings.find((x) => x.id === seg[2]) || fail(404, 'Booking not found.');
+          if (body.status !== undefined) b.status = body.status;
+          if (body.notes !== undefined) b.notes = body.notes;
+          save(); return { booking: b };
+        }
+        if (method === 'DELETE' && seg.length === 3) { db.crmBookings = db.crmBookings.filter((x) => x.id !== seg[2]); save(); return { ok: true }; }
+        return { bookings: db.crmBookings };
+      }
+      if (seg[1] === 'receivables') {
+        if (!db.crmReceivables) {
+          db.crmReceivables = [
+            { id: 'rc1', customer_name: 'Sunrise Foods Ltd', amount_naira: 450000, due_date: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10), status: 'outstanding', note: 'March supply invoice', created_at: daysAgo(20) },
+            { id: 'rc2', customer_name: 'Adaeze N.', amount_naira: 120000, due_date: new Date(Date.now() + 9 * 86400000).toISOString().slice(0, 10), status: 'part_paid', note: 'Balance on project', created_at: daysAgo(10) },
+          ]; save();
+        }
+        if (method === 'POST') {
+          const r = { id: 'rc' + Math.random().toString(36).slice(2, 8), customer_name: body.customerName, amount_naira: Number(body.amountNaira), due_date: body.dueDate || null, status: 'outstanding', note: body.note || '', created_at: new Date().toISOString() };
+          db.crmReceivables.unshift(r); save(); return { receivable: r };
+        }
+        if (method === 'PATCH' && seg.length === 3) {
+          const r = db.crmReceivables.find((x) => x.id === seg[2]) || fail(404, 'Not found.');
+          if (body.status !== undefined) r.status = body.status;
+          save(); return { receivable: r };
+        }
+        if (method === 'DELETE' && seg.length === 3) { db.crmReceivables = db.crmReceivables.filter((x) => x.id !== seg[2]); save(); return { ok: true }; }
+        return { receivables: db.crmReceivables };
+      }
       const contactRef = (c) => (c ? { id: c.id, name: c.name, email: c.email, phone: c.phone, whatsapp: c.whatsapp } : null);
       const companyRef = (c) => (c ? { id: c.id, name: c.name } : null);
       if (!db.crmCompanies) {
