@@ -19,6 +19,10 @@ export default function Profile() {
   const [phone, setPhone] = useState(user?.phone || '');
   const [whatsapp, setWhatsapp] = useState(user?.whatsapp || '');
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '');
+  const [dateOfBirth, setDateOfBirth] = useState(user?.dateOfBirth || '');
+  const [address, setAddress] = useState(user?.address || '');
+  const [ecName, setEcName] = useState(user?.emergencyContactName || '');
+  const [ecPhone, setEcPhone] = useState(user?.emergencyContactPhone || '');
   const [preview, setPreview] = useState(null);       // blob URL for local preview
   const [pendingFile, setPendingFile] = useState(null); // File object to upload on save
   const [saving, setSaving] = useState(false);
@@ -57,7 +61,7 @@ export default function Profile() {
         setPendingFile(null);
         if (preview) { URL.revokeObjectURL(preview); setPreview(null); }
       }
-      const { user: updated } = await apiPatch('/me', { phone, whatsapp, avatarUrl: finalUrl });
+      const { user: updated } = await apiPatch('/me', { phone, whatsapp, avatarUrl: finalUrl, dateOfBirth, address, emergencyContactName: ecName, emergencyContactPhone: ecPhone });
       setUser(updated);
       flash('Profile saved.');
     } catch (e) {
@@ -172,6 +176,30 @@ export default function Profile() {
               onChange={(e) => setWhatsapp(e.target.value)}
               style={{ width: '100%' }}
             />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 16 }}>
+            <div className="field">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                Date of birth
+                <span style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 400 }}>(for the team birthdays board)</span>
+              </label>
+              <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={{ width: '100%' }} />
+            </div>
+            <div className="field">
+              <label>Emergency contact name</label>
+              <input value={ecName} onChange={(e) => setEcName(e.target.value)} placeholder="Next of kin" style={{ width: '100%' }} />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 16 }}>
+            <div className="field">
+              <label>Emergency contact phone</label>
+              <input type="tel" value={ecPhone} onChange={(e) => setEcPhone(e.target.value)} placeholder="+234 800 000 0000" style={{ width: '100%' }} />
+            </div>
+            <div className="field">
+              <label>Home address</label>
+              <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, city, state" style={{ width: '100%' }} />
+            </div>
           </div>
         </div>
 

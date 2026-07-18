@@ -176,6 +176,12 @@ export default function HrAnalytics({ staff, flash }) {
     .map((s) => ({ ...s, years: thisYear - yearOf(s.startDate), day: new Date(s.startDate).getDate() }))
     .sort((a, b) => a.day - b.day), [staff, thisMonth, thisYear]);
 
+  /* Birthdays this month — from self-service date_of_birth */
+  const birthdays = useMemo(() => staff
+    .filter((s) => s.dateOfBirth && monthOf(s.dateOfBirth) === thisMonth)
+    .map((s) => ({ ...s, day: new Date(s.dateOfBirth).getDate() }))
+    .sort((a, b) => a.day - b.day), [staff, thisMonth]);
+
   /* Statutory completeness */
   const statutory = useMemo(() => {
     if (!enrollments) return null;
@@ -293,7 +299,22 @@ export default function HrAnalytics({ staff, flash }) {
                   <span className="ha-years-pill">{a.years} {a.years === 1 ? 'year' : 'years'}</span>
                 </div>
               ))}
-          <SourceNote>Birthdays arrive once date-of-birth is captured.</SourceNote>
+        </div>
+
+        {/* 6b — Birthdays this month */}
+        <div className="card ha-card">
+          <h3 className="ha-card-title">Birthdays — {now().toLocaleDateString('en-GB', { month: 'long' })}</h3>
+          {birthdays.length === 0
+            ? <SourceNote>No birthdays on record this month — staff add their date of birth on their own Profile page.</SourceNote>
+            : birthdays.map((b) => (
+                <div className="ha-anniv-row" key={b.id}>
+                  {b.avatarUrl
+                    ? <img src={b.avatarUrl} alt="" className="avatar sm" style={{ objectFit: 'cover' }} />
+                    : <span className="avatar sm">{initials(b.name)}</span>}
+                  <span className="ha-anniv-name">{b.name}</span>
+                  <span className="ha-anniv-meta">{b.day} {now().toLocaleDateString('en-GB', { month: 'short' })}</span>
+                </div>
+              ))}
         </div>
       </div>
 

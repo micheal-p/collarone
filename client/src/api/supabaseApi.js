@@ -26,6 +26,10 @@ const toPublic = (p) => ({
   phone: p.phone || '',
   whatsapp: p.whatsapp || '',
   avatarUrl: p.avatar_url || '',
+  dateOfBirth: p.date_of_birth || '',
+  address: p.address || '',
+  emergencyContactName: p.emergency_contact_name || '',
+  emergencyContactPhone: p.emergency_contact_phone || '',
   startDate: p.start_date || '',
   employmentType: p.employment_type || 'full_time',
   managerId: p.manager_id || null,
@@ -154,12 +158,16 @@ export async function supabaseApi(path, opts = {}) {
     return { user: { ...toPublic(profile), org: toPublicOrg(org), isPlatformAdmin } };
   }
   if (head === 'PATCH /me' && !seg[1]) {
-    const { phone, whatsapp, avatarUrl } = body;
+    const { phone, whatsapp, avatarUrl, dateOfBirth, address, emergencyContactName, emergencyContactPhone } = body;
     if (!phone || !phone.trim()) fail(400, 'Phone number is required.');
     const { error } = await supabase.rpc('update_my_profile', {
       p_phone:      phone.trim(),
       p_whatsapp:   (whatsapp || '').trim(),
       p_avatar_url: (avatarUrl || '').trim(),
+      p_date_of_birth: dateOfBirth || null,
+      p_address: address ?? null,
+      p_ec_name: emergencyContactName ?? null,
+      p_ec_phone: emergencyContactPhone ?? null,
     });
     if (error) fail(500, error.message);
     const profile2 = await myProfile();

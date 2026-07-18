@@ -53,8 +53,14 @@ function SuiteGrantPicker({ catalog, value, onChange, disabled }) {
     onChange([...value, { key, role: defaultRole }, ...companions]);
   };
   const setRole = (key, role) => onChange(value.map((g) => (g.key === key ? { ...g, role } : g)));
+  const hasCompanionParent = value.some((g) => (catalog.find((s) => s.key === g.key)?.companions || []).length > 0);
   return (
     <div className={`grant-grid ${disabled ? 'is-disabled' : ''}`}>
+      {hasCompanionParent && (
+        <p className="muted" style={{ gridColumn: '1 / -1', fontSize: 12, margin: '0 0 4px', lineHeight: 1.5 }}>
+          Companion suites added with HR count toward your plan's included-suite total like any other suite — untick any you don't want billed.
+        </p>
+      )}
       {catalog.map((s) => {
         const on = map[s.key] !== undefined; const meta = SUITE_META[s.key] || {};
         const roles = getSuiteRoles(s.key);
