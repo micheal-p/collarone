@@ -13,7 +13,7 @@
 // subscribe block captures mailing-list emails as CRM contacts, and the
 // contact form was already a lead. PublicSite beacons per-page site_visits.
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { apiPost } from '../../api/client.js';
+import { apiPost, DEMO } from '../../api/client.js';
 import { waDigits } from '../../lib/whatsapp.js';
 
 const FONT_STACKS = {
@@ -231,17 +231,21 @@ const H2 = ({ v, children, align = 'center', kicker, i }) => {
     );
   }
   if (v.h2Mode === 'center-rule') {
+    // Respect an explicit left alignment (arbitrary customer text blocks) —
+    // the rule follows the alignment.
+    const left = align === 'left';
     return (
-      <div style={{ textAlign: 'center', marginBottom: 28 }}>
-        <div style={{ width: 30, height: 2, background: 'var(--site-accent-ui)', margin: '0 auto 16px' }} />
+      <div style={{ textAlign: left ? 'left' : 'center', marginBottom: 28 }}>
+        <div style={{ width: 30, height: 2, background: 'var(--site-accent-ui)', margin: left ? '0 0 16px' : '0 auto 16px' }} />
         <h2 style={{ ...base, margin: 0, letterSpacing: '.02em' }}>{children}</h2>
         {kicker && <div style={{ fontSize: 12.5, letterSpacing: '.22em', textTransform: 'uppercase', color: 'var(--site-muted)', marginTop: 10 }}>{kicker}</div>}
       </div>
     );
   }
   if (v.h2Mode === 'pill') {
+    const left = align === 'left';
     return (
-      <div style={{ textAlign: 'center', marginBottom: 26 }}>
+      <div style={{ textAlign: left ? 'left' : 'center', marginBottom: 26 }}>
         {kicker && <span style={{ display: 'inline-block', fontSize: 11.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', background: 'color-mix(in srgb, var(--site-accent) 14%, var(--site-bg))', color: 'var(--site-accent-ui)', borderRadius: 999, padding: '5px 14px', marginBottom: 12 }}>{kicker}</span>}
         <h2 style={{ ...base, margin: 0 }}>{children}</h2>
       </div>
@@ -450,7 +454,9 @@ function CartDrawer({ site, v }) {
   const set = (k, val) => setF((s) => ({ ...s, [k]: val }));
   const pay = site.payments || { enableTransfer: true, enableCod: true };
   const methods = [
-    pay.enableCard && ['card', 'Pay with card', 'Card, bank or USSD — secure checkout by Paystack, straight to the store.'],
+    // Demo builds have no /api/site-pay and their order stub has no orderId —
+    // card checkout would dead-end, so it's not offered there.
+    pay.enableCard && !DEMO && ['card', 'Pay with card', 'Card, bank or USSD — secure checkout by Paystack, straight to the store.'],
     pay.enableTransfer && ['transfer', 'Bank transfer', 'Pay into the store’s account — details shown after you order.'],
     pay.enableCod && ['cod', 'Pay on delivery', 'Pay cash or transfer when your order arrives.'],
   ].filter(Boolean);
@@ -482,8 +488,9 @@ function CartDrawer({ site, v }) {
           body: JSON.stringify({ action: 'init', orgSlug: site.slug, orderId: d.orderId }),
         });
         const pd = await r.json().catch(() => ({}));
-        if (!r.ok || !pd.authorizationUrl) throw new Error(pd.message || 'Could not start the card payment — try another method.');
-        cart.clear();
+        if (!r.ok || !pd.authorizationUrl) throw new Error(pd.message || `Could not start the card payment — your order ${d.orderNo} is saved, choose another payment method or contact the store.`);
+        // Cart is kept: an abandoned Paystack page returns to an intact cart.
+        // PublicSite clears it once the payment verifies as paid.
         window.location.href = pd.authorizationUrl;
         return;
       }
@@ -861,7 +868,7 @@ function Block({ block, site, v, i }) {
     case 'text':
       return (
         <Sec v={v} i={i} w={720}>
-          {c.heading && <H2 v={v} i={i} align="left" kicker="Our story">{c.heading}</H2>}
+          {c.heading && <H2 v={v} i={i} align="left">{c.heading}</H2>}
           <p style={{ fontSize: 15.5, lineHeight: 1.75, color: 'var(--site-muted)', whiteSpace: 'pre-wrap', margin: 0 }}>{c.body}</p>
         </Sec>
       );

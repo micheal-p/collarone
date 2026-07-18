@@ -18,13 +18,20 @@ export default function PublicSite() {
   useEffect(() => {
     const ref = searchParams.get('payref') || searchParams.get('reference');
     if (!ref || !slug) return;
-    window.history.replaceState({}, '', window.location.pathname);
     fetch('/api/site-pay', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'verify', orgSlug: slug, reference: ref }),
     })
       .then((r) => r.json())
-      .then((d) => setPayResult({ paid: Boolean(d.paid), orderNo: d.orderNo || '' }))
+      .then((d) => {
+        setPayResult({ paid: Boolean(d.paid), orderNo: d.orderNo || '' });
+        if (d.paid) {
+          // paid and confirmed: the cart's job is done, and the reference can
+          // leave the URL. On failure both stay so a reload retries verify.
+          try { localStorage.removeItem(`collarone_cart_${slug}`); } catch { /* private mode */ }
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      })
       .catch(() => setPayResult({ paid: false, orderNo: '' }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);

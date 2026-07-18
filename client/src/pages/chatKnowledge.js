@@ -36,8 +36,10 @@ function priceQuote(text) {
 const INTENTS = [
   {
     id: 'greeting',
-    phrases: ['good morning', 'good afternoon', 'good evening', 'how far'],
-    keys: ['hello', 'hi', 'hey', 'greetings'],
+    // single-word greetings are phrases (weight 3): a bare "hi" must clear
+    // the confidence threshold — matching is word-boundary-safe, see norm()
+    phrases: ['good morning', 'good afternoon', 'good evening', 'how far', 'hi', 'hello', 'hey', 'hiya', 'greetings'],
+    keys: [],
     answer: 'Welcome! I can walk you through what Collarone does, what it costs, and how to get your company set up. What would you like to know?',
     chips: ['What does Collarone cost?', 'What suites are included?', 'How do I get started?'],
   },
@@ -186,16 +188,18 @@ const INTENTS = [
 ];
 
 const tokenize = (t) => t.toLowerCase().replace(/[^a-z0-9₦\s]/g, ' ').split(/\s+/).filter(Boolean);
+// word-boundary-safe phrase matching: "hi" must not match inside "this"
+const norm = (t) => ` ${tokenize(t).join(' ')} `;
 
 export function answerQuestion(text) {
-  const lower = ` ${text.toLowerCase()} `;
+  const padded = norm(text);
   const tokens = new Set(tokenize(text));
 
   let best = null;
   let bestScore = 0;
   for (const intent of INTENTS) {
     let score = 0;
-    for (const p of intent.phrases || []) if (lower.includes(p)) score += 3;
+    for (const p of intent.phrases || []) if (padded.includes(norm(p))) score += 3;
     for (const k of intent.keys || []) if (tokens.has(k)) score += 1;
     if (score > bestScore) { best = intent; bestScore = score; }
   }
@@ -206,7 +210,11 @@ export function answerQuestion(text) {
     return { reply: quote, human: false, chips: ['What suites are included?', 'Is there a trial?', 'How do I get started?'] };
   }
 
-  if (!best || bestScore < 2) {
+  // Confidence: a phrase hit (3) or two keywords always answer. A single
+  // keyword answers only in a short, focused question ("does it support
+  // payroll?") — in a long message one weak keyword still escalates.
+  const confident = best && (bestScore >= 2 || (bestScore === 1 && tokens.size <= 6));
+  if (!confident) {
     return {
       reply: 'I don\'t want to guess on that one — but a real person will know, and they reply fast:',
       human: true,

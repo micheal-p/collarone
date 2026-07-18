@@ -20,7 +20,10 @@ const QUICK_CHIPS = [
   'Talk to a human',
 ];
 
-const isHumanAsk = (t) => /human|agent|person|someone|talk to|speak (to|with)|call me|support|complain/i.test(t);
+// Only explicit "get me a person" asks skip the knowledge base — product
+// questions containing words like "support" go through the engine, which has
+// its own escalation for what it can't answer.
+const isHumanAsk = (t) => /\b(human|agent|(talk|speak|chat)\s+(to|with)\s+(a\s+)?(human|person|someone|agent|rep)|call me|customer (care|service)|real person|complain(t)?)\b/i.test(t);
 
 function HumanCard() {
   return (

@@ -489,7 +489,7 @@ function ShareEmbedPanel({ orgSlug }) {
 const ORDER_STATUS = { new: 'New', confirmed: 'Confirmed', fulfilled: 'Fulfilled', cancelled: 'Cancelled' };
 const ORDER_TINT = { new: '#B45309', confirmed: '#1D4ED8', fulfilled: '#166534', cancelled: '#6B7280' };
 
-function OrdersTab({ orgId, flash }) {
+function OrdersTab({ orgId, orgSlug, flash }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -502,6 +502,38 @@ function OrdersTab({ orgId, flash }) {
       const saved = await W.updateOrderStatus(o.id, status);
       setOrders((s) => s.map((x) => (x.id === o.id ? saved : x)));
       flash(`Order ${o.order_no} marked ${ORDER_STATUS[status].toLowerCase()}.`);
+    } catch (e) { flash(e.message, true); }
+  };
+
+  // Missed-redirect recovery: ask Paystack directly whether this card order's
+  // reference actually charged — the same server verify the shopper's return
+  // trip uses, so a paid order can always be reconciled from here.
+  const [rechecking, setRechecking] = useState(null);
+  const recheckPayment = async (o) => {
+    setRechecking(o.id);
+    try {
+      const r = await fetch('/api/site-pay', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'verify', orgSlug, reference: o.paystack_ref }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (d.paid) {
+        flash(`Paystack confirms order ${o.order_no} is PAID.`);
+        W.getOrders(orgId).then(setOrders).catch(() => {});
+      } else {
+        flash(`Paystack has no successful payment for ${o.order_no} yet.`, true);
+      }
+    } catch (e) { flash(e.message, true); } finally { setRechecking(null); }
+  };
+
+  // Merchant sighted the money in their own Paystack dashboard but the
+  // redirect never verified — manual confirm stamps paid_at so the badge
+  // agrees with the bank.
+  const confirmCardManually = async (o) => {
+    try {
+      const saved = await W.markOrderPaid(o.id);
+      setOrders((s) => s.map((x) => (x.id === o.id ? saved : x)));
+      flash(`Order ${o.order_no} confirmed as paid.`);
     } catch (e) { flash(e.message, true); }
   };
 
@@ -550,7 +582,16 @@ function OrdersTab({ orgId, flash }) {
               href={`https://wa.me/${waDigits(o.phone)}?text=${encodeURIComponent(`Hello ${o.customer_name.split(' ')[0]}, about your order ${o.order_no} — `)}`}>
               WhatsApp customer
             </a>
-            {o.status === 'new' && <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '6px 14px' }} onClick={() => setStatus(o, 'confirmed')}>Confirm payment/order</button>}
+            {o.payment_method === 'card' && !o.paid_at && o.status !== 'cancelled' && (
+              <button className="btn btn-ghost" style={{ fontSize: 12.5, padding: '6px 14px' }} disabled={rechecking === o.id} onClick={() => recheckPayment(o)}>
+                {rechecking === o.id ? 'Checking…' : 'Re-check with Paystack'}
+              </button>
+            )}
+            {o.status === 'new' && (
+              o.payment_method === 'card' && !o.paid_at
+                ? <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '6px 14px' }} onClick={() => confirmCardManually(o)}>I've sighted this payment — confirm</button>
+                : <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '6px 14px' }} onClick={() => setStatus(o, 'confirmed')}>Confirm payment/order</button>
+            )}
             {o.status === 'confirmed' && <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '6px 14px' }} onClick={() => setStatus(o, 'fulfilled')}>Mark fulfilled</button>}
             {(o.status === 'new' || o.status === 'confirmed') && (
               <button className="btn btn-ghost" style={{ fontSize: 12.5, padding: '6px 14px', color: '#a4262c' }} onClick={() => setStatus(o, 'cancelled')}>Cancel</button>
@@ -845,7 +886,7 @@ export default function AdminWebsite() {
           {tab === 'settings' && <SettingsTab site={site} orgId={org.id} orgSlug={org.slug} isStore={category === 'ecommerce'} onSave={load} flash={flash} />}
           {tab === 'pages' && <PagesTab orgId={org.id} flash={flash} />}
           {tab === 'products' && category === 'ecommerce' && <ProductsTab orgId={org.id} flash={flash} />}
-          {tab === 'orders' && category === 'ecommerce' && <OrdersTab orgId={org.id} flash={flash} />}
+          {tab === 'orders' && category === 'ecommerce' && <OrdersTab orgId={org.id} orgSlug={org.slug} flash={flash} />}
           {tab === 'insights' && <InsightsTab orgId={org.id} flash={flash} />}
           {tab === 'publish' && (
             <div style={{ maxWidth: 480 }}>

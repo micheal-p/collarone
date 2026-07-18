@@ -176,4 +176,14 @@ export const updateOrderStatus = async (id, status) => {
   return data;
 };
 
+// Merchant manually confirms a card payment they've sighted in their own
+// Paystack dashboard (missed-redirect case) — stamps paid_at so the badge
+// agrees with reality.
+export const markOrderPaid = async (id) => {
+  const { data, error } = await supabase.from('site_orders')
+    .update({ status: 'confirmed', paid_at: new Date().toISOString() }).eq('id', id).select().single();
+  if (error) throw new Error(error.message);
+  return data;
+};
+
 export const money = (n) => n == null ? '' : `₦${Number(n).toLocaleString('en-NG')}`;

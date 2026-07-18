@@ -88,10 +88,10 @@ function GrowthChart({ orgs }) {
 
   return (
     <div className="pc-panel" style={{ padding: 16, position: 'relative' }} ref={containerRef}>
-      <svg width={width - 32} height={height} onMouseMove={handleMove} onMouseLeave={() => setHover(null)} style={{ display: 'block', cursor: 'crosshair' }}>
+      <svg width={width} height={height} onMouseMove={handleMove} onMouseLeave={() => setHover(null)} style={{ display: 'block', cursor: 'crosshair' }}>
         {yTicks.map((v) => (
           <g key={v}>
-            <line x1={padding.left} x2={width - 32 - padding.right} y1={y(v)} y2={y(v)} stroke="rgba(238,234,224,0.08)" strokeWidth={1} />
+            <line x1={padding.left} x2={width - padding.right} y1={y(v)} y2={y(v)} stroke="rgba(238,234,224,0.08)" strokeWidth={1} />
             <text x={padding.left - 8} y={y(v) + 4} textAnchor="end" fontSize={10.5} fill="rgba(238,234,224,0.4)" fontFamily="var(--mono)">{v}</text>
           </g>
         ))}

@@ -186,7 +186,13 @@ export default async function handler(req, res) {
       }
 
       const { publicKey, secretKey, enabled } = body;
-      if (enabled && (!publicKey || !secretKey)) return json(res, 400, { message: 'Both Paystack keys are required to enable card payments.' });
+      // Re-enabling with keys already on file is legitimate (the modal says
+      // "paste new keys only to replace them") — only demand keys when none
+      // are stored.
+      if (enabled && (!publicKey || !secretKey)) {
+        const { data: existing } = await admin.from('org_payment_gateways').select('secret_key').eq('org_id', orgId).maybeSingle();
+        if (!existing?.secret_key) return json(res, 400, { message: 'Both Paystack keys are required to enable card payments.' });
+      }
       const patch = { org_id: orgId, enabled: Boolean(enabled), enabled_by: user.id, updated_at: new Date().toISOString() };
       if (publicKey) patch.public_key = String(publicKey).trim();
       if (secretKey) patch.secret_key = String(secretKey).trim();
