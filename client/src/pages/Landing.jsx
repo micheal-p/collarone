@@ -4,6 +4,7 @@ import { motion, animate, AnimatePresence, useReducedMotion, useScroll, useTrans
 import { SUITES, SUITE_META } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 import ChatWidget from './ChatWidget.jsx';
+import { PLANS, PER_STAFF_FEE, ANNUAL_DISCOUNT, naira } from '../lib/pricing.js';
 import shotHome from '../assets/shots/home.jpg';
 import shotTasks from '../assets/shots/tasks.jpg';
 import shotCrm from '../assets/shots/crm.jpg';
@@ -132,14 +133,8 @@ const GALLERY_SHOTS = [
 
 const marqueeItems = ['Staff Directory', 'Leave Management', 'Task Tracking', 'Visitor Sign-in', 'Recruiting & Careers', 'Onboarding', 'Performance Reviews', 'Compliance Vault', 'Payroll — PAYE · Pension · NHF', 'Customer CRM', 'Website Builder', 'Invoicing & GRNs', 'Automation'];
 
-const PRICE_TIERS = [
-  { key: 'startup', name: 'Startup', baseFee: 15000, included: 3, extraFee: 8000 },
-  { key: 'standard', name: 'Standard', baseFee: 25000, included: 5, extraFee: 6000 },
-  { key: 'enterprise', name: 'Enterprise', baseFee: 45000, included: 8, extraFee: 4000 },
-];
-const ANNUAL_DISCOUNT = 0.15;
-const PER_STAFF_FEE = 2000;
-const naira = (n) => `₦${Math.round(n).toLocaleString('en-NG')}`;
+// pricing comes from the single shared model — do not restate numbers here
+const PRICE_TIERS = PLANS.map((t) => ({ key: t.key, name: t.name, baseFee: t.baseFee, included: t.includedSuites, extraFee: t.extraSuiteFee }));
 
 function PriceCalculator() {
   const [tierKey, setTierKey] = useState('standard');

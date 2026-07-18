@@ -46,8 +46,9 @@ create policy site_orders_org_update on public.site_orders
   with check (public.same_org(org_id));
 -- inserts only through public_place_order below
 
--- SUPERSEDED by site_paystack.sql (adds the 'card' method + orderId in the
--- return) — do not re-run this definition after that file has been applied.
+-- IDENTICAL BY CONTENT to the definition in site_paystack.sql — keep the two
+-- in sync so re-running either file is always safe (differing duplicates were
+-- the original landmine).
 -- Anonymous checkout. Prices are re-read from site_products server-side —
 -- the client only sends product ids and quantities, so a tampered cart
 -- can't change what anything costs.
@@ -65,7 +66,9 @@ declare
   v_total numeric := 0;
   v_qty int;
   v_order_no text;
+  v_order_id uuid;
   v_contact_id uuid;
+  v_card_enabled boolean;
 begin
   select id into v_org_id from public.organizations where slug = p_org_slug;
   if v_org_id is null then raise exception 'Unknown store'; end if;
@@ -74,9 +77,14 @@ begin
 
   if coalesce(trim(p_name), '') = '' then raise exception 'Your name is required'; end if;
   if coalesce(trim(p_phone), '') = '' then raise exception 'A phone number is required so the store can reach you'; end if;
-  if p_method not in ('transfer','cod') then raise exception 'Choose how you want to pay'; end if;
+  if p_method not in ('transfer','cod','card') then raise exception 'Choose how you want to pay'; end if;
   if p_method = 'transfer' and not v_site.enable_transfer then raise exception 'This store does not accept transfers'; end if;
   if p_method = 'cod' and not v_site.enable_cod then raise exception 'This store does not offer pay on delivery'; end if;
+  if p_method = 'card' then
+    select enabled into v_card_enabled from public.org_payment_gateways where org_id = v_org_id;
+    if not coalesce(v_card_enabled, false) then raise exception 'This store does not take card payments'; end if;
+    if coalesce(trim(p_email), '') = '' then raise exception 'Your email is required for card payment'; end if;
+  end if;
   if p_items is null or jsonb_array_length(p_items) = 0 then raise exception 'Your cart is empty'; end if;
   if jsonb_array_length(p_items) > 40 then raise exception 'Too many items in one order'; end if;
 
@@ -89,10 +97,13 @@ begin
     v_total := v_total + coalesce(v_product.price, 0) * v_qty;
   end loop;
 
+  if p_method = 'card' and v_total <= 0 then raise exception 'Card payment needs a total above zero'; end if;
+
   v_order_no := 'ORD-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6));
 
   insert into public.site_orders (org_id, order_no, customer_name, phone, email, address, note, items, total_naira, payment_method)
-  values (v_org_id, v_order_no, trim(p_name), trim(p_phone), coalesce(trim(p_email), ''), coalesce(trim(p_address), ''), coalesce(trim(p_note), ''), v_lines, v_total, p_method);
+  values (v_org_id, v_order_no, trim(p_name), trim(p_phone), coalesce(trim(p_email), ''), coalesce(trim(p_address), ''), coalesce(trim(p_note), ''), v_lines, v_total, p_method)
+  returning id into v_order_id;
 
   -- the buyer becomes/updates a CRM contact with the order in their history
   select id into v_admin_id from public.profiles where org_id = v_org_id and role = 'super_admin' limit 1;
@@ -111,11 +122,14 @@ begin
     insert into public.crm_activities (org_id, contact_id, type, source, notes, created_by)
     values (v_org_id, v_contact_id, 'web_message', 'order',
       '[Order ' || v_order_no || '] ' || jsonb_array_length(v_lines) || ' item(s), ₦' || to_char(v_total, 'FM999,999,999') ||
-      ' — ' || case when p_method = 'transfer' then 'paying by bank transfer' else 'pay on delivery' end || '.',
+      ' — ' || case when p_method = 'transfer' then 'paying by bank transfer'
+                    when p_method = 'card' then 'paying by card'
+                    else 'pay on delivery' end || '.',
       v_admin_id);
   end if;
 
   return jsonb_build_object(
+    'orderId', v_order_id,
     'orderNo', v_order_no,
     'total', v_total,
     'method', p_method,

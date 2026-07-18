@@ -80,6 +80,9 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try { await apiPost('/auth/logout'); } catch { /* ignore */ }
+    // The guest marker's life is bound to the session — any teardown removes
+    // it, so an orphan can never attach to (and later kill) a future session.
+    try { localStorage.removeItem('collarone_guest_mode'); sessionStorage.removeItem('collarone_guest_mode'); } catch { /* no storage */ }
     setAccessToken(null);
     setUser(null);
     resetOrgTheme();

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import { waLink } from '../lib/whatsapp.js';
 import { FOUNDING_ORG_ID } from '../config/org.js';
 import PlatformShell from '../components/PlatformShell.jsx';
+import { useToast } from '../components/ui.jsx';
 import ThemeMockup from '../components/ThemeMockup.jsx';
 import ThemePreviewModal from '../components/ThemePreview.jsx';
 
@@ -333,7 +334,6 @@ export default function PlatformAdmin() {
   const [transactions, setTransactions] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
   const [confirming, setConfirming] = useState(null);
   const [testingOrg, setTestingOrg] = useState(null);
   const [guestingOrg, setGuestingOrg] = useState(null);
@@ -343,7 +343,7 @@ export default function PlatformAdmin() {
   const [deleting, setDeleting] = useState(false);
   const [gatewayOrg, setGatewayOrg] = useState(null);
 
-  const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3200); };
+  const { flash, toastNode } = useToast();
 
   const [adminIds, setAdminIds] = useState([]);
   const [sites, setSites] = useState([]);
@@ -646,7 +646,7 @@ export default function PlatformAdmin() {
         <DeleteOrgModal org={deleteTarget} busy={deleting} onClose={() => setDeleteTarget(null)} onConfirm={deleteOrg} />
       )}
       {gatewayOrg && <GatewayModal org={gatewayOrg} onClose={() => setGatewayOrg(null)} flash={flash} />}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {toastNode}
     </PlatformShell>
   );
 }

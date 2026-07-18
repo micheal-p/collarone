@@ -16,12 +16,6 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { apiPost, DEMO } from '../../api/client.js';
 import { waDigits } from '../../lib/whatsapp.js';
 
-const FONT_STACKS = {
-  'sans-clean':    "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-  'sans-bold':     "'Inter', 'Poppins', sans-serif",
-  'serif-display': "'Georgia', 'Times New Roman', serif",
-};
-
 // Each theme owns a real typeface pairing (display + body, loaded from Google
 // Fonts) — three shared system stacks made ten themes read as one site.
 const THEME_FONTS = {
@@ -91,9 +85,12 @@ function useThemeAssets(theme) {
   useEffect(() => {
     const fonts = THEME_FONTS[theme?.key];
     if (fonts && !document.getElementById(`cs-fonts-${theme.key}`)) {
-      const pre = document.createElement('link');
-      pre.rel = 'preconnect'; pre.href = 'https://fonts.gstatic.com'; pre.crossOrigin = 'anonymous';
-      document.head.appendChild(pre);
+      if (!document.getElementById('cs-fonts-preconnect')) {
+        const pre = document.createElement('link');
+        pre.id = 'cs-fonts-preconnect';
+        pre.rel = 'preconnect'; pre.href = 'https://fonts.gstatic.com'; pre.crossOrigin = 'anonymous';
+        document.head.appendChild(pre);
+      }
       const link = document.createElement('link');
       link.id = `cs-fonts-${theme.key}`;
       link.rel = 'stylesheet';
@@ -178,8 +175,10 @@ function useThemeVars(theme) {
       '--site-muted': dark ? '#a5a5ad' : '#5c5f66',
       '--site-surface': dark ? '#181b21' : '#f7f7f8',
       '--site-line': dark ? '#2a2e37' : '#e7e7ea',
-      '--site-font': fonts?.body || FONT_STACKS[theme.fontPair] || FONT_STACKS['sans-clean'],
-      '--site-font-display': fonts?.display || FONT_STACKS[theme.fontPair] || FONT_STACKS['sans-clean'],
+      // themes without a THEME_FONTS entry (a future 11th) fall back to the
+      // system stack — one fallback, not a parallel font system
+      '--site-font': fonts?.body || 'system-ui, -apple-system, sans-serif',
+      '--site-font-display': fonts?.display || 'Georgia, serif',
     };
   }, [theme]);
 }

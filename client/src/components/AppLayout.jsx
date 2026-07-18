@@ -86,7 +86,9 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
     // A marker orphaned by an earlier guest session must never terminate a
     // later real login — if this session's org isn't the org the marker
     // points at, the marker is stale: drop it and leave the session alone.
-    if (user?.org?.id && guestMode.orgId && guestMode.orgId !== user.org.id) {
+    if (!guestMode.orgId || (user?.org?.id && guestMode.orgId !== user.org.id)) {
+      // No orgId = a legacy/orphaned marker that can't be matched to this
+      // session — it must never be allowed to kill a real login.
       try { localStorage.removeItem(GUEST_KEY); sessionStorage.removeItem(GUEST_KEY); } catch { /* no storage */ }
       setGuestMode(null);
       return;

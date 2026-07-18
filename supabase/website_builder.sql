@@ -265,8 +265,8 @@ grant execute on function public.delete_org_site() to authenticated;
 --                        gap: there was previously NO way to preview an
 --                        unpublished site at all)
 -- ============================================================================
--- SUPERSEDED by site_paystack.sql (payments gains enableCard) — do not
--- re-run this definition after that file has been applied.
+-- IDENTICAL BY CONTENT to the definition in site_paystack.sql — keep the two
+-- in sync so re-running either file is always safe.
 create or replace function public._build_site_payload(v_org_id uuid)
 returns jsonb language plpgsql stable security definer set search_path = public as $$
 declare
@@ -309,6 +309,7 @@ begin
     'payments', jsonb_build_object(
       'enableTransfer', v_site.enable_transfer,
       'enableCod', v_site.enable_cod,
+      'enableCard', coalesce((select g.enabled from public.org_payment_gateways g where g.org_id = v_site.org_id), false),
       'bankName', v_site.bank_name,
       'accountName', v_site.bank_account_name,
       'accountNumber', v_site.bank_account_number,

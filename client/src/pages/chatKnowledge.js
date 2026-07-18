@@ -7,13 +7,12 @@
 // human — never guesses.
 // ============================================================================
 
-const TIERS = [
-  { key: 'startup', name: 'Startup', base: 15000, included: 3, extra: 8000 },
-  { key: 'standard', name: 'Standard', base: 25000, included: 5, extra: 6000 },
-  { key: 'enterprise', name: 'Enterprise', base: 45000, included: 8, extra: 4000 },
-];
-const PER_STAFF = 2000;
-const N = (n) => `₦${Math.round(n).toLocaleString('en-NG')}`;
+import { PLANS, PER_STAFF_FEE, naira } from '../lib/pricing.js';
+
+// derived, never restated — the chat quotes whatever the platform charges
+const TIERS = PLANS.map((t) => ({ key: t.key, name: t.name, base: t.baseFee, included: t.includedSuites, extra: t.extraSuiteFee }));
+const PER_STAFF = PER_STAFF_FEE;
+const N = naira;
 
 // "how much for 12 staff on standard?" → a real quote, computed.
 function priceQuote(text) {
@@ -54,7 +53,7 @@ const INTENTS = [
     id: 'pricing',
     phrases: ['how much', 'what does it cost', 'what does collarone cost', 'pricing', 'price list'],
     keys: ['cost', 'price', 'pay', 'fee', 'cheap', 'expensive', 'afford', 'monthly', 'subscription'],
-    answer: (text) => priceQuote(text) || `Every tier is à la carte — you pick the suites. Startup is ${N(15000)}/month with any 3 suites included, Standard ${N(25000)} with 5, Enterprise ${N(45000)} with 8. Extra suites cost ${N(8000)}/${N(6000)}/${N(4000)} each by tier, plus ${N(2000)} per staff member on all tiers. Yearly billing saves 15%, no forex markup, and your rate locks in at sign-up. Tell me your team size and I'll do the exact arithmetic.`,
+    answer: (text) => priceQuote(text) || `Every tier is à la carte — you pick the suites. ${TIERS.map((t) => `${t.name} is ${N(t.base)}/month with any ${t.included} suites included`).join(', ')}. Extra suites cost ${TIERS.map((t) => N(t.extra)).join('/')} each by tier, plus ${N(PER_STAFF)} per staff member on all tiers. Yearly billing saves 15%, no forex markup, and your rate locks in at sign-up. Tell me your team size and I'll do the exact arithmetic.`,
     chips: ['Price for 10 staff on Standard', 'What suites are included?', 'Is there a trial?'],
   },
   {

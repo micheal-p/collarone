@@ -131,8 +131,9 @@ grant execute on function public.public_place_order(text, text, text, text, text
 
 -- ---------------------------------------------------------------------------
 -- _build_site_payload — payments gains enableCard (whether this store's own
--- Paystack gateway is switched on). Canonical copy also updated in
--- website_builder.sql — keep the two identical (see the landmine note there).
+-- Paystack gateway is switched on). website_builder.sql and site_commerce.sql
+-- now carry IDENTICAL copies of the functions this file redefines, so
+-- re-running any of the three files in any order is safe.
 -- ---------------------------------------------------------------------------
 create or replace function public._build_site_payload(v_org_id uuid)
 returns jsonb language plpgsql stable security definer set search_path = public as $$
