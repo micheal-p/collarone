@@ -218,5 +218,5 @@ create policy "org_logos_update" on storage.objects
 -- candidate-resumes anonymous upload in careers.sql.
 drop policy if exists "org_logos_anon_insert" on storage.objects;
 create policy "org_logos_anon_insert" on storage.objects
-  for insert to anon
+  for insert to anon, authenticated
   with check (bucket_id = 'org-logos' and (storage.foldername(name))[1] = 'pending');
