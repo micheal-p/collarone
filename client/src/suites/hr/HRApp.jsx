@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import ProductTour, { tourSeen } from '../../components/ProductTour.jsx';
+import { useAuth } from '../../auth/AuthContext.jsx';
 import { apiGet } from '../../api/client.js';
 import { useToast, Modal, EmptyState, searchMatcher } from '../../components/ui.jsx';
 import * as H from './hrApi.js';
@@ -167,6 +169,33 @@ export default function HRApp({ access }) {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('directory');
+
+  // HR suite tour — first visit per user, replay via /suite/hr?tour=1.
+  const { user: me } = useAuth();
+  const [hrTour, setHrTour] = useState(false);
+  useEffect(() => {
+    if (loading) return;
+    const wantsReplay = new URLSearchParams(window.location.search).get('tour') === '1';
+    if (wantsReplay || !tourSeen(me?.id, 'hr_v1')) {
+      const t = setTimeout(() => setHrTour(true), 700);
+      return () => clearTimeout(t);
+    }
+  }, [loading]); // eslint-disable-line
+
+  const HR_TOUR_STEPS = [
+    { title: 'Welcome to HR & Staff', body: 'This is the flagship suite — everything about your people lives here, from the day they apply to the day they leave. A one-minute walkthrough; skip anytime.' },
+    { target: '[data-tour="hr-tab-directory"]', title: 'The Directory', body: 'Every member of staff, filterable by department. Click any person to open their Employee 360 — pay, leave, attendance, documents, reviews and cases on one page.' },
+    { target: '[data-tour="hr-tab-orgchart"]', title: 'Org chart', body: 'Your reporting lines, drawn automatically from each person\'s manager field.' },
+    { target: '[data-tour="hr-tab-myinterviews"]', title: 'My interviews', body: 'If you\'re interviewing a candidate, your schedule and feedback forms are here.' },
+    { target: '[data-tour="hr-tab-recruiting"]', title: 'Recruiting', body: 'Post roles to your public careers page, move applicants through the pipeline with interview scorecards, email candidates, send offers as private accept/decline links — then hire in one click.' },
+    { target: '[data-tour="hr-tab-letters"]', title: 'Letters', body: 'Confirmation, promotion, query and warning letters — typed, from templates, or drafted by Collarone AI — on your own letterhead, auto-numbered, filed into Documents.' },
+    { target: '[data-tour="hr-tab-onboarding"]', title: 'Onboarding', body: 'New hires get a structured task list, and probation end dates trigger a proper decision: confirm with the letter, extend, or exit.' },
+    { target: '[data-tour="hr-tab-offboarding"]', title: 'Offboarding', body: 'Exits with their own task lists and records — the story ends as cleanly as it began.' },
+    { target: '[data-tour="hr-tab-performance"]', title: 'Performance', body: 'Goals and review cycles, with ratings that show up on the Employee 360.' },
+    { target: '[data-tour="hr-tab-compliance"]', title: 'Compliance', body: 'Discipline done properly — query letter, written response, outcome — plus employee documents with expiry tracking.' },
+    { target: '[data-tour="hr-tab-analytics"]', title: 'Analytics', body: 'Headcount, attrition, hiring trend, anniversaries, birthdays, and the statutory meter that flags the group-life requirement at 5+ staff.' },
+    { title: 'That\'s HR & Staff', body: 'Start with the Directory — add your people, and everything else builds on top. Replay this tour anytime by adding ?tour=1 to the address.' },
+  ];
   const [q, setQ] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
   const [profileEmp, setProfileEmp] = useState(null);
@@ -284,7 +313,7 @@ export default function HRApp({ access }) {
 
       <div className="lv-tabs">
         {TABS.map((t) => (
-          <button key={t.key} className={`lv-tab ${tab === t.key && !recordEmp ? 'active' : ''}`} onClick={() => { setRecordEmp(null); setTab(t.key); }}>{t.label}</button>
+          <button key={t.key} data-tour={`hr-tab-${t.key}`} className={`lv-tab ${tab === t.key && !recordEmp ? 'active' : ''}`} onClick={() => { setRecordEmp(null); setTab(t.key); }}>{t.label}</button>
         ))}
       </div>
 
@@ -379,6 +408,7 @@ export default function HRApp({ access }) {
         />
       )}
       {toastNode}
+          {hrTour && <ProductTour steps={HR_TOUR_STEPS} userId={me?.id} tourId="hr_v1" onClose={() => setHrTour(false)} />}
     </div>
   );
 }

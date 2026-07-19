@@ -9,11 +9,11 @@ import { useEffect, useLayoutEffect, useState } from 'react';
    Help via /?tour=1.
    ============================================================================= */
 
-const doneKey = (userId) => `collarone_tour_v1_${userId || 'anon'}`;
-export const tourSeen = (userId) => { try { return localStorage.getItem(doneKey(userId)) === 'done'; } catch { return true; } };
-export const markTourDone = (userId) => { try { localStorage.setItem(doneKey(userId), 'done'); } catch { /* private mode */ } };
+const doneKey = (userId, tourId = 'v1') => `collarone_tour_${tourId}_${userId || 'anon'}`;
+export const tourSeen = (userId, tourId) => { try { return localStorage.getItem(doneKey(userId, tourId)) === 'done'; } catch { return true; } };
+export const markTourDone = (userId, tourId) => { try { localStorage.setItem(doneKey(userId, tourId), 'done'); } catch { /* private mode */ } };
 
-export default function ProductTour({ steps, userId, onClose }) {
+export default function ProductTour({ steps, userId, tourId = 'v1', onClose }) {
   const [idx, setIdx] = useState(0);
   const [rect, setRect] = useState(null);
 
@@ -39,7 +39,7 @@ export default function ProductTour({ steps, userId, onClose }) {
     return () => { window.removeEventListener('resize', onResize); window.removeEventListener('keydown', onKey); };
   }, []); // eslint-disable-line
 
-  const finish = () => { markTourDone(userId); onClose(); };
+  const finish = () => { markTourDone(userId, tourId); onClose(); };
   const next = () => (idx >= visible.length - 1 ? finish() : setIdx(idx + 1));
 
   if (!step) { finish(); return null; }
