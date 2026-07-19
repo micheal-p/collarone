@@ -142,8 +142,29 @@ export async function supabaseApi(path, opts = {}) {
     return { accessToken: session.access_token, user: { ...toPublic(profile), org: toPublicOrg(org), isPlatformAdmin } };
   }
   if (head === 'POST /auth' && seg[1] === 'logout') { await supabase.auth.signOut(); return { ok: true }; }
+  if (head === 'POST /auth' && seg[1] === 'forgot-password') {
+    const email = String(body.email || '').toLowerCase().trim();
+    // Always report success regardless of whether the address has an account —
+    // revealing which emails exist is an enumeration leak. resetPasswordForEmail
+    // is itself a silent no-op for unknown addresses. The link lands on our
+    // public /reset-password route (must be whitelisted in Supabase Auth →
+    // URL Configuration, or Supabase falls back to the Site URL).
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      try { await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` }); } catch { /* never surface */ }
+    }
+    return { ok: true };
+  }
   if (head === 'POST /auth' && seg[1] === 'change-password') {
     if (!body.newPassword || body.newPassword.length < 8) fail(400, 'New password must be at least 8 characters.');
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) fail(401, 'Authentication required.');
+    // Verify the current password before rotating it. Supabase has no
+    // "check password" primitive, so re-authenticate: signInWithPassword just
+    // refreshes the session for the same user on success (harmless) and errors
+    // on a wrong password without touching the existing session.
+    if (!body.currentPassword) fail(400, 'Enter your current password.');
+    const { error: reauthErr } = await supabase.auth.signInWithPassword({ email: user.email, password: body.currentPassword });
+    if (reauthErr) fail(400, 'Your current password is incorrect.');
     const { error } = await supabase.auth.updateUser({ password: body.newPassword });
     if (error) fail(400, error.message);
     await supabase.rpc('mark_password_changed');

@@ -81,6 +81,7 @@ export default function Login() {
                 {busy ? <span className="spinner" /> : 'Sign in'}
               </button>
             </div>
+            <p className="login-note"><Link to="/forgot-password">Forgot your password?</Link></p>
           </form>
         )}
       </div>

@@ -5,6 +5,8 @@ import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Login from './pages/Login.jsx';
 import Landing from './pages/Landing.jsx';
 import ChangePassword from './pages/ChangePassword.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
 import Launcher from './pages/Launcher.jsx';
 import SuiteShell from './pages/SuiteShell.jsx';
 import AdminUsers from './pages/admin/Users.jsx';
@@ -84,6 +86,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />

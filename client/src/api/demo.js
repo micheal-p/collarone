@@ -117,6 +117,8 @@ export async function demoApi(path, opts = {}) {
     }
     case route === 'POST /auth/logout':
       session.clear(); return { ok: true };
+    case route === 'POST /auth/forgot-password':
+      return { ok: true }; // demo has no email backend — always neutral-success
     case route === 'POST /auth/change-password': {
       const u = requireAuth();
       if (!body.newPassword || body.newPassword.length < 8) fail(400, 'New password must be at least 8 characters.');
