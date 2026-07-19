@@ -27,12 +27,29 @@ function buildDays(checks, count = 90) {
   return days;
 }
 
-const dayColor = (d) => {
+// severity colors: red = full outage, orange = app-level error, amber = degraded
+const OUTAGE_KINDS = ['api_down', 'db_down'];
+const INCIDENT_COLOR = { api_down: '#c94f3d', db_down: '#c94f3d', degraded: '#d9a441', app_bug: '#d97f35' };
+
+const dayColor = (d, incs = []) => {
+  if (incs.some((x) => OUTAGE_KINDS.includes(x.kind))) return '#c94f3d';
+  if (incs.length) return '#d97f35';
   if (d.pct === null) return '#E4E1D8';
   if (d.hadOutage) return '#c94f3d';
   if (d.pct >= 0.99) return '#5a9c4a';
   return '#d9a441';
 };
+
+// every incident colors every day it spans, not just the day it started
+function incidentsOnDay(incidents, key) {
+  const dayStart = new Date(`${key}T00:00:00Z`).getTime();
+  const dayEnd = dayStart + DAY_MS;
+  return incidents.filter((x) => {
+    const s = new Date(x.started_at).getTime();
+    const e = x.resolved_at ? new Date(x.resolved_at).getTime() : Date.now();
+    return s < dayEnd && e >= dayStart;
+  });
+}
 
 const INCIDENT_LABEL = { api_down: 'API unreachable', db_down: 'Database unreachable', degraded: 'Degraded performance', app_bug: 'Application error' };
 
@@ -98,7 +115,7 @@ export default function Status() {
               {days.map((d, i) => (
                 <div key={d.key} onMouseEnter={() => setHover({ i, d })}
                   style={{
-                    flex: 1, minWidth: 3, height: 46, borderRadius: 2, background: dayColor(d), cursor: 'pointer',
+                    flex: 1, minWidth: 3, height: 46, borderRadius: 2, background: dayColor(d, incidentsOnDay(incidents, d.key)), cursor: 'pointer',
                     transition: 'transform .12s ease, opacity .12s ease',
                     ...(hover && hover.i === i ? { transform: 'scaleY(1.14)' } : hover ? { opacity: 0.55 } : {}),
                   }} />
@@ -106,7 +123,7 @@ export default function Status() {
             </div>
             {hover && (() => {
               const d = hover.d;
-              const dayIncs = incidents.filter((x) => dayKey(x.started_at) === d.key);
+              const dayIncs = incidentsOnDay(incidents, d.key);
               const leftPct = Math.min(82, Math.max(18, ((hover.i + 0.5) / days.length) * 100));
               return (
                 <div style={{
@@ -129,7 +146,7 @@ export default function Status() {
                   )}
                   {dayIncs.map((inc) => (
                     <div key={inc.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#FDF1EC', borderRadius: 8, padding: '8px 10px', marginTop: 4 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: inc.resolved_at ? '#d9a441' : '#c02b2b', flexShrink: 0 }} />
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: INCIDENT_COLOR[inc.kind] || '#c94f3d', flexShrink: 0 }} />
                       <div style={{ fontSize: 12.5 }}>
                         <strong>{INCIDENT_LABEL[inc.kind] || inc.kind}</strong>
                         <span style={{ color: 'rgba(10,14,26,0.5)', marginLeft: 6 }}>
@@ -166,7 +183,7 @@ export default function Status() {
           <div style={{ marginBottom: 8 }}>
             {incidents.map((inc) => (
               <div key={inc.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px 0', borderTop: '1px solid rgba(10,14,26,0.08)' }}>
-                <span style={{ width: 9, height: 9, borderRadius: '50%', background: inc.resolved_at ? '#5a9c4a' : '#c02b2b', marginTop: 5, flexShrink: 0 }} />
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: INCIDENT_COLOR[inc.kind] || '#c94f3d', marginTop: 5, flexShrink: 0 }} />
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>
                     {INCIDENT_LABEL[inc.kind] || inc.kind}
