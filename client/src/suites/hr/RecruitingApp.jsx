@@ -244,6 +244,30 @@ function ApplicationCard({ app, isHrManager, selected, onOpen, onStage }) {
 
 /* ---- ApplicationDetail — the pre-kanban expandable row body, now a panel
    rendered below the board for the selected card ------------------------------- */
+/* ---- CandidateTimeline — every event on one line each, oldest first -------- */
+function CandidateTimeline({ app, interviews }) {
+  const events = [
+    { t: app.created_at, label: 'Applied' },
+    ...(interviews || []).map((iv) => ({ t: iv.scheduled_at, label: `Interview — ${iv.interviewer?.name || ''}${iv.outcome !== 'pending' ? ` (${L.OUTCOME[iv.outcome]?.label || iv.outcome})` : ''}` })),
+    app.offer_sent_at && { t: app.offer_sent_at, label: 'Offer sent' },
+    app.offer_decided_at && { t: app.offer_decided_at, label: app.offer_status === 'accepted' ? 'Offer accepted' : 'Offer declined' },
+    app.stage === 'hired' && { t: app.updated_at, label: 'Hired' },
+    app.stage === 'rejected' && { t: app.updated_at, label: `Rejected${app.rejection_reason ? ` — ${app.rejection_reason}` : ''}` },
+  ].filter(Boolean).sort((a, b) => new Date(a.t) - new Date(b.t));
+  if (events.length <= 1) return null;
+  return (
+    <div style={{ margin:'12px 0 2px', paddingLeft:4 }}>
+      {events.map((e, i) => (
+        <div key={i} style={{ display:'flex', gap:10, alignItems:'baseline', fontSize:12.5, lineHeight:2 }}>
+          <span style={{ width:7, height:7, borderRadius:'50%', background: i === events.length - 1 ? 'var(--brand)' : 'var(--line-strong)', flex:'none', position:'relative', top:-1 }} />
+          <span className="muted" style={{ width:96, flex:'none', fontVariantNumeric:'tabular-nums' }}>{new Date(e.t).toLocaleDateString('en-GB', { day:'2-digit', month:'short' })}</span>
+          <span>{e.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ---- Scorecard — structured interview rating: 4 fixed criteria, 1-5 -------- */
 const SCORE_CRITERIA = [['skills','Skills'],['communication','Communication'],['experience','Experience'],['culture','Culture fit']];
 function Scorecard({ iv, editable, onSave }) {
@@ -518,6 +542,7 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
                 onHired={(profileId) => { setHireModal(false); patch({ stage: 'hired', hiredProfileId: profileId }); }} />
             )}
 
+            <CandidateTimeline app={app} interviews={interviews} />
             <div className="lc-interviews-head">
               <span style={{ fontSize:13, fontWeight:600 }}>Interviews</span>
               {isHrManager && <button className="btn btn-primary" style={{ fontSize:12, padding:'3px 12px' }} onClick={() => setIvModal(true)}>Schedule</button>}

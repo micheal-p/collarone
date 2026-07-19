@@ -22,6 +22,7 @@ import Terms from './pages/Terms.jsx';
 import Privacy from './pages/Privacy.jsx';
 import Contact from './pages/Contact.jsx';
 import OfferPage from './pages/OfferPage.jsx';
+import PayThanks from './pages/PayThanks.jsx';
 import Signup from './pages/Signup.jsx';
 import Status from './pages/Status.jsx';
 import EmbedContactForm from './pages/embed/EmbedContactForm.jsx';
@@ -91,6 +92,7 @@ export default function App() {
       <Route path="/jobs" element={<JobsBoard />} />
       <Route path="/careers" element={<Navigate to="/jobs" replace />} />
       <Route path="/offer/:token" element={<OfferPage />} />
+      <Route path="/pay/thanks" element={<PayThanks />} />
       <Route path="/careers/:orgSlug" element={<CareersIndex />} />
       <Route path="/careers/:orgSlug/:id" element={<CareersApply />} />
       <Route path="/site/:slug" element={<PublicSite />} />

@@ -75,6 +75,27 @@ export default function Signup() {
   const [promoStatus, setPromoStatus] = useState({ state: 'idle', percentOff: 0, msg: '' });
 
   const [result, setResult] = useState(null); // { reference, amountKobo, promoApplied, activated }
+  // Self-serve Paystack for Collarone's own activation fee — appears only
+  // when PLATFORM_PAYSTACK_SECRET is configured on the server.
+  const [payOnline, setPayOnline] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [payError, setPayError] = useState('');
+  useEffect(() => {
+    fetch('/api/platform-pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'status' }) })
+      .then((r) => r.json()).then((d) => setPayOnline(Boolean(d.enabled))).catch(() => {});
+  }, []);
+  const startOnlinePayment = async () => {
+    setPaying(true); setPayError('');
+    try {
+      const r = await fetch('/api/platform-pay', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'init', reference: result.reference, email }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.authorizationUrl) throw new Error(d.message || 'Could not start the payment.');
+      window.location.href = d.authorizationUrl;
+    } catch (e2) { setPayError(e2.message); setPaying(false); }
+  };
 
   // Live promo validation, debounced — redemption itself only happens
   // server-side at create time (see api/signup.js).
@@ -390,12 +411,18 @@ export default function Signup() {
                 During early access, we confirm payments personally — WhatsApp us your reference and we'll send transfer details and activate your space the same day. Once active, sign in with {email} to reach your dashboard.
               </p>
             </div>
-            <div className="su-actions" style={{ justifyContent: 'center', gap: 12 }}>
-              <a className="su-btn su-btn-primary" href={`https://wa.me/2348148128551?text=${encodeURIComponent(`Hi, I just signed up for Collarone. My company is ${orgName} and my reference is ${result.reference}.`)}`} target="_blank" rel="noreferrer">
+            <div className="su-actions" style={{ justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+              {payOnline && (
+                <button type="button" className="su-btn su-btn-primary" disabled={paying} onClick={startOnlinePayment}>
+                  {paying ? 'Opening secure payment…' : 'Pay online now (card / bank / USSD)'}
+                </button>
+              )}
+              <a className={`su-btn ${payOnline ? 'su-btn-ghost' : 'su-btn-primary'}`} href={`https://wa.me/2348148128551?text=${encodeURIComponent(`Hi, I just signed up for Collarone. My company is ${orgName} and my reference is ${result.reference}.`)}`} target="_blank" rel="noreferrer">
                 Send reference on WhatsApp
               </a>
               <button type="button" className="su-btn su-btn-ghost" onClick={() => nav('/login')}>I'll sign in later</button>
             </div>
+            {payError && <p style={{ color: '#C0392B', fontSize: 13, textAlign: 'center', marginTop: 10 }}>{payError}</p>}
           </>
         )}
       </div>

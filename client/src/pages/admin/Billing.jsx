@@ -29,6 +29,26 @@ function downloadCsv(transactions) {
 
 export default function AdminBilling() {
   const { user } = useAuth();
+  // Self-serve Paystack for Collarone's own fees — shown when the platform
+  // gateway is configured server-side.
+  const [payOnline, setPayOnline] = useState(false);
+  const [paying, setPaying] = useState(false);
+  useEffect(() => {
+    fetch('/api/platform-pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'status' }) })
+      .then((r) => r.json()).then((d) => setPayOnline(Boolean(d.enabled))).catch(() => {});
+  }, []);
+  const payNow = async (tx) => {
+    setPaying(true);
+    try {
+      const r = await fetch('/api/platform-pay', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'init', reference: tx.reference, email: user?.email }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.authorizationUrl) throw new Error(d.message || 'Could not start the payment.');
+      window.location.href = d.authorizationUrl;
+    } catch (e) { alert(e.message); setPaying(false); }
+  };
   const [transactions, setTransactions] = useState([]);
   const [balance, setBalance] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -84,6 +104,11 @@ export default function AdminBilling() {
             Reference <strong style={{ fontFamily: 'ui-monospace, monospace' }}>{pending.reference}</strong> for {naira(pending.amount_kobo)} — WhatsApp us your reference at{' '}
             <a href="https://wa.me/2348148128551" target="_blank" rel="noreferrer">0814 812 8551</a> and we'll confirm the same day.
           </p>
+          {payOnline && (
+            <button type="button" className="btn btn-primary" style={{ marginTop: 10, fontSize: 13 }} disabled={paying} onClick={() => payNow(pending)}>
+              {paying ? 'Opening secure payment…' : `Pay ${naira(pending.amount_kobo)} online now`}
+            </button>
+          )}
         </div>
       )}
 
