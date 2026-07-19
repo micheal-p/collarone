@@ -275,7 +275,7 @@ export default function AdminUsers() {
         onSaved={(u, warning) => { replace(u); setManage(null); flash(warning || 'Access updated.', Boolean(warning)); }} onError={(m) => flash(m, true)} />}
       {viewUser && <ProfileModal user={viewUser} catalog={catalog} departments={departments} onClose={() => setViewUser(null)}
         onManage={() => { setViewUser(null); setManage(viewUser); }} />}
-      {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
+      {toastNode}
     </AppLayout>
   );
 }
