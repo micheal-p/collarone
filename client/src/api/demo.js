@@ -273,6 +273,67 @@ export async function demoApi(path, opts = {}) {
         { id: `t${i}b`, title: 'Weekly report', status: 'done', due_date: daysAgo(4).slice(0, 10), assigned_to: s.id, assignee: { id: s.id, name: s.name } },
       ]) };
     }
+    // ---- recruiting / ATS (requisitions, pipeline, interviews) ----
+    if (seg[0] === 'hr' && seg[1] === 'requisitions') {
+      if (!db.atsReqs) {
+        db.atsReqs = [
+          { id: 'rq1', title: 'Field Sales Officer', department: { id: 1, name: 'Operations' }, department_id: 1, hiring_manager: { id: db.users[0]?.id, name: db.users[0]?.name }, headcount: 2, employment_type: 'full_time', location: 'Lagos', status: 'open', min_experience_years: 2, salary_min: 1800000, salary_max: 2400000, description: 'Own a route, grow retail accounts, report daily.', created_at: daysAgo(21) },
+          { id: 'rq2', title: 'Accounts Officer', department: { id: 2, name: 'Finance' }, department_id: 2, hiring_manager: { id: db.users[0]?.id, name: db.users[0]?.name }, headcount: 1, employment_type: 'full_time', location: 'Ikeja', status: 'open', min_experience_years: 3, salary_min: 2400000, salary_max: 3000000, description: 'Reconciliations, expense posting, bank liaison support.', created_at: daysAgo(12) },
+        ];
+        db.atsApps = [
+          { id: 'ap1', requisition_id: 'rq1', candidate: { id: 'c1', name: 'Ngozi Eze', email: 'ngozi.eze@example.com', phone: '08021110001' }, candidate_id: 'c1', stage: 'interview', rating: 4, offer_status: 'none', offer_token: 'demo-token-1', cover_letter: 'Five years selling FMCG routes in Surulere and Yaba.', created_at: daysAgo(9), updated_at: daysAgo(2) },
+          { id: 'ap2', requisition_id: 'rq1', candidate: { id: 'c2', name: 'Ibrahim Musa', email: 'ibrahim.musa@example.com', phone: '08021110002' }, candidate_id: 'c2', stage: 'offer', rating: 5, offer_status: 'accepted', offer_salary: 2200000, offer_start_date: daysAgo(-14).slice(0, 10), offer_sent_at: daysAgo(3), offer_decided_at: daysAgo(1), offer_token: 'demo-token-2', created_at: daysAgo(15), updated_at: daysAgo(1) },
+          { id: 'ap3', requisition_id: 'rq1', candidate: { id: 'c3', name: 'Kemi Adebayo', email: 'kemi.a@example.com', phone: '' }, candidate_id: 'c3', stage: 'applied', rating: null, offer_status: 'none', offer_token: 'demo-token-3', created_at: daysAgo(4), updated_at: daysAgo(4) },
+          { id: 'ap4', requisition_id: 'rq2', candidate: { id: 'c4', name: 'Tobi Lawal', email: 'tobi.lawal@example.com', phone: '08021110004' }, candidate_id: 'c4', stage: 'screening', rating: 3, offer_status: 'none', offer_token: 'demo-token-4', created_at: daysAgo(6), updated_at: daysAgo(3) },
+        ];
+        db.atsIvs = [
+          { id: 'iv1', application_id: 'ap1', scheduled_at: daysAgo(-2), interviewer_id: db.users[0]?.id, interviewer: { id: db.users[0]?.id, name: db.users[0]?.name }, mode: 'video', outcome: 'pending', feedback: '', scorecard: [] },
+          { id: 'iv2', application_id: 'ap2', scheduled_at: daysAgo(6), interviewer_id: db.users[0]?.id, interviewer: { id: db.users[0]?.id, name: db.users[0]?.name }, mode: 'onsite', outcome: 'strong_yes', feedback: 'Sharp on numbers, great references.', scorecard: [{ k: 'skills', s: 5 }, { k: 'communication', s: 4 }, { k: 'experience', s: 5 }, { k: 'culture', s: 4 }] },
+        ]; save();
+      }
+      if (seg.length === 2 && method === 'GET') return { requisitions: db.atsReqs };
+      if (seg.length === 2 && method === 'POST') {
+        const r = { id: 'rq' + Math.random().toString(36).slice(2, 7), title: body.title, department: null, department_id: body.departmentId, hiring_manager: null, headcount: body.headcount || 1, employment_type: body.employmentType || 'full_time', location: body.location || '', status: body.status || 'draft', description: body.description || '', created_at: new Date().toISOString() };
+        db.atsReqs.unshift(r); save(); return { requisition: r };
+      }
+      if (seg.length === 3 && method === 'PATCH') { const r = db.atsReqs.find((x) => x.id === seg[2]) || fail(404, 'Not found.'); Object.assign(r, { title: body.title ?? r.title, status: body.status ?? r.status, location: body.location ?? r.location }); save(); return { requisition: r }; }
+      if (seg.length === 3 && method === 'DELETE') { db.atsReqs = db.atsReqs.filter((x) => x.id !== seg[2]); save(); return { ok: true }; }
+      if (seg.length === 4 && seg[3] === 'pipeline') {
+        if (method === 'POST') {
+          const a = { id: 'ap' + Math.random().toString(36).slice(2, 7), requisition_id: seg[2], candidate: { id: 'c' + Math.random().toString(36).slice(2, 6), name: body.name, email: body.email || '', phone: body.phone || '' }, stage: 'applied', rating: null, offer_status: 'none', offer_token: 'demo-' + Math.random().toString(36).slice(2, 8), created_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+          db.atsApps.push(a); save(); return { application: a };
+        }
+        return { applications: db.atsApps.filter((a) => a.requisition_id === seg[2]) };
+      }
+    }
+    if (seg[0] === 'hr' && seg[1] === 'applications') {
+      if (seg.length === 3 && method === 'PATCH') {
+        const a = db.atsApps?.find((x) => x.id === seg[2]) || fail(404, 'Not found.');
+        ['stage', 'rating'].forEach((k) => { if (body[k] !== undefined) a[k] = body[k]; });
+        if (body.offerStatus !== undefined) a.offer_status = body.offerStatus;
+        if (body.offerSalary !== undefined) a.offer_salary = body.offerSalary;
+        if (body.offerStartDate !== undefined) a.offer_start_date = body.offerStartDate;
+        if (body.offerNote !== undefined) a.offer_note = body.offerNote;
+        if (body.offerSentAt !== undefined) a.offer_sent_at = body.offerSentAt;
+        if (body.hiredProfileId !== undefined) a.hired_profile_id = body.hiredProfileId;
+        if (body.rejectionReason !== undefined) a.rejection_reason = body.rejectionReason;
+        a.updated_at = new Date().toISOString(); save(); return { application: a };
+      }
+      if (seg.length === 4 && seg[3] === 'interviews') {
+        if (method === 'POST') {
+          const iv = { id: 'iv' + Math.random().toString(36).slice(2, 7), application_id: seg[2], scheduled_at: body.scheduledAt, interviewer_id: body.interviewerId, interviewer: db.users.find((u) => u.id === body.interviewerId) || { name: 'Interviewer' }, mode: body.mode || 'video', outcome: 'pending', feedback: '', scorecard: [] };
+          (db.atsIvs = db.atsIvs || []).push(iv); save(); return { interview: iv };
+        }
+        return { interviews: (db.atsIvs || []).filter((i) => i.application_id === seg[2]) };
+      }
+    }
+    if (seg[0] === 'hr' && seg[1] === 'interviews' && seg.length === 3 && method === 'PATCH') {
+      const iv = db.atsIvs?.find((x) => x.id === seg[2]) || fail(404, 'Not found.');
+      ['outcome', 'feedback', 'mode', 'scorecard'].forEach((k) => { if (body[k] !== undefined) iv[k] = body[k]; });
+      save(); return { interview: iv };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'myinterviews') return { interviews: db.atsIvs || [] };
+
     if (seg[0] === 'hr' && seg[1] === 'goals') {
       const id = empId(null);
       const mine = staff.filter((s) => !id || s.id === id);
