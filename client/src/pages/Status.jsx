@@ -161,7 +161,7 @@ export default function Status() {
 
         <h2>Incident history</h2>
         {incidents.length === 0 ? (
-          <p style={{ fontSize: 13.5, color: 'rgba(10,14,26,0.5)' }}>No incidents recorded — every scheduled check has come back healthy.</p>
+          <p style={{ fontSize: 13.5, color: 'rgba(10,14,26,0.5)' }}>No incidents recorded — every scheduled check has come back healthy. These checks cover the Collarone servers and database; issues inside the app are tracked and fixed separately.</p>
         ) : (
           <div style={{ marginBottom: 8 }}>
             {incidents.map((inc) => (

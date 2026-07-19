@@ -122,6 +122,61 @@ function ContactMessagesPanel({ flash }) {
   );
 }
 
+// Real crashes from real users' browsers — reported by the global crash
+// reporter (lib/crashReporter.js) via /api/track. The uptime checks on
+// /status only prove the API and database answer; this panel is where a
+// front-end error actually shows up.
+function AppErrorsPanel() {
+  const [errors, setErrors] = useState([]);
+  const [expanded, setExpanded] = useState(null);
+
+  useEffect(() => {
+    apiGet('/platform/client-errors').then((d) => setErrors(d.errors || [])).catch(() => {});
+  }, []);
+
+  // group identical messages so a crash loop reads as one row, not fifty
+  const grouped = useMemo(() => {
+    const m = new Map();
+    errors.forEach((e) => {
+      const g = m.get(e.message);
+      if (g) { g.count += 1; if (e.occurred_at > g.last) g.last = e.occurred_at; }
+      else m.set(e.message, { ...e, count: 1, last: e.occurred_at });
+    });
+    return [...m.values()].sort((a, b) => (a.last < b.last ? 1 : -1));
+  }, [errors]);
+
+  const weekCount = errors.filter((e) => Date.now() - new Date(e.occurred_at).getTime() < 7 * DAY_MS).length;
+
+  return (
+    <section className="pc-section">
+      <SectionHead title="App errors" count={weekCount > 0 ? `${weekCount} this week` : '0 this week'} />
+      {grouped.length === 0 ? (
+        <div className="pc-panel" style={{ padding: '14px 16px', fontSize: 12.5, color: 'var(--faint)' }}>
+          No front-end errors reported. Crashes inside users' browsers are captured automatically and land here.
+        </div>
+      ) : (
+        <div className="pc-panel">
+          {grouped.map((e) => (
+            <div key={e.id} style={{ padding: '11px 16px', borderTop: '1px solid var(--line)', cursor: e.stack ? 'pointer' : 'default' }}
+              onClick={() => setExpanded(expanded === e.id ? null : e.id)}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                <span className="pc-mono" style={{ fontSize: 12.5, color: 'var(--err)' }}>{e.message}</span>
+                {e.count > 1 && <span className="pc-badge accent">×{e.count}</span>}
+                <span className="pc-sec-spacer" />
+                {e.path && <span className="pc-mono pc-faint" style={{ fontSize: 11 }}>{e.path}</span>}
+                <span className="pc-mono pc-faint" style={{ fontSize: 11 }}>{fmtDateTime(e.last)}</span>
+              </div>
+              {expanded === e.id && e.stack && (
+                <pre className="pc-mono" style={{ fontSize: 11, color: 'var(--dim)', margin: '8px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 180, overflow: 'auto' }}>{e.stack}</pre>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function PromoCodesPanel({ flash }) {
   const [codes, setCodes] = useState([]);
   const [open, setOpen] = useState(false);
@@ -517,6 +572,8 @@ export default function PlatformAdmin() {
       )}
 
       <ContactMessagesPanel flash={flash} />
+
+      <AppErrorsPanel />
 
       <PromoCodesPanel flash={flash} />
 

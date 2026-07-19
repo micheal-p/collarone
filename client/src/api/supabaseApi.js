@@ -280,6 +280,11 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { promoCode: data };
   }
+  if (head === 'GET /platform' && seg[1] === 'client-errors') {
+    const { data, error } = await supabase.from('client_errors').select('*').order('occurred_at', { ascending: false }).limit(200);
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { errors: data };
+  }
   if (head === 'GET /platform' && seg[1] === 'contact-messages') {
     const { data, error } = await supabase.from('platform_contact_messages').select('*').order('created_at', { ascending: false }).limit(300);
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);

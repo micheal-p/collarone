@@ -343,8 +343,9 @@ export default function Signup() {
               <input className="su-input" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} autoFocus />
             </div>
             <div className="su-field">
-              <label>Work email</label>
+              <label>Email address</label>
               <input className="su-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
+              <p style={{ fontSize: 12, margin: '6px 0 0', opacity: 0.6, lineHeight: 1.5 }}>This is what you'll sign in with — any email works.</p>
             </div>
             <div className="su-field">
               <label>Password</label>

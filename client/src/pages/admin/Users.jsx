@@ -406,7 +406,7 @@ function CreateUserModal({ catalog, departments, onClose, onCreated, onError }) 
       <form onSubmit={submit}>
         <div className="form-grid">
           <div className="field"><label>Full name</label><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></div>
-          <div className="field"><label>Work email</label><input className="input" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} required /></div>
+          <div className="field"><label>Email (they'll sign in with this)</label><input className="input" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} required /></div>
           <div className="field"><label>Job title</label><input className="input" value={f.jobTitle} onChange={(e) => set('jobTitle', e.target.value)} /></div>
           <div className="field"><label>Department</label>
             <DeptSelect departments={departments} value={f.departmentId} onChange={pickDept} />

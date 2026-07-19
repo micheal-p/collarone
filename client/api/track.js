@@ -23,6 +23,18 @@ export default async function handler(req, res) {
     const country = (req.headers['x-vercel-ip-country'] || 'XX').toString().slice(0, 2).toUpperCase();
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
+    if (body.type === 'client_error') {
+      // a real crash in someone's browser — the uptime checks can't see these,
+      // so this is the only record that it happened
+      await admin.from('client_errors').insert({
+        message: String(body.message || 'Unknown error').slice(0, 500),
+        stack: String(body.stack || '').slice(0, 3000) || null,
+        path,
+        user_agent: String(req.headers['user-agent'] || '').slice(0, 300),
+      });
+      return res.status(204).end();
+    }
+
     if (body.orgSlug) {
       // a customer's public website page — this is THEIR traffic, org-scoped,
       // surfaced back to them in the Website builder's Insights tab
