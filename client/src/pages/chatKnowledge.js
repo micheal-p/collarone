@@ -67,7 +67,7 @@ const INTENTS = [
     id: 'hr',
     phrases: ['employee 360', 'tell me about hr', 'hr suite', 'human resources'],
     keys: ['hr', 'staff', 'directory', 'onboarding', 'recruiting', 'probation', 'disciplinary'],
-    answer: 'HR is the flagship. Every employee has a 360 page — pay, leave, attendance, assets, documents, reviews and cases in one view. Recruiting runs a kanban pipeline with a public careers page. Probation ends trigger a proper confirm/extend/exit decision, discipline follows the query → response → outcome sequence, and there\'s an analytics tab with headcount, attrition and statutory compliance.',
+    answer: 'HR is the flagship. Every employee has a 360 page — pay, leave, attendance, assets, documents, reviews and cases in one view. Recruiting runs a kanban pipeline with a public careers page, interview scorecards, candidate emails, offer links candidates accept online, and one-click hire that creates their staff login. Probation ends trigger a proper confirm/extend/exit decision, discipline follows the query → response → outcome sequence, and there\'s an analytics tab with headcount, attrition and statutory compliance.',
     chips: ['Can it write company letters?', 'Does it do payroll?', 'How do I get started?'],
   },
   {
