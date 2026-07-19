@@ -244,6 +244,109 @@ function ApplicationCard({ app, isHrManager, selected, onOpen, onStage }) {
 
 /* ---- ApplicationDetail — the pre-kanban expandable row body, now a panel
    rendered below the board for the selected card ------------------------------- */
+/* ---- Scorecard — structured interview rating: 4 fixed criteria, 1-5 -------- */
+const SCORE_CRITERIA = [['skills','Skills'],['communication','Communication'],['experience','Experience'],['culture','Culture fit']];
+function Scorecard({ iv, editable, onSave }) {
+  const card = Array.isArray(iv.scorecard) ? iv.scorecard : [];
+  const get = (k) => card.find((c) => c.k === k)?.s || 0;
+  const setScore = (k, sVal) => {
+    const next = SCORE_CRITERIA.map(([key]) => ({ k: key, s: key === k ? sVal : get(key) })).filter((c) => c.s > 0);
+    onSave(next);
+  };
+  const scored = card.filter((c) => c.s > 0);
+  const avg = scored.length ? (scored.reduce((t, c) => t + c.s, 0) / scored.length).toFixed(1) : null;
+  if (!editable && scored.length === 0) return null;
+  return (
+    <div style={{ marginTop:8, display:'flex', flexWrap:'wrap', gap:'6px 16px', alignItems:'center' }}>
+      {SCORE_CRITERIA.map(([k, label]) => (
+        <span key={k} style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:11.5, color:'var(--text-2)' }}>
+          {label}
+          <span style={{ display:'inline-flex', gap:1 }}>
+            {[1,2,3,4,5].map((n) => (
+              <button key={n} type="button" disabled={!editable}
+                onClick={() => setScore(k, n)}
+                aria-label={`${label}: ${n} of 5`}
+                style={{ width:14, height:14, padding:0, border:'none', background:'transparent', cursor: editable ? 'pointer' : 'default', color: n <= get(k) ? 'var(--brand)' : 'var(--line-strong)' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill={n <= get(k) ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"><path d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.3l-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z" /></svg></button>
+            ))}
+          </span>
+        </span>
+      ))}
+      {avg && <span style={{ fontSize:11.5, fontWeight:700, background:'var(--surface-2)', borderRadius:100, padding:'2px 10px' }}>avg {avg}</span>}
+    </div>
+  );
+}
+
+/* ---- HireModal — one-click hire: staff account from the candidate record ----
+   Calls the same admin create path as Admin Center → Users (service role,
+   consumes one seat credit, payroll country gate applies). Shows the temp
+   password ONCE for HR to pass to the new hire. */
+function HireModal({ app, reqTitle, flash, onClose, onHired }) {
+  const genPassword = () => 'Cl-' + Math.random().toString(36).slice(2, 8) + Math.floor(10 + Math.random() * 89) + '!';
+  const [f, setF] = useState({ name: app.candidate.name, email: app.candidate.email, jobTitle: reqTitle || '', password: genPassword() });
+  const [busy, setBusy] = useState(false);
+  const [created, setCreated] = useState(null);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const { apiPost } = await import('../../api/client.js');
+      const d = await apiPost('/users', { name: f.name.trim(), email: f.email.trim().toLowerCase(), password: f.password, role: 'staff', jobTitle: f.jobTitle, suites: [] });
+      setCreated(d.user);
+      if (d.warning) flash(d.warning, true);
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
+  const copyCreds = async () => {
+    try {
+      await navigator.clipboard.writeText(`Welcome to the team!\nSign in at ${window.location.origin}/login\nEmail: ${f.email}\nTemporary password: ${f.password}\n(You will be asked to change it on first login.)`);
+      flash('Login details copied — send them to your new hire.');
+    } catch { flash('Could not copy.', true); }
+  };
+
+  return (
+    <Modal title={created ? 'Staff account created' : `Hire ${app.candidate.name}`} onClose={created ? () => onHired(created.id) : onClose}>
+      {created ? (
+        <div>
+          <p style={{ fontSize: 13.5, lineHeight: 1.65 }}>
+            <b>{created.name}</b> now has a staff account. Send them these login details — the temporary password is shown only here:
+          </p>
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8, padding: '12px 14px', fontSize: 13.5, lineHeight: 2, margin: '10px 0 14px' }}>
+            <div>Email: <b>{f.email}</b></div>
+            <div>Temporary password: <b style={{ fontFamily: 'ui-monospace, monospace' }}>{f.password}</b></div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="btn btn-ghost" onClick={copyCreds}>{I.copy} Copy login details</button>
+            <button type="button" className="btn btn-primary" onClick={() => onHired(created.id)}>Done — link & mark hired</button>
+          </div>
+          <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0' }}>They'll be asked to change the password on first login. Grant suites from Admin Center → Users when ready.</p>
+        </div>
+      ) : (
+        <form onSubmit={submit}>
+          <div className="field"><label>Full name</label><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required /></div>
+          <div className="field"><label>Work email (their login)</label><input className="input" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} required /></div>
+          <div className="form-grid">
+            <div className="field"><label>Job title</label><input className="input" value={f.jobTitle} onChange={(e) => set('jobTitle', e.target.value)} /></div>
+            <div className="field"><label>Temporary password</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <input className="input" value={f.password} onChange={(e) => set('password', e.target.value)} style={{ fontFamily: 'ui-monospace, monospace' }} />
+                <button type="button" className="btn btn-ghost" style={{ flex: 'none', fontSize: 12 }} onClick={() => set('password', genPassword())}>New</button>
+              </div>
+            </div>
+          </div>
+          <p className="muted" style={{ fontSize: 12, margin: '4px 0 12px' }}>Creates a real login and uses <b>1 seat credit</b>. Suites can be granted afterwards in Admin Center → Users.</p>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Create account (1 credit)'}</button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  );
+}
+
 function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated, onDeleted, onClose, flash, confirm }) {
   const [interviews, setInterviews] = useState(null);
   const [ivModal, setIvModal] = useState(false);
@@ -278,6 +381,8 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
     if (!ok) return;
     try { await L.deleteApplication(app.id); onDeleted(app.id); onClose(); } catch (e) { flash(e.message, true); }
   };
+
+  const [hireModal, setHireModal] = useState(false);
 
   const copyDetails = async () => {
     try {
@@ -375,18 +480,42 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
 
             {app.stage === 'hired' && (
               <div className="callout-hint">
-                Hired — create the login in <b>Admin Center → Users</b>, then link it here so onboarding can be generated for them.
-                <div style={{ marginTop:8 }}>
-                  <button type="button" className="btn btn-ghost" style={{ fontSize:12, padding:'3px 12px' }} onClick={copyDetails}>
-                    {I.copy} Copy details for account setup
-                  </button>
-                </div>
+                {app.hired_profile_id ? (
+                  <>Hired and linked — onboarding can be generated for them.</>
+                ) : (
+                  <>
+                    Hired — create their staff account in one click (uses 1 seat credit), or link one that already exists.
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
+                      <button type="button" className="btn btn-primary" style={{ fontSize:12, padding:'4px 14px' }} onClick={() => setHireModal(true)}>
+                        Create staff account
+                      </button>
+                      <button type="button" className="btn btn-ghost" style={{ fontSize:12, padding:'3px 12px' }} onClick={copyDetails}>
+                        {I.copy} Copy details
+                      </button>
+                    </div>
+                  </>
+                )}
                 <div className="form-grid" style={{ marginTop:8 }}>
                   <div className="field"><label>Linked account</label>
                     <SearchSelect value={app.hired_profile_id || ''} onChange={(v) => patch({ hiredProfileId: v })} emptyLabel="— Not linked yet —"
                       options={staff.map((u) => ({ value: u.id, label: u.name, hint: u.email }))} /></div>
                 </div>
               </div>
+            )}
+            {app.stage === 'offer' && app.offer_status === 'accepted' && isHrManager && !app.hired_profile_id && (
+              <div className="callout-hint" style={{ marginTop:10 }}>
+                Offer accepted — finish the hire in one click: moves them to Hired and creates their staff account (1 seat credit).
+                <div style={{ marginTop:8 }}>
+                  <button type="button" className="btn btn-primary" style={{ fontSize:12, padding:'4px 14px' }} onClick={() => setHireModal(true)}>
+                    Hire {app.candidate.name.split(' ')[0]} — create account
+                  </button>
+                </div>
+              </div>
+            )}
+            {hireModal && (
+              <HireModal app={app} reqTitle={reqTitle} flash={flash}
+                onClose={() => setHireModal(false)}
+                onHired={(profileId) => { setHireModal(false); patch({ stage: 'hired', hiredProfileId: profileId }); }} />
             )}
 
             <div className="lc-interviews-head">
@@ -405,6 +534,7 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
                     </select>
                   ) : <span className={`lc-badge ${L.OUTCOME[iv.outcome].cls}`}>{L.OUTCOME[iv.outcome].label}</span>}
                 </div>
+                <Scorecard iv={iv} editable={canScoreInterview(iv)} onSave={(scorecard) => scoreInterview(iv, { scorecard })} />
                 {canScoreInterview(iv) && (
                   <textarea className="input" rows={2} placeholder="Feedback…" defaultValue={iv.feedback}
                     onBlur={(e) => e.target.value !== iv.feedback && scoreInterview(iv, { feedback: e.target.value })}

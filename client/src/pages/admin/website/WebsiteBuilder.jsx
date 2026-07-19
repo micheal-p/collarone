@@ -809,11 +809,14 @@ export default function AdminWebsite() {
   const flash = (msg, isErr = false) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000); };
 
   const load = useCallback(async () => {
+    // Demo/guest sessions may carry no org object — the builder talks to
+    // Supabase directly and can't run without one; bail before it crashes.
+    if (!org?.id) { setSite(null); setThemes([]); return; }
     const [t, s] = await Promise.all([W.getThemes(), W.getMySite(org.id)]);
     setThemes(t);
     setSite(s);
     if (s) setCategory(t.find((x) => x.key === s.theme_key)?.category);
-  }, [org.id]);
+  }, [org?.id]); // eslint-disable-line
 
   useEffect(() => { load(); }, [load]);
 

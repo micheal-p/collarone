@@ -811,7 +811,7 @@ export async function supabaseApi(path, opts = {}) {
   }
   if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'interviews' && seg.length === 3) {
     const patch = {};
-    ['outcome','feedback','mode'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
+    ['outcome','feedback','mode','scorecard'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
     if (body.scheduledAt !== undefined) patch.scheduled_at = body.scheduledAt;
     const { data, error } = await supabase.from('interviews').update(patch).eq('id', seg[2]).select(INTERVIEW_SELECT).single();
     if (error) fail(400, error.message);
