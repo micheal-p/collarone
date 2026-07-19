@@ -36,7 +36,7 @@ function ItemModal({ onClose, onSaved, flash }) {
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const submit = async (e) => {
     e.preventDefault();
-    if (!f.sku.trim() || !f.name.trim()) return flash('SKU and name are required.', true);
+    if (!f.sku.trim() || !f.name.trim()) return flash('Item code and item name are required.', true);
     if (!f.forSale && !f.forStaffUse) return flash('Mark the item for sale, staff use, or both.', true);
     setBusy(true);
     try { const saved = await INV.createItem(f); flash('Item added.'); onSaved(saved); onClose(); }
@@ -46,11 +46,11 @@ function ItemModal({ onClose, onSaved, flash }) {
     <Modal title="Add stock item" onClose={onClose} wide>
       <form onSubmit={submit}>
           <div className="form-grid">
-            <Field label="SKU *"><input className="input" value={f.sku} onChange={(e) => set('sku', e.target.value)} required autoFocus /></Field>
-            <Field label="Name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required /></Field>
-            <Field label="Unit"><input className="input" value={f.unit} onChange={(e) => set('unit', e.target.value)} placeholder="unit, box, kg…" /></Field>
-            <Field label="Category"><input className="input" value={f.category} onChange={(e) => set('category', e.target.value)} /></Field>
-            <Field label="Reorder level"><input className="input" type="number" value={f.reorderLevel} onChange={(e) => set('reorderLevel', e.target.value)} /></Field>
+            <Field label="Item code *"><input className="input" value={f.sku} onChange={(e) => set('sku', e.target.value)} required autoFocus placeholder="e.g. RICE-50KG" /></Field>
+            <Field label="Item name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required placeholder="e.g. Rice — 50kg bag" /></Field>
+            <Field label="Counted in"><input className="input" value={f.unit} onChange={(e) => set('unit', e.target.value)} placeholder="e.g. bags, cartons, litres, pieces" /></Field>
+            <Field label="Category"><input className="input" value={f.category} onChange={(e) => set('category', e.target.value)} placeholder="e.g. Raw materials, Drinks" /></Field>
+            <Field label="Low-stock alert at"><input className="input" type="number" value={f.reorderLevel} onChange={(e) => set('reorderLevel', e.target.value)} placeholder="e.g. 10" /></Field>
           </div>
           <Field label="">
             <div style={{ display: 'flex', gap: 16, fontSize: 13, fontWeight: 400 }}>
@@ -329,7 +329,7 @@ export default function InventoryApp({ access }) {
       {!loading && tab === 'items' && (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>On hand</th><th>Available</th><th>Reorder level</th>{isManager && <th></th>}</tr></thead>
+            <thead><tr><th>Item code</th><th>Item</th><th>Category</th><th>On hand</th><th>Available</th><th>Low-stock alert</th>{isManager && <th></th>}</tr></thead>
             <tbody>
               {items.length === 0 && <tr><td colSpan={isManager ? 7 : 6} style={{ padding: 0 }}><EmptyState title="No stock items yet" hint={isManager ? 'Use "Add item" to start tracking stock.' : 'Items will appear here once a manager adds them.'} /></td></tr>}
               {items.map((i) => (
