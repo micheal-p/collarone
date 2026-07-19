@@ -34,7 +34,7 @@ const dayColor = (d) => {
   return '#d9a441';
 };
 
-const INCIDENT_LABEL = { api_down: 'API unreachable', db_down: 'Database unreachable', degraded: 'Degraded performance' };
+const INCIDENT_LABEL = { api_down: 'API unreachable', db_down: 'Database unreachable', degraded: 'Degraded performance', app_bug: 'Application error' };
 
 function fmtDuration(sec) {
   if (sec == null) return null;
@@ -174,8 +174,9 @@ export default function Status() {
                   </div>
                   <div style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.5)', marginTop: 2 }}>
                     Started {fmtWhen(inc.started_at)}
-                    {inc.resolved_at && <> · resolved {fmtWhen(inc.resolved_at)} · back up in {fmtDuration(inc.duration_sec)}</>}
+                    {inc.resolved_at && <> · resolved {fmtWhen(inc.resolved_at)} · {inc.kind === 'app_bug' ? 'fixed in' : 'back up in'} {fmtDuration(inc.duration_sec)}</>}
                   </div>
+                  {inc.notes && <p style={{ fontSize: 13, color: 'rgba(10,14,26,0.65)', lineHeight: 1.6, margin: '6px 0 0', maxWidth: 640 }}>{inc.notes}</p>}
                 </div>
               </div>
             ))}

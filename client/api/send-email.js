@@ -58,7 +58,7 @@ export default async function handler(req, res) {
   const isHr = caller.role === 'super_admin' || (Array.isArray(caller.suites) && caller.suites.some((s) => s.key === 'hr' && s.role === 'manager'));
   if (!isHr) return json(res, 403, { message: 'HR manager access required.' });
 
-  const { data: org } = await admin.from('organizations').select('name').eq('id', caller.org_id).single();
+  const { data: org } = await admin.from('organizations').select('name, slug').eq('id', caller.org_id).single();
   const { data: site } = await admin.from('org_sites').select('contact_email').eq('org_id', caller.org_id).maybeSingle();
 
   const candidate = app.candidates;
@@ -74,7 +74,10 @@ export default async function handler(req, res) {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      from: `${(org?.name || 'Collarone').replace(/[<>@"]/g, '')} via Collarone <${FROM_ADDR}>`,
+      // each org sends from its own handle on our domain (handle uniqueness is
+      // already guaranteed by the signup availability check); send-only — no
+      // mailbox exists behind it, replies flow to the org via Reply-To
+      from: `${(org?.name || 'Collarone').replace(/[<>@"]/g, '')} via Collarone <${org?.slug ? `${org.slug}@collarone.app` : FROM_ADDR}>`,
       to: [candidate.email],
       ...(site?.contact_email ? { reply_to: site.contact_email } : {}),
       subject: subject.trim(),
