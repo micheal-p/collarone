@@ -61,7 +61,8 @@ function fmtDuration(sec) {
 }
 
 function fmtWhen(d) {
-  return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  // shown in the visitor's own timezone — the label (WAT / GMT+1 / …) says which
+  return new Date(d).toLocaleString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZoneName: 'short' });
 }
 
 export default function Status() {

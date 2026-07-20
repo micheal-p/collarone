@@ -431,7 +431,20 @@
 .cl-calc-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-soft); cursor: pointer; }
 .cl-calc-save { color: var(--accent-ink); font-weight: 600; }
 .cl-calc-slider-label { display: block; font-size: 13px; color: var(--text-soft); margin-bottom: 8px; width: 100%; }
-.cl-calc-slider { width: 100%; accent-color: var(--accent); }
+.cl-calc-slider { width: 100%; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 100px; background: linear-gradient(to right, var(--accent) var(--fill, 0%), var(--line) var(--fill, 0%)); outline: none; cursor: pointer; }
+.cl-calc-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 2.5px solid var(--accent); box-shadow: 0 2px 8px rgba(10,14,26,0.2); cursor: grab; }
+.cl-calc-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2.5px solid var(--accent); box-shadow: 0 2px 8px rgba(10,14,26,0.2); cursor: grab; }
+.cl-calc-meter { font-size: 12.5px; font-weight: 600; color: var(--text-faint); border: 1px solid var(--line); border-radius: 100px; padding: 4px 13px; white-space: nowrap; transition: all .15s ease; }
+.cl-calc-meter.over { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.cl-calc-tick { margin-left: auto; color: var(--accent-ink); flex-shrink: 0; }
+.cl-calc-step { display: flex; align-items: stretch; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.cl-calc-step button { width: 34px; border: none; background: transparent; font-size: 16px; line-height: 1; cursor: pointer; color: var(--text-soft); transition: background .12s ease; }
+.cl-calc-step button:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); color: var(--text); }
+.cl-calc-step input { width: 58px; height: 34px; border: none; border-left: 1px solid var(--line); border-right: 1px solid var(--line); text-align: center; font: inherit; font-size: 14px; font-weight: 650; background: transparent; color: var(--text); outline: none; font-variant-numeric: tabular-nums; }
+.cl-calc-lines { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 7px; font-size: 13px; }
+.cl-calc-lines > div { display: flex; justify-content: space-between; gap: 12px; color: var(--text-soft); }
+.cl-calc-lines b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cl-calc-lines .save, .cl-calc-lines .save b { color: var(--accent-ink); }
 .cl-calc-suites { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .cl-calc-suite { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: transparent; font-size: 13px; font-weight: 500; color: var(--text-faint); cursor: pointer; transition: all .15s ease; text-align: left; }
 .cl-calc-suite.on { border-color: var(--accent); color: var(--text); background: color-mix(in srgb, var(--accent) 8%, transparent); }
