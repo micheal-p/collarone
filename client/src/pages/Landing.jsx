@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PublicThemeGallery from '../components/PublicThemeGallery.jsx';
+import BuiltForStrip from '../components/BuiltForStrip.jsx';
 import { motion, animate, AnimatePresence, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
 import { SUITES, SUITE_META } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
@@ -478,29 +479,24 @@ export default function Landing() {
               <span><strong>New lead: Chidinma O.</strong><small>via website · CRM</small></span>
             </motion.div>
           </div>
-
-          <motion.div className="cl-hero-foot" {...heroItemVariants}>
-            <div className="cl-hf-stats">
-              <span className="cl-hf-stat"><strong>16</strong> suites live</span>
-              <span className="cl-hf-stat">One isolated workspace per company</span>
-              <span className="cl-hf-stat">Role-checked on every screen</span>
-              <span className="cl-hf-stat">Priced in naira — rate locked at sign-up</span>
-            </div>
-            <div className="cl-hf-made">
-              <p className="cl-hf-eyebrow">Made for Nigerian organizations of every size</p>
-              <p className="cl-hf-line">From a corner shop to a corporate HQ</p>
-              <div className="cl-hf-inds">
-                {['Retail & commerce', 'Healthcare & pharma', 'Logistics & supply', 'Professional firms', 'Manufacturing', 'Agriculture'].map((x) => (
-                  <span key={x} className="cl-hf-ind">{x}</span>
-                ))}
-              </div>
-              <p className="cl-hf-sub">Run all 16 suites — or just one. Plenty of companies start with only HR or payroll and switch the rest on when they need them.</p>
-            </div>
-          </motion.div>
         </div>
       </header>
 
       <Marquee items={marqueeItems} dark />
+
+      <section className="cl-trust" aria-label="Platform facts">
+        <div className="cl-wrap cl-trust-row">
+          <span className="cl-trust-cell"><strong>16</strong> suites live</span>
+          <span className="cl-trust-dot" aria-hidden="true" />
+          <span className="cl-trust-cell">One isolated workspace per company</span>
+          <span className="cl-trust-dot" aria-hidden="true" />
+          <span className="cl-trust-cell">Role-checked on every screen</span>
+          <span className="cl-trust-dot" aria-hidden="true" />
+          <span className="cl-trust-cell">Priced in naira — rate locked at sign-up</span>
+        </div>
+      </section>
+
+      <BuiltForStrip />
 
       <section className="cl-sec" id="capabilities">
         <div className="cl-wrap">
