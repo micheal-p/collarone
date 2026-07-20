@@ -635,7 +635,16 @@ export default function Landing() {
         </div>
       )}
 
-      <PublicThemeGallery />
+      <section className="cl-sec cl-tint" id="themes">
+        <div className="cl-wrap">
+          <motion.div className="cl-sec-head" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+            <p className="cl-eyebrow">A real website, included on every plan</p>
+            <h2 className="cl-sec-h">Give your business a site worth visiting</h2>
+            <p className="cl-sec-lede">Pick a theme, edit every word, and sell online or take enquiries — no designer, no monthly website bill. Tap Preview to see one live.</p>
+          </motion.div>
+          <PublicThemeGallery limit={5} seeMoreHref="/themes" showFilters={false} />
+        </div>
+      </section>
 
       <section className="cl-sec" id="nigeria">
         <div className="cl-wrap">

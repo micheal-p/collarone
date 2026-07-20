@@ -1,12 +1,12 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { getThemes } from '../pages/admin/website/websiteApi.js';
 
-// Public "see the websites you could build" gallery for the landing page.
-// Cards are light stylised mini-mockups (coloured by each theme's accent) so
-// the section stays cheap; the FULL, motion-rich theme only loads when a
-// visitor clicks Preview — the same modal Platform Control uses, with the same
-// Nigerian sample content.
+// Reusable theme gallery BODY (filters + grid + preview modal). The section
+// wrapper + heading live in whichever page embeds it (landing = 5 + "see more",
+// /themes = all + filters). The heavy preview modal is lazy-loaded so it never
+// weighs down the page that only wants to show cards.
 const ThemePreviewModal = lazy(() => import('./ThemePreview.jsx'));
 
 const CATS = [
@@ -17,7 +17,18 @@ const CATS = [
 ];
 const CAT_LABEL = { ecommerce: 'Online store', landing: 'Landing page', company: 'Company profile' };
 
-// A tiny accent-coloured wireframe per category — enough to read the vibe.
+// interleave by category so a short list still shows variety
+function interleave(list) {
+  const buckets = {};
+  list.forEach((t) => { (buckets[t.category] = buckets[t.category] || []).push(t); });
+  const out = []; let added = true;
+  while (added) {
+    added = false;
+    for (const k of Object.keys(buckets)) { if (buckets[k].length) { out.push(buckets[k].shift()); added = true; } }
+  }
+  return out;
+}
+
 function MiniMock({ theme }) {
   const ac = theme.accent || '#FF5B1F';
   const dark = theme.tone === 'dark';
@@ -56,50 +67,55 @@ function MiniMock({ theme }) {
   );
 }
 
-export default function PublicThemeGallery() {
+export default function PublicThemeGallery({ limit, seeMoreHref, showFilters = true }) {
   const [themes, setThemes] = useState([]);
   const [cat, setCat] = useState('all');
   const [preview, setPreview] = useState(null);
 
   useEffect(() => { getThemes().then((t) => setThemes(t || [])).catch(() => {}); }, []);
-  const shown = useMemo(() => (cat === 'all' ? themes : themes.filter((t) => t.category === cat)), [themes, cat]);
+
+  const shown = useMemo(() => {
+    const base = cat === 'all' ? themes : themes.filter((t) => t.category === cat);
+    return limit ? interleave(base).slice(0, limit) : base;
+  }, [themes, cat, limit]);
+
   if (!themes.length) return null;
 
   return (
-    <section className="cl-sec cl-tint" id="themes">
-      <div className="cl-wrap">
-        <motion.div className="cl-sec-head" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
-          <p className="cl-eyebrow">A real website, included on every plan</p>
-          <h2 className="cl-sec-h">Give your business a site worth visiting</h2>
-          <p className="cl-sec-lede">Pick a theme, edit every word, and sell online or take enquiries — no designer, no monthly website bill. Tap Preview to see each one live.</p>
-        </motion.div>
-
+    <>
+      {showFilters && (
         <div className="ptg-filters">
           {CATS.map((c) => <button key={c.key} type="button" className={`ptg-chip ${cat === c.key ? 'on' : ''}`} onClick={() => setCat(c.key)}>{c.label}</button>)}
         </div>
+      )}
 
-        <div className="ptg-grid">
-          {shown.map((t, i) => (
-            <motion.div key={t.key} className="ptg-card" initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }} transition={{ duration: 0.5, delay: (i % 3) * 0.06 }}>
-              <button type="button" className="ptg-mock" onClick={() => setPreview(t)} aria-label={`Preview the ${t.name} theme`}>
-                <MiniMock theme={t} />
-                <span className="ptg-mock-hover">Preview live →</span>
-              </button>
-              <div className="ptg-meta">
-                <div className="ptg-name">{t.name}<span className="ptg-cat">{CAT_LABEL[t.category] || t.category}</span></div>
-                <p className="ptg-desc">{t.description}</p>
-                <button type="button" className="ptg-preview" onClick={() => setPreview(t)}>Preview live</button>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+      <div className="ptg-grid">
+        {shown.map((t, i) => (
+          <motion.div key={t.key} className="ptg-card" initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }} transition={{ duration: 0.5, delay: (i % 3) * 0.06 }}>
+            <button type="button" className="ptg-mock" onClick={() => setPreview(t)} aria-label={`Preview the ${t.name} theme`}>
+              <MiniMock theme={t} />
+              <span className="ptg-mock-hover">Preview live →</span>
+            </button>
+            <div className="ptg-meta">
+              <div className="ptg-name">{t.name}<span className="ptg-cat">{CAT_LABEL[t.category] || t.category}</span></div>
+              <p className="ptg-desc">{t.description}</p>
+              <button type="button" className="ptg-preview" onClick={() => setPreview(t)}>Preview live</button>
+            </div>
+          </motion.div>
+        ))}
       </div>
+
+      {limit && seeMoreHref && themes.length > limit && (
+        <div className="ptg-more-wrap">
+          <Link className="ptg-more" to={seeMoreHref}>See all {themes.length} themes<span aria-hidden="true"> →</span></Link>
+        </div>
+      )}
 
       {preview && (
         <Suspense fallback={null}>
           <ThemePreviewModal theme={preview} onClose={() => setPreview(null)} />
         </Suspense>
       )}
-    </section>
+    </>
   );
 }

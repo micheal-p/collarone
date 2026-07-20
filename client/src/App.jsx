@@ -29,6 +29,7 @@ import Signup from './pages/Signup.jsx';
 import Status from './pages/Status.jsx';
 import EmbedContactForm from './pages/embed/EmbedContactForm.jsx';
 import Help from './pages/Help.jsx';
+import PublicThemes from './pages/PublicThemes.jsx';
 
 // "/" is the public marketing page for a signed-out visitor, and the app
 // launcher for a signed-in one — same route, different audience. A platform
@@ -93,6 +94,7 @@ export default function App() {
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/status" element={<Status />} />
+      <Route path="/themes" element={<PublicThemes />} />
       <Route path="/jobs" element={<JobsBoard />} />
       <Route path="/careers" element={<Navigate to="/jobs" replace />} />
       <Route path="/offer/:token" element={<OfferPage />} />
