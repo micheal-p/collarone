@@ -8,8 +8,8 @@
 -- ============================================================================
 insert into public.site_themes (key, name, category, layout_key, description, accent, font_pair, tone, sort_order)
 values (
-  'lumin-store', 'Lumin', 'ecommerce', 'ecommerce-grid',
-  'A bold, image-led storefront — sticky nav, an editorial hero, and a product grid with a hover-reveal add-to-cart.',
+  'lumin-store', 'Atelier', 'ecommerce', 'ecommerce-grid',
+  'A high-contrast editorial storefront — oversized display type, a parallax hero, a gallery product grid and motion throughout.',
   '#E0500F', 'sans-bold', 'light', 0
 )
 on conflict (key) do update set
