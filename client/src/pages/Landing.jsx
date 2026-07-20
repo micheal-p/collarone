@@ -386,6 +386,7 @@ export default function Landing() {
           <div className="cl-navlinks">
             <a className="cl-nl cl-hide-sm" href="#platform">Platform</a>
             <a className="cl-nl cl-hide-sm" href="#pricing">Pricing</a>
+            <a className="cl-nl cl-hide-sm" href="#themes">Themes</a>
             <a className="cl-nl cl-hide-sm" href="#about">About</a>
             <a className="cl-nl cl-hide-sm" href="#faq">FAQ</a>
             <Link className="cl-nl cl-hide-sm" to="/jobs">Jobs</Link>
@@ -403,7 +404,7 @@ export default function Landing() {
               initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.18 }}
             >
-              {[['#platform', 'Platform'], ['#gallery', 'Product tour'], ['#pricing', 'Pricing'], ['#about', 'About'], ['#faq', 'FAQ'], ['/jobs', 'Jobs board']].map(([href, label]) => (
+              {[['#platform', 'Platform'], ['#gallery', 'Product tour'], ['#pricing', 'Pricing'], ['#themes', 'Themes'], ['#about', 'About'], ['#faq', 'FAQ'], ['/jobs', 'Jobs board']].map(([href, label]) => (
                 <a key={href} className="cl-mm-link" href={href} onClick={() => setNavOpen(false)}>{label}</a>
               ))}
               <div className="cl-mm-actions">
