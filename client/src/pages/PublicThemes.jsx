@@ -26,7 +26,14 @@ export default function PublicThemes() {
       <header className="cl-nav cl-nav-scrolled">
         <div className="cl-wrap">
           <Link to="/" className="cl-brand"><span className="cl-wm">Collar<em>One</em></span></Link>
-          <Link to="/signup" className="cl-btn cl-btn-primary cl-btn-sm">Get started</Link>
+          <div className="cl-navlinks">
+            <a className="cl-nl cl-hide-sm" href="/#platform">Platform</a>
+            <a className="cl-nl cl-hide-sm" href="/#pricing">Pricing</a>
+            <a className="cl-nl cl-hide-sm" href="/#faq">FAQ</a>
+            <a className="cl-nl" href="#themes-list" aria-current="page" style={{ color: 'var(--text)', fontWeight: 600 }}>Themes</a>
+            <Link className="cl-nl cl-hide-sm" to="/login">Sign in</Link>
+            <Link to="/signup" className="cl-btn cl-btn-primary cl-btn-sm">Get started</Link>
+          </div>
         </div>
       </header>
 
@@ -54,7 +61,7 @@ export default function PublicThemes() {
         </div>
       </section>
 
-      <section className="cl-sec">
+      <section className="cl-sec" id="themes-list">
         <div className="cl-wrap">
           <motion.div className="cl-sec-head" {...rise}>
             <p className="cl-eyebrow">All the themes</p>

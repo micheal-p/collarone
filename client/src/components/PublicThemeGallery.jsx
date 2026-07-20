@@ -8,6 +8,9 @@ import { getThemes } from '../pages/admin/website/websiteApi.js';
 // /themes = all + filters). The heavy preview modal is lazy-loaded so it never
 // weighs down the page that only wants to show cards.
 const ThemePreviewModal = lazy(() => import('./ThemePreview.jsx'));
+// Live theme render for the card. Lazy so the heavy theme code loads only when
+// a card is on screen; until then MiniMock stands in as the placeholder.
+const ThemeThumb = lazy(() => import('./ThemeThumb.jsx'));
 
 const CATS = [
   { key: 'all', label: 'All' },
@@ -93,7 +96,9 @@ export default function PublicThemeGallery({ limit, seeMoreHref, showFilters = t
         {shown.map((t, i) => (
           <motion.div key={t.key} className="ptg-card" initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }} transition={{ duration: 0.5, delay: (i % 3) * 0.06 }}>
             <button type="button" className="ptg-mock" onClick={() => setPreview(t)} aria-label={`Preview the ${t.name} theme`}>
-              <MiniMock theme={t} />
+              <Suspense fallback={<MiniMock theme={t} />}>
+                <ThemeThumb theme={t} />
+              </Suspense>
               <span className="ptg-mock-hover">Preview live →</span>
             </button>
             <div className="ptg-meta">
