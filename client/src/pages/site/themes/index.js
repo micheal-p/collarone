@@ -15,6 +15,9 @@ import LaunchBold, { meta as launchMeta } from './launchBold.jsx';
 import StartupGradient, { meta as gradientMeta } from './startupGradient.jsx';
 import MinimalPitch, { meta as minimalMeta } from './minimalPitch.jsx';
 import FeatureFocus, { meta as featureMeta } from './featureFocus.jsx';
+import CorporateClean, { meta as corporateMeta } from './corporate.jsx';
+import AgencyModern, { meta as agencyMeta } from './agency.jsx';
+import ProfessionalServices, { meta as proMeta } from './professional.jsx';
 
 const reg = (m, C) => [m.key, { ...m, Component: C }];
 
@@ -26,6 +29,9 @@ export const SITE_THEMES = Object.fromEntries([
   reg(gradientMeta, StartupGradient),
   reg(minimalMeta, MinimalPitch),
   reg(featureMeta, FeatureFocus),
+  reg(corporateMeta, CorporateClean),
+  reg(agencyMeta, AgencyModern),
+  reg(proMeta, ProfessionalServices),
 ]);
 
 export const getSiteTheme = (key) => (key ? SITE_THEMES[key] || null : null);
