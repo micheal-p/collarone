@@ -584,7 +584,7 @@
 /* ---- "built for" honest social-proof strip ------------------------------- */
 .cl-bf { padding: 68px 0; border-bottom: 1px solid var(--line); background: var(--bg-tint); text-align: center; }
 .cl-bf-eyebrow { font-size: 12.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 12px; }
-.cl-bf-h { font-size: clamp(20px, 3vw, 28px); margin: 0 0 44px; }
+.cl-bf-h { font-size: clamp(20px, 3vw, 28px); margin: 0 0 60px; }
 .cl-bf-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 32px 14px; max-width: 940px; margin: 0 auto; }
 .cl-bf-item { display: flex; flex-direction: column; align-items: center; gap: 15px; font-size: 12.5px; font-weight: 600; color: var(--text-soft); text-align: center; }
 .cl-bf-ic { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line); color: var(--text); box-shadow: var(--shadow-sm); }
