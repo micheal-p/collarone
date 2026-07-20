@@ -9,25 +9,12 @@
 --   • Admin-created (via /api/admin) -> trigger inserts disabled, then the function
 --     upserts it to active with the chosen role + suites.
 
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
-declare
-  prov text := coalesce(new.raw_app_meta_data->>'provider', 'email');
-begin
-  insert into public.profiles (id, email, name, role, suites, status, must_change_password)
-  values (
-    new.id,
-    new.email,
-    coalesce(new.raw_user_meta_data->>'name', new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
-    'staff',
-    '[]'::jsonb,
-    case when prov = 'email' then 'disabled' else 'active' end,
-    false
-  )
-  on conflict (id) do nothing;
-  return new;
-end;
-$$;
+-- NOTE: handle_new_user() is DELIBERATELY not defined here any more. This file
+-- once shipped a pre-multitenancy version that inserts profiles with no org_id
+-- and no org-owner branch; running it after the multi-tenant migration reverts
+-- the trigger and breaks self-serve org signup (org_id is NOT NULL). The single
+-- source of truth for this function is organizations.sql (re-asserted in
+-- pricing_v2.sql and security_fixes.sql). Only the trigger binding remains here.
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created

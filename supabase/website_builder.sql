@@ -342,7 +342,12 @@ begin
 end;
 $$;
 grant execute on function public.preview_get_site() to authenticated;
-grant execute on function public._build_site_payload(uuid) to authenticated;
+-- _build_site_payload is intentionally NOT granted to authenticated/anon: it
+-- returns unpublished draft content and merchant bank details for whatever org
+-- id it is handed, with no same_org() check. Its only callers (public_get_site,
+-- preview_get_site) are SECURITY DEFINER and run as the owner, so they reach it
+-- without a caller-side grant. Granting it directly is a cross-tenant leak —
+-- see supabase/security_fixes.sql.
 grant execute on function public.public_get_site(text) to anon, authenticated;
 
 -- ---- site-assets storage bucket (public — these are live public site images) --
