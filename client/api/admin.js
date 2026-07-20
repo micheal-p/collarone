@@ -9,7 +9,6 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const json = (res, status, obj) => res.status(status).json(obj);
 
 const FOUNDING_ORG_ID = '00000000-0000-0000-0000-000000000001';
-const PLAN_SEAT_KOBO = { starter: 100000, growth: 150000, scale: 200000 }; // NGN 1,000 / 1,500 / 2,000
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { message: 'Method not allowed' });
@@ -83,8 +82,10 @@ export default async function handler(req, res) {
     if (action === 'purchase-credits') {
       const credits = Number(body.credits);
       if (!Number.isInteger(credits) || credits < 1) return json(res, 400, { message: 'Choose how many credits to buy.' });
-      const { data: org } = await admin.from('organizations').select('plan_tier').eq('id', caller.org_id).single();
-      const seatKobo = PLAN_SEAT_KOBO[org?.plan_tier] || PLAN_SEAT_KOBO.starter;
+      // Read the rate locked at signup — never recompute from a live constant
+      // (which drifted on the tier rename and mispriced every org).
+      const { data: org } = await admin.from('organizations').select('per_seat_kobo').eq('id', caller.org_id).single();
+      const seatKobo = org?.per_seat_kobo ?? 200000;
       const amountKobo = seatKobo * credits;
       const reference = `CR-${caller.org_id.slice(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
       const { data: tx, error } = await admin.from('billing_transactions').insert({

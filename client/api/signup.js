@@ -9,7 +9,15 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 const json = (res, status, obj) => res.status(status).json(obj);
 
-const PLAN_BASE_FEE_KOBO = { startup: 1500000, standard: 2500000, enterprise: 4500000 }; // NGN 15k / 25k / 45k
+// Canonical server-side pricing, in kobo. Signup is the single WRITE point of
+// the locked rate — it snapshots these onto the org so future charges read the
+// stored value, never a live constant (mirrors client/src/lib/pricing.ts).
+// Per-seat is the flat published PER_STAFF_FEE (₦2,000).
+const PLAN = {
+  startup:    { baseKobo: 1500000, seatKobo: 200000, included: 3, extraKobo: 800000 },
+  standard:   { baseKobo: 2500000, seatKobo: 200000, included: 5, extraKobo: 600000 },
+  enterprise: { baseKobo: 4500000, seatKobo: 200000, included: 8, extraKobo: 400000 },
+};
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -77,10 +85,15 @@ export default async function handler(req, res) {
       // Don't rely on the on_auth_user_created trigger reading this request's
       // metadata reliably at insert time for admin-created users — write the
       // organization and profile explicitly instead, same pattern as admin.js.
+      const plan = PLAN[planTier] || PLAN.startup;
       const { data: org, error: orgErr } = await admin.from('organizations').insert({
         name: orgName.trim(), slug, plan_tier: planTier, status: 'pending_payment',
         theme_color: themeColor, logo_url: logoUrl, website_type: websiteType, country, created_by: created.user.id,
         external_website_url: (typeof externalWebsiteUrl === 'string' && /^https?:\/\/.{3,200}$/i.test(externalWebsiteUrl.trim())) ? externalWebsiteUrl.trim() : '',
+        // Lock the rate at signup — read back for every future charge.
+        base_fee_kobo: plan.baseKobo, per_seat_kobo: plan.seatKobo,
+        included_suites: plan.included, extra_suite_fee_kobo: plan.extraKobo,
+        rate_locked_at: new Date().toISOString(),
       }).select('id').single();
       if (orgErr || !org) {
         await admin.auth.admin.deleteUser(created.user.id);
@@ -103,7 +116,7 @@ export default async function handler(req, res) {
       // immediately — permanently if no trial_days, otherwise until
       // trial_ends_at, which client/api/health.js enforces by suspending.
       const promo = await findValidPromo(admin, promoCode);
-      const baseKobo = PLAN_BASE_FEE_KOBO[planTier];
+      const baseKobo = plan.baseKobo;
       const amountKobo = promo ? Math.round(baseKobo * (100 - promo.percent_off) / 100) : baseKobo;
       const isFree = amountKobo <= 0;
       const trialDays = promo?.trial_days || null;

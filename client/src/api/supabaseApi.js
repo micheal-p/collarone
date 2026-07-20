@@ -48,7 +48,7 @@ async function myProfile() {
 
 async function myOrg(orgId) {
   const { data, error } = await supabase.from('organizations')
-    .select('id, name, slug, plan_tier, theme_color, logo_url, status, suites_enabled, website_type, external_website_url, country').eq('id', orgId).single();
+    .select('id, name, slug, plan_tier, theme_color, logo_url, status, suites_enabled, website_type, external_website_url, country, base_fee_kobo, per_seat_kobo, included_suites, extra_suite_fee_kobo').eq('id', orgId).single();
   if (error || !data) fail(401, 'No organization found for this account.');
   return data;
 }
@@ -57,6 +57,8 @@ const toPublicOrg = (o) => ({
   id: o.id, name: o.name, slug: o.slug, planTier: o.plan_tier, themeColor: o.theme_color, logoUrl: o.logo_url,
   status: o.status, suitesEnabled: o.suites_enabled, websiteType: o.website_type, externalWebsiteUrl: o.external_website_url || '',
   country: o.country || 'NG',
+  baseFeeKobo: o.base_fee_kobo ?? null, perSeatKobo: o.per_seat_kobo ?? null,
+  includedSuites: o.included_suites ?? null, extraSuiteFeeKobo: o.extra_suite_fee_kobo ?? null,
 });
 
 // RLS on platform_admins is `using (is_platform_admin())` — a non-admin's

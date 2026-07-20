@@ -79,7 +79,8 @@ export default function AdminBilling() {
     } catch (e) { flash(e.message, true); } finally { setBusy(false); }
   };
 
-  const seatKobo = { starter: 100000, growth: 150000, scale: 200000 }[user?.org?.planTier] || 100000;
+  // The rate locked at signup — matches exactly what the server charges.
+  const seatKobo = user?.org?.perSeatKobo || 200000;
 
   return (
     <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Billing' }]} title="Billing">
