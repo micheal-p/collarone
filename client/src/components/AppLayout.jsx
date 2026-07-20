@@ -155,6 +155,20 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
           </button>
         </div>
       )}
+      {(user?.org?.status === 'past_due' || user?.org?.status === 'read_only') && (
+        <div style={{
+          background: user.org.status === 'read_only' ? '#7F1D1D' : '#78350F', color: '#FFF3E8', fontSize: 13, fontWeight: 600,
+          padding: '9px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, textAlign: 'center', flexWrap: 'wrap',
+        }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16h.01" /></svg>
+            {user.org.status === 'read_only'
+              ? 'Your subscription is overdue and your workspace is now read-only. Renew to make changes again.'
+              : `Your subscription renewal is due${user.org.graceUntil ? ` — you have until ${new Date(user.org.graceUntil).toLocaleDateString('en-NG', { day: 'numeric', month: 'long' })} before your workspace becomes read-only` : ''}.`}
+          </span>
+          <a href="/admin/billing" style={{ background: '#fff', color: '#7F1D1D', borderRadius: 100, padding: '4px 14px', fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>Renew now</a>
+        </div>
+      )}
       {notices.map((n) => (
         <div key={n.id} style={{
           background: '#78350F', color: '#FDF3E0', fontSize: 13, fontWeight: 600,

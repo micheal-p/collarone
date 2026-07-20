@@ -52,6 +52,21 @@ export default async function handler(req, res) {
             message: `Your free trial has ended. Complete your activation payment to keep using Collarone — WhatsApp us on 0814 812 8551.`,
           });
         }
+
+        // Renewal dunning ladder (active -> past_due -> read_only -> suspended).
+        // Only runs when the operator has explicitly switched enforcement on —
+        // off by default so no live org is ever auto-suspended unwatched.
+        if (process.env.PAYWALL_ENFORCE === 'true') {
+          const { data: moved } = await admin.rpc('advance_billing_lifecycle');
+          const MSG = {
+            past_due: 'Your subscription renewal is due. Renew from Billing to avoid your workspace going read-only.',
+            read_only: 'Your subscription is overdue — your workspace is now read-only. Renew from Billing to make changes again.',
+            suspended: 'Your workspace has been suspended for an overdue payment. Renew to restore access — WhatsApp 0814 812 8551.',
+          };
+          for (const row of moved || []) {
+            if (MSG[row.to_status]) await admin.from('org_notices').insert({ org_id: row.id, kind: 'payment_reminder', message: MSG[row.to_status] });
+          }
+        }
       }
     } catch {
       // never let logging history block reporting live status

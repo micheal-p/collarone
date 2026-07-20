@@ -10,7 +10,7 @@ import ThemePreviewModal from '../components/ThemePreview.jsx';
 
 const GUEST_KEY = 'collarone_guest_mode';
 
-const STATUS_LABEL = { pending_payment: 'Pending payment', active: 'Active', suspended: 'Suspended', cancelled: 'Cancelled' };
+const STATUS_LABEL = { pending_payment: 'Pending payment', active: 'Active', past_due: 'Past due', read_only: 'Read-only', suspended: 'Suspended', cancelled: 'Cancelled' };
 const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', delete_org: 'Deleted organization', impersonate: 'Impersonated admin (retired)', guest_mode: 'Guested into organization', payment_gateway: 'Changed card-payment gateway' };
 const ALL_SUITE_KEYS = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents'];
 const COUNTRY_NAME = { NG: 'Nigeria', GH: 'Ghana', KE: 'Kenya', ZA: 'South Africa', EG: 'Egypt', GB: 'United Kingdom', US: 'United States' };
@@ -20,7 +20,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: '2-dig
 const fmtDateTime = (d) => d ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const STATUS_DOT = { active: 'var(--ok)', pending_payment: 'var(--warn)', suspended: 'var(--err)', cancelled: 'var(--faint)' };
+const STATUS_DOT = { active: 'var(--ok)', pending_payment: 'var(--warn)', past_due: 'var(--warn)', read_only: '#d97f35', suspended: 'var(--err)', cancelled: 'var(--faint)' };
 
 function SectionHead({ title, count, children }) {
   return (
@@ -310,6 +310,42 @@ function DeleteOrgModal({ org, onClose, onConfirm, busy }) {
   );
 }
 
+// Manual billing controls — how the operator runs the dunning ladder by hand
+// (the auto-advance cron is off unless PAYWALL_ENFORCE is set). Move an org's
+// state or extend its renewal window.
+function BillingModal({ org, onClose, onSaved, flash }) {
+  const [busy, setBusy] = useState('');
+  const act = async (label, payload) => {
+    setBusy(label);
+    try {
+      const d = await apiPost('/platform/set-billing-state', { orgId: org.id, ...payload });
+      flash('Billing updated.');
+      onSaved(d);
+    } catch (e) { flash(e.message, true); } finally { setBusy(''); }
+  };
+  return (
+    <div className="pc-scrim" onMouseDown={onClose}>
+      <div className="pc-modal" onMouseDown={(e) => e.stopPropagation()}>
+        <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>Billing — {org.name}</h2>
+        <p style={{ fontSize: 12.5, color: 'var(--dim)', lineHeight: 1.6, margin: '0 0 14px' }}>
+          Current state: <strong>{STATUS_LABEL[org.status] || org.status}</strong>
+          {org.current_period_end && <> · renews {fmtDate(org.current_period_end)}</>}
+        </p>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <button className="pc-btn" disabled={!!busy} onClick={() => act('renew', { status: 'active', periodEndDays: 30 })}>{busy === 'renew' ? '…' : 'Restore to active + renew 30 days'}</button>
+          <button className="pc-btn" disabled={!!busy} onClick={() => act('extend', { periodEndDays: 30 })}>{busy === 'extend' ? '…' : 'Extend renewal by 30 days'}</button>
+          <button className="pc-btn" disabled={!!busy} onClick={() => act('pastdue', { status: 'past_due' })}>{busy === 'pastdue' ? '…' : 'Mark past due (start 7-day grace)'}</button>
+          <button className="pc-btn" disabled={!!busy} onClick={() => act('readonly', { status: 'read_only' })}>{busy === 'readonly' ? '…' : 'Make read-only'}</button>
+          <button className="pc-btn danger" disabled={!!busy} onClick={() => act('suspend', { status: 'suspended' })}>{busy === 'suspend' ? '…' : 'Suspend (lock out)'}</button>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
+          <button className="pc-btn" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Merchant's own Paystack keys — stored via the service role, never readable
 // from the browser, never displayed back (only a masked prefix). Card
 // payments settle to the MERCHANT's bank; Collarone never touches money.
@@ -397,6 +433,7 @@ export default function PlatformAdmin() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [gatewayOrg, setGatewayOrg] = useState(null);
+  const [billingOrg, setBillingOrg] = useState(null);
 
   const { flash, toastNode } = useToast();
 
@@ -623,6 +660,9 @@ export default function PlatformAdmin() {
                             <button className="pc-btn sm" onClick={() => setGatewayOrg(o)}>Card payments</button>
                           )}
                           {o.id !== FOUNDING_ORG_ID && (
+                            <button className="pc-btn sm" onClick={() => setBillingOrg(o)}>Billing</button>
+                          )}
+                          {o.id !== FOUNDING_ORG_ID && (
                             <button className="pc-btn sm danger" onClick={() => setDeleteTarget(o)}>Delete</button>
                           )}
                         </div>
@@ -703,6 +743,7 @@ export default function PlatformAdmin() {
         <DeleteOrgModal org={deleteTarget} busy={deleting} onClose={() => setDeleteTarget(null)} onConfirm={deleteOrg} />
       )}
       {gatewayOrg && <GatewayModal org={gatewayOrg} onClose={() => setGatewayOrg(null)} flash={flash} />}
+      {billingOrg && <BillingModal org={billingOrg} flash={flash} onClose={() => setBillingOrg(null)} onSaved={() => { setBillingOrg(null); load(); }} />}
       {toastNode}
     </PlatformShell>
   );

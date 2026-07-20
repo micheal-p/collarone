@@ -10,6 +10,18 @@ import { SUITES, MULTI_TENANT_SAFE_SUITES, suiteAllowedForCountry } from '../con
 
 const fail = (status, message) => { const e = new Error(message); e.status = status; e.code = 'supabase'; throw e; };
 
+// Org lifecycle states that may still sign in. past_due (grace) and read_only
+// (renewal overdue) keep access so the customer can see their data and pay;
+// suspended / pending_payment / cancelled are locked out.
+const ORG_CAN_ACCESS = ['active', 'past_due', 'read_only'];
+const orgBlockMessage = (status) => (
+  status === 'suspended'
+    ? 'Your workspace is suspended for an overdue payment. Renew to restore access — WhatsApp us on 0814 812 8551.'
+    : status === 'cancelled'
+      ? 'This workspace has been closed. Contact us on WhatsApp (0814 812 8551) if this is a mistake.'
+      : "Your organization's account is pending activation. We'll email you once your payment is confirmed."
+);
+
 // profiles row (snake_case) → the shape the UI expects (camelCase).
 const toPublic = (p) => ({
   id: p.id,
@@ -48,7 +60,7 @@ async function myProfile() {
 
 async function myOrg(orgId) {
   const { data, error } = await supabase.from('organizations')
-    .select('id, name, slug, plan_tier, theme_color, logo_url, status, suites_enabled, website_type, external_website_url, country, base_fee_kobo, per_seat_kobo, included_suites, extra_suite_fee_kobo').eq('id', orgId).single();
+    .select('id, name, slug, plan_tier, theme_color, logo_url, status, suites_enabled, website_type, external_website_url, country, base_fee_kobo, per_seat_kobo, included_suites, extra_suite_fee_kobo, current_period_end, grace_until').eq('id', orgId).single();
   if (error || !data) fail(401, 'No organization found for this account.');
   return data;
 }
@@ -59,6 +71,7 @@ const toPublicOrg = (o) => ({
   country: o.country || 'NG',
   baseFeeKobo: o.base_fee_kobo ?? null, perSeatKobo: o.per_seat_kobo ?? null,
   includedSuites: o.included_suites ?? null, extraSuiteFeeKobo: o.extra_suite_fee_kobo ?? null,
+  currentPeriodEnd: o.current_period_end ?? null, graceUntil: o.grace_until ?? null,
 });
 
 // RLS on platform_admins is `using (is_platform_admin())` — a non-admin's
@@ -123,11 +136,9 @@ export async function supabaseApi(path, opts = {}) {
     const profile = await myProfile();
     if (profile.status !== 'active') { await supabase.auth.signOut(); fail(403, 'Your account has been disabled.'); }
     const org = await myOrg(profile.org_id);
-    if (org.status !== 'active') {
+    if (!ORG_CAN_ACCESS.includes(org.status)) {
       await supabase.auth.signOut();
-      fail(403, org.status === 'suspended'
-        ? 'Your free trial has ended (or a payment is overdue). Complete your activation payment to continue — WhatsApp us on 0814 812 8551.'
-        : "Your organization's account is pending activation. We'll email you once your payment is confirmed.");
+      fail(403, orgBlockMessage(org.status));
     }
     await supabase.rpc('touch_last_login');
     const isPlatformAdmin = await amIPlatformAdmin();
@@ -139,7 +150,7 @@ export async function supabaseApi(path, opts = {}) {
     const profile = await myProfile();
     if (profile.status !== 'active') { await supabase.auth.signOut(); fail(401, 'Account is inactive.'); }
     const org = await myOrg(profile.org_id);
-    if (org.status !== 'active') { await supabase.auth.signOut(); fail(401, "Organization is pending activation."); }
+    if (!ORG_CAN_ACCESS.includes(org.status)) { await supabase.auth.signOut(); fail(401, orgBlockMessage(org.status)); }
     const isPlatformAdmin = await amIPlatformAdmin();
     return { accessToken: session.access_token, user: { ...toPublic(profile), org: toPublicOrg(org), isPlatformAdmin } };
   }
@@ -256,6 +267,9 @@ export async function supabaseApi(path, opts = {}) {
   }
   if (head === 'POST /platform' && seg[1] === 'guest-mode') {
     return callAdmin('guest-mode', { orgId: body.orgId });
+  }
+  if (head === 'POST /platform' && seg[1] === 'set-billing-state') {
+    return callAdmin('set-billing-state', { orgId: body.orgId, status: body.status, periodEndDays: body.periodEndDays });
   }
   if (head === 'POST /platform' && seg[1] === 'payment-gateway') {
     return callAdmin('payment-gateway', { orgId: body.orgId, mode: body.mode, publicKey: body.publicKey, secretKey: body.secretKey, enabled: body.enabled });

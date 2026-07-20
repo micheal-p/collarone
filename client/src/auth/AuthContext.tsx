@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import type { ReactNode, Dispatch, SetStateAction } from 'react';
-import { api, apiPost, setAccessToken, onAuthExpired, bootSession, DEMO } from '../api/client.js';
+import { api, apiPost, setAccessToken, setReadOnly, onAuthExpired, bootSession, DEMO } from '../api/client.js';
 import { applyOrgTheme, resetOrgTheme } from '../lib/theme.js';
 import type { User } from '../types';
 
@@ -67,6 +67,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     return () => unsub();
   }, []);
+
+  // Keep the API-facade read-only guard in sync with the org's dunning state.
+  useEffect(() => { setReadOnly(user?.org?.status === 'read_only'); }, [user]);
 
   // Forced sign-out when a refresh fails mid-session.
   useEffect(() => onAuthExpired(() => { setAccessToken(null); setUser(null); }), []);

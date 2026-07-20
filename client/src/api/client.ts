@@ -17,6 +17,14 @@ type AuthExpiredListener = () => void;
 let accessToken: string | null = null;
 const listeners = new Set<AuthExpiredListener>();
 
+// When an org is in the read-only dunning state, block writes through the
+// facade (the auth context flips this from user.org.status). Auth calls stay
+// allowed so the customer can still sign in/out; payment goes direct to the
+// /api/platform-pay function, not through here, so renewing still works.
+let readOnly = false;
+export const setReadOnly = (v: boolean): void => { readOnly = v; };
+const READ_ONLY_MESSAGE = 'Your workspace is read-only until your subscription is renewed. Renew from Billing to make changes again.';
+
 export const setAccessToken = (t: string | null): void => { accessToken = t; };
 export const getAccessToken = (): string | null => accessToken;
 
@@ -37,6 +45,10 @@ export async function bootSession(): Promise<AuthResult | null> {
 }
 
 export async function api<T = any>(path: string, opts: ApiOpts = {}): Promise<T> {
+  const method = (opts.method || 'GET').toUpperCase();
+  if (readOnly && method !== 'GET' && !path.replace(/^\//, '').startsWith('auth')) {
+    const e = new Error(READ_ONLY_MESSAGE); (e as any).status = 403; throw e;
+  }
   const data = await backend(path, opts);
   if (data && data.accessToken) accessToken = data.accessToken;
   return data as T;

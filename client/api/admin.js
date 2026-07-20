@@ -251,6 +251,33 @@ export default async function handler(req, res) {
       return json(res, 200, profile);
     }
 
+    // Manually move an org along the billing lifecycle, or extend its renewal.
+    // Always available to a platform admin regardless of the PAYWALL_ENFORCE
+    // auto-advance flag — this is how the first dunning cycles are run by hand.
+    if (action === 'set-billing-state') {
+      await requirePlatformAdmin();
+      const { orgId, status, periodEndDays } = body;
+      if (orgId === FOUNDING_ORG_ID) return json(res, 400, { message: 'The founding org is not billed.' });
+      const patch = {};
+      if (status !== undefined) {
+        if (!['active', 'past_due', 'read_only', 'suspended', 'cancelled'].includes(status)) return json(res, 400, { message: 'Invalid billing status.' });
+        patch.status = status;
+        // Restoring to active clears the grace clock and starts a fresh period.
+        if (status === 'active') { patch.grace_until = null; if (periodEndDays === undefined) patch.current_period_end = new Date(Date.now() + 30 * 86400000).toISOString(); }
+        if (status === 'past_due') patch.grace_until = new Date(Date.now() + 7 * 86400000).toISOString();
+      }
+      if (periodEndDays !== undefined) {
+        const days = Number(periodEndDays);
+        if (!Number.isFinite(days)) return json(res, 400, { message: 'Invalid renewal length.' });
+        patch.current_period_end = new Date(Date.now() + days * 86400000).toISOString();
+      }
+      if (!Object.keys(patch).length) return json(res, 400, { message: 'Nothing to change.' });
+      const { data, error } = await admin.from('organizations').update(patch).eq('id', orgId).select('id, status, current_period_end, grace_until').single();
+      if (error) return json(res, 400, { message: error.message });
+      await logAudit('set_billing_state', orgId, patch);
+      return json(res, 200, data);
+    }
+
     return json(res, 400, { message: `Unknown action: ${action}` });
   } catch (e) {
     return json(res, e.status || 500, { message: e.message || 'Admin operation failed.' });
