@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiGet } from '../../api/client.js';
+import { apiGet, DEMO } from '../../api/client.js';
 import { useConfirm, EmptyState, SearchSelect } from '../../components/ui.jsx';
 import * as L from './lettersApi.js';
 import * as C from './complianceApi.js';
@@ -79,6 +79,15 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
     signerName: me?.name || '', signerRole: 'Human Resources',
   }));
   const [aiBusy, setAiBusy] = useState(false);
+  // Collarone AI is env-gated (OPENAI_API_KEY on the server). The button only
+  // shows when it's actually switched on, so it never advertises a dead feature.
+  // Demo mode has a template-backed draft, so it's always available there.
+  const [aiEnabled, setAiEnabled] = useState(DEMO);
+  useEffect(() => {
+    if (DEMO) return;
+    fetch('/api/ai-letter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'status' }) })
+      .then((r) => r.json()).then((d) => setAiEnabled(Boolean(d.enabled))).catch(() => {});
+  }, []);
   const [busy, setBusy] = useState(false);
 
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -188,15 +197,19 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
 
         <div className="field"><label>Letter body</label>
           <div className="lt-ai-row">
-            <button type="button" className="btn btn-primary btn-sm" onClick={aiDraft} disabled={aiBusy}>
-              {aiBusy ? <span className="spinner" /> : IC.spark} Write with Collarone AI
-            </button>
+            {aiEnabled && (
+              <button type="button" className="btn btn-primary btn-sm" onClick={aiDraft} disabled={aiBusy}>
+                {aiBusy ? <span className="spinner" /> : IC.spark} Write with Collarone AI
+              </button>
+            )}
             <button type="button" className="btn btn-ghost btn-sm" onClick={useTemplate}>Use template</button>
           </div>
-          <input className="input" style={{ margin: '8px 0' }} placeholder="Anything the AI should know? (optional — e.g. 'mention her transfer to the Abuja office')"
-            value={f.instructions} onChange={(e) => set('instructions', e.target.value)} />
+          {aiEnabled && (
+            <input className="input" style={{ margin: '8px 0' }} placeholder="Anything the AI should know? (optional — e.g. 'mention her transfer to the Abuja office')"
+              value={f.instructions} onChange={(e) => set('instructions', e.target.value)} />
+          )}
           <textarea className="input" rows={12} value={f.body} onChange={(e) => set('body', e.target.value)}
-            placeholder="Write the letter here, use the template, or let Collarone AI draft it — you always review before issuing." />
+            placeholder={aiEnabled ? 'Write the letter here, use the template, or let Collarone AI draft it — you always review before issuing.' : 'Write the letter here, or start from a template — you always review before issuing.'} />
         </div>
 
         <div className="form-grid">
