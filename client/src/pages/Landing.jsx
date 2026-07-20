@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import PublicThemeGallery from '../components/PublicThemeGallery.jsx';
 import { motion, animate, AnimatePresence, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
 import { SUITES, SUITE_META } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
@@ -630,6 +631,8 @@ export default function Landing() {
           >{I.arrowRight}</button>
         </div>
       )}
+
+      <PublicThemeGallery />
 
       <section className="cl-sec" id="nigeria">
         <div className="cl-wrap">
