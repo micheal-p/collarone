@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import PublicThemeGallery from '../components/PublicThemeGallery.jsx';
+import BuiltForStrip from '../components/BuiltForStrip.jsx';
 import { motion, animate, AnimatePresence, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
 import { SUITES, SUITE_META } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
@@ -494,6 +495,8 @@ export default function Landing() {
           <span className="cl-trust-cell">Priced in naira — rate locked at sign-up</span>
         </div>
       </section>
+
+      <BuiltForStrip />
 
       <section className="cl-sec" id="capabilities">
         <div className="cl-wrap">
