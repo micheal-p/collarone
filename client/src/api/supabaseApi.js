@@ -250,7 +250,9 @@ export async function supabaseApi(path, opts = {}) {
     return { organizations: data };
   }
   if (head === 'GET /platform' && seg[1] === 'profiles') {
-    const { data, error } = await supabase.from('profiles').select('id, org_id, name, email, role, created_at, last_login_at').order('created_at', { ascending: false });
+    // Cross-org read for the platform dashboard goes through the sanctioned
+    // definer function — profiles RLS is otherwise strictly org-scoped.
+    const { data, error } = await supabase.rpc('platform_all_profiles');
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { profiles: data };
   }
@@ -452,7 +454,10 @@ export async function supabaseApi(path, opts = {}) {
 
   // ---- admin: users ----
   if (head === 'GET /users') {
-    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    // Explicitly scope to the caller's org — the tenant Users page must only
+    // ever show this org's people, even for a platform-admin account.
+    const orgId = await myOrgId();
+    const { data, error } = await supabase.from('profiles').select('*').eq('org_id', orgId).order('created_at', { ascending: false });
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { users: data.map(toPublic) };
   }
