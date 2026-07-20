@@ -18,11 +18,13 @@ import FeatureFocus, { meta as featureMeta } from './featureFocus.jsx';
 import CorporateClean, { meta as corporateMeta } from './corporate.jsx';
 import AgencyModern, { meta as agencyMeta } from './agency.jsx';
 import ProfessionalServices, { meta as proMeta } from './professional.jsx';
+import StorefrontClassic, { meta as storefrontMeta } from './storefrontClassic.jsx';
 
 const reg = (m, C) => [m.key, { ...m, Component: C }];
 
 export const SITE_THEMES = Object.fromEntries([
   reg(atelierMeta, Atelier),
+  reg(storefrontMeta, StorefrontClassic),
   reg(boutiqueMeta, BoutiqueNoir),
   reg(marketMeta, MarketFresh),
   reg(launchMeta, LaunchBold),
