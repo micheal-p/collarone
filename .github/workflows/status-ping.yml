@@ -1,0 +1,31 @@
+name: Status check
+
+# Pings the health endpoint every 10 minutes so the public /status page builds
+# a real, fine-grained uptime history. Vercel's Hobby cron only fires once a
+# day (see vercel.json), which is too sparse to catch a same-day blip — this
+# fills the gap. /api/health self-throttles its DB writes to one per 5 minutes,
+# so a 10-minute ping never over-records. No secrets needed: the endpoint is
+# a public GET.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+# Never pile up overlapping runs if a tick is delayed under load.
+concurrency:
+  group: status-ping
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Hit /api/health
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://collarone.vercel.app/api/health)
+          echo "health returned HTTP $code"
+          # A non-2xx just means this particular check saw the site down; that's
+          # data for the status page, not a reason to fail the workflow.
+          exit 0
