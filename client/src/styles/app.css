@@ -362,8 +362,10 @@
 .lv-apply { margin-left: auto; }
 
 .lv-balances { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 26px; }
-.lv-bal { background: var(--surface); border: 1px solid var(--line); border-top: 3px solid var(--brand); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); padding: 16px; }
-.lv-bal-name { font-size: 13px; color: var(--text-2); font-weight: 600; }
+.lv-bal { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); padding: 16px; transition: box-shadow .15s ease, border-color .15s ease; }
+.lv-bal:hover { border-color: var(--line-strong, #d9d5cc); box-shadow: var(--shadow-3, 0 4px 14px rgba(10,14,26,0.08)); }
+.lv-bal-name { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-2); font-weight: 600; }
+.lv-bal-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .lv-bal-big { font-size: 30px; font-weight: 700; margin: 6px 0 2px; }
 .lv-bal-of { font-size: 16px; color: var(--text-3); font-weight: 600; }
 .lv-bal-sub { font-size: 12px; color: var(--text-3); }

@@ -80,8 +80,8 @@ function Overview({ balances, requests }) {
     <>
       <div className="lv-balances">
         {balances.map((b) => (
-          <div className="lv-bal" key={b.type.id} style={{ borderTopColor: b.type.color }}>
-            <div className="lv-bal-name">{b.type.name}</div>
+          <div className="lv-bal" key={b.type.id}>
+            <div className="lv-bal-name"><span className="lv-bal-dot" style={{ background: b.type.color }} />{b.type.name}</div>
             <div className="lv-bal-big">
               {b.available === null ? '—' : <>{b.available}<span className="lv-bal-of"> / {b.entitled}</span></>}
             </div>
