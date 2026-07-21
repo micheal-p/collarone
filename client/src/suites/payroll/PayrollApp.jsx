@@ -636,6 +636,143 @@ function BankWallTab({ flash }) {
   );
 }
 
+/* ---- Loans & advances ---------------------------------------------------------------- */
+function LoanModal({ isPayrollManager, employees, meId, onClose, onSaved, flash }) {
+  const [f, setF] = useState({ employeeId: '', loanType: 'loan', principal: '', monthlyInstallment: '', reason: '' });
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  const months = Number(f.principal) > 0 && Number(f.monthlyInstallment) > 0
+    ? Math.ceil(Number(f.principal) / Number(f.monthlyInstallment)) : 0;
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (Number(f.monthlyInstallment) > Number(f.principal)) return flash('The installment cannot exceed the amount.', true);
+    setBusy(true);
+    try {
+      const saved = await P.requestLoan({ ...f, employeeId: f.employeeId || meId, principal: Number(f.principal), monthlyInstallment: Number(f.monthlyInstallment) });
+      flash('Request submitted — it takes effect once approved.');
+      onSaved(saved); onClose();
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title="New loan / salary advance" onClose={onClose}>
+      <form onSubmit={submit}>
+        {isPayrollManager && employees.length > 0 && (
+          <div className="field"><label>Employee</label>
+            <select className="select" value={f.employeeId} onChange={(e) => set('employeeId', e.target.value)}>
+              <option value="">Myself</option>
+              {employees.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+        )}
+        <div className="form-grid">
+          <div className="field"><label>Type</label>
+            <select className="select" value={f.loanType} onChange={(e) => set('loanType', e.target.value)}>
+              <option value="loan">Staff loan</option>
+              <option value="advance">Salary advance</option>
+            </select>
+          </div>
+          <div className="field"><label>Amount (₦) *</label><input className="input" type="number" min="1" value={f.principal} onChange={(e) => set('principal', e.target.value)} required autoFocus /></div>
+          <div className="field"><label>Monthly deduction (₦) *</label><input className="input" type="number" min="1" value={f.monthlyInstallment} onChange={(e) => set('monthlyInstallment', e.target.value)} required /></div>
+        </div>
+        {months > 0 && <p className="muted" style={{ fontSize: 12.5, marginTop: 0 }}>Repaid over about {months} payroll run{months > 1 ? 's' : ''}, deducted automatically from net pay.</p>}
+        <div className="field"><label>Reason</label><input className="input" value={f.reason} onChange={(e) => set('reason', e.target.value)} placeholder="Optional" /></div>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Submit request'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function LoansTab({ flash, isPayrollManager }) {
+  const { user } = useAuth();
+  const [loans, setLoans] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modal, setModal] = useState(false);
+  const { confirm, confirmNode } = useConfirm();
+
+  const load = () => {
+    setLoading(true);
+    Promise.all([P.getLoans(), isPayrollManager ? P.getEmployees().catch(() => []) : Promise.resolve([])])
+      .then(([l, e]) => { setLoans(l); setEmployees(e); })
+      .catch((e) => flash(e.message, true)).finally(() => setLoading(false));
+  };
+  useEffect(load, []); // eslint-disable-line
+
+  const decide = async (loan, decision) => {
+    if (decision === 'cancel') {
+      const ok = await confirm({ title: 'Cancel this loan?', message: 'Future payroll runs will stop deducting it. Recorded repayments stay.', confirmLabel: 'Cancel loan', danger: true });
+      if (!ok) return;
+    }
+    try {
+      const saved = await P.decideLoan(loan.id, decision);
+      flash(decision === 'approve' ? 'Approved — deductions start with the next payroll run.' : `Loan ${decision === 'reject' ? 'rejected' : 'cancelled'}.`);
+      setLoans((ls) => ls.map((x) => (x.id === saved.id ? { ...x, ...saved } : x)));
+    } catch (e) { flash(e.message, true); }
+  };
+
+  if (loading) return <div className="suite-loading"><div className="boot-spinner" /></div>;
+
+  const active = loans.filter((l) => l.status === 'active');
+  const outstanding = active.reduce((s, l) => s + P.loanBalance(l), 0);
+
+  return (
+    <>
+      {confirmNode}
+      <div className="tk-kpi-row" style={{ marginBottom: 16 }}>
+        <div className="tk-kpi"><div className="tk-kpi-val">{active.length}</div><div className="tk-kpi-label">Active loans</div></div>
+        <div className="tk-kpi"><div className="tk-kpi-val">{P.money(outstanding)}</div><div className="tk-kpi-label">Outstanding balance</div></div>
+        <div className="tk-kpi"><div className="tk-kpi-val">{loans.filter((l) => l.status === 'pending').length}</div><div className="tk-kpi-label">Awaiting approval</div></div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+        <button className="btn btn-primary" onClick={() => setModal(true)}>{isPayrollManager ? 'New loan / advance' : 'Request loan / advance'}</button>
+      </div>
+      <div className="table-wrap">
+        <table className="table">
+          <thead><tr><th>Employee</th><th>Type</th><th>Amount</th><th>Monthly</th><th>Balance</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            {loans.length === 0 && (
+              <tr><td colSpan={7} style={{ padding: 0 }}>
+                <EmptyState title="No loans or advances" hint="Approved loans are deducted from net pay automatically on every payroll run until repaid." />
+              </td></tr>
+            )}
+            {loans.map((l) => {
+              const st = P.LOAN_STATUS[l.status] || P.LOAN_STATUS.pending;
+              return (
+                <tr key={l.id}>
+                  <td style={{ fontWeight: 500 }}>{l.employee?.name || '—'}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{l.loan_type === 'advance' ? 'Advance' : 'Loan'}</td>
+                  <td style={{ fontSize: 13 }}>{P.money(l.principal)}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>{P.money(l.monthly_installment)}</td>
+                  <td style={{ fontSize: 13, fontWeight: l.status === 'active' ? 650 : 400 }}>{['active', 'closed'].includes(l.status) ? P.money(P.loanBalance(l)) : '—'}</td>
+                  <td><span className={`lc-badge ${st.cls}`}>{st.label}</span></td>
+                  <td style={{ display: 'flex', gap: 6 }}>
+                    {isPayrollManager && l.status === 'pending' && (
+                      <>
+                        <button className="iconbtn" onClick={() => decide(l, 'approve')}>Approve</button>
+                        <button className="iconbtn danger-icon" onClick={() => decide(l, 'reject')}>Reject</button>
+                      </>
+                    )}
+                    {isPayrollManager && l.status === 'active' && (
+                      <button className="iconbtn danger-icon" onClick={() => decide(l, 'cancel')}>Cancel</button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {modal && <LoanModal isPayrollManager={isPayrollManager} employees={employees} meId={user?.id}
+        onClose={() => setModal(false)} onSaved={(l) => setLoans((ls) => [l, ...ls])} flash={flash} />}
+    </>
+  );
+}
+
 /* ---- Main PayrollApp ---------------------------------------------------------------- */
 export default function PayrollApp({ access }) {
   const isPayrollManager = access?.role === 'manager';
@@ -667,6 +804,7 @@ export default function PayrollApp({ access }) {
         <button className={`lv-tab ${tab === 'runs' ? 'active' : ''}`} onClick={() => setTab('runs')}>Payroll runs</button>
         <button className={`lv-tab ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>Employees</button>
         <button className={`lv-tab ${tab === 'rates' ? 'active' : ''}`} onClick={() => setTab('rates')}>Rates</button>
+        <button className={`lv-tab ${tab === 'loans' ? 'active' : ''}`} onClick={() => setTab('loans')}>Loans &amp; advances</button>
         {isPayrollManager && <button className={`lv-tab ${tab === 'bankwall' ? 'active' : ''}`} onClick={() => setTab('bankwall')}>Banking Wall</button>}
         {isPayrollManager && tab === 'runs' && <button className="btn btn-primary lv-apply" onClick={() => setModal(true)}>{I.add} New run</button>}
       </div>
@@ -702,6 +840,7 @@ export default function PayrollApp({ access }) {
 
       {tab === 'employees' && <EmployeesTab flash={flash} isPayrollManager={isPayrollManager} />}
       {tab === 'rates' && <RatesTab flash={flash} isPayrollManager={isPayrollManager} />}
+      {tab === 'loans' && <LoansTab flash={flash} isPayrollManager={isPayrollManager} />}
       {tab === 'bankwall' && isPayrollManager && <BankWallTab flash={flash} />}
 
       {modal && (

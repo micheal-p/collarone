@@ -5,7 +5,7 @@ import { SUITE_META } from '../config/suites.js';
 import AppLayout from '../components/AppLayout.jsx';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 // Each suite is its own lazy chunk: opening HR downloads only HR's code, not
-// all 16 suites. This is the bulk of what used to sit in the initial bundle.
+// all 17 suites. This is the bulk of what used to sit in the initial bundle.
 const HRApp         = lazy(() => import('../suites/hr/HRApp.jsx'));
 const LeaveApp      = lazy(() => import('../suites/leave/LeaveApp.jsx'));
 const TasksApp      = lazy(() => import('../suites/tasks/TasksApp.jsx'));
@@ -22,9 +22,10 @@ const ProjectsApp   = lazy(() => import('../suites/projects/ProjectsApp.jsx'));
 const DocumentsApp  = lazy(() => import('../suites/documents/DocumentsApp.jsx'));
 const TradeDocsApp  = lazy(() => import('../suites/tradeDocs/TradeDocsApp.jsx'));
 const AutomationApp = lazy(() => import('../suites/automation/AutomationApp.jsx'));
+const ComplianceApp = lazy(() => import('../suites/compliance/ComplianceApp.jsx'));
 
 // Suites that have a real app built. Others fall back to the "foundation ready" stub.
-const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp, payroll: PayrollApp, crm: CRMApp, attendance: AttendanceApp, benefits: BenefitsApp, 'it-assets': ITAssetsApp, procurement: ProcurementApp, inventory: InventoryApp, finance: FinanceApp, projects: ProjectsApp, documents: DocumentsApp, 'trade-docs': TradeDocsApp, automation: AutomationApp };
+const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp, payroll: PayrollApp, crm: CRMApp, attendance: AttendanceApp, benefits: BenefitsApp, 'it-assets': ITAssetsApp, procurement: ProcurementApp, inventory: InventoryApp, finance: FinanceApp, projects: ProjectsApp, documents: DocumentsApp, 'trade-docs': TradeDocsApp, automation: AutomationApp, compliance: ComplianceApp };
 
 export default function SuiteShell() {
   const { key } = useParams();

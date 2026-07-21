@@ -683,6 +683,34 @@ export async function supabaseApi(path, opts = {}) {
     return { line: data };
   }
 
+  // ---- staff loans & salary advances ----
+  if (head === 'GET /payroll' && seg[1] === 'loans' && seg.length === 2) {
+    const { data, error } = await supabase.from('staff_loans')
+      .select('*, employee:profiles!employee_id(id,name,email), repayments:loan_repayments(amount)')
+      .order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { loans: (data || []).map((l) => ({ ...l, repaid: (l.repayments || []).reduce((s, r) => s + Number(r.amount), 0) })) };
+  }
+  if (head === 'POST /payroll' && seg[1] === 'loans' && seg.length === 2) {
+    const { employeeId, loanType, principal, monthlyInstallment, reason } = body;
+    if (!principal || !monthlyInstallment) fail(400, 'Principal and monthly installment are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('staff_loans').insert({
+      org_id: await myOrgId(), employee_id: employeeId || user.id, loan_type: loanType || 'loan',
+      principal, monthly_installment: monthlyInstallment, reason: reason || '', requested_by: user.id,
+    }).select('*, employee:profiles!employee_id(id,name,email)').single();
+    if (error) fail(400, error.message);
+    return { loan: data };
+  }
+  if (head === 'POST /payroll' && seg[1] === 'loans' && seg[3] === 'decide') {
+    const { decision, installment } = body;
+    const { data, error } = await supabase.rpc('decide_staff_loan', {
+      p_loan_id: seg[2], p_decision: decision, p_installment: installment ?? null,
+    });
+    if (error) fail(400, error.message);
+    return { loan: data };
+  }
+
   if (head === 'GET /payroll' && seg[1] === 'mypayslips') {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('payroll_lines')
@@ -1966,6 +1994,59 @@ export async function supabaseApi(path, opts = {}) {
     });
     if (error) fail(400, error.message);
     return { settings: data };
+  }
+  // payments against an invoice (receivables)
+  if (head === 'GET /trade-docs' && seg[2] === 'payments' && seg.length === 3) {
+    const { data, error } = await supabase.from('trade_doc_payments')
+      .select('*, recorder:profiles!recorded_by(id,name)').eq('doc_id', seg[1]).order('paid_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { payments: data };
+  }
+  if (head === 'POST /trade-docs' && seg[2] === 'payments' && seg.length === 3) {
+    const { amount, payMethod, reference, note, paidAt } = body;
+    const { data, error } = await supabase.rpc('record_trade_doc_payment', {
+      p_doc_id: seg[1], p_amount: amount, p_method: payMethod || 'transfer',
+      p_reference: reference || '', p_note: note || '', p_paid_at: paidAt || new Date().toISOString(),
+    });
+    if (error) fail(400, error.message);
+    return { document: data };
+  }
+
+  // ---- compliance calendar ----
+  if (head === 'GET /compliance' && seg.length === 1) {
+    const [rules, prefs, marks] = await Promise.all([
+      supabase.from('compliance_rules').select('*').order('sort_order'),
+      supabase.from('org_compliance_prefs').select('*'),
+      supabase.from('compliance_marks').select('*, doer:profiles!done_by(id,name)').order('done_at', { ascending: false }).limit(400),
+    ]);
+    if (rules.error) fail(400, rules.error.message);
+    if (prefs.error) fail(400, prefs.error.message);
+    if (marks.error) fail(400, marks.error.message);
+    return { rules: rules.data, prefs: prefs.data, marks: marks.data };
+  }
+  if (head === 'POST /compliance' && seg[1] === 'prefs') {
+    const { ruleKey, enabled, annualMonth, annualDay, note } = body;
+    const { data, error } = await supabase.from('org_compliance_prefs').upsert({
+      org_id: await myOrgId(), rule_key: ruleKey, enabled: enabled !== false,
+      annual_month: annualMonth ?? null, annual_day: annualDay ?? null, note: note || '', updated_at: new Date().toISOString(),
+    }, { onConflict: 'org_id,rule_key' }).select().single();
+    if (error) fail(400, error.message);
+    return { pref: data };
+  }
+  if (head === 'POST /compliance' && seg[1] === 'marks') {
+    const { ruleKey, period, note } = body;
+    if (!ruleKey || !period) fail(400, 'Rule and period are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('compliance_marks').insert({
+      org_id: await myOrgId(), rule_key: ruleKey, period, note: note || '', done_by: user.id,
+    }).select('*, doer:profiles!done_by(id,name)').single();
+    if (error) fail(400, /unique|duplicate/i.test(error.message) ? 'Already marked done for that period.' : error.message);
+    return { mark: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'compliance' && seg[1] === 'marks' && seg.length === 3) {
+    const { error } = await supabase.from('compliance_marks').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
   }
 
   // ---- automation ----

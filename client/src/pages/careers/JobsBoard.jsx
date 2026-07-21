@@ -81,7 +81,7 @@ export default function JobsBoard() {
         <div className="careers-hire-cta">
           <div>
             <b>Hiring for your own company?</b>
-            <p>Post roles, screen candidates and onboard hires — recruiting is one of Collarone's 16 suites.</p>
+            <p>Post roles, screen candidates and onboard hires — recruiting is one of Collarone's 17 suites.</p>
           </div>
           <Link className="btn btn-primary" to="/signup">Start hiring on Collarone</Link>
         </div>

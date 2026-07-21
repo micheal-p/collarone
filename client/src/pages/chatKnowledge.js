@@ -46,7 +46,7 @@ const INTENTS = [
     id: 'what-is',
     phrases: ['what is collarone', 'what does collarone do', 'tell me about collarone', 'what is this'],
     keys: ['about', 'explain', 'overview'],
-    answer: 'Collarone is the business platform for Nigerian companies — HR, payroll, CRM, finance and more, 16 live suites behind one login, priced and billed in naira. Your company gets its own isolated workspace, you switch on only the suites you need, and your data stays completely separate from every other company\'s.',
+    answer: 'Collarone is the business platform for Nigerian companies — HR, payroll, CRM, finance and more, 17 live suites behind one login, priced and billed in naira. Your company gets its own isolated workspace, you switch on only the suites you need, and your data stays completely separate from every other company\'s.',
     chips: ['What suites are included?', 'What does it cost?', 'Is my data safe?'],
   },
   {
@@ -60,7 +60,7 @@ const INTENTS = [
     id: 'suites',
     phrases: ['what suites', 'what is included', "what's included", 'list of suites', 'what modules', 'features'],
     keys: ['suites', 'modules', 'apps', 'included', 'tools'],
-    answer: 'Sixteen live suites. Core: HR & Staff, Leave, Task & Report, Visitor Management, Payroll, CRM. Extended: Time & Attendance, Benefits, IT Assets, Procurement, Inventory, Finance, Projects, Documents, Trade Documents, Automation. Every tier picks any of them à la carte — a Startup customer gets the same full suites as Enterprise, just fewer included.',
+    answer: 'Seventeen live suites. Core: HR & Staff, Leave, Task & Report, Visitor Management, Payroll, CRM. Extended: Time & Attendance, Benefits, IT Assets, Procurement, Inventory, Finance, Projects, Documents, Invoicing & Trade Docs, Automation, Compliance Calendar. Every tier picks any of them à la carte — a Startup customer gets the same full suites as Enterprise, just fewer included.',
     chips: ['Tell me about HR', 'Does it do payroll?', 'What does it cost?'],
   },
   {
@@ -81,8 +81,22 @@ const INTENTS = [
     id: 'payroll',
     phrases: ['does it do payroll', 'tell me about payroll', 'salary payment'],
     keys: ['payroll', 'paye', 'pension', 'nhf', 'nsitf', 'payslip', 'salary', 'salaries', 'tax'],
-    answer: 'Payroll runs real Nigerian statutory math — PAYE, Pension, NHF, NSITF — with payslips and a Banking Wall for whoever liaises with your bank. Important honesty: Collarone never touches your bank account. It prepares the disbursement instruction; your bank executes it. Payroll is available to Nigerian-registered companies.',
+    answer: 'Payroll runs real Nigerian statutory math — PAYE, Pension, NHF, NSITF — with payslips, staff loans and salary advances repaid by automatic deduction, and a Banking Wall for whoever liaises with your bank. Important honesty: Collarone never touches your bank account. It prepares the disbursement instruction; your bank executes it. Payroll is available to Nigerian-registered companies.',
     chips: ['What does it cost?', 'What suites are included?'],
+  },
+  {
+    id: 'invoicing',
+    phrases: ['can i send invoices', 'invoicing', 'invoice customers', 'who owes me', 'receivables', 'payment link'],
+    keys: ['invoice', 'invoices', 'invoicing', 'receipt', 'receivable', 'receivables', 'owed', 'grn', 'debtors'],
+    answer: 'Yes — Invoicing & Trade Docs generates sequential, VAT-aware invoices (plus receipts, goods-received notes and stock passes) on your own letterhead. Every invoice gets a share link you can WhatsApp to the customer: they open it, see the invoice, and pay by transfer — or by card straight into your own Paystack account if you connect one. Payments (including part-payments) are recorded against each invoice, and the Money Owed view shows every outstanding naira, most overdue first. Collarone never holds the money — it settles directly to your bank.',
+    chips: ['How do card payments work?', 'What does it cost?'],
+  },
+  {
+    id: 'compliance',
+    phrases: ['compliance calendar', 'statutory deadlines', 'tax deadlines', 'when is paye due', 'cac annual return'],
+    keys: ['compliance', 'deadline', 'deadlines', 'firs', 'lirs', 'cac', 'remittance', 'statutory', 'filing'],
+    answer: 'The Compliance Calendar tracks Nigeria\'s statutory deadlines for you — PAYE (10th), VAT (21st), pension (7 working days after payday), NHF, NSITF, WHT monthly, plus annual PAYE returns, CAC annual returns and CIT. Each month you mark them done with a reference, so there\'s a clean history of what was filed and when. It\'s guidance, not legal advice — timelines are confirmed with your accountant — but nothing slips through again.',
+    chips: ['What suites are included?', 'What does it cost?'],
   },
   {
     id: 'crm',

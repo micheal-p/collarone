@@ -408,7 +408,7 @@ export async function demoApi(path, opts = {}) {
   // demo mutations survive a reload. Ids deliberately avoid a leading 'u'
   // (the route-normalization regex above rewrites /u…/ segments to /:id), so
   // PATCH/DELETE handlers match on seg, not `route`.
-  if (['staff', 'benefits', 'procurement', 'crm', 'finance', 'documents', 'docfolders', 'projects', 'itassets', 'trade-docs', 'automation'].includes(seg[0])) {
+  if (['staff', 'benefits', 'procurement', 'crm', 'finance', 'documents', 'docfolders', 'projects', 'itassets', 'trade-docs', 'automation', 'compliance'].includes(seg[0])) {
     const me = requireAuth();
     const meRef = { id: me.id, name: me.name, email: me.email };
     const now = () => new Date().toISOString();
@@ -916,7 +916,48 @@ export async function demoApi(path, opts = {}) {
     }
 
     // ---- trade documents (invoice / receipt / GRN / SRP) ----
+    // ---- compliance calendar (rules mirror supabase/compliance.sql seeds) ----
+    if (seg[0] === 'compliance') {
+      db.compliancePrefs = db.compliancePrefs || [];
+      db.complianceMarks = db.complianceMarks || [];
+      const RULES = [
+        { key: 'paye', title: 'PAYE remittance', authority: 'State IRS (e.g. LIRS)', description: 'Remit PAYE deducted from staff salaries to the state tax authority. Due by the 10th of the month after payroll.', frequency: 'monthly', due_day: 10, default_month: null, info_url: '', sort_order: 10 },
+        { key: 'vat', title: 'VAT filing & remittance', authority: 'FIRS', description: 'File the VAT return and remit 7.5% VAT collected — due by the 21st of the following month, even for nil months.', frequency: 'monthly', due_day: 21, default_month: null, info_url: '', sort_order: 20 },
+        { key: 'wht', title: 'Withholding tax remittance', authority: 'FIRS / State IRS', description: 'Remit WHT deducted from vendor payments by the 21st of the following month.', frequency: 'monthly', due_day: 21, default_month: null, info_url: '', sort_order: 30 },
+        { key: 'pension', title: 'Pension remittance', authority: 'PenCom / your PFAs', description: 'Remit 8% + 10% pension contributions within 7 working days of paying salaries.', frequency: 'monthly', due_day: 7, default_month: null, info_url: '', sort_order: 40 },
+        { key: 'nhf', title: 'NHF remittance', authority: 'FMBN', description: 'Remit the 2.5% National Housing Fund deduction within one month.', frequency: 'monthly', due_day: 28, default_month: null, info_url: '', sort_order: 50 },
+        { key: 'nsitf', title: 'NSITF ECS contribution', authority: 'NSITF', description: 'Remit the 1% Employee Compensation Scheme contribution monthly.', frequency: 'monthly', due_day: 15, default_month: null, info_url: '', sort_order: 60 },
+        { key: 'paye_annual', title: 'PAYE annual returns', authority: 'State IRS', description: 'File employer annual PAYE returns by 31 January for the previous year.', frequency: 'annual', due_day: 31, default_month: 1, info_url: '', sort_order: 70 },
+        { key: 'cac_annual', title: 'CAC annual returns', authority: 'CAC', description: 'File the company annual return with the CAC — set the month that matches your incorporation anniversary.', frequency: 'annual', due_day: 30, default_month: null, info_url: '', sort_order: 80 },
+        { key: 'cit', title: 'Companies Income Tax', authority: 'FIRS', description: 'File CIT self-assessment within 6 months of your financial year end.', frequency: 'annual', due_day: 30, default_month: 6, info_url: '', sort_order: 90 },
+      ];
+      if (route === 'GET /compliance') return { rules: RULES, prefs: db.compliancePrefs, marks: db.complianceMarks };
+      if (route === 'POST /compliance/prefs') {
+        db.compliancePrefs = db.compliancePrefs.filter((p) => p.rule_key !== body.ruleKey);
+        const pref = { rule_key: body.ruleKey, enabled: body.enabled !== false, annual_month: body.annualMonth ?? null, annual_day: body.annualDay ?? null, note: body.note || '' };
+        db.compliancePrefs.push(pref); save(); return { pref };
+      }
+      if (route === 'POST /compliance/marks') {
+        const mark = { id: rid('cm'), rule_key: body.ruleKey, period: body.period, note: body.note || '', done_by: me.id, doer: meRef, done_at: now() };
+        db.complianceMarks.unshift(mark); save(); return { mark };
+      }
+      if (seg[1] === 'marks' && seg.length === 3) { db.complianceMarks = db.complianceMarks.filter((m) => m.id !== seg[2]); save(); return { ok: true }; }
+      return fail(404, `Demo API has no route for ${route}`);
+    }
+
     if (seg[0] === 'trade-docs') {
+      // receivables additions — payments are demo-local
+      db.tradeDocPayments = db.tradeDocPayments || [];
+      if (seg[2] === 'payments' && method === 'GET') return { payments: db.tradeDocPayments.filter((p) => p.doc_id === seg[1]) };
+      if (seg[2] === 'payments' && method === 'POST') {
+        const d = (db.tradeDocs || []).find((x) => x.id === seg[1]);
+        if (!d) return fail(404, 'Document not found');
+        const pay = { id: rid('tp'), doc_id: d.id, amount: Number(body.amount) || 0, method: body.payMethod || 'transfer', reference: body.reference || '', note: body.note || '', paid_at: now(), recorder: meRef };
+        db.tradeDocPayments.unshift(pay);
+        d.amount_paid = (Number(d.amount_paid) || 0) + pay.amount;
+        d.status = d.amount_paid >= d.total ? 'paid' : 'part_paid';
+        save(); return { document: d };
+      }
       db.tradeDocs = db.tradeDocs || [];
       db.tradeDocSettings = db.tradeDocSettings || null;
       const PREFIX = { invoice: 'INV', receipt: 'RCT', grn: 'GRN', srp: 'SRP' };
@@ -977,6 +1018,9 @@ export async function demoApi(path, opts = {}) {
   // Payroll runs list (Banking Wall). Empty in demo — shows the clean
   // "no runs yet" state instead of a route-missing toast.
   if (route === 'GET /payroll/runs') return { runs: [] };
+  // Loans & advances — clean empty state in demo
+  if (route === 'GET /payroll/loans') return { loans: [] };
+  if (route === 'POST /payroll/loans') return fail(400, 'Loan requests are disabled in demo mode.');
 
   // storefront funnel — demo-safe stubs so a prospect clicking through a
   // demo store gets believable behaviour instead of a 404

@@ -6,6 +6,23 @@ export const createDocument = (body) => apiPost('/trade-docs', body).then((d) =>
 export const setDocumentStatus = (id, status) => apiPatch(`/trade-docs/${id}`, { status }).then((d) => d.document);
 export const deleteDocument = (id) => apiDelete(`/trade-docs/${id}`);
 
+// Receivables: payments recorded against an invoice
+export const getPayments = (docId) => apiGet(`/trade-docs/${docId}/payments`).then((d) => d.payments);
+export const recordPayment = (docId, body) => apiPost(`/trade-docs/${docId}/payments`, body).then((d) => d.document);
+
+export const balance = (d) => Math.max(0, (Number(d.total) || 0) - (Number(d.amount_paid) || 0));
+export const isOverdue = (d) => !!d.due_date && balance(d) > 0 && d.status !== 'void' && d.status !== 'draft'
+  && new Date(d.due_date) < new Date(new Date().toDateString());
+
+// Public share link a customer can open (and pay from) without an account
+export const publicInvoiceUrl = (d) => `${window.location.origin}/inv/${d.share_token}`;
+export const waDigits = (phone) => String(phone || '').replace(/[^\d+]/g, '').replace(/^\+/, '').replace(/^0/, '234');
+export const waShareUrl = (d, orgName) => {
+  const msg = `Hello ${d.party_name || ''},\n\nHere is your invoice ${d.doc_no} from ${orgName || 'us'} — total ₦${Number(d.total).toLocaleString('en-NG')}.\n\nView and pay it here: ${publicInvoiceUrl(d)}\n\nThank you.`;
+  const digits = waDigits(d.party_phone);
+  return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
+};
+
 // Letterhead: logo, address, tagline, signature, and a choice of template —
 // shown on every document this org generates.
 export const getSettings = () => apiGet('/trade-docs/settings').then((d) => d.settings);
@@ -32,7 +49,7 @@ export const DOC_TYPES = {
   srp:     { label: 'SRP (stock release)',  prefix: 'SRP', needsParty: true, hasVat: false, hasStatus: false, hasDueDate: false, isStock: true, stockDirection: 'out' },
 };
 
-export const STATUS_LABELS = { draft: 'Draft', issued: 'Issued', paid: 'Paid', void: 'Void' };
+export const STATUS_LABELS = { draft: 'Draft', issued: 'Issued', part_paid: 'Part-paid', paid: 'Paid', void: 'Void' };
 
 export const money = (n) => n == null ? '' : `₦${Number(n).toLocaleString('en-NG')}`;
 

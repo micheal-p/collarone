@@ -19,8 +19,9 @@ export const SUITES = [
   { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'live', desc: 'Expenses, budgets and financial reports.' },
   { key: 'projects',    name: 'Projects',           tier: 'extended', status: 'live', desc: 'Milestones, boards and collaboration.' },
   { key: 'documents',   name: 'Documents',          tier: 'extended', status: 'live', desc: 'Secure storage, versioning, permissions.' },
-  { key: 'trade-docs',  name: 'Trade Documents',    tier: 'extended', status: 'live', desc: 'Generate invoices, receipts, goods-received notes and stock release passes.' },
+  { key: 'trade-docs',  name: 'Invoicing & Trade Docs', tier: 'extended', status: 'live', desc: 'Invoices customers pay from a link — plus receipts, receivables, GRNs and stock passes.' },
   { key: 'automation',  name: 'Automation',         tier: 'extended', status: 'live', desc: 'Rules that run your busywork — auto-assign tasks, approvals, reminders and alerts.' },
+  { key: 'compliance',  name: 'Compliance Calendar', tier: 'extended', status: 'live', desc: 'Nigerian statutory deadlines — PAYE, VAT, pension, NHF, CAC — tracked per month, never missed.' },
 ];
 
 // Mirrors server/src/config/suites.js for presentation. The SERVER is authoritative
@@ -42,6 +43,7 @@ export const SUITE_META = {
   documents:   { icon: 'doc',        tint: '#475569' },
   'trade-docs':{ icon: 'receipt',    tint: '#7c2d12' },
   automation:  { icon: 'bolt',       tint: '#b45309' },
+  compliance:  { icon: 'shield',     tint: '#166534' },
 };
 
 export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
@@ -51,7 +53,7 @@ export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
 // founding one. Everything
 // else is enforced server-side too (enforce_phase1_suite_scope() strips any
 // other key on write) — this list just keeps the UI honest about it.
-export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents', 'trade-docs', 'automation'];
+export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents', 'trade-docs', 'automation', 'compliance'];
 
 // Payroll runs Nigerian statutory deductions (PAYE, pension, NHF) — it isn't
 // built for any other country's tax/pension regime yet, so it's gated to
