@@ -562,7 +562,10 @@ function CartDrawer({ site, v }) {
               <div style={{ textAlign: 'center', padding: '10px 0 18px' }}>
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1a7a3e" strokeWidth="2" strokeLinecap="round" style={{ margin: '0 auto 10px', display: 'block' }}><circle cx="12" cy="12" r="9.5" /><path d="M8 12.5l2.7 2.7L16 9.5" /></svg>
                 <div style={{ fontSize: 17, fontWeight: 750 }}>Order {receipt.orderNo}</div>
-                <div style={{ fontSize: 13.5, color: '#5c5f66', marginTop: 4 }}>Total: <strong style={{ color: '#14161a' }}>{fmtN(receipt.total)}</strong></div>
+                <div style={{ fontSize: 13.5, color: '#5c5f66', marginTop: 4 }}>
+                  {Number(receipt.deliveryFee) > 0 && <>Items {fmtN(receipt.subtotal)} + delivery {fmtN(receipt.deliveryFee)} · </>}
+                  Total: <strong style={{ color: '#14161a' }}>{fmtN(receipt.total)}</strong>
+                </div>
               </div>
               {receipt.method === 'transfer' && receipt.bank && (
                 <div style={{ border: '1px solid #e2e2e6', borderRadius: 12, padding: 16, marginBottom: 14 }}>
@@ -599,11 +602,34 @@ function CartDrawer({ site, v }) {
           )}
         </div>
 
-        {view !== 'done' && cart.items.length > 0 && (
+        {view !== 'done' && cart.items.length > 0 && (() => {
+          // mirror of the server's fee rule — the server total is authoritative
+          const del = site.delivery || {};
+          const fee = Number(del.feeNaira) > 0 && (del.freeAbove == null || cart.total < Number(del.freeAbove)) ? Number(del.feeNaira) : 0;
+          const toFree = fee > 0 && del.freeAbove != null ? Number(del.freeAbove) - cart.total : 0;
+          const grand = cart.total + fee;
+          return (
           <div style={{ borderTop: '1px solid #ececef', padding: 18 }}>
+            {fee > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6, color: '#5c5f66' }}>
+                <span>Subtotal</span><span>{fmtN(cart.total)}</span>
+              </div>
+            )}
+            {fee > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6, color: '#5c5f66' }}>
+                <span>Delivery</span><span>{fmtN(fee)}</span>
+              </div>
+            )}
+            {fee > 0 && toFree > 0 && (
+              <div style={{ fontSize: 12, color: '#1a6a1a', marginBottom: 6 }}>Add {fmtN(toFree)} more for free delivery.</div>
+            )}
+            {fee === 0 && Number(del.feeNaira) > 0 && (
+              <div style={{ fontSize: 12, color: '#1a6a1a', marginBottom: 6 }}>Free delivery on this order.</div>
+            )}
+            {del.note && <div style={{ fontSize: 12, color: '#5c5f66', marginBottom: 6 }}>{del.note}</div>}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14.5, marginBottom: 12 }}>
               <span style={{ color: '#5c5f66' }}>Total</span>
-              <strong>{fmtN(cart.total)}</strong>
+              <strong>{fmtN(grand)}</strong>
             </div>
             {view === 'cart' ? (
               <button onClick={() => setView('checkout')} style={{ ...btnStyle(v), width: '100%', textAlign: 'center', border: 'none' }}>Checkout</button>
@@ -616,13 +642,14 @@ function CartDrawer({ site, v }) {
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setView('cart')} style={{ ...btnStyle(v, false), color: '#14161a', flex: '0 0 auto' }}>Back</button>
                 <button form="co-checkout" disabled={busy} style={{ ...btnStyle(v), flex: 1, textAlign: 'center', border: 'none', opacity: busy ? 0.7 : 1 }}>
-                  {busy ? (f.method === 'card' ? 'Opening secure payment…' : 'Placing order…') : f.method === 'card' ? `Pay ${fmtN(cart.total)} by card` : `Place order · ${fmtN(cart.total)}`}
+                  {busy ? (f.method === 'card' ? 'Opening secure payment…' : 'Placing order…') : f.method === 'card' ? `Pay ${fmtN(grand)} by card` : `Place order · ${fmtN(grand)}`}
                 </button>
               </div>
               )
             )}
           </div>
-        )}
+          );
+        })()}
         {view === 'done' && (
           <div style={{ borderTop: '1px solid #ececef', padding: 18 }}>
             <button onClick={close} style={{ ...btnStyle(v, false), width: '100%', textAlign: 'center', color: '#14161a' }}>Continue shopping</button>

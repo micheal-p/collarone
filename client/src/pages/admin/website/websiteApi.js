@@ -170,8 +170,10 @@ export const getOrders = async (orgId) => {
   return data;
 };
 
+// Status changes go through the RPC so fulfilment can move linked Inventory
+// stock out of the shipping warehouse (best-effort, once per order).
 export const updateOrderStatus = async (id, status) => {
-  const { data, error } = await supabase.from('site_orders').update({ status }).eq('id', id).select().single();
+  const { data, error } = await supabase.rpc('set_site_order_status', { p_order_id: id, p_status: status });
   if (error) throw new Error(error.message);
   return data;
 };
