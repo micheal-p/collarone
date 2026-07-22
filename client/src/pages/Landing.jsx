@@ -421,6 +421,7 @@ export default function Landing() {
             <a className="cl-nl cl-hide-sm" href="#about">About</a>
             <a className="cl-nl cl-hide-sm" href="#faq">FAQ</a>
             <Link className="cl-nl cl-hide-sm" to="/jobs">Jobs</Link>
+            <Link className="cl-nl cl-try-nav" to="/try/payroll">Try the demo</Link>
             <Link className="cl-nl cl-hide-sm" to="/login">Sign in</Link>
             <Link className="cl-btn cl-btn-primary cl-btn-sm" to="/signup">Get started</Link>
             <button type="button" className="cl-burger" aria-label={navOpen ? 'Close menu' : 'Open menu'} aria-expanded={navOpen} onClick={() => setNavOpen((v) => !v)}>
@@ -435,7 +436,7 @@ export default function Landing() {
               initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.18 }}
             >
-              {[['#platform', 'Platform'], ['#gallery', 'Product tour'], ['#pricing', 'Pricing'], ['#themes', 'Themes'], ['#about', 'About'], ['#faq', 'FAQ'], ['/jobs', 'Jobs board']].map(([href, label]) => (
+              {[['#platform', 'Platform'], ['/try/payroll', 'Try the demo'], ['#gallery', 'Product tour'], ['#pricing', 'Pricing'], ['#themes', 'Themes'], ['#about', 'About'], ['#faq', 'FAQ'], ['/jobs', 'Jobs board']].map(([href, label]) => (
                 <a key={href} className="cl-mm-link" href={href} onClick={() => setNavOpen(false)}>{label}</a>
               ))}
               <div className="cl-mm-actions">
