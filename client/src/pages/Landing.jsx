@@ -5,6 +5,7 @@ import CardCarousel from '../components/CardCarousel.jsx';
 import { motion, animate, AnimatePresence, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
 import { SUITES, SUITE_META } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
+import { supabase } from '../lib/supabaseClient.js';
 import ChatWidget from './ChatWidget.jsx';
 import { PLANS, PRICING, usePricing, naira } from '../lib/pricing.js';
 import shotHome from '../assets/shots/home.jpg';
@@ -137,6 +138,33 @@ const marqueeItems = ['Staff Directory', 'Leave Management', 'Task Tracking', 'V
 
 // pricing comes from the single shared model — do not restate numbers here
 const priceTiers = () => PLANS.map((t) => ({ key: t.key, name: t.name, baseFee: t.baseFee, included: t.includedSuites, extraFee: t.extraSuiteFee }));
+
+// "Try before you pay" — live demo buttons for whichever suites the platform
+// admin has opened for public demo. Renders nothing if none are enabled.
+function TrySuiteStrip() {
+  const [keys, setKeys] = useState([]);
+  useEffect(() => {
+    supabase.from('platform_demo_suites').select('suite_key').eq('enabled', true)
+      .then(({ data }) => setKeys((data || []).map((r) => r.suite_key).filter((k) => SUITES.some((s) => s.key === k))))
+      .catch(() => {});
+  }, []);
+  if (!keys.length) return null;
+  return (
+    <Reveal className="cl-try-strip">
+      <span className="cl-try-label">Try a suite right now — sample data, no sign-up:</span>
+      {keys.map((k) => {
+        const s2 = SUITES.find((x) => x.key === k);
+        const meta = SUITE_META[k] || {};
+        return (
+          <Link key={k} className="cl-try-chip" to={`/try/${k}`}>
+            <span className="cl-try-ic" style={{ background: meta.tint }}><SuiteIcon name={meta.icon || 'grid'} size={13} color="#fff" /></span>
+            {s2.name}
+          </Link>
+        );
+      })}
+    </Reveal>
+  );
+}
 
 function PriceCalculator() {
   const { perStaff, annualDiscount } = usePricing();
@@ -523,6 +551,7 @@ export default function Landing() {
             <h2 className="cl-sec-h">Everything a growing business runs on</h2>
             <p className="cl-sec-lede">Start with what you need today. The rest turns on the moment you're ready — same account, nothing to migrate.</p>
           </Reveal>
+          <TrySuiteStrip />
           <div className="cl-bento">
             {modules.map((m, i) => {
               const suiteChips = m.suites.map((key) => {

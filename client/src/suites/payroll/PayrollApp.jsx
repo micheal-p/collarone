@@ -794,7 +794,9 @@ export default function PayrollApp({ access }) {
   useEffect(load, []); // eslint-disable-line
 
   // First-visit product tour (managers) — reshow anytime via the Tour button.
-  const tour = useCoachTour(isPayrollManager ? 'tour-payroll-v1' : null);
+  // Suppressed inside the public /try demo, which runs its own guided tour.
+  const inTryDemo = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('co-try-demo') === '1';
+  const tour = useCoachTour(isPayrollManager && !inTryDemo ? 'tour-payroll-v1' : null);
   const TOUR_STEPS = [
     { title: 'Payroll, end to end', body: 'This suite runs Nigerian payroll on the 2026 Tax Act rules — new PAYE bands, the ₦800,000 exemption and rent relief. This one-minute tour shows how a month gets paid.' },
     { selector: '[data-tour="pr-employees"]', title: '1 · Set people up', body: 'Give each employee a salary structure (basic, housing, transport, allowances — plus their declared annual rent for rent relief) and their bank account. Everything else is computed from this.' },

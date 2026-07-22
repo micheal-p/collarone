@@ -23,7 +23,7 @@ const AutomationApp = lazy(() => import('../suites/automation/AutomationApp.jsx'
 const ComplianceApp = lazy(() => import('../suites/compliance/ComplianceApp.jsx'));
 
 // Suites that have a real app built. Others fall back to the "foundation ready" stub.
-const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp, payroll: PayrollApp, crm: CRMApp, attendance: AttendanceApp, benefits: PayrollApp, /* merged into Payroll & Benefits */ 'it-assets': InventoryApp, /* merged into Inventory & Assets */ procurement: ProcurementApp, inventory: InventoryApp, finance: FinanceApp, projects: ProjectsApp, documents: DocumentsApp, 'trade-docs': TradeDocsApp, automation: AutomationApp, compliance: ComplianceApp };
+export const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp, payroll: PayrollApp, crm: CRMApp, attendance: AttendanceApp, benefits: PayrollApp, /* merged into Payroll & Benefits */ 'it-assets': InventoryApp, /* merged into Inventory & Assets */ procurement: ProcurementApp, inventory: InventoryApp, finance: FinanceApp, projects: ProjectsApp, documents: DocumentsApp, 'trade-docs': TradeDocsApp, automation: AutomationApp, compliance: ComplianceApp };
 
 export default function SuiteShell() {
   const { key } = useParams();

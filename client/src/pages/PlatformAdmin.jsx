@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import { waLink } from '../lib/whatsapp.js';
 import { FOUNDING_ORG_ID } from '../config/org.js';
 import PlatformShell from '../components/PlatformShell.jsx';
+import { SUITES } from '../config/suites.js';
 import { useToast } from '../components/ui.jsx';
 import ThemeMockup from '../components/ThemeMockup.jsx';
 import ThemePreviewModal from '../components/ThemePreview.jsx';
@@ -177,6 +178,49 @@ function AppErrorsPanel() {
   );
 }
 
+
+
+// Which suites the public can try at /try/<suite> — plus what triers said.
+function DemoSuitesPanel({ flash }) {
+  const [rows, setRows] = useState([]);
+  const [feedback, setFeedback] = useState([]);
+  const load = () => { apiGet('/platform/demo-suites').then((d) => { setRows(d.demoSuites || []); setFeedback(d.feedback || []); }).catch(() => {}); };
+  useEffect(load, []);
+  const toggle = async (r) => {
+    try { await apiPost('/platform/demo-suites', { suiteKey: r.suite_key, enabled: !r.enabled }); load(); }
+    catch (e) { flash(e.message, true); }
+  };
+  if (!rows.length) return null;
+  const name = (k) => SUITES.find((s2) => s2.key === k)?.name || k;
+  const avg = (k) => { const f = feedback.filter((x) => x.suite_key === k); return f.length ? (f.reduce((a, b) => a + b.ease, 0) / f.length).toFixed(1) : null; };
+  return (
+    <section className="pc-section">
+      <SectionHead title="Public suite demos" count={`${rows.filter((r) => r.enabled).length} open`} />
+      <p style={{ fontSize: 12.5, color: 'var(--faint)', margin: '0 0 12px' }}>
+        Open suites appear as "Try it" on the landing page — prospects explore sample data with a guided tour, then answer a 30-second questionnaire.
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {rows.sort((a, b) => name(a.suite_key).localeCompare(name(b.suite_key))).map((r) => (
+          <button key={r.suite_key} className={`pc-btn sm${r.enabled ? ' primary' : ''}`} onClick={() => toggle(r)}>
+            {name(r.suite_key)}{r.enabled ? ' · open' : ''}{avg(r.suite_key) ? ` · ${avg(r.suite_key)}★` : ''}
+          </button>
+        ))}
+      </div>
+      {feedback.length > 0 && (
+        <div className="pc-panel" style={{ marginTop: 14 }}>
+          {feedback.slice(0, 20).map((f) => (
+            <div key={f.id} className="pc-rowline" style={{ fontSize: 12.5 }}>
+              <span className="pc-mono pc-faint" style={{ width: 110, flex: 'none', fontSize: 11.5 }}>{fmtDate(f.created_at)}</span>
+              <span style={{ width: 150, flex: 'none', fontWeight: 550 }}>{name(f.suite_key)}</span>
+              <span style={{ width: 90, flex: 'none' }} className="pc-mono">{f.ease}/5 · {f.would_pay}</span>
+              <span className="pc-dim">{f.comment || '—'}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 const TX_TYPE = { activation_fee: 'Activation fee', credit_purchase: 'Seat credits', renewal: 'Renewal' };
 
@@ -879,6 +923,8 @@ export default function PlatformAdmin() {
         </div>
       </section>
       {previewTheme && <ThemePreviewModal theme={previewTheme} onClose={() => setPreviewTheme(null)} />}
+
+      <DemoSuitesPanel flash={flash} />
       </>)}
 
       {tab === 'audit' && (

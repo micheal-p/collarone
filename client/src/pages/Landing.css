@@ -617,3 +617,10 @@
 .tpg-pcard .tag { margin-top: auto; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .tpg-note { max-width: 720px; margin: 26px auto 0; text-align: center; font-size: 13.5px; line-height: 1.7; color: var(--text-soft); background: var(--bg-tint); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; }
 @media (max-width: 860px) { .tpg-steps, .tpg-pay { grid-template-columns: 1fr; } }
+
+/* "try a suite" live-demo chips */
+.cl-try-strip { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; margin: -6px 0 26px; }
+.cl-try-label { font-size: 13px; font-weight: 650; color: var(--text-soft); }
+.cl-try-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--text); text-decoration: none; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 100px; padding: 7px 14px 7px 8px; box-shadow: var(--shadow-sm); transition: transform .15s ease, box-shadow .15s ease; }
+.cl-try-chip:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.cl-try-ic { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; }

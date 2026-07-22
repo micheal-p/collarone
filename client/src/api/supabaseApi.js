@@ -261,6 +261,22 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { profiles: data };
   }
+  if (head === 'GET /platform' && seg[1] === 'demo-suites') {
+    const [suites, fb] = await Promise.all([
+      supabase.from('platform_demo_suites').select('*'),
+      supabase.from('demo_feedback').select('*').order('created_at', { ascending: false }).limit(200),
+    ]);
+    if (suites.error) fail(400, suites.error.message);
+    return { demoSuites: suites.data, feedback: fb.data || [] };
+  }
+  if (head === 'POST /platform' && seg[1] === 'demo-suites') {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('platform_demo_suites').upsert({
+      suite_key: body.suiteKey, enabled: Boolean(body.enabled), updated_at: new Date().toISOString(), updated_by: user.id,
+    }, { onConflict: 'suite_key' });
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { ok: true };
+  }
   if (head === 'GET /platform' && seg[1] === 'pricing') {
     const [plans, settings] = await Promise.all([
       supabase.from('platform_pricing').select('*').order('sort_order'),
