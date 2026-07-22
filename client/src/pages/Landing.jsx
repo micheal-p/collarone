@@ -246,7 +246,7 @@ const modules = [
   {
     name: 'People & Operations', status: 'live',
     desc: 'A directory with a full Employee 360 per person, company letters drafted by Collarone AI on your own letterhead, probation and disciplinary flows done properly, leave, tasks, the front desk and HR analytics.',
-    suites: ['hr', 'leave', 'tasks', 'visitors', 'attendance', 'benefits', 'automation'],
+    suites: ['hr', 'leave', 'tasks', 'visitors', 'attendance', 'automation'],
   },
   {
     name: 'Money & Assets', status: 'live',
@@ -443,7 +443,7 @@ export default function Landing() {
           <motion.div className="cl-hero-inner" {...heroTextProps}>
             <motion.span {...heroItemVariants} className="cl-kicker"><span className="cl-dot" />Now onboarding early businesses</motion.span>
             <motion.h1 {...heroItemVariants}>Run your<br /><RotatingWord /><br /><span className="cl-grad-word">One login.</span></motion.h1>
-            <motion.p {...heroItemVariants} className="cl-hero-sub">HR with an Employee 360 and AI-drafted company letters, payroll, CRM and your website — 16 live suites behind one login, priced in naira.</motion.p>
+            <motion.p {...heroItemVariants} className="cl-hero-sub">HR with an Employee 360 and AI-drafted company letters, payroll, CRM and your website — 15 live suites behind one login, priced in naira.</motion.p>
             <motion.div {...heroItemVariants} className="cl-hero-ctas">
               <Link className="cl-btn cl-btn-primary" to="/signup">Get started</Link>
               <a className="cl-btn cl-btn-ghost" href="#platform">See what's inside</a>
@@ -490,7 +490,7 @@ export default function Landing() {
 
       <section className="cl-trust" aria-label="Platform facts">
         <div className="cl-wrap cl-trust-row">
-          <span className="cl-trust-cell"><strong>16</strong> suites live</span>
+          <span className="cl-trust-cell"><strong>15</strong> suites live</span>
           <span className="cl-trust-dot" aria-hidden="true" />
           <span className="cl-trust-cell">One isolated workspace per company</span>
           <span className="cl-trust-dot" aria-hidden="true" />
@@ -743,7 +743,7 @@ export default function Landing() {
               <div className="cl-founder-role">Founder, Collarone</div>
               <div className="cl-founder-stats">
                 <div><strong>2026</strong><small>Founded</small></div>
-                <div><strong>16</strong><small>Suites live</small></div>
+                <div><strong>15</strong><small>Suites live</small></div>
               </div>
               <div className="cl-founder-loc">{I.pin}Nigeria</div>
             </Reveal>

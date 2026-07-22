@@ -3,6 +3,7 @@ import * as P from './payrollApi.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { EmptyState, Modal, searchMatcher, useConfirm, useToast } from '../../components/ui.jsx';
 import CoachTour, { useCoachTour } from '../../components/CoachTour.jsx';
+import { ManagerView as BenefitsManagerView, StaffView as BenefitsStaffView } from '../benefits/BenefitsApp.jsx';
 
 const I = {
   add:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
@@ -800,6 +801,7 @@ export default function PayrollApp({ access }) {
     { selector: '[data-tour="pr-runs"]', title: '2 · Run the month', body: 'Generate a run and every active employee is computed in one go — gross, PAYE, pension, NHF, loan deductions, net. Review it, approve it, release payslips to staff, then mark it disbursed once the bank pays.' },
     { selector: '[data-tour="pr-rates"]', title: 'Your rates, your rules', body: "These are your organization's own PAYE bands and deduction rates — already on the 2026 Tax Act schedule. If a regulator circular changes a number, edit it here and the next run uses it." },
     { selector: '[data-tour="pr-loans"]', title: 'Loans & advances', body: 'Approve a staff loan or salary advance and it repays itself — deducted from net pay on every run until cleared, with the balance visible the whole way.' },
+    { selector: '[data-tour="pr-benefits"]', title: 'Benefits, per person', body: 'HMO, group life, pension/PFA — or define your own custom benefit. Every benefit is switchable per person: a contractor or intern simply has it turned off, full staff have it on.' },
     { selector: '[data-tour="pr-bankwall"]', title: 'The Banking Wall', body: "Collarone never touches your bank account. This queue is for whoever liaises with the bank: new staff accounts, CHANGED accounts, and approved runs with a downloadable payment schedule. Mark each item actioned once the bank has it — nothing slips." },
   ];
 
@@ -822,6 +824,7 @@ export default function PayrollApp({ access }) {
         <button data-tour="pr-employees" className={`lv-tab ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>Employees</button>
         <button data-tour="pr-rates" className={`lv-tab ${tab === 'rates' ? 'active' : ''}`} onClick={() => setTab('rates')}>Rates</button>
         <button data-tour="pr-loans" className={`lv-tab ${tab === 'loans' ? 'active' : ''}`} onClick={() => setTab('loans')}>Loans &amp; advances</button>
+        <button data-tour="pr-benefits" className={`lv-tab ${tab === 'benefits' ? 'active' : ''}`} onClick={() => setTab('benefits')}>Benefits</button>
         {isPayrollManager && <button data-tour="pr-bankwall" className={`lv-tab ${tab === 'bankwall' ? 'active' : ''}`} onClick={() => setTab('bankwall')}>Banking Wall</button>}
         {isPayrollManager && <button className="btn btn-ghost" style={{ fontSize: 12.5 }} onClick={tour.start}>Tour</button>}
         {isPayrollManager && tab === 'runs' && <button className="btn btn-primary lv-apply" onClick={() => setModal(true)}>{I.add} New run</button>}
@@ -859,6 +862,7 @@ export default function PayrollApp({ access }) {
       {tab === 'employees' && <EmployeesTab flash={flash} isPayrollManager={isPayrollManager} />}
       {tab === 'rates' && <RatesTab flash={flash} isPayrollManager={isPayrollManager} />}
       {tab === 'loans' && <LoansTab flash={flash} isPayrollManager={isPayrollManager} />}
+      {tab === 'benefits' && (isPayrollManager ? <BenefitsManagerView flash={flash} /> : <BenefitsStaffView flash={flash} />)}
       {tab === 'bankwall' && isPayrollManager && <BankWallTab flash={flash} />}
 
       <CoachTour steps={TOUR_STEPS} open={tour.open} onClose={tour.close} />

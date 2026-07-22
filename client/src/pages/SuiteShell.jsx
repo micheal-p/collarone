@@ -5,7 +5,7 @@ import { SUITE_META } from '../config/suites.js';
 import AppLayout from '../components/AppLayout.jsx';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 // Each suite is its own lazy chunk: opening HR downloads only HR's code, not
-// all 16 suites. This is the bulk of what used to sit in the initial bundle.
+// all 15 suites. This is the bulk of what used to sit in the initial bundle.
 const HRApp         = lazy(() => import('../suites/hr/HRApp.jsx'));
 const LeaveApp      = lazy(() => import('../suites/leave/LeaveApp.jsx'));
 const TasksApp      = lazy(() => import('../suites/tasks/TasksApp.jsx'));
@@ -13,7 +13,6 @@ const VisitorsApp   = lazy(() => import('../suites/visitors/VisitorsApp.jsx'));
 const PayrollApp    = lazy(() => import('../suites/payroll/PayrollApp.jsx'));
 const CRMApp        = lazy(() => import('../suites/crm/CRMApp.jsx'));
 const AttendanceApp = lazy(() => import('../suites/attendance/AttendanceApp.jsx'));
-const BenefitsApp   = lazy(() => import('../suites/benefits/BenefitsApp.jsx'));
 const ProcurementApp= lazy(() => import('../suites/procurement/ProcurementApp.jsx'));
 const InventoryApp  = lazy(() => import('../suites/inventory/InventoryApp.jsx'));
 const FinanceApp    = lazy(() => import('../suites/finance/FinanceApp.jsx'));
@@ -24,7 +23,7 @@ const AutomationApp = lazy(() => import('../suites/automation/AutomationApp.jsx'
 const ComplianceApp = lazy(() => import('../suites/compliance/ComplianceApp.jsx'));
 
 // Suites that have a real app built. Others fall back to the "foundation ready" stub.
-const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp, payroll: PayrollApp, crm: CRMApp, attendance: AttendanceApp, benefits: BenefitsApp, 'it-assets': InventoryApp, /* merged into Inventory & Assets */ procurement: ProcurementApp, inventory: InventoryApp, finance: FinanceApp, projects: ProjectsApp, documents: DocumentsApp, 'trade-docs': TradeDocsApp, automation: AutomationApp, compliance: ComplianceApp };
+const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitors: VisitorsApp, payroll: PayrollApp, crm: CRMApp, attendance: AttendanceApp, benefits: PayrollApp, /* merged into Payroll & Benefits */ 'it-assets': InventoryApp, /* merged into Inventory & Assets */ procurement: ProcurementApp, inventory: InventoryApp, finance: FinanceApp, projects: ProjectsApp, documents: DocumentsApp, 'trade-docs': TradeDocsApp, automation: AutomationApp, compliance: ComplianceApp };
 
 export default function SuiteShell() {
   const { key } = useParams();

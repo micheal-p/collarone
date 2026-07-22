@@ -15,7 +15,7 @@ export const PLAN_TYPES = {
   hmo:        'HMO (Health)',
   group_life: 'Group Life Insurance',
   pension:    'Pension / PFA',
-  other:      'Other',
+  other:      'Custom benefit (define your own)',
 };
 
 export const fmtDate = (d) => d
