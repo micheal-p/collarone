@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import * as P from './payrollApi.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { EmptyState, Modal, searchMatcher, useConfirm, useToast } from '../../components/ui.jsx';
+import CoachTour, { useCoachTour } from '../../components/CoachTour.jsx';
 
 const I = {
   add:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
@@ -611,9 +612,9 @@ function BankWallTab({ flash }) {
               {view.length === 0 && <tr><td colSpan={5} className="td-empty">Nothing here.</td></tr>}
               {view.map((a) => (
                 <tr key={a.id}>
-                  <td>{a.action_type === 'new_employee' ? 'New payroll addition' : 'Run approved'}</td>
+                  <td>{{ new_employee: 'New payroll addition', account_changed: 'Bank account changed', run_approved: 'Run approved' }[a.action_type] || a.action_type}</td>
                   <td style={{ fontWeight: 500 }}>
-                    {a.action_type === 'new_employee' ? a.employee?.name : `${P.MONTHS[(a.run?.period_month || 1) - 1]} ${a.run?.period_year}`}
+                    {a.action_type === 'run_approved' ? `${P.MONTHS[(a.run?.period_month || 1) - 1]} ${a.run?.period_year}` : a.employee?.name}
                   </td>
                   <td className="muted" style={{ fontSize: 13 }}>{P.fmtDt(a.created_at)}</td>
                   <td>
@@ -791,6 +792,17 @@ export default function PayrollApp({ access }) {
   const load = () => { setLoading(true); P.getRuns().then(setRuns).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); };
   useEffect(load, []); // eslint-disable-line
 
+  // First-visit product tour (managers) — reshow anytime via the Tour button.
+  const tour = useCoachTour(isPayrollManager ? 'tour-payroll-v1' : null);
+  const TOUR_STEPS = [
+    { title: 'Payroll, end to end', body: 'This suite runs Nigerian payroll on the 2026 Tax Act rules — new PAYE bands, the ₦800,000 exemption and rent relief. This one-minute tour shows how a month gets paid.' },
+    { selector: '[data-tour="pr-employees"]', title: '1 · Set people up', body: 'Give each employee a salary structure (basic, housing, transport, allowances — plus their declared annual rent for rent relief) and their bank account. Everything else is computed from this.' },
+    { selector: '[data-tour="pr-runs"]', title: '2 · Run the month', body: 'Generate a run and every active employee is computed in one go — gross, PAYE, pension, NHF, loan deductions, net. Review it, approve it, release payslips to staff, then mark it disbursed once the bank pays.' },
+    { selector: '[data-tour="pr-rates"]', title: 'Your rates, your rules', body: "These are your organization's own PAYE bands and deduction rates — already on the 2026 Tax Act schedule. If a regulator circular changes a number, edit it here and the next run uses it." },
+    { selector: '[data-tour="pr-loans"]', title: 'Loans & advances', body: 'Approve a staff loan or salary advance and it repays itself — deducted from net pay on every run until cleared, with the balance visible the whole way.' },
+    { selector: '[data-tour="pr-bankwall"]', title: 'The Banking Wall', body: "Collarone never touches your bank account. This queue is for whoever liaises with the bank: new staff accounts, CHANGED accounts, and approved runs with a downloadable payment schedule. Mark each item actioned once the bank has it — nothing slips." },
+  ];
+
   const upsertRun = (r) => { setRuns((l) => { const i = l.findIndex((x) => x.id === r.id); return i >= 0 ? l.map((x) => (x.id === r.id ? r : x)) : [r, ...l]; }); setOpenRun(r); };
 
   if (openRun) return (
@@ -806,11 +818,12 @@ export default function PayrollApp({ access }) {
     <div className="lv">
       <style>{PAYROLL_CSS}</style>
       <div className="lv-tabs">
-        <button className={`lv-tab ${tab === 'runs' ? 'active' : ''}`} onClick={() => setTab('runs')}>Payroll runs</button>
-        <button className={`lv-tab ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>Employees</button>
-        <button className={`lv-tab ${tab === 'rates' ? 'active' : ''}`} onClick={() => setTab('rates')}>Rates</button>
-        <button className={`lv-tab ${tab === 'loans' ? 'active' : ''}`} onClick={() => setTab('loans')}>Loans &amp; advances</button>
-        {isPayrollManager && <button className={`lv-tab ${tab === 'bankwall' ? 'active' : ''}`} onClick={() => setTab('bankwall')}>Banking Wall</button>}
+        <button data-tour="pr-runs" className={`lv-tab ${tab === 'runs' ? 'active' : ''}`} onClick={() => setTab('runs')}>Payroll runs</button>
+        <button data-tour="pr-employees" className={`lv-tab ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>Employees</button>
+        <button data-tour="pr-rates" className={`lv-tab ${tab === 'rates' ? 'active' : ''}`} onClick={() => setTab('rates')}>Rates</button>
+        <button data-tour="pr-loans" className={`lv-tab ${tab === 'loans' ? 'active' : ''}`} onClick={() => setTab('loans')}>Loans &amp; advances</button>
+        {isPayrollManager && <button data-tour="pr-bankwall" className={`lv-tab ${tab === 'bankwall' ? 'active' : ''}`} onClick={() => setTab('bankwall')}>Banking Wall</button>}
+        {isPayrollManager && <button className="btn btn-ghost" style={{ fontSize: 12.5 }} onClick={tour.start}>Tour</button>}
         {isPayrollManager && tab === 'runs' && <button className="btn btn-primary lv-apply" onClick={() => setModal(true)}>{I.add} New run</button>}
       </div>
 
@@ -847,6 +860,8 @@ export default function PayrollApp({ access }) {
       {tab === 'rates' && <RatesTab flash={flash} isPayrollManager={isPayrollManager} />}
       {tab === 'loans' && <LoansTab flash={flash} isPayrollManager={isPayrollManager} />}
       {tab === 'bankwall' && isPayrollManager && <BankWallTab flash={flash} />}
+
+      <CoachTour steps={TOUR_STEPS} open={tour.open} onClose={tour.close} />
 
       {modal && (
         <GenerateModal onClose={() => setModal(false)}
