@@ -18,6 +18,7 @@ import PlatformAnalytics from './pages/PlatformAnalytics.jsx';
 import PublicSite from './pages/site/PublicSite.jsx';
 import PublicInvoice from './pages/PublicInvoice.jsx';
 import TryDemo from './pages/TryDemo.jsx';
+import TryChooser from './pages/TryChooser.jsx';
 import Profile from './pages/Profile.jsx';
 import CareersIndex from './pages/careers/CareersIndex.jsx';
 import JobsBoard from './pages/careers/JobsBoard.jsx';
@@ -105,6 +106,7 @@ export default function App() {
       <Route path="/careers/:orgSlug/:id" element={<CareersApply />} />
       <Route path="/site/:slug" element={<PublicSite />} />
       <Route path="/inv/:token" element={<PublicInvoice />} />
+      <Route path="/try" element={<TryChooser />} />
       <Route path="/try/:suiteKey" element={<TryDemo />} />
       <Route path="/embed/contact/:orgSlug" element={<EmbedContactForm />} />
 

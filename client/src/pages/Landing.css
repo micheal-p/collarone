@@ -624,9 +624,3 @@
 .cl-try-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--text); text-decoration: none; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 100px; padding: 7px 14px 7px 8px; box-shadow: var(--shadow-sm); transition: transform .15s ease, box-shadow .15s ease; }
 .cl-try-chip:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .cl-try-ic { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; }
-
-/* navbar "Try the demo" — reads as a live action */
-.cl-try-nav { color: var(--accent-ink) !important; font-weight: 650; position: relative; }
-.cl-try-nav::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 99px; background: var(--bolt); margin-right: 7px; vertical-align: 1px; animation: cl-try-pulse 2s infinite; }
-@keyframes cl-try-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-@media (prefers-reduced-motion: reduce) { .cl-try-nav::before { animation: none; } }
