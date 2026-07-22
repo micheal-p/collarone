@@ -2035,6 +2035,11 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { payments: data };
   }
+  if (head === 'POST /trade-docs' && seg[2] === 'meta' && seg.length === 3) {
+    const { data, error } = await supabase.rpc('set_trade_doc_meta', { p_doc_id: seg[1], p_meta: body.meta || {} });
+    if (error) fail(400, error.message);
+    return { document: data };
+  }
   if (head === 'POST /trade-docs' && seg[2] === 'payments' && seg.length === 3) {
     const { amount, payMethod, reference, note, paidAt } = body;
     const { data, error } = await supabase.rpc('record_trade_doc_payment', {

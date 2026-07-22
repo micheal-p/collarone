@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as INV from './inventoryApi.js';
+import { createDocument as createTradeDoc, setDocMeta } from '../tradeDocs/tradeDocsApi.js';
+import ReturnConditionModal from '../../components/ReturnConditionModal.jsx';
+import { ManagerView as AssetsManagerView, StaffView as AssetsStaffView } from '../itassets/ITAssetsApp.jsx';
+import { useAuth } from '../../auth/AuthContext.jsx';
 import { getStaff } from '../tasks/taskApi.js';
 import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
 
@@ -192,11 +196,23 @@ function TakeoutModal({ items, warehouses, onClose, onSaved, flash }) {
       const saved = await INV.createTakeout(f);
       const item = items.find((i) => i.id === f.itemId);
       const member = staff.find((s) => s.id === f.staffId);
-      INV.generateTakeoutDoc({
-        kind: 'Takeout Request', itemName: item?.name || '', quantity: f.quantity, unit: item?.unit || '',
-        staffId: f.staffId, staffName: member?.name || '', approverId: saved.approved_by, approverName: saved.approver?.name || 'Approver', notes: f.notes,
-      });
-      flash('Takeout recorded. Form downloaded — filing to Documents in the background.');
+      // Custody paperwork: a numbered Handover Note on the company letterhead
+      // (Invoicing & Trade Docs). Falls back to the plain downloadable form
+      // when the org doesn't run that suite.
+      try {
+        const doc = await createTradeDoc({
+          docType: 'handover', partyName: member?.name || '',
+          items: [{ description: `${item?.name || 'Item'} (${f.quantity} ${item?.unit || ''})`.trim(), qty: Number(f.quantity), unit_price: 0 }],
+          reference: 'Staff takeout', notes: f.notes || 'Return expected.', vatRate: 0,
+        });
+        flash(`Takeout recorded — handover note ${doc.doc_no} filed in Invoicing & Trade Docs.`);
+      } catch {
+        INV.generateTakeoutDoc({
+          kind: 'Takeout Request', itemName: item?.name || '', quantity: f.quantity, unit: item?.unit || '',
+          staffId: f.staffId, staffName: member?.name || '', approverId: saved.approved_by, approverName: saved.approver?.name || 'Approver', notes: f.notes,
+        });
+        flash('Takeout recorded. Form downloaded — filing to Documents in the background.');
+      }
       onSaved(saved);
       onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
@@ -246,8 +262,11 @@ export default function InventoryApp({ access }) {
   const [reservations, setReservations] = useState([]);
   const [takeouts, setTakeouts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const orgId = user?.org?.id;
   const [tab, setTab] = useState('items');
   const [typeFilter, setTypeFilter] = useState('all'); // all | sell | staff
+  const [returnTarget, setReturnTarget] = useState(null);
   const [itemModal, setItemModal] = useState(false);
   const [whModal, setWhModal] = useState(false);
   const [moveModal, setMoveModal] = useState(false);
@@ -289,18 +308,31 @@ export default function InventoryApp({ access }) {
   };
 
   const activeTakeouts = takeouts.filter((t) => t.status === 'approved');
-  const returnTakeout = async (t) => {
+  // Return goes through the inspection form first (condition, issues, photo),
+  // then produces the numbered Goods Return Note carrying that inspection.
+  const completeReturn = async (t, { condition, issues, photoUrl }) => {
+    const saved = await INV.returnTakeout(t.id);
+    const conditionLabel = { optimal: 'Optimal', minor: 'Minor wear', damaged: 'DAMAGED' }[condition] || condition;
     try {
-      const saved = await INV.returnTakeout(t.id);
+      const doc = await createTradeDoc({
+        docType: 'return_note', partyName: t.staff?.name || '',
+        items: [{ description: `${t.item?.name || 'Item'} (${t.quantity} ${t.item?.unit || ''})`.trim(), qty: Number(t.quantity), unit_price: 0 }],
+        reference: 'Takeout return',
+        notes: `Condition: ${conditionLabel}.${issues ? ` Issues: ${issues}` : ''}`, vatRate: 0,
+      });
+      setDocMeta(doc.id, { condition, issues, photo_url: photoUrl || '' }).catch(() => {});
+      flash(`Returned — goods return note ${doc.doc_no} filed in Invoicing & Trade Docs.`);
+    } catch {
       INV.generateTakeoutDoc({
         kind: 'Return Form', itemName: t.item?.name || '', quantity: t.quantity, unit: t.item?.unit || '',
-        staffId: t.staff_id, staffName: t.staff?.name || '', approverId: t.approved_by, approverName: t.approver?.name || 'Approver', notes: '',
+        staffId: t.staff_id, staffName: t.staff?.name || '', approverId: t.approved_by, approverName: t.approver?.name || 'Approver', notes: issues,
       });
       flash('Returned. Form downloaded — filing to Documents in the background.');
-      setTakeouts((ts) => ts.map((x) => (x.id === saved.id ? saved : x)));
-      load();
-    } catch (e) { flash(e.message, true); }
+    }
+    setTakeouts((ts) => ts.map((x) => (x.id === saved.id ? saved : x)));
+    load();
   };
+  const returnTakeout = (t) => setReturnTarget(t);
   const cancelTakeout = async (t) => {
     const ok = await confirm({ title: 'Cancel this takeout?', message: 'The stock returns to inventory.', confirmLabel: 'Cancel takeout', cancelLabel: 'Keep takeout' });
     if (!ok) return;
@@ -315,6 +347,7 @@ export default function InventoryApp({ access }) {
         <button className={`lv-tab ${tab === 'movements' ? 'active' : ''}`} onClick={() => setTab('movements')}>Movements</button>
         <button className={`lv-tab ${tab === 'bookings' ? 'active' : ''}`} onClick={() => setTab('bookings')}>Bookings{heldReservations.length > 0 ? ` (${heldReservations.length})` : ''}</button>
         <button className={`lv-tab ${tab === 'takeouts' ? 'active' : ''}`} onClick={() => setTab('takeouts')}>Staff Takeouts{activeTakeouts.length > 0 ? ` (${activeTakeouts.length})` : ''}</button>
+        <button className={`lv-tab ${tab === 'assets' ? 'active' : ''}`} onClick={() => setTab('assets')}>Company assets</button>
         <button className={`lv-tab ${tab === 'warehouses' ? 'active' : ''}`} onClick={() => setTab('warehouses')}>Warehouses</button>
         {isManager && tab === 'items' && <button className="btn btn-primary lv-apply" onClick={() => setItemModal(true)}>Add item</button>}
         {isManager && tab === 'movements' && items.length > 0 && warehouses.length > 0 && (
@@ -441,6 +474,8 @@ export default function InventoryApp({ access }) {
         </div>
       )}
 
+      {tab === 'assets' && (isManager ? <AssetsManagerView flash={flash} /> : <AssetsStaffView flash={flash} />)}
+
       {!loading && tab === 'movements' && (
         <div className="table-wrap">
           <table className="table">
@@ -481,6 +516,15 @@ export default function InventoryApp({ access }) {
       {whModal && <WarehouseModal onClose={() => setWhModal(false)} onSaved={load} flash={flash} />}
       {moveModal && <MovementModal items={items} warehouses={warehouses} onClose={() => setMoveModal(false)} onSaved={load} flash={flash} />}
       {reserveModal && <ReserveModal items={items} warehouses={warehouses} onClose={() => setReserveModal(false)} onSaved={(r) => setReservations((rs) => [r, ...rs])} flash={flash} />}
+      {returnTarget && (
+        <ReturnConditionModal
+          title="Return inspection"
+          itemLabel={`${returnTarget.item?.name || 'Item'} — ${returnTarget.staff?.name || ''}`}
+          orgId={orgId} flash={flash}
+          onClose={() => setReturnTarget(null)}
+          onSubmit={(data) => completeReturn(returnTarget, data)}
+        />
+      )}
       {takeoutModal && <TakeoutModal items={items} warehouses={warehouses} onClose={() => setTakeoutModal(false)} onSaved={load} flash={flash} />}
       {toastNode}
       {confirmNode}

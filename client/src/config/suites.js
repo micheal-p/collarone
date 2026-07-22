@@ -13,9 +13,8 @@ export const SUITES = [
   { key: 'crm',         name: 'CRM',                tier: 'core',     status: 'live', desc: 'Contacts, deals, bookings and money owed — WhatsApp-first.' },
   { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'live', desc: 'Geo-tagged clock-in/out, timesheets, overtime.' },
   { key: 'benefits',    name: 'Benefits',           tier: 'extended', status: 'live', desc: 'HMO, group life, pension/PFA tracking.' },
-  { key: 'it-assets',   name: 'IT Assets',          tier: 'extended', status: 'live', desc: 'Asset tracking, assignment and lifecycle.' },
   { key: 'procurement', name: 'Procurement',        tier: 'extended', status: 'live', desc: 'Purchase requests, vendors and approvals.' },
-  { key: 'inventory',   name: 'Inventory',          tier: 'extended', status: 'live', desc: 'Stock levels, low-stock alerts, warehouses and bookings.' },
+  { key: 'inventory',   name: 'Inventory & Assets', tier: 'extended', status: 'live', desc: 'Sell stock, staff equipment and company assets — warehouses, bookings, handover and return notes.' },
   { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'live', desc: 'Expenses, budgets and financial reports.' },
   { key: 'projects',    name: 'Projects',           tier: 'extended', status: 'live', desc: 'Milestones, boards and collaboration.' },
   { key: 'documents',   name: 'Documents',          tier: 'extended', status: 'live', desc: 'Secure storage, versioning, permissions.' },
@@ -35,7 +34,6 @@ export const SUITE_META = {
   crm:         { icon: 'contacts',   tint: '#0e7c66' },
   attendance:  { icon: 'clock',      tint: '#0369a1' },
   benefits:    { icon: 'heart',      tint: '#be123c' },
-  'it-assets': { icon: 'laptop',     tint: '#0e7490' },
   procurement: { icon: 'cart',       tint: '#b7791f' },
   inventory:   { icon: 'box',        tint: '#9b2c2c' },
   finance:     { icon: 'coins',      tint: '#2f855a' },
@@ -53,7 +51,7 @@ export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
 // founding one. Everything
 // else is enforced server-side too (enforce_phase1_suite_scope() strips any
 // other key on write) — this list just keeps the UI honest about it.
-export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents', 'trade-docs', 'automation', 'compliance'];
+export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'procurement', 'inventory', 'finance', 'projects', 'documents', 'trade-docs', 'automation', 'compliance'];
 
 // Payroll runs Nigerian statutory deductions (PAYE, pension, NHF) — it isn't
 // built for any other country's tax/pension regime yet, so it's gated to

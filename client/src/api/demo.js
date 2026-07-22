@@ -948,6 +948,7 @@ export async function demoApi(path, opts = {}) {
     if (seg[0] === 'trade-docs') {
       // receivables additions — payments are demo-local
       db.tradeDocPayments = db.tradeDocPayments || [];
+      if (seg[2] === 'meta' && method === 'POST') { const d = (db.tradeDocs || []).find((x) => x.id === seg[1]); if (d) { d.meta = body.meta || {}; save(); } return { document: d }; }
       if (seg[2] === 'payments' && method === 'GET') return { payments: db.tradeDocPayments.filter((p) => p.doc_id === seg[1]) };
       if (seg[2] === 'payments' && method === 'POST') {
         const d = (db.tradeDocs || []).find((x) => x.id === seg[1]);

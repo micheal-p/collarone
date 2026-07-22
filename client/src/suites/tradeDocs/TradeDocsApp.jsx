@@ -43,6 +43,18 @@ const SAMPLE_DOCS = {
     party_name: 'Warehouse — Ikeja', reference: 'Internal transfer',
     items: [{ description: 'Office chairs', qty: 6 }],
   },
+  handover: {
+    doc_type: 'handover', doc_no: 'HOV-000007', created_at: new Date().toISOString(),
+    party_name: 'Emeka Obi — Field Technician', reference: 'Takeout',
+    items: [{ description: 'Dell Latitude laptop — SN 4432', qty: 1 }, { description: 'Site toolkit', qty: 1 }],
+    notes: 'Return expected on project completion.',
+  },
+  return_note: {
+    doc_type: 'return_note', doc_no: 'RTN-000003', created_at: new Date().toISOString(),
+    party_name: 'Emeka Obi — Field Technician', reference: 'HOV-000007',
+    items: [{ description: 'Dell Latitude laptop — SN 4432', qty: 1 }],
+    notes: 'Returned in good condition.',
+  },
 };
 
 function LineItems({ type, items, setItems, stockItems }) {
@@ -489,6 +501,19 @@ function DocPreviewBody({ doc, settings }) {
       )}
       {doc.notes && <div className="muted" style={{ fontSize: 13, marginTop: 16 }}>{doc.notes}</div>}
 
+      {meta.isCustody && doc.meta && (doc.meta.condition || doc.meta.photo_url) && (
+        <div style={{ marginTop: 14, border: '1px solid #e5e2d9', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
+          <div style={{ fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Return inspection</div>
+          {doc.meta.condition && (
+            <div>Condition: <strong style={doc.meta.condition === 'damaged' ? { color: '#a4262c' } : {}}>
+              {{ optimal: 'Optimal', minor: 'Minor wear', damaged: 'Damaged' }[doc.meta.condition] || doc.meta.condition}
+            </strong></div>
+          )}
+          {doc.meta.issues && <div style={{ marginTop: 3, color: '#555' }}>Issues reported: {doc.meta.issues}</div>}
+          {doc.meta.photo_url && <img src={doc.meta.photo_url} alt="Condition on return" style={{ marginTop: 8, maxWidth: 180, borderRadius: 6, display: 'block' }} />}
+        </div>
+      )}
+
       <div className="tdt-sigblock">
         <div className="tdt-sig">
           {s.signature_url && <img src={s.signature_url} alt="" />}
@@ -499,6 +524,16 @@ function DocPreviewBody({ doc, settings }) {
           <div className="tdt-sig tdt-sig-blank">
             <div style={{ height: 40 }} />
             <div>{meta.stockDirection === 'in' ? 'Received by' : 'Released by'} (name &amp; signature)</div>
+          </div>
+        )}
+        {meta.isCustody && (
+          <div className="tdt-sig tdt-sig-blank">
+            <div style={{ height: 40 }} />
+            <div>
+              {meta.custodyDirection === 'out'
+                ? <>Collected by — <strong>{doc.party_name}</strong> (signature &amp; date)</>
+                : <>Received back by store (name, signature &amp; condition)</>}
+            </div>
           </div>
         )}
       </div>

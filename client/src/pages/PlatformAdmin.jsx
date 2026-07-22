@@ -12,7 +12,7 @@ const GUEST_KEY = 'collarone_guest_mode';
 
 const STATUS_LABEL = { pending_payment: 'Pending payment', active: 'Active', past_due: 'Past due', read_only: 'Read-only', suspended: 'Suspended', cancelled: 'Cancelled' };
 const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', delete_org: 'Deleted organization', impersonate: 'Impersonated admin (retired)', guest_mode: 'Guested into organization', payment_gateway: 'Changed card-payment gateway' };
-const ALL_SUITE_KEYS = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents'];
+const ALL_SUITE_KEYS = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'procurement', 'inventory', 'finance', 'projects', 'documents'];
 const COUNTRY_NAME = { NG: 'Nigeria', GH: 'Ghana', KE: 'Kenya', ZA: 'South Africa', EG: 'Egypt', GB: 'United Kingdom', US: 'United States' };
 
 const naira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;

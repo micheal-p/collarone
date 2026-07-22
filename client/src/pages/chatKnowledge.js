@@ -50,7 +50,7 @@ const INTENTS = [
     id: 'what-is',
     phrases: ['what is collarone', 'what does collarone do', 'tell me about collarone', 'what is this'],
     keys: ['about', 'explain', 'overview'],
-    answer: 'Collarone is the business platform for Nigerian companies — HR, payroll, CRM, finance and more, 17 live suites behind one login, priced and billed in naira. Your company gets its own isolated workspace, you switch on only the suites you need, and your data stays completely separate from every other company\'s.',
+    answer: 'Collarone is the business platform for Nigerian companies — HR, payroll, CRM, finance and more, 16 live suites behind one login, priced and billed in naira. Your company gets its own isolated workspace, you switch on only the suites you need, and your data stays completely separate from every other company\'s.',
     chips: ['What suites are included?', 'What does it cost?', 'Is my data safe?'],
   },
   {
@@ -64,7 +64,7 @@ const INTENTS = [
     id: 'suites',
     phrases: ['what suites', 'what is included', "what's included", 'list of suites', 'what modules', 'features'],
     keys: ['suites', 'modules', 'apps', 'included', 'tools'],
-    answer: 'Seventeen live suites. Core: HR & Staff, Leave, Task & Report, Visitor Management, Payroll, CRM. Extended: Time & Attendance, Benefits, IT Assets, Procurement, Inventory, Finance, Projects, Documents, Invoicing & Trade Docs, Automation, Compliance Calendar. Every tier picks any of them à la carte — a Startup customer gets the same full suites as Enterprise, just fewer included.',
+    answer: 'Sixteen live suites. Core: HR & Staff, Leave, Task & Report, Visitor Management, Payroll, CRM. Extended: Time & Attendance, Benefits, Procurement, Inventory & Assets (sell stock, staff equipment and company assets with signed handover/return notes), Finance, Projects, Documents, Invoicing & Trade Docs, Automation, Compliance Calendar. Every tier picks any of them à la carte — a Startup customer gets the same full suites as Enterprise, just fewer included.',
     chips: ['Tell me about HR', 'Does it do payroll?', 'What does it cost?'],
   },
   {

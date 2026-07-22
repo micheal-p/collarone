@@ -251,7 +251,7 @@ const modules = [
   {
     name: 'Money & Assets', status: 'live',
     desc: 'Payroll with real Nigerian statutory deductions, invoices and GRNs with your own letterhead, plus everything that keeps a business funded and equipped.',
-    suites: ['payroll', 'finance', 'procurement', 'inventory', 'it-assets', 'trade-docs'],
+    suites: ['payroll', 'finance', 'procurement', 'inventory', 'trade-docs'],
   },
   {
     name: 'Customers & Growth', status: 'live',
@@ -443,7 +443,7 @@ export default function Landing() {
           <motion.div className="cl-hero-inner" {...heroTextProps}>
             <motion.span {...heroItemVariants} className="cl-kicker"><span className="cl-dot" />Now onboarding early businesses</motion.span>
             <motion.h1 {...heroItemVariants}>Run your<br /><RotatingWord /><br /><span className="cl-grad-word">One login.</span></motion.h1>
-            <motion.p {...heroItemVariants} className="cl-hero-sub">HR with an Employee 360 and AI-drafted company letters, payroll, CRM and your website — 17 live suites behind one login, priced in naira.</motion.p>
+            <motion.p {...heroItemVariants} className="cl-hero-sub">HR with an Employee 360 and AI-drafted company letters, payroll, CRM and your website — 16 live suites behind one login, priced in naira.</motion.p>
             <motion.div {...heroItemVariants} className="cl-hero-ctas">
               <Link className="cl-btn cl-btn-primary" to="/signup">Get started</Link>
               <a className="cl-btn cl-btn-ghost" href="#platform">See what's inside</a>
@@ -490,7 +490,7 @@ export default function Landing() {
 
       <section className="cl-trust" aria-label="Platform facts">
         <div className="cl-wrap cl-trust-row">
-          <span className="cl-trust-cell"><strong>17</strong> suites live</span>
+          <span className="cl-trust-cell"><strong>16</strong> suites live</span>
           <span className="cl-trust-dot" aria-hidden="true" />
           <span className="cl-trust-cell">One isolated workspace per company</span>
           <span className="cl-trust-dot" aria-hidden="true" />
@@ -743,7 +743,7 @@ export default function Landing() {
               <div className="cl-founder-role">Founder, Collarone</div>
               <div className="cl-founder-stats">
                 <div><strong>2026</strong><small>Founded</small></div>
-                <div><strong>17</strong><small>Suites live</small></div>
+                <div><strong>16</strong><small>Suites live</small></div>
               </div>
               <div className="cl-founder-loc">{I.pin}Nigeria</div>
             </Reveal>
