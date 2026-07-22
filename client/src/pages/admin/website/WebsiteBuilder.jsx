@@ -339,7 +339,8 @@ function ProductModal({ product, onClose, onSaved, flash, orgId }) {
   const [stockItems, setStockItems] = useState([]);
   useEffect(() => {
     import('../../../suites/inventory/inventoryApi.js')
-      .then((m) => m.getItems()).then((it) => setStockItems(it || [])).catch(() => setStockItems([]));
+      // staff-equipment stock (for_staff_use only) is not sellable — never linkable to a store product
+      .then((m) => m.getItems()).then((it) => setStockItems((it || []).filter((x) => x.for_sale !== false))).catch(() => setStockItems([]));
   }, []);
 
   const uploadImage = async (file) => {
