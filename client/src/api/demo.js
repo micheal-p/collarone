@@ -83,8 +83,16 @@ function suiteTiles(u) {
   });
 }
 
-// Main entry — mirrors the shape of the real api() client.
+// Main entry — mirrors the shape of the real api() client. Responses are
+// deep-cloned so the UI never holds live references into the demo db —
+// otherwise a later unshift() mutates an array React already has in state
+// and the UI double-counts (the duplicated-invoice bug).
 export async function demoApi(path, opts = {}) {
+  const result = await demoApiInner(path, opts);
+  try { return structuredClone(result); } catch { return JSON.parse(JSON.stringify(result)); }
+}
+
+async function demoApiInner(path, opts = {}) {
   await new Promise((r) => setTimeout(r, 130)); // tiny latency so it feels real
   const method = (opts.method || 'GET').toUpperCase();
   const body = opts.body || {};
@@ -196,6 +204,157 @@ export async function demoApi(path, opts = {}) {
   // Enough believable, deterministic data that the HR directory and the
   // Employee 360 record render fully in demo mode. Derived from db.users so
   // ids always line up; regenerated per call (nothing persisted).
+
+  // ---- payroll & benefits (full demo: rates, runs, payslips, wall, loans) ----
+  if (seg[0] === 'payroll' && !['salary', 'bank'].includes(seg[1])) {
+    const me = requireAuth();
+    const prid = (pfx) => pfx + Math.random().toString(36).slice(2, 8);
+    const pNow = () => new Date().toISOString();
+    const meR = { id: me.id, name: me.name };
+
+    // 2026 Tax Act defaults — mirrors the real seed
+    db.payrollRates = db.payrollRates || {
+      deductionRates: [
+        { key: 'pension_employee', label: 'Pension — employee share', rate: 0.08, basis: 'pensionable' },
+        { key: 'pension_employer', label: 'Pension — employer share', rate: 0.10, basis: 'pensionable' },
+        { key: 'nhf', label: 'National Housing Fund', rate: 0.025, basis: 'basic' },
+        { key: 'nsitf', label: 'NSITF (employer cost)', rate: 0.01, basis: 'gross' },
+      ],
+      payeBands: [
+        { id: 'b1', min_annual: 0, max_annual: 800000, rate: 0, sort_order: 1 },
+        { id: 'b2', min_annual: 800000, max_annual: 3000000, rate: 0.15, sort_order: 2 },
+        { id: 'b3', min_annual: 3000000, max_annual: 12000000, rate: 0.18, sort_order: 3 },
+        { id: 'b4', min_annual: 12000000, max_annual: 25000000, rate: 0.21, sort_order: 4 },
+        { id: 'b5', min_annual: 25000000, max_annual: 50000000, rate: 0.23, sort_order: 5 },
+        { id: 'b6', min_annual: 50000000, max_annual: null, rate: 0.25, sort_order: 6 },
+      ],
+    };
+    const payeAnnual = (taxable) => {
+      let remaining = Math.max(0, taxable); let tax = 0;
+      for (const b of db.payrollRates.payeBands) {
+        if (remaining <= 0) break;
+        const width = (b.max_annual ?? Infinity) - b.min_annual;
+        const inBand = Math.min(remaining, width);
+        tax += inBand * b.rate; remaining -= inBand;
+      }
+      return tax;
+    };
+
+    const active = db.users.filter((u) => u.status === 'active');
+    // sample salaries for the first few staff so a generated run has real rows
+    db.demoSalaries = db.demoSalaries || Object.fromEntries(active.slice(0, 4).map((u, i) => [u.id, {
+      basic: [250000, 180000, 420000, 150000][i], housing: [80000, 50000, 120000, 40000][i],
+      transport: [40000, 30000, 60000, 25000][i], other: [30000, 0, 80000, 10000][i],
+      annual_rent: [1200000, 0, 2400000, 600000][i],
+    }]));
+    db.payrollRuns = db.payrollRuns || [];
+    db.payrollLines = db.payrollLines || {};
+    db.staffLoans = db.staffLoans || [{
+      id: prid('ln'), employee_id: active[1]?.id, employee: { id: active[1]?.id, name: active[1]?.name },
+      loan_type: 'advance', principal: 100000, monthly_installment: 25000, reason: 'School fees support',
+      status: 'active', repaid: 50000, repayments: [{ amount: 25000 }, { amount: 25000 }], created_at: pNow(),
+    }];
+    db.bankWall = db.bankWall || [
+      { id: prid('bw'), action_type: 'new_employee', employee: { name: active[2]?.name || 'New staff' }, status: 'pending', created_at: pNow() },
+      { id: prid('bw'), action_type: 'account_changed', employee: { name: active[0]?.name || 'Staff' }, status: 'pending', created_at: pNow() },
+    ];
+
+    if (route === 'GET /payroll/rates') return { deductionRates: db.payrollRates.deductionRates, payeBands: db.payrollRates.payeBands };
+    if (method === 'PATCH' && seg[1] === 'rates' && seg.length === 3) {
+      const r = db.payrollRates.deductionRates.find((x) => x.key === seg[2]);
+      if (r) { r.rate = Number(body.rate) || r.rate; save(); }
+      return { rate: r };
+    }
+    if (method === 'PATCH' && seg[1] === 'paye-bands' && seg.length === 3) {
+      const b = db.payrollRates.payeBands.find((x) => x.id === seg[2]);
+      if (b) { Object.assign(b, { rate: body.rate ?? b.rate, min_annual: body.minAnnual ?? b.min_annual, max_annual: body.maxAnnual === undefined ? b.max_annual : body.maxAnnual }); save(); }
+      return { band: b };
+    }
+    if (route === 'GET /payroll/employees') {
+      return { employees: active.map((u) => ({ id: u.id, name: u.name, email: u.email, job_title: u.jobTitle || 'Staff', payroll_state: 'active', hasSalary: Boolean(db.demoSalaries[u.id]) })) };
+    }
+    if (method === 'PATCH' && seg[1] === 'employees') return { ok: true };
+    if (route === 'GET /payroll/runs') return { runs: db.payrollRuns };
+    if (route === 'POST /payroll/runs/generate') {
+      const { month, year } = body;
+      if (db.payrollRuns.some((r) => r.period_month === month && r.period_year === year)) fail(400, 'A payroll run already exists for that period.');
+      const run = { id: prid('run'), period_month: month, period_year: year, status: 'draft', notes: '', disbursement_reference: '', approvedBy: null, approved_at: null, released_at: null, disbursed_at: null, created_at: pNow() };
+      const lines = Object.entries(db.demoSalaries).map(([uid, ss]) => {
+        const u = db.users.find((x) => x.id === uid); if (!u || u.status !== 'active') return null;
+        const pensionable = ss.basic + ss.housing + ss.transport;
+        const gross = pensionable + ss.other;
+        const pension = Math.round(pensionable * 0.08);
+        const nhf = Math.round(ss.basic * 0.025);
+        const rentRelief = Math.min(ss.annual_rent * 0.2, 500000);
+        const paye = Math.round(payeAnnual(Math.max(0, gross * 12 - rentRelief - pension * 12 - nhf * 12)) / 12);
+        const loan = db.staffLoans.filter((l) => l.employee_id === uid && l.status === 'active')
+          .reduce((s2, l) => s2 + Math.min(l.monthly_installment, l.principal - (l.repaid || 0)), 0);
+        return {
+          id: prid('pl'), run_id: run.id, employee_id: uid, employee: { id: uid, name: u.name, email: u.email, job_title: u.jobTitle || 'Staff' },
+          basic: ss.basic, housing: ss.housing, transport: ss.transport, other_allowances: ss.other, gross,
+          pension_employee: pension, pension_employer: Math.round(pensionable * 0.10), nhf, nsitf: Math.round(gross * 0.01),
+          paye, other_deductions: loan, net: gross - pension - nhf - paye - loan,
+          bank_snapshot: { bankName: 'GTBank', accountNumber: '0123456789', accountName: u.name }, payment_status: 'unpaid', payment_note: '',
+        };
+      }).filter(Boolean);
+      db.payrollRuns.unshift(run); db.payrollLines[run.id] = lines; save();
+      return { run };
+    }
+    if (method === 'DELETE' && seg[1] === 'runs' && seg.length === 3) { db.payrollRuns = db.payrollRuns.filter((r) => r.id !== seg[2]); delete db.payrollLines[seg[2]]; save(); return { ok: true }; }
+    if (method === 'PATCH' && seg[1] === 'runs' && seg.length === 3) {
+      const r = db.payrollRuns.find((x) => x.id === seg[2]); if (!r) fail(404, 'Run not found');
+      const { action, reference, notes } = body;
+      if (action === 'approve') { r.status = 'approved'; r.approvedBy = meR; r.approved_at = pNow(); db.bankWall.unshift({ id: prid('bw'), action_type: 'run_approved', run: { id: r.id, period_month: r.period_month, period_year: r.period_year }, status: 'pending', created_at: pNow() }); }
+      else if (action === 'release') { r.status = 'released'; r.released_at = pNow(); }
+      else if (action === 'disburse') { r.status = 'disbursed'; r.disbursed_at = pNow(); r.disbursement_reference = reference || ''; }
+      else if (action === 'reopen') r.status = 'draft';
+      else if (notes !== undefined) r.notes = notes;
+      save(); return { run: r };
+    }
+    if (seg[1] === 'runs' && seg[3] === 'lines') return { lines: db.payrollLines[seg[2]] || [] };
+    if (method === 'PATCH' && seg[1] === 'lines' && seg.length === 3) {
+      for (const lines of Object.values(db.payrollLines)) {
+        const l = lines.find((x) => x.id === seg[2]);
+        if (l) {
+          if (body.otherDeductions !== undefined) { l.other_deductions = body.otherDeductions; l.net = l.gross - l.pension_employee - l.nhf - l.paye - l.other_deductions; }
+          if (body.paymentStatus !== undefined) l.payment_status = body.paymentStatus;
+          if (body.paymentNote !== undefined) l.payment_note = body.paymentNote;
+          save(); return { line: l };
+        }
+      }
+      fail(404, 'Line not found');
+    }
+    if (route === 'GET /payroll/mypayslips') {
+      const out = [];
+      for (const r of db.payrollRuns.filter((x) => x.released_at)) {
+        for (const l of (db.payrollLines[r.id] || []).filter((x) => x.employee_id === me.id)) {
+          out.push({ ...l, run: { id: r.id, period_month: r.period_month, period_year: r.period_year, released_at: r.released_at } });
+        }
+      }
+      return { payslips: out };
+    }
+    if (route === 'GET /payroll/bankwall') return { actions: db.bankWall };
+    if (method === 'PATCH' && seg[1] === 'bankwall' && seg.length === 3) {
+      const a = db.bankWall.find((x) => x.id === seg[2]);
+      if (a) { a.status = body.status || a.status; a.actionedBy = meR; a.actioned_at = pNow(); save(); }
+      return { action: a };
+    }
+    if (route === 'GET /payroll/loans') return { loans: db.staffLoans };
+    if (route === 'POST /payroll/loans') {
+      const u = db.users.find((x) => x.id === (body.employeeId || me.id)) || me;
+      const loan = { id: prid('ln'), employee_id: u.id, employee: { id: u.id, name: u.name }, loan_type: body.loanType || 'loan', principal: Number(body.principal) || 0, monthly_installment: Number(body.monthlyInstallment) || 0, reason: body.reason || '', status: 'pending', repaid: 0, repayments: [], created_at: pNow() };
+      db.staffLoans.unshift(loan); save(); return { loan };
+    }
+    if (seg[1] === 'loans' && seg[3] === 'decide') {
+      const l = db.staffLoans.find((x) => x.id === seg[2]); if (!l) fail(404, 'Loan not found');
+      if (body.decision === 'approve') { l.status = 'active'; if (body.installment) l.monthly_installment = body.installment; }
+      else if (body.decision === 'reject') l.status = 'rejected';
+      else if (body.decision === 'cancel') l.status = 'cancelled';
+      save(); return { loan: l };
+    }
+    return fail(404, `Demo API has no route for ${route}`);
+  }
+
   if (seg[0] === 'hr' || (seg[0] === 'departments') || (seg[0] === 'payroll' && ['salary', 'bank'].includes(seg[1])) || seg[0] === 'attendance' || route === 'GET /tasks') {
     requireAuth();
     const DEPTS = [{ id: 1, name: 'IT' }, { id: 2, name: 'People Ops' }, { id: 3, name: 'Operations' }, { id: 4, name: 'Logistics' }];
@@ -961,7 +1120,7 @@ export async function demoApi(path, opts = {}) {
       }
       db.tradeDocs = db.tradeDocs || [];
       db.tradeDocSettings = db.tradeDocSettings || null;
-      const PREFIX = { invoice: 'INV', receipt: 'RCT', grn: 'GRN', srp: 'SRP' };
+      const PREFIX = { invoice: 'INV', receipt: 'RCT', grn: 'GRN', srp: 'SRP', handover: 'HOV', return_note: 'RTN' };
       if (route === 'GET /trade-docs/settings') return { settings: db.tradeDocSettings };
       if (route === 'POST /trade-docs/settings') {
         db.tradeDocSettings = {
@@ -977,7 +1136,7 @@ export async function demoApi(path, opts = {}) {
       if (route === 'GET /trade-docs') return { documents: db.tradeDocs };
       if (route === 'POST /trade-docs') {
         const items = body.items || [];
-        const subtotal = items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.unitPrice ?? it.unit_price ?? it.rate ?? 0)), 0);
+        const subtotal = items.reduce((s, it) => s + (Number(it.qty ?? it.quantity) || 0) * (Number(it.unit_price ?? it.unitPrice ?? it.rate ?? 0)), 0);
         const vat_rate = body.vatRate ?? 0.075;
         const vat_amount = subtotal * vat_rate;
         const type = body.docType || 'invoice';
@@ -987,7 +1146,7 @@ export async function demoApi(path, opts = {}) {
           party_name: body.partyName || '', party_phone: body.partyPhone || '', party_email: body.partyEmail || '',
           party_address: body.partyAddress || '', items, subtotal, vat_rate, vat_amount, total: subtotal + vat_amount,
           status: 'issued', due_date: body.dueDate || null, reference: body.reference || '', notes: body.notes || '',
-          contact: null, vendor: null, warehouse: null, author: meRef, created_at: now(),
+          contact: null, vendor: null, warehouse: null, author: meRef, created_at: now(), meta: {}, amount_paid: 0,
         };
         db.tradeDocs.unshift(doc); save(); return { document: doc };
       }
@@ -1018,10 +1177,6 @@ export async function demoApi(path, opts = {}) {
 
   // Payroll runs list (Banking Wall). Empty in demo — shows the clean
   // "no runs yet" state instead of a route-missing toast.
-  if (route === 'GET /payroll/runs') return { runs: [] };
-  // Loans & advances — clean empty state in demo
-  if (route === 'GET /payroll/loans') return { loans: [] };
-  if (route === 'POST /payroll/loans') return fail(400, 'Loan requests are disabled in demo mode.');
   // Billing renewals — demo has no real subscription to extend
   if (route === 'POST /billing/renew') return fail(400, 'Renewals are disabled in demo mode.');
 
