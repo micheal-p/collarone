@@ -763,6 +763,8 @@ export default function PlatformAdmin() {
         orgId: t.org_id,
         message: `Reminder: your ${kind} payment of ${naira(t.amount_kobo)} (ref ${t.reference}) is still pending. Complete the transfer to keep your Collarone workspace active — WhatsApp us the reference on 0814 812 8551 once sent.`,
       });
+      // also email the org's account owner (best-effort; no-op if email is off)
+      fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAccessToken() || ''}` }, body: JSON.stringify({ action: 'billing-reminder', orgId: t.org_id }) }).catch(() => {});
       flash(`Reminder sent to ${orgName(t.org_id)}.`);
     } catch (e) { flash(e.message, true); } finally { setReminding(null); }
   };

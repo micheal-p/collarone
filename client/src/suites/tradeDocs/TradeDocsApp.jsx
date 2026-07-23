@@ -269,9 +269,17 @@ function PaymentModal({ doc, onClose, onSaved, flash }) {
 
 function ShareModal({ doc, orgName, onClose, flash }) {
   const url = TD.publicInvoiceUrl(doc);
+  const [emailOn, setEmailOn] = useState(false);
+  const [emailing, setEmailing] = useState(false);
+  useEffect(() => { TD.emailStatus().then(setEmailOn).catch(() => {}); }, []);
   const copy = async () => {
     try { await navigator.clipboard.writeText(url); flash('Link copied.'); }
     catch { flash('Could not copy — long-press the link to copy it.', true); }
+  };
+  const email = async () => {
+    setEmailing(true);
+    try { await TD.emailInvoice(doc.id); flash(`Invoice emailed to ${doc.party_email}.`); }
+    catch (e) { flash(e.message, true); } finally { setEmailing(false); }
   };
   return (
     <Modal title={`Share ${doc.doc_no}`} onClose={onClose}>
@@ -281,9 +289,12 @@ function ShareModal({ doc, orgName, onClose, flash }) {
       <div className="field"><label>Invoice link</label>
         <input className="input" readOnly value={url} onFocus={(e) => e.target.select()} style={{ fontFamily: 'monospace', fontSize: 12.5 }} />
       </div>
-      <div className="modal-actions" style={{ justifyContent: 'flex-start' }}>
+      <div className="modal-actions" style={{ justifyContent: 'flex-start', flexWrap: 'wrap' }}>
         <button type="button" className="btn btn-ghost" onClick={copy}>Copy link</button>
-        <a className="btn btn-primary" href={TD.waShareUrl(doc, orgName)} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+        <a className="btn btn-ghost" href={TD.waShareUrl(doc, orgName)} target="_blank" rel="noreferrer">WhatsApp</a>
+        {emailOn && doc.party_email && (
+          <button type="button" className="btn btn-primary" disabled={emailing} onClick={email}>{emailing ? 'Sending…' : 'Email invoice'}</button>
+        )}
       </div>
     </Modal>
   );
