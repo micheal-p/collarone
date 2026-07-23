@@ -12,6 +12,7 @@
 //   POST { action: 'connect', publicKey, secretKey }  (Bearer, super_admin) → { ok }
 //   POST { action: 'disconnect' }                     (Bearer, super_admin) → { ok }
 import { createClient } from '@supabase/supabase-js';
+import { encryptSecret } from './_lib/gatewayCrypto.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -60,7 +61,7 @@ export default async function handler(req, res) {
       if (!vr.ok) return json(res, 502, { message: 'Could not reach Paystack to verify the key — try again in a moment.' });
 
       await admin.from('org_payment_gateways').upsert({
-        org_id: caller.org_id, provider: 'paystack', public_key: publicKey, secret_key: secretKey,
+        org_id: caller.org_id, provider: 'paystack', public_key: publicKey, secret_key: encryptSecret(secretKey),
         enabled: true, enabled_by: user.id, updated_at: new Date().toISOString(),
       }, { onConflict: 'org_id' });
       return json(res, 200, { ok: true });
