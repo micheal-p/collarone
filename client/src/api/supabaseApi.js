@@ -242,6 +242,11 @@ export async function supabaseApi(path, opts = {}) {
   if (head === 'POST /billing' && seg[1] === 'purchase-credits') {
     return callAdmin('purchase-credits', { credits: body.credits });
   }
+  if (head === 'POST /billing' && seg[1] === 'renew') {
+    const { data, error } = await supabase.rpc('request_renewal', { p_months: body.months || 1 });
+    if (error) fail(400, error.message);
+    return { transaction: data };
+  }
 
   // ---- platform admin (cross-org — RLS allows this only for is_platform_admin()) ----
   if (head === 'GET /platform' && seg[1] === 'organizations') {
@@ -255,6 +260,54 @@ export async function supabaseApi(path, opts = {}) {
     const { data, error } = await supabase.rpc('platform_all_profiles');
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { profiles: data };
+  }
+  if (head === 'GET /platform' && seg[1] === 'demo-suites') {
+    const [suites, fb, ev, real] = await Promise.all([
+      supabase.from('platform_demo_suites').select('*'),
+      supabase.from('demo_feedback').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('demo_events').select('suite_key'),
+      supabase.from('app_feedback').select('*, org:organizations(id,name), author:profiles!user_id(id,name)').order('created_at', { ascending: false }).limit(200),
+    ]);
+    if (suites.error) fail(400, suites.error.message);
+    const starts = {};
+    (ev.data || []).forEach((e) => { starts[e.suite_key] = (starts[e.suite_key] || 0) + 1; });
+    return { demoSuites: suites.data, feedback: fb.data || [], starts, realFeedback: real.data || [] };
+  }
+  if (head === 'POST /platform' && seg[1] === 'demo-suites') {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('platform_demo_suites').upsert({
+      suite_key: body.suiteKey, enabled: Boolean(body.enabled), updated_at: new Date().toISOString(), updated_by: user.id,
+    }, { onConflict: 'suite_key' });
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { ok: true };
+  }
+  if (head === 'GET /platform' && seg[1] === 'pricing') {
+    const [plans, settings] = await Promise.all([
+      supabase.from('platform_pricing').select('*').order('sort_order'),
+      supabase.from('platform_billing_settings').select('*').maybeSingle(),
+    ]);
+    if (plans.error) fail(400, plans.error.message);
+    if (settings.error) fail(400, settings.error.message);
+    return { plans: plans.data, settings: settings.data };
+  }
+  if (head === 'POST /platform' && seg[1] === 'pricing') {
+    // RLS enforces is_platform_admin() on every row touched
+    const { data: { user } } = await supabase.auth.getUser();
+    for (const p of body.plans || []) {
+      const { error } = await supabase.from('platform_pricing').update({
+        base_fee_kobo: p.baseFeeKobo, included_suites: p.includedSuites,
+        extra_suite_fee_kobo: p.extraSuiteFeeKobo, updated_at: new Date().toISOString(), updated_by: user.id,
+      }).eq('plan_key', p.planKey);
+      if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    }
+    if (body.settings) {
+      const { error } = await supabase.from('platform_billing_settings').update({
+        per_staff_kobo: body.settings.perStaffKobo, annual_discount: body.settings.annualDiscount,
+        updated_at: new Date().toISOString(), updated_by: user.id,
+      }).eq('id', true);
+      if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    }
+    return { ok: true };
   }
   if (head === 'GET /platform' && seg[1] === 'transactions') {
     const { data, error } = await supabase.from('billing_transactions').select('*').order('created_at', { ascending: false });
@@ -288,7 +341,7 @@ export async function supabaseApi(path, opts = {}) {
   }
   if (head === 'GET /platform' && seg[1] === 'page-views') {
     const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await supabase.from('page_views').select('path, country, created_at').gte('created_at', since).order('created_at', { ascending: false }).limit(20000);
+    const { data, error } = await supabase.from('page_views').select('path, country, created_at').gte('created_at', since).not('path', 'like', '/platform-admin%').order('created_at', { ascending: false }).limit(20000);
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { pageViews: data };
   }
@@ -589,18 +642,19 @@ export async function supabaseApi(path, opts = {}) {
     const patch = {};
     ['basic','housing','transport'].forEach((k) => { if (body[k] !== undefined) patch[k] = body[k]; });
     if (body.otherAllowances !== undefined) patch.other_allowances = body.otherAllowances;
+    if (body.annualRent !== undefined) patch.annual_rent = body.annualRent;
     if (body.effectiveDate !== undefined) patch.effective_date = body.effectiveDate;
     const { data, error } = await supabase.from('salary_structures').update(patch).eq('id', seg[2]).select().single();
     if (error) fail(400, error.message);
     return { structure: data };
   }
   if (head === 'POST /payroll' && seg[1] === 'salary') {
-    const { employeeId, basic, housing, transport, otherAllowances, effectiveDate } = body;
+    const { employeeId, basic, housing, transport, otherAllowances, annualRent, effectiveDate } = body;
     if (!employeeId) fail(400, 'employeeId is required.');
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('salary_structures').insert({
       employee_id: employeeId, basic: basic || 0, housing: housing || 0, transport: transport || 0,
-      other_allowances: otherAllowances || 0, effective_date: effectiveDate || new Date().toISOString().slice(0, 10), created_by: user.id, org_id: await myOrgId(),
+      other_allowances: otherAllowances || 0, annual_rent: annualRent || 0, effective_date: effectiveDate || new Date().toISOString().slice(0, 10), created_by: user.id, org_id: await myOrgId(),
     }).select().single();
     if (error) fail(400, error.message);
     return { structure: data };
@@ -681,6 +735,34 @@ export async function supabaseApi(path, opts = {}) {
     const { data, error } = await supabase.from('payroll_lines').update(patch).eq('id', seg[2]).select(PAYROLL_LINE_SELECT).single();
     if (error) fail(400, error.message);
     return { line: data };
+  }
+
+  // ---- staff loans & salary advances ----
+  if (head === 'GET /payroll' && seg[1] === 'loans' && seg.length === 2) {
+    const { data, error } = await supabase.from('staff_loans')
+      .select('*, employee:profiles!employee_id(id,name,email), repayments:loan_repayments(amount)')
+      .order('created_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { loans: (data || []).map((l) => ({ ...l, repaid: (l.repayments || []).reduce((s, r) => s + Number(r.amount), 0) })) };
+  }
+  if (head === 'POST /payroll' && seg[1] === 'loans' && seg.length === 2) {
+    const { employeeId, loanType, principal, monthlyInstallment, reason } = body;
+    if (!principal || !monthlyInstallment) fail(400, 'Principal and monthly installment are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('staff_loans').insert({
+      org_id: await myOrgId(), employee_id: employeeId || user.id, loan_type: loanType || 'loan',
+      principal, monthly_installment: monthlyInstallment, reason: reason || '', requested_by: user.id,
+    }).select('*, employee:profiles!employee_id(id,name,email)').single();
+    if (error) fail(400, error.message);
+    return { loan: data };
+  }
+  if (head === 'POST /payroll' && seg[1] === 'loans' && seg[3] === 'decide') {
+    const { decision, installment } = body;
+    const { data, error } = await supabase.rpc('decide_staff_loan', {
+      p_loan_id: seg[2], p_decision: decision, p_installment: installment ?? null,
+    });
+    if (error) fail(400, error.message);
+    return { loan: data };
   }
 
   if (head === 'GET /payroll' && seg[1] === 'mypayslips') {
@@ -1966,6 +2048,64 @@ export async function supabaseApi(path, opts = {}) {
     });
     if (error) fail(400, error.message);
     return { settings: data };
+  }
+  // payments against an invoice (receivables)
+  if (head === 'GET /trade-docs' && seg[2] === 'payments' && seg.length === 3) {
+    const { data, error } = await supabase.from('trade_doc_payments')
+      .select('*, recorder:profiles!recorded_by(id,name)').eq('doc_id', seg[1]).order('paid_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { payments: data };
+  }
+  if (head === 'POST /trade-docs' && seg[2] === 'meta' && seg.length === 3) {
+    const { data, error } = await supabase.rpc('set_trade_doc_meta', { p_doc_id: seg[1], p_meta: body.meta || {} });
+    if (error) fail(400, error.message);
+    return { document: data };
+  }
+  if (head === 'POST /trade-docs' && seg[2] === 'payments' && seg.length === 3) {
+    const { amount, payMethod, reference, note, paidAt } = body;
+    const { data, error } = await supabase.rpc('record_trade_doc_payment', {
+      p_doc_id: seg[1], p_amount: amount, p_method: payMethod || 'transfer',
+      p_reference: reference || '', p_note: note || '', p_paid_at: paidAt || new Date().toISOString(),
+    });
+    if (error) fail(400, error.message);
+    return { document: data };
+  }
+
+  // ---- compliance calendar ----
+  if (head === 'GET /compliance' && seg.length === 1) {
+    const [rules, prefs, marks] = await Promise.all([
+      supabase.from('compliance_rules').select('*').order('sort_order'),
+      supabase.from('org_compliance_prefs').select('*'),
+      supabase.from('compliance_marks').select('*, doer:profiles!done_by(id,name)').order('done_at', { ascending: false }).limit(400),
+    ]);
+    if (rules.error) fail(400, rules.error.message);
+    if (prefs.error) fail(400, prefs.error.message);
+    if (marks.error) fail(400, marks.error.message);
+    return { rules: rules.data, prefs: prefs.data, marks: marks.data };
+  }
+  if (head === 'POST /compliance' && seg[1] === 'prefs') {
+    const { ruleKey, enabled, annualMonth, annualDay, note } = body;
+    const { data, error } = await supabase.from('org_compliance_prefs').upsert({
+      org_id: await myOrgId(), rule_key: ruleKey, enabled: enabled !== false,
+      annual_month: annualMonth ?? null, annual_day: annualDay ?? null, note: note || '', updated_at: new Date().toISOString(),
+    }, { onConflict: 'org_id,rule_key' }).select().single();
+    if (error) fail(400, error.message);
+    return { pref: data };
+  }
+  if (head === 'POST /compliance' && seg[1] === 'marks') {
+    const { ruleKey, period, note } = body;
+    if (!ruleKey || !period) fail(400, 'Rule and period are required.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('compliance_marks').insert({
+      org_id: await myOrgId(), rule_key: ruleKey, period, note: note || '', done_by: user.id,
+    }).select('*, doer:profiles!done_by(id,name)').single();
+    if (error) fail(400, /unique|duplicate/i.test(error.message) ? 'Already marked done for that period.' : error.message);
+    return { mark: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'compliance' && seg[1] === 'marks' && seg.length === 3) {
+    const { error } = await supabase.from('compliance_marks').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
   }
 
   // ---- automation ----

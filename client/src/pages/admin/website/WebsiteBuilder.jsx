@@ -328,10 +328,20 @@ function PagesTab({ orgId, flash }) {
 
 /* ---- Products tab (ecommerce category only) --------------------------------- */
 function ProductModal({ product, onClose, onSaved, flash, orgId }) {
-  const [f, setF] = useState(() => product ? { name: product.name, description: product.description, price: product.price || '', imageUrl: product.image_url } : { name: '', description: '', price: '', imageUrl: '' });
+  const [f, setF] = useState(() => product
+    ? { name: product.name, description: product.description, price: product.price || '', imageUrl: product.image_url, inventoryItemId: product.inventory_item_id || '' }
+    : { name: '', description: '', price: '', imageUrl: '', inventoryItemId: '' });
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  // Optional Inventory link — absent suite just means no picker.
+  const [stockItems, setStockItems] = useState([]);
+  useEffect(() => {
+    import('../../../suites/inventory/inventoryApi.js')
+      // staff-equipment stock (for_staff_use only) is not sellable — never linkable to a store product
+      .then((m) => m.getItems()).then((it) => setStockItems((it || []).filter((x) => x.for_sale !== false))).catch(() => setStockItems([]));
+  }, []);
 
   const uploadImage = async (file) => {
     setUploading(true);
@@ -343,7 +353,7 @@ function ProductModal({ product, onClose, onSaved, flash, orgId }) {
     if (!f.name.trim()) return flash('Product name is required.', true);
     setBusy(true);
     try {
-      const body = { name: f.name.trim(), description: f.description, price: f.price || null, image_url: f.imageUrl };
+      const body = { name: f.name.trim(), description: f.description, price: f.price || null, image_url: f.imageUrl, inventory_item_id: f.inventoryItemId || null };
       const saved = product ? await W.updateProduct(product.id, body) : await W.createProduct(orgId, body);
       flash(product ? 'Product updated.' : 'Product added.'); onSaved(saved); onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
@@ -365,6 +375,15 @@ function ProductModal({ product, onClose, onSaved, flash, orgId }) {
             </Field>
           </div>
           <Field label="Description"><textarea className="input" rows={2} value={f.description} onChange={(e) => set('description', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
+          {stockItems.length > 0 && (
+            <Field label="Track stock from Inventory (optional)">
+              <select className="select" value={f.inventoryItemId} onChange={(e) => set('inventoryItemId', e.target.value)}>
+                <option value="">— not tracked —</option>
+                {stockItems.map((it) => <option key={it.id} value={it.id}>{it.name}{it.sku ? ` (${it.sku})` : ''}</option>)}
+              </select>
+              <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>When an order is marked fulfilled, this item's stock reduces automatically from your shipping warehouse (set under Settings → Stock).</p>
+            </Field>
+          )}
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : product ? 'Save changes' : 'Add product'}</button>
@@ -672,11 +691,22 @@ function SettingsTab({ site, orgId, orgSlug, isStore, onSave, flash }) {
     contactWhatsapp: site.contact_whatsapp, accentColor: site.accent_color, logoUrl: site.logo_url,
     bankName: site.bank_name || '', bankAccountName: site.bank_account_name || '', bankAccountNumber: site.bank_account_number || '',
     enableTransfer: site.enable_transfer !== false, enableCod: site.enable_cod !== false, paymentNote: site.payment_note || '',
+    deliveryFee: site.delivery_fee_naira ?? 0, freeAbove: site.free_delivery_above ?? '', deliveryNote: site.delivery_note || '',
+    stockWarehouseId: site.stock_warehouse_id || '',
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+
+  // Optional cross-suite lookup — a store without the Inventory suite simply
+  // doesn't see the warehouse picker.
+  const [warehouses, setWarehouses] = useState([]);
+  useEffect(() => {
+    if (!isStore) return;
+    import('../../../suites/inventory/inventoryApi.js')
+      .then((m) => m.getWarehouses()).then((w) => setWarehouses(w || [])).catch(() => setWarehouses([]));
+  }, [isStore]);
 
   // Whether this store's own Paystack gateway is switched on (admin-gated;
   // the flag rides in the same payload the public site reads).
@@ -701,6 +731,10 @@ function SettingsTab({ site, orgId, orgSlug, isStore, onSave, flash }) {
         contact_whatsapp: f.contactWhatsapp, accent_color: f.accentColor, logo_url: f.logoUrl,
         bank_name: f.bankName, bank_account_name: f.bankAccountName, bank_account_number: f.bankAccountNumber,
         enable_transfer: f.enableTransfer, enable_cod: f.enableCod, payment_note: f.paymentNote,
+        delivery_fee_naira: Number(f.deliveryFee) || 0,
+        free_delivery_above: f.freeAbove === '' || f.freeAbove == null ? null : Number(f.freeAbove),
+        delivery_note: f.deliveryNote,
+        stock_warehouse_id: f.stockWarehouseId || null,
       });
       flash('Saved.'); onSave();
     } catch (e) { flash(e.message, true); } finally { setSaving(false); }
@@ -754,7 +788,40 @@ function SettingsTab({ site, orgId, orgSlug, isStore, onSave, flash }) {
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, marginBottom: 16, cursor: 'pointer' }}>
             <input type="checkbox" checked={f.enableCod} onChange={(e) => set('enableCod', e.target.checked)} /> Accept pay on delivery
           </label>
-          <div style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '13px 15px', marginBottom: 16, background: 'var(--surface-2)' }}>
+
+          <h3 style={{ fontSize: 14, margin: '18px 0 4px' }}>Delivery fee</h3>
+          <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px', lineHeight: 1.6 }}>
+            Added to every order at checkout. Leave the fee at 0 if delivery is free or you agree it per order on WhatsApp.
+          </p>
+          <div className="form-grid">
+            <Field label="Flat delivery fee (₦)">
+              <input className="input" type="number" min="0" value={f.deliveryFee} onChange={(e) => set('deliveryFee', e.target.value)} />
+            </Field>
+            <Field label="Free delivery for orders above (₦, optional)">
+              <input className="input" type="number" min="0" value={f.freeAbove} onChange={(e) => set('freeAbove', e.target.value)} placeholder="e.g. 50000" />
+            </Field>
+          </div>
+          <Field label="Delivery note shown at checkout (optional)">
+            <input className="input" value={f.deliveryNote} onChange={(e) => set('deliveryNote', e.target.value)} placeholder="Lagos in 48 hours, nationwide within the week." />
+          </Field>
+
+          {warehouses.length > 0 && (
+            <>
+              <h3 style={{ fontSize: 14, margin: '18px 0 4px' }}>Stock</h3>
+              <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px', lineHeight: 1.6 }}>
+                Link products to your Inventory items (Products tab), pick the warehouse orders ship from, and stock
+                moves out automatically the moment you mark an order fulfilled.
+              </p>
+              <Field label="Orders ship from">
+                <select className="select" value={f.stockWarehouseId} onChange={(e) => set('stockWarehouseId', e.target.value)}>
+                  <option value="">— not linked to Inventory —</option>
+                  {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+                </select>
+              </Field>
+            </>
+          )}
+
+          <div style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '13px 15px', margin: '16px 0', background: 'var(--surface-2)' }}>
             <div style={{ fontSize: 13.5, fontWeight: 650, marginBottom: 4 }}>
               Card payments{cardEnabled ? ' — ON' : ''}
             </div>

@@ -5,22 +5,21 @@ export const SUITES = [
   // separate modules (own tiles, own screens) but the paid experience is
   // connected: HR files letters into Documents, the Employee 360 reads Payroll
   // and Benefits. Granting HR auto-selects these in the grant picker.
-  { key: 'hr',          name: 'HR & Staff',         tier: 'core',     status: 'live', desc: 'Employee 360 records, letters, org structure, recruiting, onboarding.', companions: ['benefits', 'payroll', 'documents'] },
+  { key: 'hr',          name: 'HR & Staff',         tier: 'core',     status: 'live', desc: 'Employee 360 records, letters, org structure, recruiting, onboarding.', companions: ['payroll', 'documents'] },
   { key: 'leave',       name: 'Leave Management',   tier: 'core',     status: 'live', desc: 'Requests, approvals and balance tracking.' },
   { key: 'tasks',       name: 'Task & Report',      tier: 'core',     status: 'live', desc: 'Assignments, priorities and productivity reports.' },
   { key: 'visitors',    name: 'Visitor Management', tier: 'core',     status: 'live', desc: 'Front-desk check-in, host alerts, visitor logs.' },
-  { key: 'payroll',     name: 'Payroll',            tier: 'core',     status: 'live', desc: 'Salary structures, payroll runs, statutory deductions, payslips.' },
+  { key: 'payroll',     name: 'Payroll & Benefits', tier: 'core',     status: 'live', desc: '2026 Tax Act payroll runs, payslips, staff loans — plus HMO, pension/PFA and custom benefits, switchable per person.' },
   { key: 'crm',         name: 'CRM',                tier: 'core',     status: 'live', desc: 'Contacts, deals, bookings and money owed — WhatsApp-first.' },
   { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'live', desc: 'Geo-tagged clock-in/out, timesheets, overtime.' },
-  { key: 'benefits',    name: 'Benefits',           tier: 'extended', status: 'live', desc: 'HMO, group life, pension/PFA tracking.' },
-  { key: 'it-assets',   name: 'IT Assets',          tier: 'extended', status: 'live', desc: 'Asset tracking, assignment and lifecycle.' },
   { key: 'procurement', name: 'Procurement',        tier: 'extended', status: 'live', desc: 'Purchase requests, vendors and approvals.' },
-  { key: 'inventory',   name: 'Inventory',          tier: 'extended', status: 'live', desc: 'Stock levels, low-stock alerts, warehouses and bookings.' },
+  { key: 'inventory',   name: 'Inventory & Assets', tier: 'extended', status: 'live', desc: 'Sell stock, staff equipment and company assets — warehouses, bookings, handover and return notes.' },
   { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'live', desc: 'Expenses, budgets and financial reports.' },
   { key: 'projects',    name: 'Projects',           tier: 'extended', status: 'live', desc: 'Milestones, boards and collaboration.' },
   { key: 'documents',   name: 'Documents',          tier: 'extended', status: 'live', desc: 'Secure storage, versioning, permissions.' },
-  { key: 'trade-docs',  name: 'Trade Documents',    tier: 'extended', status: 'live', desc: 'Generate invoices, receipts, goods-received notes and stock release passes.' },
+  { key: 'trade-docs',  name: 'Invoicing & Trade Docs', tier: 'extended', status: 'live', desc: 'Invoices customers pay from a link — plus receipts, receivables, GRNs and stock passes.' },
   { key: 'automation',  name: 'Automation',         tier: 'extended', status: 'live', desc: 'Rules that run your busywork — auto-assign tasks, approvals, reminders and alerts.' },
+  { key: 'compliance',  name: 'Compliance Calendar', tier: 'extended', status: 'live', desc: 'Nigerian statutory deadlines — PAYE, VAT, pension, NHF, CAC — tracked per month, never missed.' },
 ];
 
 // Mirrors server/src/config/suites.js for presentation. The SERVER is authoritative
@@ -33,8 +32,6 @@ export const SUITE_META = {
   payroll:     { icon: 'wallet',     tint: '#b45309' },
   crm:         { icon: 'contacts',   tint: '#0e7c66' },
   attendance:  { icon: 'clock',      tint: '#0369a1' },
-  benefits:    { icon: 'heart',      tint: '#be123c' },
-  'it-assets': { icon: 'laptop',     tint: '#0e7490' },
   procurement: { icon: 'cart',       tint: '#b7791f' },
   inventory:   { icon: 'box',        tint: '#9b2c2c' },
   finance:     { icon: 'coins',      tint: '#2f855a' },
@@ -42,6 +39,7 @@ export const SUITE_META = {
   documents:   { icon: 'doc',        tint: '#475569' },
   'trade-docs':{ icon: 'receipt',    tint: '#7c2d12' },
   automation:  { icon: 'bolt',       tint: '#b45309' },
+  compliance:  { icon: 'shield',     tint: '#166534' },
 };
 
 export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
@@ -51,7 +49,7 @@ export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
 // founding one. Everything
 // else is enforced server-side too (enforce_phase1_suite_scope() strips any
 // other key on write) — this list just keeps the UI honest about it.
-export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents', 'trade-docs', 'automation'];
+export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'procurement', 'inventory', 'finance', 'projects', 'documents', 'trade-docs', 'automation', 'compliance'];
 
 // Payroll runs Nigerian statutory deductions (PAYE, pension, NHF) — it isn't
 // built for any other country's tax/pension regime yet, so it's gated to

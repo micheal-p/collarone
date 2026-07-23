@@ -4,7 +4,7 @@ import { useAuth } from '../../auth/AuthContext.jsx';
 import AppLayout from '../../components/AppLayout.jsx';
 
 const STATUS_LABEL = { pending: 'Pending', confirmed: 'Confirmed', failed: 'Failed', cancelled: 'Cancelled' };
-const TYPE_LABEL = { activation_fee: 'Activation fee', credit_purchase: 'Seat credits' };
+const TYPE_LABEL = { activation_fee: 'Activation fee', credit_purchase: 'Seat credits', renewal: 'Subscription renewal' };
 const CREDIT_OPTIONS = [1, 2, 3, 5, 10, 20];
 
 const naira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
@@ -56,6 +56,8 @@ export default function AdminBilling() {
   const [credits, setCredits] = useState(5);
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState(null); // most recent unconfirmed purchase
+  const [renewBusy, setRenewBusy] = useState(0);
+  const [receipt, setReceipt] = useState(null);
   const [toast, setToast] = useState(null);
 
   const flash = (msg, isErr) => { setToast({ msg, isErr }); setTimeout(() => setToast(null), 3200); };
@@ -79,8 +81,19 @@ export default function AdminBilling() {
     } catch (e) { flash(e.message, true); } finally { setBusy(false); }
   };
 
+  const renew = async (months) => {
+    setRenewBusy(months);
+    try {
+      const { transaction } = await apiPost('/billing/renew', { months });
+      setPending(transaction);
+      flash(`Renewal reference generated — ${naira(transaction.amount_kobo)} for ${months === 12 ? '12 months' : '1 month'}.`);
+      load();
+    } catch (e) { flash(e.message, true); } finally { setRenewBusy(0); }
+  };
+
   // The rate locked at signup — matches exactly what the server charges.
   const seatKobo = user?.org?.perSeatKobo || 200000;
+  const periodEnd = user?.org?.currentPeriodEnd;
 
   return (
     <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Billing' }]} title="Billing">
@@ -94,7 +107,14 @@ export default function AdminBilling() {
         <div style={{ padding: 22, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 'var(--radius-lg)' }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.05em' }}>Your plan</div>
           <div style={{ fontSize: 20, fontWeight: 650, marginTop: 6, textTransform: 'capitalize' }}>{user?.org?.planTier || '—'}</div>
-          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '6px 0 0' }}>Rate locked at sign-up — your base fee and per-seat cost don't change even as our plans grow.</p>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '6px 0 12px' }}>
+            {periodEnd ? <>Subscription runs until <strong>{fmtDate(periodEnd)}</strong>. </> : null}
+            Rate locked at sign-up — your base fee and per-seat cost don't change even as our plans grow.
+          </p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" disabled={!!renewBusy} onClick={() => renew(1)}>{renewBusy === 1 ? 'Working…' : 'Renew 1 month'}</button>
+            <button className="btn btn-ghost" disabled={!!renewBusy} onClick={() => renew(12)}>{renewBusy === 12 ? 'Working…' : 'Renew 12 months — save 15%'}</button>
+          </div>
         </div>
       </div>
 
@@ -119,7 +139,7 @@ export default function AdminBilling() {
           <button className="btn btn-ghost" disabled={!transactions.length} onClick={() => downloadCsv(transactions)}>Download CSV</button>
         </div>
         <table className="table">
-          <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Amount</th><th>Status</th></tr></thead>
+          <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Amount</th><th>Status</th><th></th></tr></thead>
           <tbody>
             {loading && <tr><td colSpan={5} className="td-empty">Loading…</td></tr>}
             {!loading && transactions.length === 0 && <tr><td colSpan={5} className="td-empty">No transactions yet.</td></tr>}
@@ -130,6 +150,12 @@ export default function AdminBilling() {
                 <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5 }}>{t.reference}</td>
                 <td>{naira(t.amount_kobo)}</td>
                 <td><span className={`status-dot ${t.status === 'confirmed' ? 'active' : 'disabled'}`} />{STATUS_LABEL[t.status] || t.status}</td>
+                <td style={{ display: 'flex', gap: 6 }}>
+                  {t.status === 'pending' && payOnline && (
+                    <button className="iconbtn" disabled={paying} onClick={() => payNow(t)}>Pay online</button>
+                  )}
+                  {t.status === 'confirmed' && <button className="iconbtn" onClick={() => setReceipt(t)}>Receipt</button>}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -160,7 +186,52 @@ export default function AdminBilling() {
           </div>
         </div>
       )}
+      {receipt && <ReceiptModal tx={receipt} orgName={user?.org?.name} onClose={() => setReceipt(null)} />}
       {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
     </AppLayout>
+  );
+}
+
+// Printable receipt — window.print() with everything but the receipt hidden,
+// so "Save as PDF" in the print dialog is the PDF receipt.
+function ReceiptModal({ tx, orgName, onClose }) {
+  const line = { display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #eee', fontSize: 14 };
+  return (
+    <div className="modal-overlay" onMouseDown={onClose}>
+      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+        <style>{`@media print {
+          body * { visibility: hidden; }
+          #co-receipt, #co-receipt * { visibility: visible; }
+          #co-receipt { position: absolute; top: 0; left: 0; width: 100%; }
+          .no-print { display: none !important; }
+        }`}</style>
+        <div className="modal-body">
+          <div id="co-receipt" style={{ padding: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+              <div>
+                <div style={{ fontFamily: 'Georgia, serif', fontSize: 20, fontWeight: 650 }}>Collar<em style={{ color: '#FF5B1F' }}>One</em></div>
+                <div style={{ fontSize: 12, color: '#667' }}>collarone.app · collaroneapp@gmail.com</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Receipt</div>
+                <div style={{ fontSize: 12, color: '#667', fontFamily: 'ui-monospace, monospace' }}>{tx.reference}</div>
+              </div>
+            </div>
+            <hr style={{ border: 'none', borderTop: '2px solid #14171f', margin: '10px 0 14px' }} />
+            <div style={line}><span>Billed to</span><strong>{orgName || '—'}</strong></div>
+            <div style={line}><span>Date</span><strong>{fmtDate(tx.confirmed_at || tx.created_at)}</strong></div>
+            <div style={line}><span>Item</span><strong>{TYPE_LABEL[tx.type] || tx.type}{tx.type === 'renewal' ? ` — ${tx.months === 12 ? '12 months' : '1 month'}` : ''}{tx.type === 'credit_purchase' ? ` — ${tx.credits_granted} credit${tx.credits_granted === 1 ? '' : 's'}` : ''}</strong></div>
+            <div style={line}><span>Payment method</span><strong>{tx.method === 'paystack' ? 'Card (Paystack)' : 'Bank transfer'}</strong></div>
+            <div style={{ ...line, borderBottom: 'none', fontSize: 17 }}><span style={{ fontWeight: 700 }}>Amount paid</span><strong>{naira(tx.amount_kobo)}</strong></div>
+            <div style={{ marginTop: 10, display: 'inline-block', background: '#dff6dd', color: '#1a6a1a', fontWeight: 800, fontSize: 11, letterSpacing: '0.08em', borderRadius: 100, padding: '4px 12px' }}>PAID</div>
+            <p style={{ fontSize: 11.5, color: '#889', marginTop: 14 }}>Thank you for building on Collarone. This receipt confirms payment of the amount above for your Collarone workspace subscription.</p>
+          </div>
+          <div className="modal-actions no-print">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
+            <button type="button" className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -8,7 +8,7 @@ import './Signup.css';
 // Tiers differ in included-suite count, base fee, support level and
 // contract terms, not in which suites you're allowed to use.
 export { PER_STAFF_FEE, PLANS, ANNUAL_DISCOUNT } from '../lib/pricing.js';
-import { PER_STAFF_FEE, PLANS, ANNUAL_DISCOUNT } from '../lib/pricing.js';
+import { PER_STAFF_FEE, PLANS, ANNUAL_DISCOUNT, usePricing } from '../lib/pricing.js';
 
 // Nigeria-first, but Collarone's stated long-term goal is global — this is
 // the first real signal toward that, captured at signup rather than guessed.
@@ -44,6 +44,7 @@ async function callSignup(action, payload) {
 }
 
 export default function Signup() {
+  usePricing(); // live published prices re-render the plan cards
   const [params] = useSearchParams();
   const nav = useNavigate();
   const [stepIdx, setStepIdx] = useState(0);

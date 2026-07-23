@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as INV from './inventoryApi.js';
+import { createDocument as createTradeDoc, setDocMeta } from '../tradeDocs/tradeDocsApi.js';
+import ReturnConditionModal from '../../components/ReturnConditionModal.jsx';
+import { ManagerView as AssetsManagerView, StaffView as AssetsStaffView } from '../itassets/ITAssetsApp.jsx';
+import { useAuth } from '../../auth/AuthContext.jsx';
 import { getStaff } from '../tasks/taskApi.js';
 import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
 
@@ -52,14 +56,24 @@ function ItemModal({ onClose, onSaved, flash }) {
             <Field label="Category"><input className="input" value={f.category} onChange={(e) => set('category', e.target.value)} placeholder="e.g. Raw materials, Drinks" /></Field>
             <Field label="Low-stock alert at"><input className="input" type="number" value={f.reorderLevel} onChange={(e) => set('reorderLevel', e.target.value)} placeholder="e.g. 10" /></Field>
           </div>
-          <Field label="">
-            <div style={{ display: 'flex', gap: 16, fontSize: 13, fontWeight: 400 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input type="checkbox" checked={f.forSale} onChange={(e) => set('forSale', e.target.checked)} /> For sale
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input type="checkbox" checked={f.forStaffUse} onChange={(e) => set('forStaffUse', e.target.checked)} /> Staff can take out
-              </label>
+          <Field label="What kind of stock is this? *">
+            <div style={{ display: 'grid', gap: 8 }}>
+              {[
+                ['sell', 'Sell stock', 'Products customers buy — store orders and invoices draw it down.', true, false],
+                ['staff', 'Staff equipment', 'Taken out by a staff member and returned — tools, gear, uniforms, loaners.', false, true],
+                ['both', 'Both', 'Sold to customers AND checked out by staff (e.g. demo units).', true, true],
+              ].map(([key, title, hint, sale, staffUse]) => {
+                const active = f.forSale === sale && f.forStaffUse === staffUse;
+                return (
+                  <label key={key} className="card" style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'flex-start', border: active ? '2px solid var(--brand)' : undefined }}>
+                    <input type="radio" name="itemType" checked={active} onChange={() => { set('forSale', sale); set('forStaffUse', staffUse); }} style={{ marginTop: 3 }} />
+                    <span>
+                      <span style={{ fontWeight: 650, fontSize: 13.5, display: 'block' }}>{title}</span>
+                      <span className="muted" style={{ fontSize: 12.5 }}>{hint}</span>
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </Field>
           <div className="modal-actions">
@@ -182,11 +196,23 @@ function TakeoutModal({ items, warehouses, onClose, onSaved, flash }) {
       const saved = await INV.createTakeout(f);
       const item = items.find((i) => i.id === f.itemId);
       const member = staff.find((s) => s.id === f.staffId);
-      INV.generateTakeoutDoc({
-        kind: 'Takeout Request', itemName: item?.name || '', quantity: f.quantity, unit: item?.unit || '',
-        staffId: f.staffId, staffName: member?.name || '', approverId: saved.approved_by, approverName: saved.approver?.name || 'Approver', notes: f.notes,
-      });
-      flash('Takeout recorded. Form downloaded — filing to Documents in the background.');
+      // Custody paperwork: a numbered Handover Note on the company letterhead
+      // (Invoicing & Trade Docs). Falls back to the plain downloadable form
+      // when the org doesn't run that suite.
+      try {
+        const doc = await createTradeDoc({
+          docType: 'handover', partyName: member?.name || '',
+          items: [{ description: `${item?.name || 'Item'} (${f.quantity} ${item?.unit || ''})`.trim(), qty: Number(f.quantity), unit_price: 0 }],
+          reference: 'Staff takeout', notes: f.notes || 'Return expected.', vatRate: 0,
+        });
+        flash(`Takeout recorded — handover note ${doc.doc_no} filed in Invoicing & Trade Docs.`);
+      } catch {
+        INV.generateTakeoutDoc({
+          kind: 'Takeout Request', itemName: item?.name || '', quantity: f.quantity, unit: item?.unit || '',
+          staffId: f.staffId, staffName: member?.name || '', approverId: saved.approved_by, approverName: saved.approver?.name || 'Approver', notes: f.notes,
+        });
+        flash('Takeout recorded. Form downloaded — filing to Documents in the background.');
+      }
       onSaved(saved);
       onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
@@ -236,7 +262,11 @@ export default function InventoryApp({ access }) {
   const [reservations, setReservations] = useState([]);
   const [takeouts, setTakeouts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const orgId = user?.org?.id;
   const [tab, setTab] = useState('items');
+  const [typeFilter, setTypeFilter] = useState('all'); // all | sell | staff
+  const [returnTarget, setReturnTarget] = useState(null);
   const [itemModal, setItemModal] = useState(false);
   const [whModal, setWhModal] = useState(false);
   const [moveModal, setMoveModal] = useState(false);
@@ -278,18 +308,31 @@ export default function InventoryApp({ access }) {
   };
 
   const activeTakeouts = takeouts.filter((t) => t.status === 'approved');
-  const returnTakeout = async (t) => {
+  // Return goes through the inspection form first (condition, issues, photo),
+  // then produces the numbered Goods Return Note carrying that inspection.
+  const completeReturn = async (t, { condition, issues, photoUrl }) => {
+    const saved = await INV.returnTakeout(t.id);
+    const conditionLabel = { optimal: 'Optimal', minor: 'Minor wear', damaged: 'DAMAGED' }[condition] || condition;
     try {
-      const saved = await INV.returnTakeout(t.id);
+      const doc = await createTradeDoc({
+        docType: 'return_note', partyName: t.staff?.name || '',
+        items: [{ description: `${t.item?.name || 'Item'} (${t.quantity} ${t.item?.unit || ''})`.trim(), qty: Number(t.quantity), unit_price: 0 }],
+        reference: 'Takeout return',
+        notes: `Condition: ${conditionLabel}.${issues ? ` Issues: ${issues}` : ''}`, vatRate: 0,
+      });
+      setDocMeta(doc.id, { condition, issues, photo_url: photoUrl || '' }).catch(() => {});
+      flash(`Returned — goods return note ${doc.doc_no} filed in Invoicing & Trade Docs.`);
+    } catch {
       INV.generateTakeoutDoc({
         kind: 'Return Form', itemName: t.item?.name || '', quantity: t.quantity, unit: t.item?.unit || '',
-        staffId: t.staff_id, staffName: t.staff?.name || '', approverId: t.approved_by, approverName: t.approver?.name || 'Approver', notes: '',
+        staffId: t.staff_id, staffName: t.staff?.name || '', approverId: t.approved_by, approverName: t.approver?.name || 'Approver', notes: issues,
       });
       flash('Returned. Form downloaded — filing to Documents in the background.');
-      setTakeouts((ts) => ts.map((x) => (x.id === saved.id ? saved : x)));
-      load();
-    } catch (e) { flash(e.message, true); }
+    }
+    setTakeouts((ts) => ts.map((x) => (x.id === saved.id ? saved : x)));
+    load();
   };
+  const returnTakeout = (t) => setReturnTarget(t);
   const cancelTakeout = async (t) => {
     const ok = await confirm({ title: 'Cancel this takeout?', message: 'The stock returns to inventory.', confirmLabel: 'Cancel takeout', cancelLabel: 'Keep takeout' });
     if (!ok) return;
@@ -304,6 +347,7 @@ export default function InventoryApp({ access }) {
         <button className={`lv-tab ${tab === 'movements' ? 'active' : ''}`} onClick={() => setTab('movements')}>Movements</button>
         <button className={`lv-tab ${tab === 'bookings' ? 'active' : ''}`} onClick={() => setTab('bookings')}>Bookings{heldReservations.length > 0 ? ` (${heldReservations.length})` : ''}</button>
         <button className={`lv-tab ${tab === 'takeouts' ? 'active' : ''}`} onClick={() => setTab('takeouts')}>Staff Takeouts{activeTakeouts.length > 0 ? ` (${activeTakeouts.length})` : ''}</button>
+        <button className={`lv-tab ${tab === 'assets' ? 'active' : ''}`} onClick={() => setTab('assets')}>Company assets</button>
         <button className={`lv-tab ${tab === 'warehouses' ? 'active' : ''}`} onClick={() => setTab('warehouses')}>Warehouses</button>
         {isManager && tab === 'items' && <button className="btn btn-primary lv-apply" onClick={() => setItemModal(true)}>Add item</button>}
         {isManager && tab === 'movements' && items.length > 0 && warehouses.length > 0 && (
@@ -327,25 +371,47 @@ export default function InventoryApp({ access }) {
       )}
 
       {!loading && tab === 'items' && (
-        <div className="table-wrap">
-          <table className="table">
-            <thead><tr><th>Item code</th><th>Item</th><th>Category</th><th>On hand</th><th>Available</th><th>Low-stock alert</th>{isManager && <th></th>}</tr></thead>
-            <tbody>
-              {items.length === 0 && <tr><td colSpan={isManager ? 7 : 6} style={{ padding: 0 }}><EmptyState title="No stock items yet" hint={isManager ? 'Use "Add item" to start tracking stock.' : 'Items will appear here once a manager adds them.'} /></td></tr>}
-              {items.map((i) => (
-                <tr key={i.id} style={INV.isLowStock(i) ? { background: '#fff8f8' } : {}}>
-                  <td className="muted" style={{ fontSize: 13, fontFamily: 'monospace' }}>{i.sku}</td>
-                  <td style={{ fontWeight: 500 }}>{i.name}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{i.category || '—'}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{INV.totalQuantity(i)} {i.unit}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{INV.availableQuantity(i, reservations)} {i.unit}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{i.reorder_level}</td>
-                  {isManager && <td><button className="iconbtn" onClick={() => removeItem(i)}>Delete</button></td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div style={{ display: 'flex', gap: 6, margin: '2px 0 12px' }}>
+            {[['all', `All (${items.length})`], ['sell', `Sell stock (${items.filter((i) => i.for_sale).length})`], ['staff', `Staff equipment (${items.filter((i) => i.for_staff_use).length})`]].map(([k, label]) => (
+              <button key={k} type="button" className="btn btn-ghost" onClick={() => setTypeFilter(k)}
+                style={{ padding: '5px 14px', fontSize: 12.5, borderRadius: 100, ...(typeFilter === k ? { background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff' } : {}) }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="table-wrap">
+            <table className="table">
+              <thead><tr><th>Item code</th><th>Item</th><th>Type</th><th>Category</th><th>On hand</th><th>Available</th><th>Out with staff</th><th>Low-stock alert</th>{isManager && <th></th>}</tr></thead>
+              <tbody>
+                {items.length === 0 && <tr><td colSpan={isManager ? 9 : 8} style={{ padding: 0 }}><EmptyState title="No stock items yet" hint={isManager ? 'Use "Add item" to start tracking stock.' : 'Items will appear here once a manager adds them.'} /></td></tr>}
+                {items
+                  .filter((i) => (typeFilter === 'sell' ? i.for_sale : typeFilter === 'staff' ? i.for_staff_use : true))
+                  .map((i) => {
+                    const outQty = activeTakeouts.filter((t) => t.item_id === i.id).reduce((sum, t) => sum + Number(t.quantity), 0);
+                    return (
+                      <tr key={i.id} style={INV.isLowStock(i) ? { background: '#fff8f8' } : {}}>
+                        <td className="muted" style={{ fontSize: 13, fontFamily: 'monospace' }}>{i.sku}</td>
+                        <td style={{ fontWeight: 500 }}>{i.name}</td>
+                        <td>
+                          <span style={{ display: 'inline-flex', gap: 4 }}>
+                            {i.for_sale && <span className="badge" style={{ background: '#deecfd', color: '#194b8f' }}>Sell</span>}
+                            {i.for_staff_use && <span className="badge" style={{ background: '#f0e6ff', color: '#4f00b3' }}>Staff</span>}
+                          </span>
+                        </td>
+                        <td className="muted" style={{ fontSize: 13 }}>{i.category || '—'}</td>
+                        <td className="muted" style={{ fontSize: 13 }}>{INV.totalQuantity(i)} {i.unit}</td>
+                        <td className="muted" style={{ fontSize: 13 }}>{i.for_sale ? `${INV.availableQuantity(i, reservations)} ${i.unit}` : '—'}</td>
+                        <td className="muted" style={{ fontSize: 13, fontWeight: outQty > 0 ? 650 : 400 }}>{i.for_staff_use ? `${outQty} ${i.unit}` : '—'}</td>
+                        <td className="muted" style={{ fontSize: 13 }}>{i.reorder_level}</td>
+                        {isManager && <td><button className="iconbtn" onClick={() => removeItem(i)}>Delete</button></td>}
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {!loading && tab === 'bookings' && (
@@ -387,7 +453,13 @@ export default function InventoryApp({ access }) {
                   <td className="muted" style={{ fontSize: 13 }}>{t.staff?.name}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{t.quantity}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{t.approver?.name}</td>
-                  <td><span className="badge">{t.status}</span></td>
+                  <td>
+                    {t.status === 'approved' ? (() => {
+                      const days = Math.floor((Date.now() - new Date(t.created_at).getTime()) / 86400000);
+                      const long = days >= 14;
+                      return <span className="badge" style={long ? { background: '#fde7e9', color: '#a4262c' } : { background: '#deecfd', color: '#194b8f' }}>out {days === 0 ? 'today' : `${days}d`}</span>;
+                    })() : <span className="badge">{t.status}</span>}
+                  </td>
                   <td className="muted" style={{ fontSize: 13 }}>{INV.fmtDt(t.created_at)}</td>
                   {isManager && (
                     <td style={{ display: 'flex', gap: 6 }}>
@@ -401,6 +473,8 @@ export default function InventoryApp({ access }) {
           </table>
         </div>
       )}
+
+      {tab === 'assets' && (isManager ? <AssetsManagerView flash={flash} /> : <AssetsStaffView flash={flash} />)}
 
       {!loading && tab === 'movements' && (
         <div className="table-wrap">
@@ -442,6 +516,15 @@ export default function InventoryApp({ access }) {
       {whModal && <WarehouseModal onClose={() => setWhModal(false)} onSaved={load} flash={flash} />}
       {moveModal && <MovementModal items={items} warehouses={warehouses} onClose={() => setMoveModal(false)} onSaved={load} flash={flash} />}
       {reserveModal && <ReserveModal items={items} warehouses={warehouses} onClose={() => setReserveModal(false)} onSaved={(r) => setReservations((rs) => [r, ...rs])} flash={flash} />}
+      {returnTarget && (
+        <ReturnConditionModal
+          title="Return inspection"
+          itemLabel={`${returnTarget.item?.name || 'Item'} — ${returnTarget.staff?.name || ''}`}
+          orgId={orgId} flash={flash}
+          onClose={() => setReturnTarget(null)}
+          onSubmit={(data) => completeReturn(returnTarget, data)}
+        />
+      )}
       {takeoutModal && <TakeoutModal items={items} warehouses={warehouses} onClose={() => setTakeoutModal(false)} onSaved={load} flash={flash} />}
       {toastNode}
       {confirmNode}

@@ -25,6 +25,19 @@ export const updateLine = (id, body) => apiPatch(`/payroll/lines/${id}`, body).t
 
 export const getMyPayslips = () => apiGet('/payroll/mypayslips').then((d) => d.payslips);
 
+// Staff loans & salary advances — repaid by payroll deduction, instruction-only
+export const getLoans = () => apiGet('/payroll/loans').then((d) => d.loans);
+export const requestLoan = (body) => apiPost('/payroll/loans', body).then((d) => d.loan);
+export const decideLoan = (id, decision, installment) => apiPost(`/payroll/loans/${id}/decide`, { decision, installment }).then((d) => d.loan);
+export const loanBalance = (l) => Math.max(0, Number(l.principal) - Number(l.repaid || 0));
+export const LOAN_STATUS = {
+  pending:   { label: 'Pending',   cls: 'lc-req-draft' },
+  active:    { label: 'Active',    cls: 'lc-req-filled' },
+  rejected:  { label: 'Rejected',  cls: 'lc-exit-settled' },
+  closed:    { label: 'Repaid',    cls: 'lc-exit-done' },
+  cancelled: { label: 'Cancelled', cls: 'lc-req-draft' },
+};
+
 export const getRates = () => apiGet('/payroll/rates');
 export const updateDeductionRate = (key, rate) => apiPatch(`/payroll/rates/${key}`, { rate }).then((d) => d.rate);
 export const updatePayeBand = (id, body) => apiPatch(`/payroll/paye-bands/${id}`, body).then((d) => d.band);

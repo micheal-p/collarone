@@ -85,6 +85,9 @@ export default async function handler(req, res) {
           org_id: tx.org_id, delta: tx.credits_granted, reason: 'purchase', related_transaction_id: tx.id, created_by: tx.created_by,
         });
       }
+    } else if (tx.type === 'renewal') {
+      // reactivates + extends current_period_end by tx.months (never shortens)
+      await admin.rpc('apply_confirmed_renewal', { p_tx_id: tx.id });
     }
     await admin.from('platform_admin_audit_log').insert({
       actor_id: tx.created_by, action: 'confirm_payment', target_org_id: tx.org_id,

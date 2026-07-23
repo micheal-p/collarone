@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as IA from './itAssetsApi.js';
+import { createDocument as createTradeDoc, setDocMeta } from '../tradeDocs/tradeDocsApi.js';
+import ReturnConditionModal from '../../components/ReturnConditionModal.jsx';
+import { useAuth } from '../../auth/AuthContext.jsx';
 import { apiGet } from '../../api/client.js';
 import { useToast, useConfirm, Modal, EmptyState, searchMatcher } from '../../components/ui.jsx';
 
@@ -70,7 +73,15 @@ function AssignModal({ asset, onClose, onSaved, flash }) {
     setBusy(true);
     try {
       const saved = await IA.updateAsset(asset.id, { action: 'assign', employeeId, notes });
-      flash('Asset assigned.'); onSaved(saved); onClose();
+      // Custody paperwork — numbered handover note the employee signs.
+      const member = staff.find((x) => x.id === employeeId);
+      createTradeDoc({
+        docType: 'handover', partyName: member?.name || '',
+        items: [{ description: `${asset.name}${asset.serial_number ? ` — SN ${asset.serial_number}` : ''}`, qty: 1, unit_price: 0 }],
+        reference: 'IT asset assignment', notes: notes || 'Return on exit or reassignment.', vatRate: 0,
+      }).then((doc) => flash(`Asset assigned — handover note ${doc.doc_no} filed in Invoicing & Trade Docs.`))
+        .catch(() => flash('Asset assigned.'));
+      onSaved(saved); onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
 
@@ -133,13 +144,16 @@ const FILTERS = [
   { key: 'retired', label: 'Retired' },
 ];
 
-function ManagerView({ flash }) {
+export function ManagerView({ flash }) {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
   const [assignFor, setAssignFor] = useState(null);
   const [historyFor, setHistoryFor] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [returnTarget, setReturnTarget] = useState(null);
+  const { user } = useAuth();
+  const orgId = user?.org?.id;
   const [q, setQ] = useState('');
   const { confirm, confirmNode } = useConfirm();
 
@@ -157,9 +171,25 @@ function ManagerView({ flash }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const returnAsset = async (a) => {
-    try { await IA.updateAsset(a.id, { action: 'return' }); flash('Asset returned.'); load(); } catch (e) { flash(e.message, true); }
+  const completeReturn = async (a, { condition, issues, photoUrl }) => {
+    const holder = a.employee?.name || '';
+    await IA.updateAsset(a.id, { action: 'return' });
+    const conditionLabel = { optimal: 'Optimal', minor: 'Minor wear', damaged: 'DAMAGED' }[condition] || condition;
+    try {
+      const doc = await createTradeDoc({
+        docType: 'return_note', partyName: holder,
+        items: [{ description: `${a.name}${a.serial_number ? ` — SN ${a.serial_number}` : ''}`, qty: 1, unit_price: 0 }],
+        reference: 'IT asset return',
+        notes: `Condition: ${conditionLabel}.${issues ? ` Issues: ${issues}` : ''}`, vatRate: 0,
+      });
+      setDocMeta(doc.id, { condition, issues, photo_url: photoUrl || '' }).catch(() => {});
+      flash(`Asset returned — goods return note ${doc.doc_no} filed.`);
+    } catch {
+      flash('Asset returned.');
+    }
+    load();
   };
+  const returnAsset = (a) => setReturnTarget(a);
   const sendToRepair = async (a) => {
     const res = await confirm({
       title: `Send ${a.name} to repair?`,
@@ -250,12 +280,21 @@ function ManagerView({ flash }) {
       )}
       {assignFor && <AssignModal asset={assignFor} onClose={() => setAssignFor(null)} onSaved={load} flash={flash} />}
       {historyFor && <HistoryModal asset={historyFor} onClose={() => setHistoryFor(null)} flash={flash} />}
+      {returnTarget && (
+        <ReturnConditionModal
+          title="Return inspection"
+          itemLabel={`${returnTarget.name}${returnTarget.serial_number ? ` — SN ${returnTarget.serial_number}` : ''}`}
+          orgId={orgId} flash={flash}
+          onClose={() => setReturnTarget(null)}
+          onSubmit={(data) => completeReturn(returnTarget, data)}
+        />
+      )}
       {confirmNode}
     </>
   );
 }
 
-function StaffView({ flash }) {
+export function StaffView({ flash }) {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => { IA.getAssets().then(setAssets).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); }, [flash]);

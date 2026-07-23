@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import PublicThemeGallery from '../components/PublicThemeGallery.jsx';
+import CardCarousel from '../components/CardCarousel.jsx';
 import { motion, animate, AnimatePresence, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
 import { SUITES, SUITE_META } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
+import { supabase } from '../lib/supabaseClient.js';
 import ChatWidget from './ChatWidget.jsx';
-import { PLANS, PER_STAFF_FEE, ANNUAL_DISCOUNT, naira } from '../lib/pricing.js';
+import { PLANS, PRICING, usePricing, naira } from '../lib/pricing.js';
 import shotHome from '../assets/shots/home.jpg';
 import shotTasks from '../assets/shots/tasks.jpg';
 import shotCrm from '../assets/shots/crm.jpg';
@@ -134,9 +137,38 @@ const GALLERY_SHOTS = [
 const marqueeItems = ['Staff Directory', 'Leave Management', 'Task Tracking', 'Visitor Sign-in', 'Recruiting & Careers', 'Onboarding', 'Performance Reviews', 'Compliance Vault', 'Payroll — PAYE · Pension · NHF', 'Customer CRM', 'Website Builder', 'Invoicing & GRNs', 'Automation'];
 
 // pricing comes from the single shared model — do not restate numbers here
-const PRICE_TIERS = PLANS.map((t) => ({ key: t.key, name: t.name, baseFee: t.baseFee, included: t.includedSuites, extraFee: t.extraSuiteFee }));
+const priceTiers = () => PLANS.map((t) => ({ key: t.key, name: t.name, baseFee: t.baseFee, included: t.includedSuites, extraFee: t.extraSuiteFee }));
+
+// "Try before you pay" — live demo buttons for whichever suites the platform
+// admin has opened for public demo. Renders nothing if none are enabled.
+function TrySuiteStrip() {
+  const [keys, setKeys] = useState([]);
+  useEffect(() => {
+    supabase.from('platform_demo_suites').select('suite_key').eq('enabled', true)
+      .then(({ data }) => setKeys((data || []).map((r) => r.suite_key).filter((k) => SUITES.some((s) => s.key === k))))
+      .catch(() => {});
+  }, []);
+  if (!keys.length) return null;
+  return (
+    <Reveal className="cl-try-strip">
+      <span className="cl-try-label">Try a suite right now — sample data, no sign-up:</span>
+      {keys.map((k) => {
+        const s2 = SUITES.find((x) => x.key === k);
+        const meta = SUITE_META[k] || {};
+        return (
+          <Link key={k} className="cl-try-chip" to={`/try/${k}`}>
+            <span className="cl-try-ic" style={{ background: meta.tint }}><SuiteIcon name={meta.icon || 'grid'} size={13} color="#fff" /></span>
+            {s2.name}
+          </Link>
+        );
+      })}
+    </Reveal>
+  );
+}
 
 function PriceCalculator() {
+  const { perStaff, annualDiscount } = usePricing();
+  const PRICE_TIERS = priceTiers();
   const [tierKey, setTierKey] = useState('standard');
   const [selected, setSelected] = useState(() => new Set(SUITES.slice(0, 5).map((s) => s.key)));
   const [staffCount, setStaffCount] = useState(10);
@@ -144,12 +176,12 @@ function PriceCalculator() {
   const tier = PRICE_TIERS.find((t) => t.key === tierKey);
   const suiteCount = selected.size;
   const extra = Math.max(0, suiteCount - tier.included);
-  const monthly = tier.baseFee + extra * tier.extraFee + staffCount * PER_STAFF_FEE;
-  const total = yearly ? monthly * 12 * (1 - ANNUAL_DISCOUNT) : monthly;
+  const monthly = tier.baseFee + extra * tier.extraFee + staffCount * perStaff;
+  const total = yearly ? monthly * 12 * (1 - annualDiscount) : monthly;
 
   const pickTier = (key) => {
     setTierKey(key);
-    setSelected(new Set(SUITES.slice(0, PRICE_TIERS.find((t) => t.key === key).included).map((s) => s.key)));
+    setSelected(new Set(SUITES.slice(0, priceTiers().find((t) => t.key === key).included).map((s) => s.key)));
   };
 
   const toggleSuite = (key) => {
@@ -213,8 +245,8 @@ function PriceCalculator() {
       <div className="cl-calc-lines">
         <div><span>{tier.name} plan — {tier.included} suites included</span><b>{naira(tier.baseFee)}/mo</b></div>
         {extra > 0 && <div><span>{extra} extra suite{extra === 1 ? '' : 's'} × {naira(tier.extraFee)}</span><b>{naira(extra * tier.extraFee)}/mo</b></div>}
-        <div><span>{staffCount} staff × {naira(PER_STAFF_FEE)}</span><b>{naira(staffCount * PER_STAFF_FEE)}/mo</b></div>
-        {yearly && <div className="save"><span>Yearly billing — {Math.round(ANNUAL_DISCOUNT * 100)}% off</span><b>−{naira(Math.round(monthly * 12 * ANNUAL_DISCOUNT))}/yr</b></div>}
+        <div><span>{staffCount} staff × {naira(perStaff)}</span><b>{naira(staffCount * perStaff)}/mo</b></div>
+        {yearly && <div className="save"><span>Yearly billing — {Math.round(annualDiscount * 100)}% off</span><b>−{naira(Math.round(monthly * 12 * annualDiscount))}/yr</b></div>}
       </div>
       <div className="cl-calc-result">
         <div>
@@ -242,12 +274,12 @@ const modules = [
   {
     name: 'People & Operations', status: 'live',
     desc: 'A directory with a full Employee 360 per person, company letters drafted by Collarone AI on your own letterhead, probation and disciplinary flows done properly, leave, tasks, the front desk and HR analytics.',
-    suites: ['hr', 'leave', 'tasks', 'visitors', 'attendance', 'benefits', 'automation'],
+    suites: ['hr', 'leave', 'tasks', 'visitors', 'attendance', 'automation'],
   },
   {
     name: 'Money & Assets', status: 'live',
     desc: 'Payroll with real Nigerian statutory deductions, invoices and GRNs with your own letterhead, plus everything that keeps a business funded and equipped.',
-    suites: ['payroll', 'finance', 'procurement', 'inventory', 'it-assets', 'trade-docs'],
+    suites: ['payroll', 'finance', 'procurement', 'inventory', 'trade-docs'],
   },
   {
     name: 'Customers & Growth', status: 'live',
@@ -258,21 +290,25 @@ const modules = [
 
 const FAQ_CATS = ['All', 'General', 'Pricing', 'Product', 'Security'];
 const faqs = [
-  { cat: 'General', q: 'What is Collarone?', a: 'Collarone is a full business platform for Nigerian companies — HR, leave, tasks, visitor management, payroll, CRM, finance, projects, documents and more, all under one login, priced and billed in naira.' },
-  { cat: 'Pricing', q: 'Is Collarone only for large companies?', a: 'No. Startup is ₦15,000 a month, includes any 3 suites of your choice, and every suite ships complete — not a stripped-down trial. Small teams get the same real directory, leave, tasks and visitor management as an Enterprise customer.' },
-  { cat: 'Pricing', q: 'How much does Collarone cost?', a: 'Every tier is à la carte — pick whichever suites you need. Startup is ₦15,000/mo with 3 suites included (₦8,000 per extra suite). Standard is ₦25,000/mo with 5 included (₦6,000/extra). Enterprise is ₦45,000/mo with 8 included (₦4,000/extra). Every tier adds ₦2,000/staff, and paying yearly saves 15% off the total. Your rate locks in at sign-up. No dollar pricing, no forex markup.' },
-  { cat: 'Product', q: 'Does Collarone include a website builder?', a: 'Yes, on every tier. Pick from 10 starter themes across online store, landing page and company-profile categories, edit every page and block directly, and already have a site? Just link it instead — no migration required.' },
-  { cat: 'Product', q: 'Is there a CRM for managing customers?', a: 'Yes — contacts, companies, a WhatsApp-first activity log, a deals pipeline valued in naira, a bookings day-sheet for appointments, and a Money Owed tracker that ages what customers owe you. An embeddable contact-form widget captures leads from your own website too, straight into your CRM.' },
-  { cat: 'Product', q: 'Can Collarone run my hiring end to end?', a: 'Yes — post a role to your public careers page, move applicants through a kanban pipeline with interview scorecards, email candidates from inside the pipeline, send the offer as a private link they accept online, then hire in one click: their staff login is created instantly and onboarding starts. Leave, tasks, visitors, performance reviews and a compliance vault are live too.' },
-  { cat: 'Security', q: 'Is my company’s data secure?', a: 'Every screen checks who’s allowed to see it before showing anything, verified role by role, and every company\'s data is isolated from every other company\'s at the database level — verified directly, not just assumed.' },
-  { cat: 'Product', q: 'Can Collarone write my company letters?', a: 'Yes. The HR Letters engine drafts confirmation, promotion, introduction, verification, query and warning letters — manually, from templates, or with Collarone AI — rendered live on your letterhead with your logo and authorized signature, auto-numbered, and filed into Documents automatically.' },
-  { cat: 'Product', q: 'What about payroll?', a: 'Payroll is live — Nigerian PAYE, Pension, NHF and NSITF, configurable rate packs, and a Banking Wall so whoever liaises with your bank always knows what\'s new. It never touches your bank account directly — Collarone prepares the disbursement, your bank executes it.' },
-  { cat: 'Product', q: 'Can I generate invoices and automate follow-ups?', a: 'Yes — Trade Documents generates sequential invoices, receipts, GRNs and stock release passes with your own logo, address and signature on a choice of 6 templates. Automation runs daily checks across your other suites — low-stock alerts, overdue-invoice reminders, new-lead follow-up tasks and more — and can optionally draft the follow-up message for you.' },
-  { cat: 'General', q: 'How long does it take to get started?', a: 'During early access, we set up your space personally — reach out on WhatsApp or email and we’ll have your business live the same day.' },
-  { cat: 'Pricing', q: 'Is there a contract or can I cancel anytime?', a: 'Collarone is billed monthly (or yearly, for 15% off) with no long-term contract. Your locked-in rate never changes even if our published prices do.' },
+  { cat: 'General', q: 'What is Collarone?', a: 'Fifteen business suites — HR, payroll and benefits, invoicing, CRM, inventory, compliance and more — behind one login, priced and billed in naira. Your company gets its own isolated workspace, and you switch on only the suites you need.' },
+  { cat: 'General', q: 'Can I try it before paying anything?', a: 'Yes. Open the demo from the menu, pick a suite, and you land inside it — real screens, sample data, and a guided tour that assumes you\'ve never seen it before. No sign-up, nothing to install, and you can\'t break anything.' },
+  { cat: 'General', q: 'How long does it take to get started?', a: 'Minutes. Sign up, pick your plan and suites, and your workspace is created straight away. During early access we also set things up with you personally on WhatsApp — most businesses are live the same day.' },
+  { cat: 'Pricing', q: 'How much does Collarone cost?', a: 'Every tier is à la carte — you pick the suites. Startup is ₦15,000/month with any 3 suites included, Standard is ₦25,000 with 5, Enterprise is ₦45,000 with 8, and extra suites cost ₦8,000/₦6,000/₦4,000 each by tier. Add ₦2,000 per staff member, save 15% by paying yearly, and your rate locks in at sign-up — no dollar pricing, no forex markup.' },
+  { cat: 'Pricing', q: 'Is Collarone only for large companies?', a: 'No — it starts at a corner-shop size. Startup is ₦15,000 a month, and every suite ships complete, not as a stripped-down trial. A 5-person team gets the same payroll engine and the same CRM an enterprise gets.' },
+  { cat: 'Pricing', q: 'Is there a contract, or can I cancel anytime?', a: 'No long-term contract — Collarone is billed monthly, or yearly for 15% off. And the rate you sign up at is locked: it never changes for you, even when our published prices do.' },
+  { cat: 'Pricing', q: 'What happens if I miss a renewal?', a: 'Nothing dramatic. You get a grace window with full access and clear reminders; after that your workspace turns read-only — everything still visible, nothing deletable — until you renew. We never delete your data over a late payment.' },
+  { cat: 'Product', q: 'Does Collarone include a website builder?', a: 'Yes, on every tier. Pick from 11 designed themes across online store, landing page and company-profile categories, edit every word and picture in place, and sell with a real cart — transfer, pay on delivery, or card through your own Paystack account. Already have a site? Link it instead.' },
+  { cat: 'Product', q: 'Is there a CRM for managing customers?', a: 'Yes — contacts, companies, a WhatsApp-first activity log, a deals pipeline valued in naira, a bookings day-sheet, and a Money Owed tracker that ages what customers owe you. Enquiries from your website land in it automatically, so nothing gets ignored.' },
+  { cat: 'Product', q: 'Can Collarone run my hiring end to end?', a: 'Yes — post a role to your public careers page, move applicants through a pipeline with interview scorecards, send the offer as a private link they accept online, then hire in one click: their staff login is created instantly and onboarding starts.' },
+  { cat: 'Product', q: 'Can Collarone write my company letters?', a: 'Yes. The Letters engine drafts confirmation, promotion, verification, query and warning letters — from templates or with Collarone AI — rendered on your letterhead with your logo and authorised signature, auto-numbered, and filed into Documents automatically.' },
+  { cat: 'Product', q: 'What about payroll?', a: 'Payroll runs the 2026 Nigeria Tax Act rules — the new PAYE bands with the ₦800,000 exemption and rent relief — plus pension, NHF and NSITF, payslips, and staff loans that repay themselves by deduction. Benefits live in the same suite: HMO, pension and custom benefits, switchable per person. Collarone never touches your bank account — it prepares the disbursement, your bank executes it.' },
+  { cat: 'Product', q: 'Can I generate invoices and automate follow-ups?', a: 'Yes — create a numbered invoice and share it as a link your customer can pay from, by transfer or by card straight into your own Paystack account. Receipts, GRNs, stock passes and signed handover notes come from the same engine, on your letterhead. Automation then does the chasing: overdue-invoice reminders, low-stock alerts and follow-up tasks, daily.' },
+  { cat: 'Product', q: 'Does it help with tax deadlines?', a: 'Yes — the Compliance Calendar tracks Nigeria\'s statutory dates: PAYE by the 10th, VAT by the 21st, pension, NHF, NSITF, and annual filings like CAC returns. Each month you mark them done with a reference, so “did we file?” always has an answer with a name on it.' },
+  { cat: 'Security', q: 'Is my company’s data secure?', a: 'Every screen checks who is allowed to see it before showing anything, and every company\'s data is isolated from every other company\'s at the database level — verified directly, not assumed. And Collarone never holds or moves your money; payments settle in your own accounts.' },
 ];
 
 export default function Landing() {
+  usePricing(); // re-renders the pricing cards once live prices load
   const reduce = useReducedMotion();
   const heroTextProps = reduce
     ? {}
@@ -384,9 +420,11 @@ export default function Landing() {
           <div className="cl-navlinks">
             <a className="cl-nl cl-hide-sm" href="#platform">Platform</a>
             <a className="cl-nl cl-hide-sm" href="#pricing">Pricing</a>
+            <a className="cl-nl cl-hide-sm" href="#themes">Themes</a>
             <a className="cl-nl cl-hide-sm" href="#about">About</a>
             <a className="cl-nl cl-hide-sm" href="#faq">FAQ</a>
             <Link className="cl-nl cl-hide-sm" to="/jobs">Jobs</Link>
+            <Link className="cl-btn cl-btn-sm cl-btn-trydemo cl-hide-sm" to="/try">Try demo</Link>
             <Link className="cl-nl cl-hide-sm" to="/login">Sign in</Link>
             <Link className="cl-btn cl-btn-primary cl-btn-sm" to="/signup">Get started</Link>
             <button type="button" className="cl-burger" aria-label={navOpen ? 'Close menu' : 'Open menu'} aria-expanded={navOpen} onClick={() => setNavOpen((v) => !v)}>
@@ -401,7 +439,7 @@ export default function Landing() {
               initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.18 }}
             >
-              {[['#platform', 'Platform'], ['#gallery', 'Product tour'], ['#pricing', 'Pricing'], ['#about', 'About'], ['#faq', 'FAQ'], ['/jobs', 'Jobs board']].map(([href, label]) => (
+              {[['#platform', 'Platform'], ['/try', 'Try demo'], ['#gallery', 'Product tour'], ['#pricing', 'Pricing'], ['#themes', 'Themes'], ['#about', 'About'], ['#faq', 'FAQ'], ['/jobs', 'Jobs board']].map(([href, label]) => (
                 <a key={href} className="cl-mm-link" href={href} onClick={() => setNavOpen(false)}>{label}</a>
               ))}
               <div className="cl-mm-actions">
@@ -437,7 +475,7 @@ export default function Landing() {
           <motion.div className="cl-hero-inner" {...heroTextProps}>
             <motion.span {...heroItemVariants} className="cl-kicker"><span className="cl-dot" />Now onboarding early businesses</motion.span>
             <motion.h1 {...heroItemVariants}>Run your<br /><RotatingWord /><br /><span className="cl-grad-word">One login.</span></motion.h1>
-            <motion.p {...heroItemVariants} className="cl-hero-sub">HR with an Employee 360 and AI-drafted company letters, payroll, CRM and your website — 16 live suites behind one login, priced in naira.</motion.p>
+            <motion.p {...heroItemVariants} className="cl-hero-sub">HR with an Employee 360 and AI-drafted company letters, payroll, CRM and your website — 15 live suites behind one login, priced in naira.</motion.p>
             <motion.div {...heroItemVariants} className="cl-hero-ctas">
               <Link className="cl-btn cl-btn-primary" to="/signup">Get started</Link>
               <a className="cl-btn cl-btn-ghost" href="#platform">See what's inside</a>
@@ -484,7 +522,7 @@ export default function Landing() {
 
       <section className="cl-trust" aria-label="Platform facts">
         <div className="cl-wrap cl-trust-row">
-          <span className="cl-trust-cell"><strong>16</strong> suites live</span>
+          <span className="cl-trust-cell"><strong>15</strong> suites live</span>
           <span className="cl-trust-dot" aria-hidden="true" />
           <span className="cl-trust-cell">One isolated workspace per company</span>
           <span className="cl-trust-dot" aria-hidden="true" />
@@ -501,12 +539,12 @@ export default function Landing() {
             <h2 className="cl-sec-h">Built to feel obvious, not overwhelming</h2>
             <p className="cl-sec-lede">Every screen does one job well. No settings maze, no module you have to configure before it's useful.</p>
           </Reveal>
-          <div className="cl-grid4 cl-process">
+          <CardCarousel className="cl-grid4 cl-process" dotLabel="step">
             <Reveal className="cl-process-card" hover><span className="cl-process-num">01</span><div className="cl-icon-wrap">{I.bolt}</div><h3>Set up in minutes</h3><p>Sign up, add your team, and your space is ready — no onboarding call required.</p></Reveal>
             <Reveal className="cl-process-card" delay={0.05} hover><span className="cl-process-num">02</span><div className="cl-icon-wrap">{I.shield}</div><h3>Access, done right</h3><p>Every screen checks who's allowed to see it — tested as different roles before anything ships.</p></Reveal>
             <Reveal className="cl-process-card" delay={0.1} hover><span className="cl-process-num">03</span><div className="cl-icon-wrap">{I.money}</div><h3>Priced in naira</h3><p>Pay by transfer or card, no forex markup, no bill that moves with the exchange rate.</p></Reveal>
             <Reveal className="cl-process-card" delay={0.15} hover><span className="cl-process-num">04</span><div className="cl-icon-wrap">{I.globeBig}</div><h3>Grows with you</h3><p>Start with a website and a staff list. Turn on leave, tasks and the rest the day you need them.</p></Reveal>
-          </div>
+          </CardCarousel>
         </div>
       </section>
 
@@ -517,6 +555,7 @@ export default function Landing() {
             <h2 className="cl-sec-h">Everything a growing business runs on</h2>
             <p className="cl-sec-lede">Start with what you need today. The rest turns on the moment you're ready — same account, nothing to migrate.</p>
           </Reveal>
+          <TrySuiteStrip />
           <div className="cl-bento">
             {modules.map((m, i) => {
               const suiteChips = m.suites.map((key) => {
@@ -631,6 +670,17 @@ export default function Landing() {
         </div>
       )}
 
+      <section className="cl-sec cl-tint" id="themes">
+        <div className="cl-wrap">
+          <motion.div className="cl-sec-head" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+            <p className="cl-eyebrow">A real website, included on every plan</p>
+            <h2 className="cl-sec-h">Give your business a site worth visiting</h2>
+            <p className="cl-sec-lede">Pick a theme, edit every word, and sell online or take enquiries — no designer, no monthly website bill. Tap Preview to see one live.</p>
+          </motion.div>
+          <PublicThemeGallery limit={5} seeMoreHref="/themes" showFilters={false} />
+        </div>
+      </section>
+
       <section className="cl-sec" id="nigeria">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
@@ -664,30 +714,26 @@ export default function Landing() {
             <h2 className="cl-sec-h">Pick your suites. Pick your tier.</h2>
             <p className="cl-sec-lede">Every tier is à la carte — choose exactly the suites your business needs on any of them. Tiers differ in how many suites are included, your base fee, and support level, not in what you're allowed to use. No forex markup, no dollar pricing, and your rate locks in at sign-up.</p>
           </Reveal>
-          <div className="cl-grid3">
-            {[
-              {
-                key: 'startup', name: 'Startup', price: '15,000', included: 3, extra: '8,000',
-                pills: ['3 suites included', 'Standard support'],
-                rows: [['Suites of your choice', 'any 3'], ['Extra suite', '₦8,000/mo'], ['Per staff member', '₦2,000/mo'], ['Add more suites', 'anytime']],
-                quote: 'For a small team getting its operations out of spreadsheets and WhatsApp groups.',
-                cta: ['Start your space', '/signup?plan=startup', false],
-              },
-              {
-                key: 'standard', name: 'Standard', price: '25,000', included: 5, extra: '6,000', featured: true,
-                pills: ['5 suites included', 'Priority support'],
-                rows: [['Suites of your choice', 'any 5'], ['Extra suite', '₦6,000/mo'], ['Per staff member', '₦2,000/mo'], ['Add more suites', 'anytime']],
-                quote: 'What most growing companies land on — people, money and customers in one place.',
-                cta: ['Get started', '/signup?plan=standard', true],
-              },
-              {
-                key: 'enterprise', name: 'Enterprise', price: '45,000', included: 8, extra: '4,000',
-                pills: ['8 suites included', 'Dedicated onboarding'],
-                rows: [['Suites of your choice', 'any 8'], ['Extra suite', '₦4,000/mo'], ['Per staff member', '₦2,000/mo'], ['Custom work', 'scoped & quoted']],
-                quote: 'For established businesses standardising how they run across branches and states.',
-                cta: ['Talk to us', '#contact', false],
-              },
-            ].map((p, i) => (
+          <CardCarousel className="cl-grid3" dotLabel="plan">
+            {PLANS.map((plan) => {
+              const meta = {
+                startup:    { support: 'Standard support',     quote: 'For a small team getting its operations out of spreadsheets and WhatsApp groups.', cta: ['Start your space', '/signup?plan=startup', false], lastRow: ['Add more suites', 'anytime'] },
+                standard:   { support: 'Priority support',     quote: 'What most growing companies land on — people, money and customers in one place.', cta: ['Get started', '/signup?plan=standard', true], lastRow: ['Add more suites', 'anytime'], featured: true },
+                enterprise: { support: 'Dedicated onboarding', quote: 'For established businesses standardising how they run across branches and states.', cta: ['Talk to us', '#contact', false], lastRow: ['Custom work', 'scoped & quoted'] },
+              }[plan.key];
+              return {
+                key: plan.key, name: plan.name, price: plan.baseFee.toLocaleString('en-NG'),
+                included: plan.includedSuites, featured: meta.featured,
+                pills: [`${plan.includedSuites} suites included`, meta.support],
+                rows: [
+                  ['Suites of your choice', `any ${plan.includedSuites}`],
+                  ['Extra suite', `${naira(plan.extraSuiteFee)}/mo`],
+                  ['Per staff member', `${naira(PRICING.perStaff)}/mo`],
+                  meta.lastRow,
+                ],
+                quote: meta.quote, cta: meta.cta,
+              };
+            }).map((p, i) => (
               <Reveal className={`cl-pc${p.featured ? ' cl-pc-feat' : ''}`} key={p.key} delay={i * 0.06}>
                 {p.featured && <span className="cl-pc-badge">What most companies need</span>}
                 <div className="cl-pc-plan">{p.name}</div>
@@ -706,7 +752,7 @@ export default function Landing() {
                   : <Link className={`cl-btn cl-pc-btn${p.cta[2] ? ' cl-btn-primary' : ''}`} to={p.cta[1]}>{p.cta[0]}</Link>}
               </Reveal>
             ))}
-          </div>
+          </CardCarousel>
           <PriceCalculator />
           <p className="cl-price-note">Pay yearly and save 15% off the total. Your base fee and per-suite rate both lock in at sign-up — they don't change later even if our published prices do.</p>
         </div>
@@ -730,7 +776,7 @@ export default function Landing() {
               <div className="cl-founder-role">Founder, Collarone</div>
               <div className="cl-founder-stats">
                 <div><strong>2026</strong><small>Founded</small></div>
-                <div><strong>16</strong><small>Suites live</small></div>
+                <div><strong>15</strong><small>Suites live</small></div>
               </div>
               <div className="cl-founder-loc">{I.pin}Nigeria</div>
             </Reveal>

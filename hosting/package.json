@@ -1,0 +1,14 @@
+{
+  "name": "collarone-server",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "Self-hosted Collarone: serves the built client and runs the API functions that lived on Vercel.",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "@supabase/supabase-js": "^2.45.0"
+  }
+}

@@ -115,6 +115,9 @@ export default async function handler(req, res) {
         await admin.from('org_credit_ledger').insert({
           org_id: tx.org_id, delta: tx.credits_granted, reason: 'purchase', related_transaction_id: tx.id, created_by: user.id,
         });
+      } else if (tx.type === 'renewal') {
+        // reactivates + extends current_period_end by tx.months (never shortens)
+        await admin.rpc('apply_confirmed_renewal', { p_tx_id: tx.id });
       }
       await logAudit('confirm_payment', tx.org_id, { transactionId, type: tx.type, amountKobo: tx.amount_kobo });
       return json(res, 200, { ok: true });

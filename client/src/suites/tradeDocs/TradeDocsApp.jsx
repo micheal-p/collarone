@@ -43,6 +43,18 @@ const SAMPLE_DOCS = {
     party_name: 'Warehouse — Ikeja', reference: 'Internal transfer',
     items: [{ description: 'Office chairs', qty: 6 }],
   },
+  handover: {
+    doc_type: 'handover', doc_no: 'HOV-000007', created_at: new Date().toISOString(),
+    party_name: 'Emeka Obi — Field Technician', reference: 'Takeout',
+    items: [{ description: 'Dell Latitude laptop — SN 4432', qty: 1 }, { description: 'Site toolkit', qty: 1 }],
+    notes: 'Return expected on project completion.',
+  },
+  return_note: {
+    doc_type: 'return_note', doc_no: 'RTN-000003', created_at: new Date().toISOString(),
+    party_name: 'Emeka Obi — Field Technician', reference: 'HOV-000007',
+    items: [{ description: 'Dell Latitude laptop — SN 4432', qty: 1 }],
+    notes: 'Returned in good condition.',
+  },
 };
 
 function LineItems({ type, items, setItems, stockItems }) {
@@ -206,6 +218,73 @@ function CreateModal({ docType, onClose, onSaved, flash }) {
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : `Create ${meta.label}`}</button>
           </div>
       </form>
+    </Modal>
+  );
+}
+
+function PaymentModal({ doc, onClose, onSaved, flash }) {
+  const bal = TD.balance(doc);
+  const [f, setF] = useState({ amount: bal, payMethod: 'transfer', reference: '', note: '' });
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  const submit = async (e) => {
+    e.preventDefault();
+    const amt = Number(f.amount);
+    if (!amt || amt <= 0) return flash('Enter the amount received.', true);
+    if (amt > bal) return flash(`Only ${TD.money(bal)} is outstanding on this invoice.`, true);
+    setBusy(true);
+    try {
+      const saved = await TD.recordPayment(doc.id, f);
+      flash(amt >= bal ? `${doc.doc_no} fully paid.` : `Payment recorded — ${TD.money(TD.balance(saved))} still outstanding.`);
+      onSaved(saved); onClose();
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+  return (
+    <Modal title={`Record payment — ${doc.doc_no}`} onClose={onClose}>
+      <form onSubmit={submit}>
+        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+          Total {TD.money(doc.total)} · paid {TD.money(doc.amount_paid || 0)} · <strong>outstanding {TD.money(bal)}</strong>
+        </p>
+        <div className="form-grid">
+          <Field label="Amount received (₦) *"><input className="input" type="number" min="1" step="0.01" value={f.amount} onChange={(e) => set('amount', e.target.value)} required autoFocus /></Field>
+          <Field label="Method">
+            <select className="select" value={f.payMethod} onChange={(e) => set('payMethod', e.target.value)}>
+              <option value="transfer">Bank transfer</option>
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="other">Other</option>
+            </select>
+          </Field>
+        </div>
+        <Field label="Reference"><input className="input" value={f.reference} onChange={(e) => set('reference', e.target.value)} placeholder="Transfer reference…" /></Field>
+        <Field label="Note"><input className="input" value={f.note} onChange={(e) => set('note', e.target.value)} /></Field>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Record payment'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function ShareModal({ doc, orgName, onClose, flash }) {
+  const url = TD.publicInvoiceUrl(doc);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); flash('Link copied.'); }
+    catch { flash('Could not copy — long-press the link to copy it.', true); }
+  };
+  return (
+    <Modal title={`Share ${doc.doc_no}`} onClose={onClose}>
+      <p className="muted" style={{ fontSize: 13.5, marginTop: 0 }}>
+        Anyone with this link can view the invoice and pay it — by transfer using your instructions, or by card if your Paystack is connected. No account needed.
+      </p>
+      <div className="field"><label>Invoice link</label>
+        <input className="input" readOnly value={url} onFocus={(e) => e.target.select()} style={{ fontFamily: 'monospace', fontSize: 12.5 }} />
+      </div>
+      <div className="modal-actions" style={{ justifyContent: 'flex-start' }}>
+        <button type="button" className="btn btn-ghost" onClick={copy}>Copy link</button>
+        <a className="btn btn-primary" href={TD.waShareUrl(doc, orgName)} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+      </div>
     </Modal>
   );
 }
@@ -422,6 +501,19 @@ function DocPreviewBody({ doc, settings }) {
       )}
       {doc.notes && <div className="muted" style={{ fontSize: 13, marginTop: 16 }}>{doc.notes}</div>}
 
+      {meta.isCustody && doc.meta && (doc.meta.condition || doc.meta.photo_url) && (
+        <div style={{ marginTop: 14, border: '1px solid #e5e2d9', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
+          <div style={{ fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Return inspection</div>
+          {doc.meta.condition && (
+            <div>Condition: <strong style={doc.meta.condition === 'damaged' ? { color: '#a4262c' } : {}}>
+              {{ optimal: 'Optimal', minor: 'Minor wear', damaged: 'Damaged' }[doc.meta.condition] || doc.meta.condition}
+            </strong></div>
+          )}
+          {doc.meta.issues && <div style={{ marginTop: 3, color: '#555' }}>Issues reported: {doc.meta.issues}</div>}
+          {doc.meta.photo_url && <img src={doc.meta.photo_url} alt="Condition on return" style={{ marginTop: 8, maxWidth: 180, borderRadius: 6, display: 'block' }} />}
+        </div>
+      )}
+
       <div className="tdt-sigblock">
         <div className="tdt-sig">
           {s.signature_url && <img src={s.signature_url} alt="" />}
@@ -432,6 +524,16 @@ function DocPreviewBody({ doc, settings }) {
           <div className="tdt-sig tdt-sig-blank">
             <div style={{ height: 40 }} />
             <div>{meta.stockDirection === 'in' ? 'Received by' : 'Released by'} (name &amp; signature)</div>
+          </div>
+        )}
+        {meta.isCustody && (
+          <div className="tdt-sig tdt-sig-blank">
+            <div style={{ height: 40 }} />
+            <div>
+              {meta.custodyDirection === 'out'
+                ? <>Collected by — <strong>{doc.party_name}</strong> (signature &amp; date)</>
+                : <>Received back by store (name, signature &amp; condition)</>}
+            </div>
           </div>
         )}
       </div>
@@ -472,6 +574,8 @@ export default function TradeDocsApp({ access }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [viewDoc, setViewDoc] = useState(null);
+  const [payDoc, setPayDoc] = useState(null);
+  const [shareDoc, setShareDoc] = useState(null);
   const { flash, toastNode } = useToast();
   const { confirm, confirmNode } = useConfirm();
 
@@ -484,9 +588,17 @@ export default function TradeDocsApp({ access }) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const rows = docs.filter((d) => d.doc_type === tab);
-  const meta = TD.DOC_TYPES[tab];
+  const rows = tab === 'receivables'
+    ? docs.filter((d) => d.doc_type === 'invoice' && d.status !== 'void' && d.status !== 'draft' && TD.balance(d) > 0)
+        .sort((a, b) => (a.due_date || '9999') < (b.due_date || '9999') ? -1 : 1)
+    : docs.filter((d) => d.doc_type === tab);
+  const meta = TD.DOC_TYPES[tab === 'receivables' ? 'invoice' : tab];
   const colCount = 4 + (meta.hasVat ? 1 : 0) + (meta.hasStatus ? 1 : 0);
+  const outstandingTotal = docs
+    .filter((d) => d.doc_type === 'invoice' && d.status !== 'void' && d.status !== 'draft')
+    .reduce((s, d) => s + TD.balance(d), 0);
+
+  const updateDoc = (saved) => setDocs((ds) => ds.map((d) => (d.id === saved.id ? { ...d, ...saved } : d)));
 
   const markStatus = async (doc, status) => {
     if (status === 'void') {
@@ -511,8 +623,11 @@ export default function TradeDocsApp({ access }) {
         {Object.entries(TD.DOC_TYPES).map(([k, m]) => (
           <button key={k} className={`lv-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{m.label}</button>
         ))}
+        <button className={`lv-tab ${tab === 'receivables' ? 'active' : ''}`} onClick={() => setTab('receivables')}>
+          Money owed{outstandingTotal > 0 ? ` (${TD.money(outstandingTotal)})` : ''}
+        </button>
         {isManager && <button className="btn btn-ghost" onClick={() => setSettingsOpen(true)}>Letterhead</button>}
-        <button className="btn btn-primary lv-apply" onClick={() => setCreateOpen(true)}>New {meta.label}</button>
+        {tab !== 'receivables' && <button className="btn btn-primary lv-apply" onClick={() => setCreateOpen(true)}>New {meta.label}</button>}
       </div>
 
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
@@ -522,38 +637,72 @@ export default function TradeDocsApp({ access }) {
           <table className="table">
             <thead>
               <tr>
-                <th>Doc No.</th><th>Party</th>{meta.hasVat && <th>Total</th>}{meta.hasStatus && <th>Status</th>}<th>Date</th><th></th>
+                <th>Doc No.</th><th>Party</th>
+                {meta.hasVat && <th>Total</th>}
+                {(tab === 'invoice' || tab === 'receivables') && <th>Owed</th>}
+                {tab === 'receivables' && <th>Due</th>}
+                {meta.hasStatus && tab !== 'receivables' && <th>Status</th>}
+                <th>Date</th><th></th>
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 && <tr><td colSpan={colCount} style={{ padding: 0 }}><EmptyState title={`No ${meta.label.toLowerCase()}s yet`} hint={`Create one with the "New ${meta.label}" button above.`} /></td></tr>}
-              {rows.map((d) => (
-                <tr key={d.id}>
-                  <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{d.doc_no}</td>
-                  <td style={{ fontWeight: 500 }}>{d.party_name || '—'}</td>
-                  {meta.hasVat && <td className="muted" style={{ fontSize: 13 }}>{TD.money(d.total)}</td>}
-                  {meta.hasStatus && (
-                    <td>
-                      <select className="select" style={{ fontSize: 12, padding: '2px 6px' }} value={d.status} disabled={!isManager} onChange={(e) => markStatus(d, e.target.value)}>
-                        {Object.entries(TD.STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                      </select>
+              {rows.length === 0 && (
+                <tr><td colSpan={colCount + 2} style={{ padding: 0 }}>
+                  {tab === 'receivables'
+                    ? <EmptyState title="Nobody owes you right now" hint="Outstanding invoices — issued but not fully paid — will show here, most overdue first." />
+                    : <EmptyState title={`No ${meta.label.toLowerCase()}s yet`} hint={`Create one with the "New ${meta.label}" button above.`} />}
+                </td></tr>
+              )}
+              {rows.map((d) => {
+                const bal = TD.balance(d);
+                const overdue = TD.isOverdue(d);
+                const isInv = d.doc_type === 'invoice';
+                return (
+                  <tr key={d.id}>
+                    <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{d.doc_no}</td>
+                    <td style={{ fontWeight: 500 }}>{d.party_name || '—'}</td>
+                    {meta.hasVat && <td className="muted" style={{ fontSize: 13 }}>{TD.money(d.total)}</td>}
+                    {(tab === 'invoice' || tab === 'receivables') && (
+                      <td style={{ fontSize: 13, fontWeight: bal > 0 ? 650 : 400, color: bal > 0 ? (overdue ? '#a4262c' : 'inherit') : 'var(--text-2)' }}>
+                        {bal > 0 ? TD.money(bal) : '—'}
+                      </td>
+                    )}
+                    {tab === 'receivables' && (
+                      <td className="muted" style={{ fontSize: 13, color: overdue ? '#a4262c' : undefined, fontWeight: overdue ? 650 : 400 }}>
+                        {d.due_date ? `${TD.fmtDate(d.due_date)}${overdue ? ' · overdue' : ''}` : '—'}
+                      </td>
+                    )}
+                    {meta.hasStatus && tab !== 'receivables' && (
+                      <td>
+                        <select className="select" style={{ fontSize: 12, padding: '2px 6px' }} value={d.status} disabled={!isManager} onChange={(e) => markStatus(d, e.target.value)}>
+                          {Object.entries(TD.STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        </select>
+                      </td>
+                    )}
+                    <td className="muted" style={{ fontSize: 13 }}>{TD.fmtDate(d.created_at)}</td>
+                    <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button className="iconbtn" onClick={() => setViewDoc(d)}>View</button>
+                      {isInv && d.status !== 'void' && d.status !== 'draft' && bal > 0 && (
+                        <button className="iconbtn" onClick={() => setPayDoc(d)}>Record payment</button>
+                      )}
+                      {isInv && d.status !== 'void' && d.status !== 'draft' && d.share_token && (
+                        <button className="iconbtn" onClick={() => setShareDoc(d)}>Share</button>
+                      )}
+                      {isManager && tab !== 'receivables' && <button className="iconbtn" onClick={() => remove(d)}>Delete</button>}
                     </td>
-                  )}
-                  <td className="muted" style={{ fontSize: 13 }}>{TD.fmtDate(d.created_at)}</td>
-                  <td style={{ display: 'flex', gap: 6 }}>
-                    <button className="iconbtn" onClick={() => setViewDoc(d)}>View</button>
-                    {isManager && <button className="iconbtn" onClick={() => remove(d)}>Delete</button>}
-                  </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
 
-      {createOpen && <CreateModal docType={tab} onClose={() => setCreateOpen(false)} onSaved={(d) => setDocs((ds) => [d, ...ds])} flash={flash} />}
+      {createOpen && <CreateModal docType={tab === 'receivables' ? 'invoice' : tab} onClose={() => setCreateOpen(false)} onSaved={(d) => setDocs((ds) => [d, ...ds])} flash={flash} />}
       {settingsOpen && <SettingsModal orgId={orgId} settings={settings} onClose={() => setSettingsOpen(false)} onSaved={setSettings} flash={flash} />}
       {viewDoc && <PrintView doc={viewDoc} settings={settings} onClose={() => setViewDoc(null)} />}
+      {payDoc && <PaymentModal doc={payDoc} onClose={() => setPayDoc(null)} onSaved={updateDoc} flash={flash} />}
+      {shareDoc && <ShareModal doc={shareDoc} orgName={settings?.company_name || user?.org?.name} onClose={() => setShareDoc(null)} flash={flash} />}
       {toastNode}
       {confirmNode}
     </div>

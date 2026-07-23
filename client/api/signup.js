@@ -9,15 +9,31 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 const json = (res, status, obj) => res.status(status).json(obj);
 
-// Canonical server-side pricing, in kobo. Signup is the single WRITE point of
-// the locked rate — it snapshots these onto the org so future charges read the
-// stored value, never a live constant (mirrors client/src/lib/pricing.ts).
-// Per-seat is the flat published PER_STAFF_FEE (₦2,000).
+// Server-side pricing FALLBACK, in kobo. Signup is the single WRITE point of
+// the locked rate — it snapshots the org's rate at creation so future charges
+// read the stored value. The live published prices come from platform_pricing
+// (editable in Platform Control); these constants only cover a fetch failure.
 const PLAN = {
   startup:    { baseKobo: 1500000, seatKobo: 200000, included: 3, extraKobo: 800000 },
   standard:   { baseKobo: 2500000, seatKobo: 200000, included: 5, extraKobo: 600000 },
   enterprise: { baseKobo: 4500000, seatKobo: 200000, included: 8, extraKobo: 400000 },
 };
+
+// Published prices from the DB, falling back to the constants above.
+async function livePlan(admin, planTier) {
+  const fallback = PLAN[planTier] || PLAN.startup;
+  try {
+    const [{ data: row }, { data: settings }] = await Promise.all([
+      admin.from('platform_pricing').select('*').eq('plan_key', planTier).maybeSingle(),
+      admin.from('platform_billing_settings').select('per_staff_kobo').maybeSingle(),
+    ]);
+    if (!row) return fallback;
+    return {
+      baseKobo: Number(row.base_fee_kobo), seatKobo: Number(settings?.per_staff_kobo ?? fallback.seatKobo),
+      included: Number(row.included_suites), extraKobo: Number(row.extra_suite_fee_kobo),
+    };
+  } catch { return fallback; }
+}
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -85,7 +101,7 @@ export default async function handler(req, res) {
       // Don't rely on the on_auth_user_created trigger reading this request's
       // metadata reliably at insert time for admin-created users — write the
       // organization and profile explicitly instead, same pattern as admin.js.
-      const plan = PLAN[planTier] || PLAN.startup;
+      const plan = await livePlan(admin, planTier);
       const { data: org, error: orgErr } = await admin.from('organizations').insert({
         name: orgName.trim(), slug, plan_tier: planTier, status: 'pending_payment',
         theme_color: themeColor, logo_url: logoUrl, website_type: websiteType, country, created_by: created.user.id,

@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient.js';
 import { waLink } from '../lib/whatsapp.js';
 import { FOUNDING_ORG_ID } from '../config/org.js';
 import PlatformShell from '../components/PlatformShell.jsx';
+import { SUITES } from '../config/suites.js';
 import { useToast } from '../components/ui.jsx';
 import ThemeMockup from '../components/ThemeMockup.jsx';
 import ThemePreviewModal from '../components/ThemePreview.jsx';
@@ -12,7 +13,7 @@ const GUEST_KEY = 'collarone_guest_mode';
 
 const STATUS_LABEL = { pending_payment: 'Pending payment', active: 'Active', past_due: 'Past due', read_only: 'Read-only', suspended: 'Suspended', cancelled: 'Cancelled' };
 const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', delete_org: 'Deleted organization', impersonate: 'Impersonated admin (retired)', guest_mode: 'Guested into organization', payment_gateway: 'Changed card-payment gateway' };
-const ALL_SUITE_KEYS = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'benefits', 'it-assets', 'procurement', 'inventory', 'finance', 'projects', 'documents'];
+const ALL_SUITE_KEYS = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'procurement', 'inventory', 'finance', 'projects', 'documents'];
 const COUNTRY_NAME = { NG: 'Nigeria', GH: 'Ghana', KE: 'Kenya', ZA: 'South Africa', EG: 'Egypt', GB: 'United Kingdom', US: 'United States' };
 
 const naira = (kobo) => `₦${(kobo / 100).toLocaleString()}`;
@@ -173,6 +174,222 @@ function AppErrorsPanel() {
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+
+
+// Which suites the public can try at /try/<suite> — plus the funnel and what
+// triers wrote. This is the "what should we fix next" panel: response rates,
+// ease scores, would-they-pay, and the free-text comments in full.
+function DemoSuitesPanel({ flash }) {
+  const [rows, setRows] = useState([]);
+  const [feedback, setFeedback] = useState([]);
+  const [starts, setStarts] = useState({});
+  const [realFb, setRealFb] = useState([]);
+  const load = () => { apiGet('/platform/demo-suites').then((d) => { setRows(d.demoSuites || []); setFeedback(d.feedback || []); setStarts(d.starts || {}); setRealFb(d.realFeedback || []); }).catch(() => {}); };
+  useEffect(load, []);
+  const toggle = async (r) => {
+    try { await apiPost('/platform/demo-suites', { suiteKey: r.suite_key, enabled: !r.enabled }); load(); }
+    catch (e) { flash(e.message, true); }
+  };
+  if (!rows.length) return null;
+  const name = (k) => SUITES.find((s2) => s2.key === k)?.name || k;
+  const fbFor = (k) => feedback.filter((x) => x.suite_key === k);
+  const comments = feedback.filter((f) => f.comment && f.comment.trim());
+
+  return (
+    <section className="pc-section">
+      <SectionHead title="Product feedback" count={`${realFb.length} real · ${feedback.length} demo`} />
+
+      {realFb.length > 0 && (
+        <>
+          <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--dim)', margin: '0 0 8px' }}>
+            Real customers, inside the product
+          </div>
+          <div className="pc-panel" style={{ marginBottom: 18 }}>
+            {realFb.slice(0, 30).map((f) => (
+              <div key={f.id} className="pc-rowline" style={{ fontSize: 12.5, alignItems: 'flex-start' }}>
+                <span className="pc-mono pc-faint" style={{ width: 100, flex: 'none', fontSize: 11.5 }}>{fmtDate(f.created_at)}</span>
+                <span style={{ width: 150, flex: 'none', fontWeight: 550 }}>{f.org?.name || '—'}</span>
+                <span className="pc-dim" style={{ width: 130, flex: 'none' }}>{f.author?.name || '—'}</span>
+                <span className="pc-mono pc-faint" style={{ width: 120, flex: 'none' }}>{(SUITES.find((s2) => s2.key === f.suite_key)?.name || f.suite_key)} · {f.rating}/5</span>
+                <span style={{ whiteSpace: 'pre-wrap' }}>{f.comment || '—'}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--dim)', margin: '0 0 8px' }}>
+        Public demos · {rows.filter((r) => r.enabled).length} open
+      </div>
+      <p style={{ fontSize: 12.5, color: 'var(--faint)', margin: '0 0 12px' }}>
+        Open suites appear as "Try it" on the landing page. The numbers below are the improvement loop: low ease = the
+        suite (or its tour) is confusing; low would-pay = the value story isn't landing; the comments say why, in the
+        prospect's own words.
+      </p>
+
+      <div className="pc-panel pc-tablewrap" style={{ marginBottom: 14 }}>
+        <table className="pc-table">
+          <thead><tr><th>Suite</th><th>Demo</th><th className="r">Starts</th><th className="r">Responses</th><th className="r">Resp. rate</th><th className="r">Ease avg</th><th className="r">Would pay</th></tr></thead>
+          <tbody>
+            {rows.sort((a, b) => (starts[b.suite_key] || 0) - (starts[a.suite_key] || 0)).map((r) => {
+              const f = fbFor(r.suite_key);
+              const st = starts[r.suite_key] || 0;
+              const ease = f.length ? (f.reduce((a2, b2) => a2 + b2.ease, 0) / f.length) : null;
+              const yes = f.filter((x) => x.would_pay === 'yes').length;
+              const maybe = f.filter((x) => x.would_pay === 'maybe').length;
+              return (
+                <tr key={r.suite_key}>
+                  <td style={{ fontWeight: 550 }}>{name(r.suite_key)}</td>
+                  <td><button className={`pc-btn sm${r.enabled ? ' primary' : ''}`} onClick={() => toggle(r)}>{r.enabled ? 'Open' : 'Closed'}</button></td>
+                  <td className="num">{st}</td>
+                  <td className="num">{f.length}</td>
+                  <td className="num pc-dim">{st ? `${Math.round((f.length / st) * 100)}%` : '—'}</td>
+                  <td className="num" style={ease != null && ease < 3.5 ? { color: '#e8b23f', fontWeight: 700 } : {}}>{ease != null ? ease.toFixed(1) : '—'}</td>
+                  <td className="num pc-dim">{f.length ? `${yes} yes · ${maybe} maybe · ${f.length - yes - maybe} no` : '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {comments.length > 0 && (
+        <>
+          <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--dim)', margin: '0 0 8px' }}>
+            What triers wrote ({comments.length})
+          </div>
+          <div className="pc-panel">
+            {comments.slice(0, 30).map((f) => (
+              <div key={f.id} className="pc-rowline" style={{ fontSize: 12.5, alignItems: 'flex-start' }}>
+                <span className="pc-mono pc-faint" style={{ width: 100, flex: 'none', fontSize: 11.5 }}>{fmtDate(f.created_at)}</span>
+                <span style={{ width: 140, flex: 'none', fontWeight: 550 }}>{name(f.suite_key)}</span>
+                <span className="pc-mono pc-faint" style={{ width: 96, flex: 'none' }}>{f.ease}/5 · {f.would_pay}</span>
+                <span style={{ whiteSpace: 'pre-wrap' }}>{f.comment}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+const TX_TYPE = { activation_fee: 'Activation fee', credit_purchase: 'Seat credits', renewal: 'Renewal' };
+
+// Full money history across every org — pending, confirmed, everything.
+function TransactionsPanel({ transactions, orgName }) {
+  const [filter, setFilter] = useState('all');
+  const rows = transactions.filter((t) => (filter === 'all' ? true : t.status === filter)).slice(0, 200);
+  return (
+    <section className="pc-section">
+      <SectionHead title="Transactions" count={String(transactions.length)}>
+        {['all', 'pending', 'confirmed'].map((f) => (
+          <button key={f} className={`pc-btn sm${filter === f ? ' primary' : ''}`} onClick={() => setFilter(f)} style={{ textTransform: 'capitalize' }}>{f}</button>
+        ))}
+      </SectionHead>
+      <div className="pc-panel pc-tablewrap">
+        <table className="pc-table collapsible">
+          <thead><tr><th>Date</th><th>Organization</th><th>Type</th><th>Reference</th><th>Method</th><th className="r">Amount</th><th>Status</th></tr></thead>
+          <tbody>
+            {rows.length === 0 && <tr><td colSpan={7} className="pc-dim" style={{ fontSize: 12.5 }}>Nothing here yet.</td></tr>}
+            {rows.map((t) => (
+              <tr key={t.id}>
+                <td className="pc-mono pc-dim" style={{ fontSize: 12 }}>{fmtDate(t.created_at)}</td>
+                <td style={{ fontWeight: 550 }}>{orgName(t.org_id)}</td>
+                <td className="pc-dim">{TX_TYPE[t.type] || t.type}{t.type === 'renewal' ? ` · ${t.months === 12 ? '12 mo' : '1 mo'}` : ''}{t.type === 'credit_purchase' && t.credits_granted ? ` · ${t.credits_granted}` : ''}</td>
+                <td className="pc-mono pc-dim" style={{ fontSize: 11.5 }}>{t.reference}</td>
+                <td className="pc-dim">{t.method === 'paystack' ? 'Card' : 'Transfer'}</td>
+                <td className="num" style={{ fontWeight: 600 }}>{naira(t.amount_kobo)}</td>
+                <td>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                    <span className="pc-dot" style={{ background: t.status === 'confirmed' ? 'var(--ok)' : t.status === 'pending' ? '#e8b23f' : 'var(--faint)' }} />
+                    {t.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+// Published price list — editing here changes what NEW signups see and lock
+// in. Existing orgs keep the rates stamped on their row at sign-up.
+function PricingPanel({ flash }) {
+  const [plans, setPlans] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const load = () => { apiGet('/platform/pricing').then((d) => { setPlans(d.plans || []); setSettings(d.settings); }).catch(() => {}); };
+  useEffect(load, []);
+
+  const setPlan = (key, field, v) => setPlans((ps) => ps.map((x) => (x.plan_key === key ? { ...x, [field]: v } : x)));
+  const nairaField = (kobo) => Math.round(Number(kobo || 0) / 100);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await apiPost('/platform/pricing', {
+        plans: plans.map((x) => ({
+          planKey: x.plan_key,
+          baseFeeKobo: Math.round(Number(x.base_fee_naira ?? nairaField(x.base_fee_kobo)) * 100),
+          includedSuites: Number(x.included_suites),
+          extraSuiteFeeKobo: Math.round(Number(x.extra_fee_naira ?? nairaField(x.extra_suite_fee_kobo)) * 100),
+        })),
+        settings: settings ? {
+          perStaffKobo: Math.round(Number(settings.per_staff_naira ?? nairaField(settings.per_staff_kobo)) * 100),
+          annualDiscount: Number(settings.annual_pct ?? Math.round(Number(settings.annual_discount) * 100)) / 100,
+        } : undefined,
+      });
+      flash('Published prices updated — new signups lock these rates in. Existing customers are untouched.');
+      load();
+    } catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+
+  if (!plans.length) return null;
+  const cell = { width: 110 };
+  return (
+    <section className="pc-section">
+      <SectionHead title="Published pricing">
+        <button className="pc-btn sm primary" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save prices'}</button>
+      </SectionHead>
+      <p style={{ fontSize: 12.5, color: 'var(--pc-dim, #9aa0b0)', margin: '0 0 12px' }}>
+        These are the prices the landing page, signup and chat quote from now on. Changing them only affects NEW
+        sign-ups — every existing company keeps the rate locked on its own account.
+      </p>
+      <div className="pc-panel pc-tablewrap">
+        <table className="pc-table">
+          <thead><tr><th>Plan</th><th>Base fee (₦/mo)</th><th>Suites included</th><th>Extra suite (₦/mo)</th></tr></thead>
+          <tbody>
+            {plans.map((x) => (
+              <tr key={x.plan_key}>
+                <td style={{ textTransform: 'capitalize', fontWeight: 600 }}>{x.name || x.plan_key}</td>
+                <td><input className="pc-input" style={cell} type="number" min="0" value={x.base_fee_naira ?? nairaField(x.base_fee_kobo)} onChange={(e) => setPlan(x.plan_key, 'base_fee_naira', e.target.value)} /></td>
+                <td><input className="pc-input" style={{ width: 70 }} type="number" min="1" value={x.included_suites} onChange={(e) => setPlan(x.plan_key, 'included_suites', e.target.value)} /></td>
+                <td><input className="pc-input" style={cell} type="number" min="0" value={x.extra_fee_naira ?? nairaField(x.extra_suite_fee_kobo)} onChange={(e) => setPlan(x.plan_key, 'extra_fee_naira', e.target.value)} /></td>
+              </tr>
+            ))}
+            {settings && (
+              <tr>
+                <td style={{ fontWeight: 600 }}>All plans</td>
+                <td colSpan={2}>
+                  Per staff (₦/mo){' '}
+                  <input className="pc-input" style={cell} type="number" min="0" value={settings.per_staff_naira ?? nairaField(settings.per_staff_kobo)} onChange={(e) => setSettings((v) => ({ ...v, per_staff_naira: e.target.value }))} />
+                </td>
+                <td>
+                  Yearly discount %{' '}
+                  <input className="pc-input" style={{ width: 70 }} type="number" min="0" max="90" value={settings.annual_pct ?? Math.round(Number(settings.annual_discount) * 100)} onChange={(e) => setSettings((v) => ({ ...v, annual_pct: e.target.value }))} />
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }
@@ -437,6 +654,12 @@ export default function PlatformAdmin() {
 
   const { flash, toastNode } = useToast();
 
+  // Section tabs — hash-synced so a refresh (or a shared link) lands on the
+  // same view. One long scroll was unusable once the panel count grew.
+  const initialTab = (window.location.hash || '').replace('#', '') || 'overview';
+  const [tab, setTabState] = useState(['overview', 'orgs', 'revenue', 'inbox', 'audit'].includes(initialTab) ? initialTab : 'overview');
+  const setTab = (t) => { setTabState(t); window.history.replaceState(null, '', `#${t}`); };
+
   const [adminIds, setAdminIds] = useState([]);
   const [sites, setSites] = useState([]);
   const [themes, setThemes] = useState([]);
@@ -475,6 +698,12 @@ export default function PlatformAdmin() {
   }, [customerProfiles]);
 
   const pendingTx = transactions.filter((t) => t.status === 'pending');
+  const confirmedTx = transactions.filter((t) => t.status === 'confirmed');
+  const revenueAll = confirmedTx.reduce((s2, t) => s2 + t.amount_kobo, 0);
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  const revenueThisMonth = confirmedTx
+    .filter((t) => new Date(t.confirmed_at || t.created_at).getTime() >= monthStart)
+    .reduce((s2, t) => s2 + t.amount_kobo, 0);
   const orgName = (id) => orgs.find((o) => o.id === id)?.name || (id ? id.slice(0, 8) : '—');
 
   const confirmPayment = async (txId) => {
@@ -548,8 +777,25 @@ export default function PlatformAdmin() {
     } catch (e) { flash(e.message, true); } finally { setDeleting(false); }
   };
 
+  const TAB_DEFS = [
+    ['overview', 'Overview', 0],
+    ['orgs', 'Organizations', 0],
+    ['revenue', 'Revenue', pendingTx.length],
+    ['inbox', 'Inbox', 0],
+    ['audit', 'Audit', 0],
+  ];
+
   return (
     <PlatformShell>
+      <nav className="pc-subtabs">
+        {TAB_DEFS.map(([key, label, badge]) => (
+          <button key={key} className={`pc-subtab${tab === key ? ' active' : ''}`} onClick={() => setTab(key)}>
+            {label}{badge > 0 && <span className="pc-subtab-badge">{badge}</span>}
+          </button>
+        ))}
+      </nav>
+
+      {tab === 'overview' && (<>
       <div className="pc-kpis" style={{ marginBottom: 10 }}>
         <div className="pc-kpi">
           <div className="pc-kpi-label">Organizations</div>
@@ -563,6 +809,11 @@ export default function PlatformAdmin() {
           <div className="pc-kpi-label">Active, last 24h</div>
           <div className="pc-kpi-value">{activeLast24h}</div>
           <div className="pc-kpi-sub">from sign-in timestamps, not live presence</div>
+        </div>
+        <div className="pc-kpi">
+          <div className="pc-kpi-label">Revenue (confirmed)</div>
+          <div className="pc-kpi-value">{naira(revenueAll)}</div>
+          <div className="pc-kpi-sub pc-mono">{naira(revenueThisMonth)} this month</div>
         </div>
         <div className="pc-kpi">
           <div className="pc-kpi-label">Pending payments</div>
@@ -590,7 +841,7 @@ export default function PlatformAdmin() {
                 {pendingTx.map((t) => (
                   <tr key={t.id}>
                     <td style={{ fontWeight: 550 }}>{orgName(t.org_id)}</td>
-                    <td className="pc-dim">{t.type === 'activation_fee' ? 'Activation fee' : 'Seat credits'}</td>
+                    <td className="pc-dim">{TX_TYPE[t.type] || t.type}{t.type === 'renewal' ? ` · ${t.months === 12 ? '12 mo' : '1 mo'}` : ''}</td>
                     <td className="pc-mono pc-dim">{t.reference}</td>
                     <td className="pc-dim">{fmtDate(t.created_at)}</td>
                     <td className="num" style={{ fontWeight: 600 }}>{naira(t.amount_kobo)}</td>
@@ -608,12 +859,23 @@ export default function PlatformAdmin() {
         </section>
       )}
 
+      </>)}
+
+      {tab === 'inbox' && (<>
       <ContactMessagesPanel flash={flash} />
 
       <AppErrorsPanel />
+      </>)}
+
+      {tab === 'revenue' && (<>
+      <TransactionsPanel transactions={transactions} orgName={orgName} />
+
+      <PricingPanel flash={flash} />
 
       <PromoCodesPanel flash={flash} />
+      </>)}
 
+      {tab === 'orgs' && (<>
       <section className="pc-section">
         <SectionHead title="Organizations" count={String(orgs.length)} />
         {loading && <p className="pc-dim" style={{ fontSize: 13 }}>Loading…</p>}
@@ -718,6 +980,10 @@ export default function PlatformAdmin() {
       </section>
       {previewTheme && <ThemePreviewModal theme={previewTheme} onClose={() => setPreviewTheme(null)} />}
 
+      <DemoSuitesPanel flash={flash} />
+      </>)}
+
+      {tab === 'audit' && (
       <section className="pc-section">
         <SectionHead title="Audit log" count={String(auditLog.length)} />
         <div className="pc-panel">
@@ -738,6 +1004,7 @@ export default function PlatformAdmin() {
           ))}
         </div>
       </section>
+      )}
 
       {deleteTarget && (
         <DeleteOrgModal org={deleteTarget} busy={deleting} onClose={() => setDeleteTarget(null)} onConfirm={deleteOrg} />

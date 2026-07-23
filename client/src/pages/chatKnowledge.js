@@ -7,16 +7,20 @@
 // human — never guesses.
 // ============================================================================
 
-import { PLANS, PER_STAFF_FEE, naira } from '../lib/pricing.js';
+import { PLANS, PRICING, loadPricing, naira } from '../lib/pricing.js';
 
-// derived, never restated — the chat quotes whatever the platform charges
-const TIERS = PLANS.map((t) => ({ key: t.key, name: t.name, base: t.baseFee, included: t.includedSuites, extra: t.extraSuiteFee }));
-const PER_STAFF = PER_STAFF_FEE;
+// derived, never restated — the chat quotes whatever the platform charges.
+// Read at CALL time (not import time) so answers pick up the live published
+// prices once loadPricing() resolves.
+loadPricing();
+const tiers = () => PLANS.map((t) => ({ key: t.key, name: t.name, base: t.baseFee, included: t.includedSuites, extra: t.extraSuiteFee }));
 const N = naira;
 
 // "how much for 12 staff on standard?" → a real quote, computed.
 function priceQuote(text) {
   const staffMatch = text.match(/(\d{1,4})\s*(staff|employees?|people|workers|team members?)/i);
+  const TIERS = tiers();
+  const PER_STAFF = PRICING.perStaff;
   const tier = TIERS.find((t) => text.toLowerCase().includes(t.key)) || null;
   if (!staffMatch && !tier) return null;
   const staff = staffMatch ? Math.min(5000, Number(staffMatch[1])) : null;
@@ -46,21 +50,21 @@ const INTENTS = [
     id: 'what-is',
     phrases: ['what is collarone', 'what does collarone do', 'tell me about collarone', 'what is this'],
     keys: ['about', 'explain', 'overview'],
-    answer: 'Collarone is the business platform for Nigerian companies — HR, payroll, CRM, finance and more, 16 live suites behind one login, priced and billed in naira. Your company gets its own isolated workspace, you switch on only the suites you need, and your data stays completely separate from every other company\'s.',
+    answer: 'Collarone is the business platform for Nigerian companies — HR, payroll, CRM, finance and more, 15 live suites behind one login, priced and billed in naira. Your company gets its own isolated workspace, you switch on only the suites you need, and your data stays completely separate from every other company\'s.',
     chips: ['What suites are included?', 'What does it cost?', 'Is my data safe?'],
   },
   {
     id: 'pricing',
     phrases: ['how much', 'what does it cost', 'what does collarone cost', 'pricing', 'price list'],
     keys: ['cost', 'price', 'pay', 'fee', 'cheap', 'expensive', 'afford', 'monthly', 'subscription'],
-    answer: (text) => priceQuote(text) || `Every tier is à la carte — you pick the suites. ${TIERS.map((t) => `${t.name} is ${N(t.base)}/month with any ${t.included} suites included`).join(', ')}. Extra suites cost ${TIERS.map((t) => N(t.extra)).join('/')} each by tier, plus ${N(PER_STAFF)} per staff member on all tiers. Yearly billing saves 15%, no forex markup, and your rate locks in at sign-up. Tell me your team size and I'll do the exact arithmetic.`,
+    answer: (text) => priceQuote(text) || `Every tier is à la carte — you pick the suites. ${tiers().map((t) => `${t.name} is ${N(t.base)}/month with any ${t.included} suites included`).join(', ')}. Extra suites cost ${tiers().map((t) => N(t.extra)).join('/')} each by tier, plus ${N(PRICING.perStaff)} per staff member on all tiers. Yearly billing saves 15%, no forex markup, and your rate locks in at sign-up. Tell me your team size and I'll do the exact arithmetic.`,
     chips: ['Price for 10 staff on Standard', 'What suites are included?', 'Is there a trial?'],
   },
   {
     id: 'suites',
     phrases: ['what suites', 'what is included', "what's included", 'list of suites', 'what modules', 'features'],
     keys: ['suites', 'modules', 'apps', 'included', 'tools'],
-    answer: 'Sixteen live suites. Core: HR & Staff, Leave, Task & Report, Visitor Management, Payroll, CRM. Extended: Time & Attendance, Benefits, IT Assets, Procurement, Inventory, Finance, Projects, Documents, Trade Documents, Automation. Every tier picks any of them à la carte — a Startup customer gets the same full suites as Enterprise, just fewer included.',
+    answer: 'Fifteen live suites. Core: HR & Staff, Leave, Task & Report, Visitor Management, Payroll & Benefits (2026 Tax Act payroll plus HMO/pension/custom benefits, switchable per person), CRM. Extended: Time & Attendance, Procurement, Inventory & Assets (sell stock, staff equipment and company assets with signed handover/return notes), Finance, Projects, Documents, Invoicing & Trade Docs, Automation, Compliance Calendar. Every tier picks any of them à la carte — a Startup customer gets the same full suites as Enterprise, just fewer included.',
     chips: ['Tell me about HR', 'Does it do payroll?', 'What does it cost?'],
   },
   {
@@ -81,8 +85,22 @@ const INTENTS = [
     id: 'payroll',
     phrases: ['does it do payroll', 'tell me about payroll', 'salary payment'],
     keys: ['payroll', 'paye', 'pension', 'nhf', 'nsitf', 'payslip', 'salary', 'salaries', 'tax'],
-    answer: 'Payroll runs real Nigerian statutory math — PAYE, Pension, NHF, NSITF — with payslips and a Banking Wall for whoever liaises with your bank. Important honesty: Collarone never touches your bank account. It prepares the disbursement instruction; your bank executes it. Payroll is available to Nigerian-registered companies.',
+    answer: 'Payroll runs the 2026 Nigeria Tax Act rules — the new PAYE bands (0% up to ₦800,000, then 15–25%), rent relief in place of the old CRA, plus Pension, NHF and NSITF — with payslips, staff loans and salary advances repaid by automatic deduction, and a Banking Wall for whoever liaises with your bank. Important honesty: Collarone never touches your bank account. It prepares the disbursement instruction; your bank executes it. Payroll is available to Nigerian-registered companies.',
     chips: ['What does it cost?', 'What suites are included?'],
+  },
+  {
+    id: 'invoicing',
+    phrases: ['can i send invoices', 'invoicing', 'invoice customers', 'who owes me', 'receivables', 'payment link'],
+    keys: ['invoice', 'invoices', 'invoicing', 'receipt', 'receivable', 'receivables', 'owed', 'grn', 'debtors'],
+    answer: 'Yes — Invoicing & Trade Docs generates sequential, VAT-aware invoices (plus receipts, goods-received notes and stock passes) on your own letterhead. Every invoice gets a share link you can WhatsApp to the customer: they open it, see the invoice, and pay by transfer — or by card straight into your own Paystack account if you connect one. Payments (including part-payments) are recorded against each invoice, and the Money Owed view shows every outstanding naira, most overdue first. Collarone never holds the money — it settles directly to your bank.',
+    chips: ['How do card payments work?', 'What does it cost?'],
+  },
+  {
+    id: 'compliance',
+    phrases: ['compliance calendar', 'statutory deadlines', 'tax deadlines', 'when is paye due', 'cac annual return'],
+    keys: ['compliance', 'deadline', 'deadlines', 'firs', 'lirs', 'cac', 'remittance', 'statutory', 'filing'],
+    answer: 'The Compliance Calendar tracks Nigeria\'s statutory deadlines for you — PAYE (10th), VAT (21st), pension (7 working days after payday), NHF, NSITF, WHT monthly, plus annual PAYE returns, CAC annual returns and CIT. Each month you mark them done with a reference, so there\'s a clean history of what was filed and when. It\'s guidance, not legal advice — timelines are confirmed with your accountant — but nothing slips through again.',
+    chips: ['What suites are included?', 'What does it cost?'],
   },
   {
     id: 'crm',
@@ -95,7 +113,7 @@ const INTENTS = [
     id: 'website',
     phrases: ['website builder', 'build a website', 'do i get a website', 'already have a website', 'online store'],
     keys: ['website', 'site', 'store', 'ecommerce', 'themes', 'domain'],
-    answer: 'Every tier includes the website builder — 10 themes across online store, landing pages and company profiles, all edited in place, and every new site starts fully written with sample content you just swap out. Stores get a real cart and checkout: bank transfer or pay on delivery by default, and card/bank/USSD payments through your OWN Paystack account at no extra Collarone charge (ask the team to switch it on — money settles straight to your bank). Already have a website? Just link it at sign-up.',
+    answer: 'Every tier includes the website builder — 11 designed themes across online store, landing pages and company profiles, all edited in place, and every new site starts fully written with sample content you just swap out. Stores get a real cart and checkout: bank transfer or pay on delivery by default, and card/bank/USSD payments through your OWN Paystack account at no extra Collarone charge (ask the team to switch it on — money settles straight to your bank). Already have a website? Just link it at sign-up.',
     chips: ['What does it cost?', 'How do I get started?'],
   },
   {
@@ -144,7 +162,7 @@ const INTENTS = [
     id: 'benefits',
     phrases: ['group life', 'hmo', 'pension provider'],
     keys: ['benefits', 'insurance', 'rsa', 'pfa'],
-    answer: 'Benefits tracks HMO, group life and pension enrollments — including each employee\'s PFA and RSA PIN, visible to the employee themselves. And because group life cover is a legal requirement at 5+ staff under the Pension Reform Act, the HR analytics tab flags you the moment you cross that line without cover on record.',
+    answer: 'Benefits lives inside Payroll & Benefits — HMO, group life, pension enrollments (each employee\'s PFA and RSA PIN, visible to them), and custom benefits you define yourself from the dashboard. Every benefit switches on or off per person, so a contractor or intern simply doesn\'t carry what full staff do. And because group life cover is a legal requirement at 5+ staff under the Pension Reform Act, the HR analytics tab flags you the moment you cross that line without cover on record.',
     chips: ['Tell me about HR', 'What does it cost?'],
   },
   {

@@ -11,12 +11,30 @@
 import Atelier, { meta as atelierMeta } from './lumin.jsx';
 import BoutiqueNoir, { meta as boutiqueMeta } from './boutique.jsx';
 import MarketFresh, { meta as marketMeta } from './market.jsx';
+import LaunchBold, { meta as launchMeta } from './launchBold.jsx';
+import StartupGradient, { meta as gradientMeta } from './startupGradient.jsx';
+import MinimalPitch, { meta as minimalMeta } from './minimalPitch.jsx';
+import FeatureFocus, { meta as featureMeta } from './featureFocus.jsx';
+import CorporateClean, { meta as corporateMeta } from './corporate.jsx';
+import AgencyModern, { meta as agencyMeta } from './agency.jsx';
+import ProfessionalServices, { meta as proMeta } from './professional.jsx';
+import StorefrontClassic, { meta as storefrontMeta } from './storefrontClassic.jsx';
 
-export const SITE_THEMES = {
-  [atelierMeta.key]: { ...atelierMeta, Component: Atelier },
-  [boutiqueMeta.key]: { ...boutiqueMeta, Component: BoutiqueNoir },
-  [marketMeta.key]: { ...marketMeta, Component: MarketFresh },
-};
+const reg = (m, C) => [m.key, { ...m, Component: C }];
+
+export const SITE_THEMES = Object.fromEntries([
+  reg(atelierMeta, Atelier),
+  reg(storefrontMeta, StorefrontClassic),
+  reg(boutiqueMeta, BoutiqueNoir),
+  reg(marketMeta, MarketFresh),
+  reg(launchMeta, LaunchBold),
+  reg(gradientMeta, StartupGradient),
+  reg(minimalMeta, MinimalPitch),
+  reg(featureMeta, FeatureFocus),
+  reg(corporateMeta, CorporateClean),
+  reg(agencyMeta, AgencyModern),
+  reg(proMeta, ProfessionalServices),
+]);
 
 export const getSiteTheme = (key) => (key ? SITE_THEMES[key] || null : null);
 export const SITE_THEME_LIST = Object.values(SITE_THEMES);

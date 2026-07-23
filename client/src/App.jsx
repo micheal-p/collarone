@@ -16,6 +16,9 @@ import AdminWebsite from './pages/admin/website/WebsiteBuilder.jsx';
 import PlatformAdmin from './pages/PlatformAdmin.jsx';
 import PlatformAnalytics from './pages/PlatformAnalytics.jsx';
 import PublicSite from './pages/site/PublicSite.jsx';
+import PublicInvoice from './pages/PublicInvoice.jsx';
+import TryDemo from './pages/TryDemo.jsx';
+import TryChooser from './pages/TryChooser.jsx';
 import Profile from './pages/Profile.jsx';
 import CareersIndex from './pages/careers/CareersIndex.jsx';
 import JobsBoard from './pages/careers/JobsBoard.jsx';
@@ -29,6 +32,7 @@ import Signup from './pages/Signup.jsx';
 import Status from './pages/Status.jsx';
 import EmbedContactForm from './pages/embed/EmbedContactForm.jsx';
 import Help from './pages/Help.jsx';
+import PublicThemes from './pages/PublicThemes.jsx';
 
 // "/" is the public marketing page for a signed-out visitor, and the app
 // launcher for a signed-in one — same route, different audience. A platform
@@ -41,6 +45,8 @@ import Help from './pages/Help.jsx';
 function usePageViewTracking() {
   const location = useLocation();
   useEffect(() => {
+    // the operator's own control-plane browsing is not visitor insight
+    if (location.pathname.startsWith('/platform-admin')) return;
     fetch('/api/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -93,6 +99,7 @@ export default function App() {
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/status" element={<Status />} />
+      <Route path="/themes" element={<PublicThemes />} />
       <Route path="/jobs" element={<JobsBoard />} />
       <Route path="/careers" element={<Navigate to="/jobs" replace />} />
       <Route path="/offer/:token" element={<OfferPage />} />
@@ -100,6 +107,9 @@ export default function App() {
       <Route path="/careers/:orgSlug" element={<CareersIndex />} />
       <Route path="/careers/:orgSlug/:id" element={<CareersApply />} />
       <Route path="/site/:slug" element={<PublicSite />} />
+      <Route path="/inv/:token" element={<PublicInvoice />} />
+      <Route path="/try" element={<TryChooser />} />
+      <Route path="/try/:suiteKey" element={<TryDemo />} />
       <Route path="/embed/contact/:orgSlug" element={<EmbedContactForm />} />
 
       <Route

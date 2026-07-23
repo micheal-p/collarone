@@ -110,7 +110,7 @@ function EnrollModal({ plans, enrollment = null, onClose, onSaved, flash }) {
   );
 }
 
-function ManagerView({ flash }) {
+export function ManagerView({ flash }) {
   const [plans, setPlans] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -196,9 +196,17 @@ function ManagerView({ flash }) {
                   <td className="muted" style={{ fontSize: 13 }}>{en.plan?.name}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{en.member_id || '—'}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{en.pfa_name ? `${en.pfa_name}${en.pfa_pin ? ` · ${en.pfa_pin}` : ''}` : '—'}</td>
-                  <td><span className={`st-pill ${en.status === 'active' ? 'st-success' : 'st-neutral'}`}>{en.status}</span></td>
+                  <td><span className={`st-pill ${en.status === 'active' ? 'st-success' : 'st-neutral'}`}>{en.status === 'active' ? 'On' : 'Off'}</span></td>
                   <td>
                     <div className="row-actions" style={{ display: 'inline-flex', gap: 6 }}>
+                      {/* one-click switch — a contractor or intern just gets this benefit turned off */}
+                      <button className="btn btn-ghost btn-sm" onClick={async () => {
+                        try {
+                          await B.updateEnrollment(en.id, { status: en.status === 'active' ? 'inactive' : 'active' });
+                          flash(en.status === 'active' ? `${en.plan?.name} switched OFF for ${en.employee?.name}.` : `${en.plan?.name} switched on for ${en.employee?.name}.`);
+                          load();
+                        } catch (e) { flash(e.message, true); }
+                      }}>{en.status === 'active' ? 'Switch off' : 'Switch on'}</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => setEditEnrollment(en)}>Edit</button>
                       <button className="btn btn-ghost btn-sm" onClick={() => removeEnrollment(en)}>Remove</button>
                     </div>
@@ -220,7 +228,7 @@ function ManagerView({ flash }) {
   );
 }
 
-function StaffView({ flash }) {
+export function StaffView({ flash }) {
   const [mine, setMine] = useState([]);
   const [loading, setLoading] = useState(true);
 

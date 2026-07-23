@@ -5,7 +5,10 @@ import { demoApi } from './demo.js';
 import { supabaseApi } from './supabaseApi.js';
 import type { AuthResult } from '../types';
 
-export const DEMO = import.meta.env.VITE_DEMO_MODE === 'true';
+// Compile-time demo build, OR the runtime 'try a suite' sandbox (/try/:suite
+// sets the session flag and reloads so this module-level const re-evaluates).
+export const DEMO = import.meta.env.VITE_DEMO_MODE === 'true'
+  || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('co-try-demo') === '1');
 
 export interface ApiOpts {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
