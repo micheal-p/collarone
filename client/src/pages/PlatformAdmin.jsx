@@ -180,11 +180,14 @@ function AppErrorsPanel() {
 
 
 
-// Which suites the public can try at /try/<suite> — plus what triers said.
+// Which suites the public can try at /try/<suite> — plus the funnel and what
+// triers wrote. This is the "what should we fix next" panel: response rates,
+// ease scores, would-they-pay, and the free-text comments in full.
 function DemoSuitesPanel({ flash }) {
   const [rows, setRows] = useState([]);
   const [feedback, setFeedback] = useState([]);
-  const load = () => { apiGet('/platform/demo-suites').then((d) => { setRows(d.demoSuites || []); setFeedback(d.feedback || []); }).catch(() => {}); };
+  const [starts, setStarts] = useState({});
+  const load = () => { apiGet('/platform/demo-suites').then((d) => { setRows(d.demoSuites || []); setFeedback(d.feedback || []); setStarts(d.starts || {}); }).catch(() => {}); };
   useEffect(load, []);
   const toggle = async (r) => {
     try { await apiPost('/platform/demo-suites', { suiteKey: r.suite_key, enabled: !r.enabled }); load(); }
@@ -192,31 +195,60 @@ function DemoSuitesPanel({ flash }) {
   };
   if (!rows.length) return null;
   const name = (k) => SUITES.find((s2) => s2.key === k)?.name || k;
-  const avg = (k) => { const f = feedback.filter((x) => x.suite_key === k); return f.length ? (f.reduce((a, b) => a + b.ease, 0) / f.length).toFixed(1) : null; };
+  const fbFor = (k) => feedback.filter((x) => x.suite_key === k);
+  const comments = feedback.filter((f) => f.comment && f.comment.trim());
+
   return (
     <section className="pc-section">
       <SectionHead title="Public suite demos" count={`${rows.filter((r) => r.enabled).length} open`} />
       <p style={{ fontSize: 12.5, color: 'var(--faint)', margin: '0 0 12px' }}>
-        Open suites appear as "Try it" on the landing page — prospects explore sample data with a guided tour, then answer a 30-second questionnaire.
+        Open suites appear as "Try it" on the landing page. The numbers below are the improvement loop: low ease = the
+        suite (or its tour) is confusing; low would-pay = the value story isn't landing; the comments say why, in the
+        prospect's own words.
       </p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {rows.sort((a, b) => name(a.suite_key).localeCompare(name(b.suite_key))).map((r) => (
-          <button key={r.suite_key} className={`pc-btn sm${r.enabled ? ' primary' : ''}`} onClick={() => toggle(r)}>
-            {name(r.suite_key)}{r.enabled ? ' · open' : ''}{avg(r.suite_key) ? ` · ${avg(r.suite_key)}★` : ''}
-          </button>
-        ))}
+
+      <div className="pc-panel pc-tablewrap" style={{ marginBottom: 14 }}>
+        <table className="pc-table">
+          <thead><tr><th>Suite</th><th>Demo</th><th className="r">Starts</th><th className="r">Responses</th><th className="r">Resp. rate</th><th className="r">Ease avg</th><th className="r">Would pay</th></tr></thead>
+          <tbody>
+            {rows.sort((a, b) => (starts[b.suite_key] || 0) - (starts[a.suite_key] || 0)).map((r) => {
+              const f = fbFor(r.suite_key);
+              const st = starts[r.suite_key] || 0;
+              const ease = f.length ? (f.reduce((a2, b2) => a2 + b2.ease, 0) / f.length) : null;
+              const yes = f.filter((x) => x.would_pay === 'yes').length;
+              const maybe = f.filter((x) => x.would_pay === 'maybe').length;
+              return (
+                <tr key={r.suite_key}>
+                  <td style={{ fontWeight: 550 }}>{name(r.suite_key)}</td>
+                  <td><button className={`pc-btn sm${r.enabled ? ' primary' : ''}`} onClick={() => toggle(r)}>{r.enabled ? 'Open' : 'Closed'}</button></td>
+                  <td className="num">{st}</td>
+                  <td className="num">{f.length}</td>
+                  <td className="num pc-dim">{st ? `${Math.round((f.length / st) * 100)}%` : '—'}</td>
+                  <td className="num" style={ease != null && ease < 3.5 ? { color: '#e8b23f', fontWeight: 700 } : {}}>{ease != null ? ease.toFixed(1) : '—'}</td>
+                  <td className="num pc-dim">{f.length ? `${yes} yes · ${maybe} maybe · ${f.length - yes - maybe} no` : '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-      {feedback.length > 0 && (
-        <div className="pc-panel" style={{ marginTop: 14 }}>
-          {feedback.slice(0, 20).map((f) => (
-            <div key={f.id} className="pc-rowline" style={{ fontSize: 12.5 }}>
-              <span className="pc-mono pc-faint" style={{ width: 110, flex: 'none', fontSize: 11.5 }}>{fmtDate(f.created_at)}</span>
-              <span style={{ width: 150, flex: 'none', fontWeight: 550 }}>{name(f.suite_key)}</span>
-              <span style={{ width: 90, flex: 'none' }} className="pc-mono">{f.ease}/5 · {f.would_pay}</span>
-              <span className="pc-dim">{f.comment || '—'}</span>
-            </div>
-          ))}
-        </div>
+
+      {comments.length > 0 && (
+        <>
+          <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--dim)', margin: '0 0 8px' }}>
+            What triers wrote ({comments.length})
+          </div>
+          <div className="pc-panel">
+            {comments.slice(0, 30).map((f) => (
+              <div key={f.id} className="pc-rowline" style={{ fontSize: 12.5, alignItems: 'flex-start' }}>
+                <span className="pc-mono pc-faint" style={{ width: 100, flex: 'none', fontSize: 11.5 }}>{fmtDate(f.created_at)}</span>
+                <span style={{ width: 140, flex: 'none', fontWeight: 550 }}>{name(f.suite_key)}</span>
+                <span className="pc-mono pc-faint" style={{ width: 96, flex: 'none' }}>{f.ease}/5 · {f.would_pay}</span>
+                <span style={{ whiteSpace: 'pre-wrap' }}>{f.comment}</span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </section>
   );

@@ -262,12 +262,15 @@ export async function supabaseApi(path, opts = {}) {
     return { profiles: data };
   }
   if (head === 'GET /platform' && seg[1] === 'demo-suites') {
-    const [suites, fb] = await Promise.all([
+    const [suites, fb, ev] = await Promise.all([
       supabase.from('platform_demo_suites').select('*'),
       supabase.from('demo_feedback').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('demo_events').select('suite_key'),
     ]);
     if (suites.error) fail(400, suites.error.message);
-    return { demoSuites: suites.data, feedback: fb.data || [] };
+    const starts = {};
+    (ev.data || []).forEach((e) => { starts[e.suite_key] = (starts[e.suite_key] || 0) + 1; });
+    return { demoSuites: suites.data, feedback: fb.data || [], starts };
   }
   if (head === 'POST /platform' && seg[1] === 'demo-suites') {
     const { data: { user } } = await supabase.auth.getUser();

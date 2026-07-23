@@ -112,6 +112,9 @@ export default function TryDemo() {
         await apiPost('/auth/login', { email: 'demo-guest@collarone-demo.app', password: 'demo' });
         if (!alive) return;
         setState('ready');
+        // funnel: count the start (fire-and-forget, direct to Supabase — works
+        // even though the app's API layer is in demo mode)
+        supabase.from('demo_events').insert({ suite_key: suiteKey, event: 'started' }).then(() => {}, () => {});
         setTimeout(() => setTourOpen(true), 900);
       } catch { setState('closed'); }
     })();
