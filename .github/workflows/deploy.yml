@@ -39,4 +39,16 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy
-        run: ./deploy/deploy.sh
+        run: |
+          for attempt in 1 2 3; do
+            echo "::group::Deploy attempt $attempt/3"
+            if ./deploy/deploy.sh; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "Attempt $attempt failed"
+            [ "$attempt" -lt 3 ] && sleep 15
+          done
+          echo "All 3 deploy attempts failed"
+          exit 1
