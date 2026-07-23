@@ -187,7 +187,8 @@ function DemoSuitesPanel({ flash }) {
   const [rows, setRows] = useState([]);
   const [feedback, setFeedback] = useState([]);
   const [starts, setStarts] = useState({});
-  const load = () => { apiGet('/platform/demo-suites').then((d) => { setRows(d.demoSuites || []); setFeedback(d.feedback || []); setStarts(d.starts || {}); }).catch(() => {}); };
+  const [realFb, setRealFb] = useState([]);
+  const load = () => { apiGet('/platform/demo-suites').then((d) => { setRows(d.demoSuites || []); setFeedback(d.feedback || []); setStarts(d.starts || {}); setRealFb(d.realFeedback || []); }).catch(() => {}); };
   useEffect(load, []);
   const toggle = async (r) => {
     try { await apiPost('/platform/demo-suites', { suiteKey: r.suite_key, enabled: !r.enabled }); load(); }
@@ -200,7 +201,30 @@ function DemoSuitesPanel({ flash }) {
 
   return (
     <section className="pc-section">
-      <SectionHead title="Public suite demos" count={`${rows.filter((r) => r.enabled).length} open`} />
+      <SectionHead title="Product feedback" count={`${realFb.length} real · ${feedback.length} demo`} />
+
+      {realFb.length > 0 && (
+        <>
+          <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--dim)', margin: '0 0 8px' }}>
+            Real customers, inside the product
+          </div>
+          <div className="pc-panel" style={{ marginBottom: 18 }}>
+            {realFb.slice(0, 30).map((f) => (
+              <div key={f.id} className="pc-rowline" style={{ fontSize: 12.5, alignItems: 'flex-start' }}>
+                <span className="pc-mono pc-faint" style={{ width: 100, flex: 'none', fontSize: 11.5 }}>{fmtDate(f.created_at)}</span>
+                <span style={{ width: 150, flex: 'none', fontWeight: 550 }}>{f.org?.name || '—'}</span>
+                <span className="pc-dim" style={{ width: 130, flex: 'none' }}>{f.author?.name || '—'}</span>
+                <span className="pc-mono pc-faint" style={{ width: 120, flex: 'none' }}>{(SUITES.find((s2) => s2.key === f.suite_key)?.name || f.suite_key)} · {f.rating}/5</span>
+                <span style={{ whiteSpace: 'pre-wrap' }}>{f.comment || '—'}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--dim)', margin: '0 0 8px' }}>
+        Public demos · {rows.filter((r) => r.enabled).length} open
+      </div>
       <p style={{ fontSize: 12.5, color: 'var(--faint)', margin: '0 0 12px' }}>
         Open suites appear as "Try it" on the landing page. The numbers below are the improvement loop: low ease = the
         suite (or its tour) is confusing; low would-pay = the value story isn't landing; the comments say why, in the

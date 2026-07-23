@@ -4,6 +4,7 @@ import { apiGet } from '../api/client.js';
 import { SUITE_META } from '../config/suites.js';
 import AppLayout from '../components/AppLayout.jsx';
 import SuiteIcon from '../components/SuiteIcon.jsx';
+import SuiteFeedbackButton from '../components/SuiteFeedbackButton.jsx';
 // Each suite is its own lazy chunk: opening HR downloads only HR's code, not
 // all 15 suites. This is the bulk of what used to sit in the initial bundle.
 const HRApp         = lazy(() => import('../suites/hr/HRApp.jsx'));
@@ -68,6 +69,7 @@ export default function SuiteShell() {
               <h1 style={{ margin: 0 }}>{suite.name}</h1>
               <p>{suite.desc}</p>
             </div>
+            <SuiteFeedbackButton suiteKey={key} suiteName={suite.name} />
             <span className={`role-pill role-${['manager','receptionist','security','management'].includes(access?.role) ? 'manager' : 'staff'}`}>
               {{ manager:'Manager view', member:'Member view', receptionist:'Receptionist', security:'Security', management:'Management', staff:'Staff' }[access?.role] || 'Member view'}
             </span>
