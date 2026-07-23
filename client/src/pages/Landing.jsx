@@ -195,67 +195,71 @@ function PriceCalculator() {
   return (
     <Reveal className="cl-calc" delay={0.1}>
       <h3 className="cl-calc-h">Estimate your price</h3>
-      <div className="cl-calc-row">
-        <div className="cl-calc-tiers">
-          {PRICE_TIERS.map((t) => (
-            <button key={t.key} type="button" className={`cl-calc-tier ${tierKey === t.key ? 'on' : ''}`} onClick={() => pickTier(t.key)}>{t.name}</button>
-          ))}
-        </div>
-        <label className="cl-calc-toggle">
-          <input type="checkbox" checked={yearly} onChange={(e) => setYearly(e.target.checked)} />
-          Bill yearly <span className="cl-calc-save">(save 15%)</span>
-        </label>
-      </div>
-
-      <div className="cl-calc-row" style={{ marginBottom: 10 }}>
-        <label className="cl-calc-slider-label" style={{ margin: 0, width: 'auto' }}>Pick your suites</label>
-        <span className={`cl-calc-meter ${extra > 0 ? 'over' : ''}`}>
-          {suiteCount} selected · {tier.included} included{extra > 0 ? ` · ${extra} extra` : ''}
-        </span>
-      </div>
-      <div className="cl-calc-suites">
-        {SUITES.map((s) => {
-          const meta = SUITE_META[s.key] || {};
-          const on = selected.has(s.key);
-          return (
-            <button key={s.key} type="button" className={`cl-calc-suite ${on ? 'on' : ''}`} onClick={() => toggleSuite(s.key)}>
-              <span className="cl-calc-suite-icon" style={{ background: on ? meta.tint : 'var(--line)' }}>
-                <SuiteIcon name={meta.icon || 'grid'} size={16} color="#fff" />
-              </span>
-              {s.name}
-              {on && <svg className="cl-calc-tick" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10"/></svg>}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="cl-calc-row" style={{ marginTop: 20, marginBottom: 8 }}>
-        <label className="cl-calc-slider-label" style={{ margin: 0, width: 'auto' }}>How many staff?</label>
-        <div className="cl-calc-step">
-          <button type="button" aria-label="Fewer staff" onClick={() => setStaffCount((c) => Math.max(1, c - 1))}>−</button>
-          <input value={staffCount} inputMode="numeric" aria-label="Number of staff"
-            onChange={(e) => { const n = parseInt(e.target.value.replace(/\D/g, ''), 10); setStaffCount(Number.isNaN(n) ? 1 : Math.min(1000, Math.max(1, n))); }} />
-          <button type="button" aria-label="More staff" onClick={() => setStaffCount((c) => Math.min(1000, c + 1))}>+</button>
-        </div>
-      </div>
-      <input type="range" min={1} max={200} value={Math.min(200, staffCount)}
-        onChange={(e) => setStaffCount(Number(e.target.value))} className="cl-calc-slider"
-        style={{ '--fill': `${((Math.min(200, staffCount) - 1) / 199) * 100}%` }} />
-
-      <div className="cl-calc-lines">
-        <div><span>{tier.name} plan — {tier.included} suites included</span><b>{naira(tier.baseFee)}/mo</b></div>
-        {extra > 0 && <div><span>{extra} extra suite{extra === 1 ? '' : 's'} × {naira(tier.extraFee)}</span><b>{naira(extra * tier.extraFee)}/mo</b></div>}
-        <div><span>{staffCount} staff × {naira(perStaff)}</span><b>{naira(staffCount * perStaff)}/mo</b></div>
-        {yearly && <div className="save"><span>Yearly billing — {Math.round(annualDiscount * 100)}% off</span><b>−{naira(Math.round(monthly * 12 * annualDiscount))}/yr</b></div>}
-      </div>
-      <div className="cl-calc-result">
-        <div>
-          <div className="cl-calc-total">{naira(Math.round(total))}<small>{yearly ? '/yr' : '/mo'}</small></div>
-          <div className="cl-calc-sub">
-            {yearly ? `works out to ${naira(Math.round(total / 12))}/mo` : 'your rate is locked at sign-up — it never goes up on you'}
+      <div className="cl-calc-body">
+        <div className="cl-calc-controls">
+          <div className="cl-calc-row">
+            <div className="cl-calc-tiers">
+              {PRICE_TIERS.map((t) => (
+                <button key={t.key} type="button" className={`cl-calc-tier ${tierKey === t.key ? 'on' : ''}`} onClick={() => pickTier(t.key)}>{t.name}</button>
+              ))}
+            </div>
+            <label className="cl-calc-toggle">
+              <input type="checkbox" checked={yearly} onChange={(e) => setYearly(e.target.checked)} />
+              Bill yearly <span className="cl-calc-save">(save 15%)</span>
+            </label>
           </div>
+
+          <div className="cl-calc-row" style={{ marginBottom: 10 }}>
+            <label className="cl-calc-slider-label" style={{ margin: 0, width: 'auto' }}>Pick your suites</label>
+            <span className={`cl-calc-meter ${extra > 0 ? 'over' : ''}`}>
+              {suiteCount} selected · {tier.included} included{extra > 0 ? ` · ${extra} extra` : ''}
+            </span>
+          </div>
+          <div className="cl-calc-suites">
+            {SUITES.map((s) => {
+              const meta = SUITE_META[s.key] || {};
+              const on = selected.has(s.key);
+              return (
+                <button key={s.key} type="button" className={`cl-calc-suite ${on ? 'on' : ''}`} onClick={() => toggleSuite(s.key)}>
+                  <span className="cl-calc-suite-icon" style={{ background: on ? meta.tint : 'var(--line)' }}>
+                    <SuiteIcon name={meta.icon || 'grid'} size={16} color="#fff" />
+                  </span>
+                  {s.name}
+                  {on && <svg className="cl-calc-tick" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10"/></svg>}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="cl-calc-row" style={{ marginTop: 20, marginBottom: 8 }}>
+            <label className="cl-calc-slider-label" style={{ margin: 0, width: 'auto' }}>How many staff?</label>
+            <div className="cl-calc-step">
+              <button type="button" aria-label="Fewer staff" onClick={() => setStaffCount((c) => Math.max(1, c - 1))}>−</button>
+              <input value={staffCount} inputMode="numeric" aria-label="Number of staff"
+                onChange={(e) => { const n = parseInt(e.target.value.replace(/\D/g, ''), 10); setStaffCount(Number.isNaN(n) ? 1 : Math.min(1000, Math.max(1, n))); }} />
+              <button type="button" aria-label="More staff" onClick={() => setStaffCount((c) => Math.min(1000, c + 1))}>+</button>
+            </div>
+          </div>
+          <input type="range" min={1} max={200} value={Math.min(200, staffCount)}
+            onChange={(e) => setStaffCount(Number(e.target.value))} className="cl-calc-slider"
+            style={{ '--fill': `${((Math.min(200, staffCount) - 1) / 199) * 100}%` }} />
         </div>
-        <Link className="cl-btn cl-btn-primary" to={`/signup?plan=${tierKey}`}>Start with {tier.name}</Link>
+
+        <aside className="cl-calc-summary">
+          <div className="cl-calc-headline">
+            <div className="cl-calc-total">{naira(Math.round(total))}<small>{yearly ? '/yr' : '/mo'}</small></div>
+            <div className="cl-calc-sub">
+              {yearly ? `works out to ${naira(Math.round(total / 12))}/mo` : 'rate locked at sign-up — never goes up on you'}
+            </div>
+          </div>
+          <div className="cl-calc-lines">
+            <div><span>{tier.name} — {tier.included} suites incl.</span><b>{naira(tier.baseFee)}/mo</b></div>
+            {extra > 0 && <div><span>{extra} extra suite{extra === 1 ? '' : 's'} × {naira(tier.extraFee)}</span><b>{naira(extra * tier.extraFee)}/mo</b></div>}
+            <div><span>{staffCount} staff × {naira(perStaff)}</span><b>{naira(staffCount * perStaff)}/mo</b></div>
+            {yearly && <div className="save"><span>Yearly — {Math.round(annualDiscount * 100)}% off</span><b>−{naira(Math.round(monthly * 12 * annualDiscount))}/yr</b></div>}
+          </div>
+          <Link className="cl-btn cl-btn-primary cl-calc-cta" to={`/signup?plan=${tierKey}`}>Start with {tier.name}</Link>
+        </aside>
       </div>
     </Reveal>
   );

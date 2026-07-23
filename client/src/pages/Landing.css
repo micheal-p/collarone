@@ -433,8 +433,14 @@
 .cl-pc .cl-btn-primary { box-shadow: 0 10px 28px rgba(255,91,31,0.4); }
 .cl-price-note { text-align: center; font-size: 12.5px; color: var(--text-faint); max-width: 56ch; margin: 24px auto 0; }
 
-.cl-calc { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px 32px; margin: 32px 0; max-width: 640px; margin-left: auto; margin-right: auto; box-shadow: var(--shadow-sm); }
+.cl-calc { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px 32px; margin: 32px auto; max-width: 960px; box-shadow: var(--shadow-sm); }
 .cl-calc-h { font-size: 15px; font-weight: 700; margin: 0 0 18px; }
+.cl-calc-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
+.cl-calc-controls { min-width: 0; }
+/* live price panel — sticky beside the controls on desktop */
+.cl-calc-summary { position: sticky; top: 90px; background: var(--bg-tint); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.cl-calc-headline { display: flex; flex-direction: column; }
+.cl-calc-cta { width: 100%; justify-content: center; }
 .cl-calc-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
 .cl-calc-tiers { display: flex; gap: 8px; }
 .cl-calc-tier { padding: 7px 16px; border-radius: 100px; border: 1px solid var(--line); background: transparent; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-soft); transition: all .15s ease; }
@@ -452,7 +458,7 @@
 .cl-calc-step button { width: 34px; border: none; background: transparent; font-size: 16px; line-height: 1; cursor: pointer; color: var(--text-soft); transition: background .12s ease; }
 .cl-calc-step button:hover { background: color-mix(in srgb, var(--accent) 9%, transparent); color: var(--text); }
 .cl-calc-step input { width: 58px; height: 34px; border: none; border-left: 1px solid var(--line); border-right: 1px solid var(--line); text-align: center; font: inherit; font-size: 14px; font-weight: 650; background: transparent; color: var(--text); outline: none; font-variant-numeric: tabular-nums; }
-.cl-calc-lines { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 7px; font-size: 13px; }
+.cl-calc-lines { padding-top: 14px; border-top: 1px solid var(--line); display: grid; gap: 7px; font-size: 12.5px; }
 .cl-calc-lines > div { display: flex; justify-content: space-between; gap: 12px; color: var(--text-soft); }
 .cl-calc-lines b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cl-calc-lines .save, .cl-calc-lines .save b { color: var(--accent-ink); }
@@ -460,10 +466,20 @@
 .cl-calc-suite { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: transparent; font-size: 13px; font-weight: 500; color: var(--text-faint); cursor: pointer; transition: all .15s ease; text-align: left; }
 .cl-calc-suite.on { border-color: var(--accent); color: var(--text); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .cl-calc-suite-icon { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex-shrink: 0; transition: background .15s ease; }
-.cl-calc-result { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding-top: 18px; border-top: 1px solid var(--line); }
-.cl-calc-total { font-family: ui-monospace, monospace; font-size: 28px; font-weight: 650; }
-.cl-calc-total small { font-size: 13px; font-weight: 400; color: var(--text-faint); }
-.cl-calc-sub { font-size: 12.5px; color: var(--text-faint); margin-top: 4px; }
+.cl-calc-total { font-family: ui-monospace, monospace; font-size: 32px; font-weight: 650; line-height: 1; }
+.cl-calc-total small { font-size: 14px; font-weight: 400; color: var(--text-faint); }
+.cl-calc-sub { font-size: 12px; color: var(--text-faint); margin-top: 5px; line-height: 1.4; }
+
+/* stack + pin the price to the top on phones so it's the first thing seen */
+@media (max-width: 860px) {
+  .cl-calc { padding: 20px 18px; }
+  .cl-calc-body { grid-template-columns: 1fr; gap: 0; }
+  .cl-calc-summary { order: -1; position: sticky; top: 60px; z-index: 3; flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; box-shadow: var(--shadow-md); padding: 14px 16px; }
+  .cl-calc-summary .cl-calc-lines { display: none; }
+  .cl-calc-summary .cl-calc-sub { display: none; }
+  .cl-calc-total { font-size: 26px; }
+  .cl-calc-cta { width: auto; flex: none; white-space: nowrap; }
+}
 
 .cl-about-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 40px; align-items: start; }
 @media (max-width: 760px) { .cl-about-grid { grid-template-columns: 1fr; } }
