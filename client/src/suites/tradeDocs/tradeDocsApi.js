@@ -7,6 +7,19 @@ export const setDocumentStatus = (id, status) => apiPatch(`/trade-docs/${id}`, {
 export const deleteDocument = (id) => apiDelete(`/trade-docs/${id}`);
 export const setDocMeta = (id, meta) => apiPost(`/trade-docs/${id}/meta`, { meta }).then((d) => d.document);
 
+// Email an invoice's pay-link to its own customer (server derives recipient).
+// Uses the notify function directly (not the facade) — same pattern as the
+// site/platform payment functions.
+import { getAccessToken } from '../../api/client.ts';
+const notify = async (payload) => {
+  const r = await fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAccessToken() || ''}` }, body: JSON.stringify(payload) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.message || 'Email failed.');
+  return d;
+};
+export const emailStatus = () => notify({ action: 'status' }).then((d) => Boolean(d.enabled)).catch(() => false);
+export const emailInvoice = (docId) => notify({ action: 'invoice', docId });
+
 // Receivables: payments recorded against an invoice
 export const getPayments = (docId) => apiGet(`/trade-docs/${docId}/payments`).then((d) => d.payments);
 export const recordPayment = (docId, body) => apiPost(`/trade-docs/${docId}/payments`, body).then((d) => d.document);
