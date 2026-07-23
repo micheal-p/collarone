@@ -4,8 +4,9 @@ import { getPublicSite, getPreviewSite } from '../admin/website/websiteApi.js';
 import { LAYOUTS } from './siteLayouts.jsx';
 import { getSiteTheme } from './themes/index.js';
 
-export default function PublicSite() {
-  const { slug } = useParams();
+export default function PublicSite({ slugProp }) {
+  const params = useParams();
+  const slug = slugProp || params.slug;
   const [searchParams] = useSearchParams();
   const isPreview = searchParams.get('preview') === '1';
   const [data, setData] = useState(null);

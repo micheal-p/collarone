@@ -16,6 +16,7 @@ import AdminWebsite from './pages/admin/website/WebsiteBuilder.jsx';
 import PlatformAdmin from './pages/PlatformAdmin.jsx';
 import PlatformAnalytics from './pages/PlatformAnalytics.jsx';
 import PublicSite from './pages/site/PublicSite.jsx';
+import { tenantSlug } from './lib/subdomain.js';
 import PublicInvoice from './pages/PublicInvoice.jsx';
 import TryDemo from './pages/TryDemo.jsx';
 import TryChooser from './pages/TryChooser.jsx';
@@ -89,6 +90,10 @@ function WorkspaceRoute() {
 
 export default function App() {
   usePageViewTracking();
+  // On a tenant subdomain (acme.collarone.app) the whole host IS that
+  // customer's published site — render it for every path.
+  const siteSlug = tenantSlug();
+  if (siteSlug) return <PublicSite slugProp={siteSlug} />;
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
