@@ -45,7 +45,7 @@
 .cl-navlinks { display: flex; gap: 8px; align-items: center; }
 .cl-navlinks a.cl-nl { color: var(--text-soft); text-decoration: none; font-size: 14px; padding: 8px 14px; border-radius: 100px; }
 .cl-navlinks a.cl-nl:hover { color: var(--text); background: var(--surface-2); }
-@media (max-width: 780px) { .cl-navlinks a.cl-nl.cl-hide-sm { display: none; } }
+@media (max-width: 780px) { .cl-navlinks a.cl-nl.cl-hide-sm, .cl-navlinks .cl-btn-trydemo { display: none; } }
 
 /* ---- mobile menu (burger) ---- */
 .cl-burger { display: none; align-items: center; justify-content: center; width: 42px; height: 42px;

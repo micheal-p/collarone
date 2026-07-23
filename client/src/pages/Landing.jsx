@@ -424,7 +424,7 @@ export default function Landing() {
             <a className="cl-nl cl-hide-sm" href="#about">About</a>
             <a className="cl-nl cl-hide-sm" href="#faq">FAQ</a>
             <Link className="cl-nl cl-hide-sm" to="/jobs">Jobs</Link>
-            <Link className="cl-btn cl-btn-sm cl-btn-trydemo" to="/try">Try demo</Link>
+            <Link className="cl-btn cl-btn-sm cl-btn-trydemo cl-hide-sm" to="/try">Try demo</Link>
             <Link className="cl-nl cl-hide-sm" to="/login">Sign in</Link>
             <Link className="cl-btn cl-btn-primary cl-btn-sm" to="/signup">Get started</Link>
             <button type="button" className="cl-burger" aria-label={navOpen ? 'Close menu' : 'Open menu'} aria-expanded={navOpen} onClick={() => setNavOpen((v) => !v)}>
