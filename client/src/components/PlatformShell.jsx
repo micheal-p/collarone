@@ -9,9 +9,9 @@ const TABS = [
 ];
 
 const Mark = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 200 200" style={{ color: '#EDE9DF' }}>
-    <circle cx="100" cy="100" r="92" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.25" />
-    <circle cx="100" cy="100" r="74" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.4" />
+  <svg width={size} height={size} viewBox="0 0 200 200" style={{ color: '#16191F' }}>
+    <circle cx="100" cy="100" r="92" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.18" />
+    <circle cx="100" cy="100" r="74" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.32" />
     <path d="M 100 30 L 60 70 L 60 130 L 100 170 L 100 150 L 78 128 L 78 72 L 100 50 Z" fill="currentColor" />
     <path d="M 100 30 L 140 70 L 140 130 L 100 170 L 100 150 L 122 128 L 122 72 L 100 50 Z" fill="currentColor" opacity="0.55" />
     <circle cx="100" cy="100" r="9" fill="#FF5B1F" />
