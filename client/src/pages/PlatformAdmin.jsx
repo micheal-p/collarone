@@ -194,7 +194,7 @@ function DemoSuitesPanel({ flash }) {
     try { await apiPost('/platform/demo-suites', { suiteKey: r.suite_key, enabled: !r.enabled }); load(); }
     catch (e) { flash(e.message, true); }
   };
-  if (!rows.length) return null;
+  if (!rows.length && !realFb.length && !feedback.length) return null;
   const name = (k) => SUITES.find((s2) => s2.key === k)?.name || k;
   const fbFor = (k) => feedback.filter((x) => x.suite_key === k);
   const comments = feedback.filter((f) => f.comment && f.comment.trim());
@@ -215,7 +215,7 @@ function DemoSuitesPanel({ flash }) {
                 <span style={{ width: 150, flex: 'none', fontWeight: 550 }}>{f.org?.name || '—'}</span>
                 <span className="pc-dim" style={{ width: 130, flex: 'none' }}>{f.author?.name || '—'}</span>
                 <span className="pc-mono pc-faint" style={{ width: 120, flex: 'none' }}>{(SUITES.find((s2) => s2.key === f.suite_key)?.name || f.suite_key)} · {f.rating}/5</span>
-                <span style={{ whiteSpace: 'pre-wrap' }}>{f.comment || '—'}</span>
+                <span style={{ whiteSpace: 'pre-wrap', minWidth: 0, overflowWrap: 'anywhere' }}>{f.comment || '—'}</span>
               </div>
             ))}
           </div>
@@ -268,7 +268,7 @@ function DemoSuitesPanel({ flash }) {
                 <span className="pc-mono pc-faint" style={{ width: 100, flex: 'none', fontSize: 11.5 }}>{fmtDate(f.created_at)}</span>
                 <span style={{ width: 140, flex: 'none', fontWeight: 550 }}>{name(f.suite_key)}</span>
                 <span className="pc-mono pc-faint" style={{ width: 96, flex: 'none' }}>{f.ease}/5 · {f.would_pay}</span>
-                <span style={{ whiteSpace: 'pre-wrap' }}>{f.comment}</span>
+                <span style={{ whiteSpace: 'pre-wrap', minWidth: 0, overflowWrap: 'anywhere' }}>{f.comment}</span>
               </div>
             ))}
           </div>

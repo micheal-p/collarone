@@ -19,7 +19,21 @@ import { tourForSuite } from '../config/demoTours.js';
 
 const FLAG = 'co-try-demo';
 
+// Leaving the demo for ANY real destination must drop the sandbox first —
+// otherwise the tab keeps talking to the mock API and a prospect could
+// "sign up" against fake data and believe they registered.
+const leaveDemoTo = (path) => {
+  sessionStorage.removeItem(FLAG);
+  localStorage.removeItem('orgops_demo_session');
+  window.location.href = path;
+};
+
 function FeedbackModal({ suiteKey, onDone }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onDone(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onDone]);
   const [ease, setEase] = useState(0);
   const [wouldPay, setWouldPay] = useState('');
   const [comment, setComment] = useState('');
@@ -30,9 +44,10 @@ function FeedbackModal({ suiteKey, onDone }) {
     e.preventDefault();
     if (!ease || !wouldPay) return;
     setBusy(true);
-    try {
-      await supabase.from('demo_feedback').insert({ suite_key: suiteKey, ease, would_pay: wouldPay, comment: comment.slice(0, 1000) });
-    } catch { /* feedback must never block the exit */ }
+    // { error } is inspected but never blocks the exit — worst case the
+    // response is lost and the visitor still leaves cleanly.
+    const { error } = await supabase.from('demo_feedback').insert({ suite_key: suiteKey, ease, would_pay: wouldPay, comment: comment.slice(0, 1000) });
+    if (error) { setSent(true); setTimeout(onDone, 900); return; }
     setSent(true);
     setTimeout(onDone, 1400);
   };
@@ -41,8 +56,8 @@ function FeedbackModal({ suiteKey, onDone }) {
   const on = { background: '#0A0E1A', color: '#fff', borderColor: '#0A0E1A' };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(8,10,18,0.6)', display: 'grid', placeItems: 'center', padding: 16 }}>
-      <div style={{ width: 'min(440px, 100%)', background: '#fff', borderRadius: 16, padding: '26px 28px', boxShadow: '0 30px 80px rgba(0,0,0,0.4)' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 400, background: 'rgba(8,10,18,0.6)', display: 'grid', placeItems: 'center', padding: 16 }} onMouseDown={onDone}>
+      <div role="dialog" aria-modal="true" aria-label="Demo feedback" style={{ width: 'min(440px, 100%)', background: '#fff', borderRadius: 16, padding: '26px 28px', boxShadow: '0 30px 80px rgba(0,0,0,0.4)' }} onMouseDown={(e) => e.stopPropagation()}>
         {sent ? (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: 34 }}>🙏</div>
@@ -139,8 +154,8 @@ export default function TryDemo() {
           <h1 style={{ fontSize: 22, marginBottom: 8 }}>This suite isn't open for demo yet</h1>
           <p style={{ color: '#667', fontSize: 14.5, lineHeight: 1.6 }}>But you can preview the website themes, or set up your own workspace in minutes.</p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 16 }}>
-            <Link to="/" style={{ textDecoration: 'none', padding: '11px 20px', borderRadius: 100, border: '1px solid #d8d5cc', color: '#14161a', fontSize: 14, fontWeight: 650 }}>Back home</Link>
-            <Link to="/signup" style={{ textDecoration: 'none', padding: '11px 20px', borderRadius: 100, background: '#FF5B1F', color: '#fff', fontSize: 14, fontWeight: 650 }}>Get started</Link>
+            <button onClick={() => leaveDemoTo('/')} style={{ background: 'none', cursor: 'pointer', padding: '11px 20px', borderRadius: 100, border: '1px solid #d8d5cc', color: '#14161a', fontSize: 14, fontWeight: 650 }}>Back home</button>
+            <button onClick={() => leaveDemoTo('/signup')} style={{ border: 'none', cursor: 'pointer', padding: '11px 20px', borderRadius: 100, background: '#FF5B1F', color: '#fff', fontSize: 14, fontWeight: 650 }}>Get started</button>
           </div>
         </div>
       </div>
@@ -149,17 +164,18 @@ export default function TryDemo() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg, #FAF9F6)' }}>
-      {/* demo chrome */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0A0E1A', color: '#F4F1EA', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13.5 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 99, background: '#FF5B1F' }} />
-          Live demo — {suite.name}
+      {/* demo chrome — single row that stays put; the helper caption drops on
+          phones so the actions never wrap into a stack of stuck rows */}
+      <div className="tryd-chrome" style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0A0E1A', color: '#F4F1EA', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap', minWidth: 0 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 99, background: '#FF5B1F', flex: 'none' }} />
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Live demo</span>
         </span>
-        <span style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.6)' }}>Sample data only. Click anything — you can't break it.</span>
+        <span className="tryd-hint" style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.6)', whiteSpace: 'nowrap' }}>Sample data — click anything, you can't break it.</span>
         <span style={{ flex: 1 }} />
-        <button onClick={() => setTourOpen(true)} style={{ background: 'rgba(244,241,234,0.12)', color: '#F4F1EA', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 12.5, fontWeight: 650, cursor: 'pointer' }}>Restart tour</button>
-        <Link to="/signup" style={{ background: '#FF5B1F', color: '#fff', textDecoration: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 12.5, fontWeight: 700 }}>Create my workspace</Link>
-        <button onClick={exit} style={{ background: 'none', color: 'rgba(244,241,234,0.75)', border: '1px solid rgba(244,241,234,0.25)', borderRadius: 100, padding: '7px 14px', fontSize: 12.5, fontWeight: 650, cursor: 'pointer' }}>Exit demo</button>
+        <button onClick={() => setTourOpen(true)} className="tryd-hint" style={{ background: 'rgba(244,241,234,0.12)', color: '#F4F1EA', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 12.5, fontWeight: 650, cursor: 'pointer', flex: 'none' }}>Restart tour</button>
+        <button onClick={() => leaveDemoTo('/signup')} style={{ background: '#FF5B1F', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: 100, padding: '7px 14px', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', flex: 'none' }}>Get started</button>
+        <button onClick={exit} style={{ background: 'none', color: 'rgba(244,241,234,0.75)', border: '1px solid rgba(244,241,234,0.25)', borderRadius: 100, padding: '7px 14px', fontSize: 12.5, fontWeight: 650, cursor: 'pointer', whiteSpace: 'nowrap', flex: 'none' }}>Exit</button>
       </div>
 
       {/* suite header, mirroring the real shell */}

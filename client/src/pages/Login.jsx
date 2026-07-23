@@ -1,9 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import logo from '../assets/collarone-mark.svg';
 
 export default function Login() {
+  // Safety net: a leftover try-demo sandbox flag must never leak into real
+  // auth — purge it and reload so the API layer rebinds to Supabase.
+  useEffect(() => {
+    if (import.meta.env.VITE_DEMO_MODE !== 'true' && sessionStorage.getItem('co-try-demo') === '1') {
+      sessionStorage.removeItem('co-try-demo');
+      localStorage.removeItem('orgops_demo_session');
+      window.location.reload();
+    }
+  }, []);
   const { user, login, booting } = useAuth();
   const nav = useNavigate();
   const [email, setEmail] = useState('');

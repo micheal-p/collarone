@@ -205,6 +205,105 @@ async function demoApiInner(path, opts = {}) {
   // Employee 360 record render fully in demo mode. Derived from db.users so
   // ids always line up; regenerated per call (nothing persisted).
 
+
+  // ---- inventory & assets (demo-enabled suite: full sample stock) ----
+  if (seg[0] === 'inventory') {
+    const me = requireAuth();
+    const irid = (pfx) => pfx + Math.random().toString(36).slice(2, 8);
+    const iNow = () => new Date().toISOString();
+    const activeStaff = db.users.filter((u) => u.status === 'active');
+
+    if (!db.invWarehouses) {
+      db.invWarehouses = [
+        { id: 'wh1', name: 'Main store — Ikeja', location: 'Ikeja, Lagos' },
+        { id: 'wh2', name: 'Warehouse — Trade Fair', location: 'Ojo, Lagos' },
+      ];
+      db.invItems = [
+        { id: 'it1', sku: 'RICE-50KG', name: 'Rice — 50kg bag', unit: 'bags', category: 'Food', reorder_level: 10, for_sale: true, for_staff_use: false, notes: '', levels: [{ warehouse_id: 'wh1', quantity: 34 }, { warehouse_id: 'wh2', quantity: 12 }] },
+        { id: 'it2', sku: 'OIL-25L', name: 'Vegetable oil — 25L', unit: 'kegs', category: 'Food', reorder_level: 8, for_sale: true, for_staff_use: false, notes: '', levels: [{ warehouse_id: 'wh1', quantity: 6 }] },
+        { id: 'it3', sku: 'HELMET', name: 'Safety helmet', unit: 'pieces', category: 'Equipment', reorder_level: 4, for_sale: false, for_staff_use: true, notes: '', levels: [{ warehouse_id: 'wh1', quantity: 10 }] },
+        { id: 'it4', sku: 'DRILL-M', name: 'Makita drill', unit: 'pieces', category: 'Equipment', reorder_level: 1, for_sale: false, for_staff_use: true, notes: '', levels: [{ warehouse_id: 'wh1', quantity: 3 }] },
+      ];
+      db.invMovements = [
+        { id: 'mv1', item: { id: 'it1', name: 'Rice — 50kg bag' }, warehouse: { id: 'wh1', name: 'Main store — Ikeja' }, type: 'in', quantity: 40, reference: 'GRN-0004', notes: '', author: { name: activeStaff[0]?.name }, created_at: iNow() },
+      ];
+      db.invReservations = [
+        { id: 'rs1', item: { id: 'it1', name: 'Rice — 50kg bag' }, item_id: 'it1', warehouse: { id: 'wh1', name: 'Main store — Ikeja' }, warehouse_id: 'wh1', quantity: 5, reference: 'Order ORD-2201', notes: '', hold_until: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10), status: 'held', created_at: iNow() },
+      ];
+      db.invTakeouts = [
+        { id: 'tk1', item: { id: 'it4', name: 'Makita drill', unit: 'pieces' }, item_id: 'it4', warehouse_id: 'wh1', quantity: 1, staff_id: activeStaff[1]?.id, staff: { id: activeStaff[1]?.id, name: activeStaff[1]?.name }, approved_by: me.id, approver: { id: me.id, name: me.name }, status: 'approved', notes: 'Site job — Lekki', created_at: new Date(Date.now() - 5 * 86400000).toISOString(), returned_at: null },
+      ];
+      save();
+    }
+
+    const applyLevel = (itemId, whId, delta) => {
+      const it = db.invItems.find((x) => x.id === itemId); if (!it) return;
+      let lvl = it.levels.find((l) => l.warehouse_id === whId);
+      if (!lvl) { lvl = { warehouse_id: whId, quantity: 0 }; it.levels.push(lvl); }
+      lvl.quantity = Math.max(0, Number(lvl.quantity) + delta);
+    };
+
+    if (route === 'GET /inventory/items') return { items: db.invItems };
+    if (route === 'POST /inventory/items') {
+      const it = { id: irid('it'), sku: (body.sku || '').toUpperCase(), name: body.name || '', unit: body.unit || 'unit', category: body.category || '', reorder_level: Number(body.reorderLevel) || 0, for_sale: body.forSale !== false, for_staff_use: Boolean(body.forStaffUse), notes: body.notes || '', levels: [] };
+      db.invItems.unshift(it); save(); return { item: it };
+    }
+    if (method === 'DELETE' && seg[1] === 'items') { db.invItems = db.invItems.filter((x) => x.id !== seg[2]); save(); return { ok: true }; }
+    if (route === 'GET /inventory/warehouses') return { warehouses: db.invWarehouses };
+    if (route === 'POST /inventory/warehouses') {
+      const w = { id: irid('wh'), name: body.name || '', location: body.location || '' };
+      db.invWarehouses.push(w); save(); return { warehouse: w };
+    }
+    if (route === 'GET /inventory/movements') return { movements: db.invMovements };
+    if (route === 'POST /inventory/movements') {
+      const it = db.invItems.find((x) => x.id === body.itemId);
+      const wh = db.invWarehouses.find((x) => x.id === body.warehouseId);
+      const qty = Number(body.quantity) || 0;
+      if (body.type === 'in') applyLevel(body.itemId, body.warehouseId, qty);
+      else if (body.type === 'out') applyLevel(body.itemId, body.warehouseId, -qty);
+      else if (body.type === 'transfer') { applyLevel(body.itemId, body.warehouseId, -qty); if (body.toWarehouseId) applyLevel(body.itemId, body.toWarehouseId, qty); }
+      else applyLevel(body.itemId, body.warehouseId, qty);
+      const mv = { id: irid('mv'), item: { id: it?.id, name: it?.name }, warehouse: { id: wh?.id, name: wh?.name }, type: body.type, quantity: qty, reference: body.reference || '', notes: body.notes || '', author: { name: me.name }, created_at: iNow() };
+      db.invMovements.unshift(mv); save(); return { movement: mv };
+    }
+    if (route === 'GET /inventory/reservations') return { reservations: db.invReservations };
+    if (route === 'POST /inventory/reservations') {
+      const it = db.invItems.find((x) => x.id === body.itemId);
+      const wh = db.invWarehouses.find((x) => x.id === body.warehouseId);
+      const r = { id: irid('rs'), item: { id: it?.id, name: it?.name }, item_id: body.itemId, warehouse: { id: wh?.id, name: wh?.name }, warehouse_id: body.warehouseId, quantity: Number(body.quantity) || 1, reference: body.reference || '', notes: body.notes || '', hold_until: body.holdUntil || null, status: 'held', created_at: iNow() };
+      db.invReservations.unshift(r); save(); return { reservation: r };
+    }
+    if (seg[1] === 'reservations' && seg[3] === 'fulfill') {
+      const r = db.invReservations.find((x) => x.id === seg[2]);
+      if (r) { r.status = 'fulfilled'; r.decided_at = iNow(); applyLevel(r.item_id, r.warehouse_id, -Number(r.quantity)); save(); }
+      return { reservation: r };
+    }
+    if (seg[1] === 'reservations' && seg[3] === 'release') {
+      const r = db.invReservations.find((x) => x.id === seg[2]);
+      if (r) { r.status = 'released'; r.decided_at = iNow(); save(); }
+      return { reservation: r };
+    }
+    if (route === 'GET /inventory/takeouts') return { takeouts: db.invTakeouts };
+    if (route === 'POST /inventory/takeouts') {
+      const it = db.invItems.find((x) => x.id === body.itemId);
+      const staff = db.users.find((x) => x.id === body.staffId);
+      applyLevel(body.itemId, body.warehouseId, -Number(body.quantity || 1));
+      const t = { id: irid('tk'), item: { id: it?.id, name: it?.name, unit: it?.unit }, item_id: body.itemId, warehouse_id: body.warehouseId, quantity: Number(body.quantity) || 1, staff_id: body.staffId, staff: { id: staff?.id, name: staff?.name }, approved_by: me.id, approver: { id: me.id, name: me.name }, status: 'approved', notes: body.notes || '', created_at: iNow(), returned_at: null };
+      db.invTakeouts.unshift(t); save(); return { takeout: t };
+    }
+    if (seg[1] === 'takeouts' && seg[3] === 'return') {
+      const t = db.invTakeouts.find((x) => x.id === seg[2]);
+      if (t) { t.status = 'returned'; t.returned_at = iNow(); applyLevel(t.item_id, t.warehouse_id, Number(t.quantity)); save(); }
+      return { takeout: t };
+    }
+    if (seg[1] === 'takeouts' && seg[3] === 'cancel') {
+      const t = db.invTakeouts.find((x) => x.id === seg[2]);
+      if (t) { t.status = 'cancelled'; applyLevel(t.item_id, t.warehouse_id, Number(t.quantity)); save(); }
+      return { takeout: t };
+    }
+    return fail(404, `Demo API has no route for ${route}`);
+  }
+
   // ---- payroll & benefits (full demo: rates, runs, payslips, wall, loans) ----
   if (seg[0] === 'payroll' && !['salary', 'bank'].includes(seg[1])) {
     const me = requireAuth();

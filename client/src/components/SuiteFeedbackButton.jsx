@@ -2,7 +2,7 @@
 // button in every suite header; the modal takes a rating and — the part that
 // matters — a free-text "what should we improve" that lands in Platform
 // Control with the org and person attached.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { DEMO } from '../api/client.ts';
@@ -14,6 +14,14 @@ export default function SuiteFeedbackButton({ suiteKey, suiteName }) {
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
 
   if (DEMO) return null; // demos have their own exit questionnaire
 
@@ -21,15 +29,14 @@ export default function SuiteFeedbackButton({ suiteKey, suiteName }) {
     e.preventDefault();
     if (!rating) return;
     setBusy(true);
-    try {
-      await supabase.from('app_feedback').insert({
-        org_id: user?.org?.id, user_id: user?.id, suite_key: suiteKey,
-        rating, comment: comment.slice(0, 2000),
-      });
-      setSent(true);
-      setTimeout(() => { setOpen(false); setSent(false); setRating(0); setComment(''); }, 1500);
-    } catch { setSent(true); setTimeout(() => setOpen(false), 1200); }
+    const { error } = await supabase.from('app_feedback').insert({
+      org_id: user?.org?.id, user_id: user?.id, suite_key: suiteKey,
+      rating, comment: comment.slice(0, 2000),
+    });
     setBusy(false);
+    if (error) { setError('That didn\'t send — check your connection and try again.'); return; }
+    setSent(true);
+    setTimeout(() => { setOpen(false); setSent(false); setRating(0); setComment(''); }, 1500);
   };
 
   const btn = { padding: '9px 14px', borderRadius: 100, border: '1px solid var(--line)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
@@ -42,7 +49,7 @@ export default function SuiteFeedbackButton({ suiteKey, suiteName }) {
       </button>
       {open && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 250, background: 'rgba(8,10,18,0.55)', display: 'grid', placeItems: 'center', padding: 16 }} onMouseDown={() => setOpen(false)}>
-          <div style={{ width: 'min(430px, 100%)', background: 'var(--surface, #fff)', borderRadius: 16, padding: '24px 26px', boxShadow: '0 30px 80px rgba(0,0,0,0.4)' }} onMouseDown={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label="Suite feedback" style={{ width: 'min(430px, 100%)', background: 'var(--surface, #fff)', borderRadius: 16, padding: '24px 26px', boxShadow: '0 30px 80px rgba(0,0,0,0.4)' }} onMouseDown={(e) => e.stopPropagation()}>
             {sent ? (
               <div style={{ textAlign: 'center', padding: '16px 0' }}>
                 <div style={{ fontWeight: 750, fontSize: 16 }}>Thank you — this goes straight to the team.</div>
@@ -60,6 +67,7 @@ export default function SuiteFeedbackButton({ suiteKey, suiteName }) {
                 <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3}
                   placeholder="What should we improve? What's missing? What's slowing you down?"
                   style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line, #d8d5cc)', fontSize: 13.5, fontFamily: 'inherit', resize: 'vertical', marginBottom: 14 }} />
+                {error && <div style={{ fontSize: 12.5, color: '#a4262c', marginBottom: 10 }}>{error}</div>}
                 <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                   <button type="button" style={btn} onClick={() => setOpen(false)}>Cancel</button>
                   <button type="submit" disabled={!rating || busy} style={{ ...btn, background: '#FF5B1F', borderColor: '#FF5B1F', color: '#fff', opacity: rating ? 1 : 0.5 }}>

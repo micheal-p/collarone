@@ -439,3 +439,7 @@
   .lv-tab { white-space: nowrap; }
   .btn, .btn-primary, .btn-ghost, .btn-sm { min-height: 40px; }
 }
+
+/* try-demo chrome: hide the helper caption + restart-tour on phones so the
+   sticky bar never wraps into stacked rows */
+@media (max-width: 620px) { .tryd-chrome .tryd-hint { display: none; } }
