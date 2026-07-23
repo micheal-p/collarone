@@ -45,6 +45,8 @@ import PublicThemes from './pages/PublicThemes.jsx';
 function usePageViewTracking() {
   const location = useLocation();
   useEffect(() => {
+    // the operator's own control-plane browsing is not visitor insight
+    if (location.pathname.startsWith('/platform-admin')) return;
     fetch('/api/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

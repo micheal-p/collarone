@@ -341,7 +341,7 @@ export async function supabaseApi(path, opts = {}) {
   }
   if (head === 'GET /platform' && seg[1] === 'page-views') {
     const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await supabase.from('page_views').select('path, country, created_at').gte('created_at', since).order('created_at', { ascending: false }).limit(20000);
+    const { data, error } = await supabase.from('page_views').select('path, country, created_at').gte('created_at', since).not('path', 'like', '/platform-admin%').order('created_at', { ascending: false }).limit(20000);
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { pageViews: data };
   }
