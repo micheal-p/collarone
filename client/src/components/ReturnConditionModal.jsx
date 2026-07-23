@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Modal } from './ui.jsx';
 import { compressImage } from '../lib/imageCompress.js';
 import { uploadSiteImage } from '../pages/admin/website/websiteApi.js';
+import { DEMO } from '../api/client.ts';
 
 export const CONDITIONS = [
   ['optimal', 'Optimal', 'Came back in the same state it went out.'],
@@ -26,7 +27,13 @@ export default function ReturnConditionModal({ title, itemLabel, orgId, onClose,
     setUploading(true);
     try {
       const small = await compressImage(file); // ~20KB target
-      setPhotoUrl(await uploadSiteImage(orgId, small, 'custody-'));
+      if (DEMO || !orgId) {
+        // sandbox (or missing org): keep the photo local — never write
+        // anonymous files into real storage
+        setPhotoUrl(URL.createObjectURL(small));
+      } else {
+        setPhotoUrl(await uploadSiteImage(orgId, small, 'custody-'));
+      }
     } catch (err) { flash(err.message, true); } finally { setUploading(false); }
   };
 

@@ -44,6 +44,15 @@ async function callSignup(action, payload) {
 }
 
 export default function Signup() {
+  // Safety net: a leftover try-demo sandbox flag must never leak into real
+  // auth — purge it and reload so the API layer rebinds to Supabase.
+  useEffect(() => {
+    if (import.meta.env.VITE_DEMO_MODE !== 'true' && sessionStorage.getItem('co-try-demo') === '1') {
+      sessionStorage.removeItem('co-try-demo');
+      localStorage.removeItem('orgops_demo_session');
+      window.location.reload();
+    }
+  }, []);
   usePricing(); // live published prices re-render the plan cards
   const [params] = useSearchParams();
   const nav = useNavigate();
