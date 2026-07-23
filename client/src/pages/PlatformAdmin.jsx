@@ -932,7 +932,7 @@ export default function PlatformAdmin() {
                     </tr>
                     {suiteResults[o.id] && expandedOrg === o.id && (
                       <tr>
-                        <td colSpan={8} style={{ background: 'rgba(238,234,224,0.02)', padding: '10px 14px' }}>
+                        <td colSpan={8} style={{ background: 'var(--tint)', padding: '10px 14px' }}>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                             {suiteResults[o.id].map((r) => (
                               <span key={r.key} className={`pc-badge ${r.ok ? 'ok' : 'err'}`}>
