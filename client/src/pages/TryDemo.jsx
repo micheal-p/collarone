@@ -109,6 +109,23 @@ export default function TryDemo() {
   const [state, setState] = useState('checking'); // checking | closed | booting | ready
   const [tourOpen, setTourOpen] = useState(false);
   const [feedback, setFeedback] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [otherSuites, setOtherSuites] = useState([]);
+
+  // the other demo-open suites — powers the burger's "try another" switcher
+  useEffect(() => {
+    supabase.from('platform_demo_suites').select('suite_key').eq('enabled', true)
+      .then(({ data }) => setOtherSuites((data || []).map((r) => r.suite_key).filter((k) => k !== suiteKey && SUITES.some((s) => s.key === k))))
+      .catch(() => {});
+  }, [suiteKey]);
+  // switching suite keeps the sandbox flag set (still a demo), just navigates
+  const switchSuite = (k) => { setMenuOpen(false); window.location.href = `/try/${k}`; };
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
 
   useEffect(() => {
     let alive = true;
@@ -144,6 +161,8 @@ export default function TryDemo() {
     window.location.href = '/';
   };
 
+  const mItem = { display: 'flex', alignItems: 'center', gap: 9, width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: '8px 10px', borderRadius: 8, fontSize: 13.5, color: '#14161a', fontWeight: 550 };
+
   if (state === 'checking' || state === 'booting') {
     return <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', fontFamily: 'sans-serif', color: '#667' }}>Setting up your demo…</div>;
   }
@@ -175,7 +194,39 @@ export default function TryDemo() {
         <span style={{ flex: 1 }} />
         <button onClick={() => setTourOpen(true)} className="tryd-hint" style={{ background: 'rgba(244,241,234,0.12)', color: '#F4F1EA', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 12.5, fontWeight: 650, cursor: 'pointer', flex: 'none' }}>Restart tour</button>
         <button onClick={() => leaveDemoTo('/signup')} style={{ background: '#FF5B1F', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: 100, padding: '7px 14px', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', flex: 'none' }}>Get started</button>
-        <button onClick={exit} style={{ background: 'none', color: 'rgba(244,241,234,0.75)', border: '1px solid rgba(244,241,234,0.25)', borderRadius: 100, padding: '7px 14px', fontSize: 12.5, fontWeight: 650, cursor: 'pointer', whiteSpace: 'nowrap', flex: 'none' }}>Exit</button>
+        <div style={{ position: 'relative', flex: 'none' }}>
+          <button aria-label="Demo menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}
+            style={{ display: 'grid', placeItems: 'center', width: 34, height: 34, background: 'rgba(244,241,234,0.1)', color: '#F4F1EA', border: '1px solid rgba(244,241,234,0.22)', borderRadius: 9, cursor: 'pointer' }}>
+            {menuOpen
+              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+              : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>}
+          </button>
+          {menuOpen && (
+            <>
+              <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+              <div style={{ position: 'absolute', right: 0, top: 42, zIndex: 60, width: 240, background: '#fff', color: '#14161a', borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,0.35)', padding: 8, textAlign: 'left' }}>
+                {otherSuites.length > 0 && (
+                  <>
+                    <div style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#99a', padding: '8px 10px 4px' }}>Try another suite</div>
+                    {otherSuites.map((k) => {
+                      const s2 = SUITES.find((x) => x.key === k); const m2 = SUITE_META[k] || {};
+                      return (
+                        <button key={k} onClick={() => switchSuite(k)} style={mItem}>
+                          <span style={{ width: 22, height: 22, borderRadius: 6, display: 'grid', placeItems: 'center', background: m2.tint || '#FF5B1F', flex: 'none' }}><SuiteIcon name={m2.icon || 'grid'} size={13} color="#fff" /></span>
+                          {s2?.name}
+                        </button>
+                      );
+                    })}
+                    <div style={{ height: 1, background: '#eee', margin: '6px 4px' }} />
+                  </>
+                )}
+                <button onClick={() => { setMenuOpen(false); setTourOpen(true); }} style={mItem}>Restart the tour</button>
+                <button onClick={() => leaveDemoTo('/themes')} style={mItem}>Preview website themes</button>
+                <button onClick={() => { setMenuOpen(false); exit(); }} style={mItem}>Exit demo</button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* suite header, mirroring the real shell */}
@@ -193,6 +244,17 @@ export default function TryDemo() {
           <App access={{ role: 'manager' }} suite={suite} />
         </Suspense>
       </div>
+
+      {/* demo footer */}
+      <footer style={{ borderTop: '1px solid var(--line, #e5e1d6)', background: '#0A0E1A', color: 'rgba(244,241,234,0.75)', padding: '26px 20px' }}>
+        <div style={{ maxWidth: 1160, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: '#F4F1EA' }}>Collar<em style={{ color: '#FF5B1F' }}>One</em></span>
+          <span style={{ fontSize: 12.5 }}>You're exploring a live demo — sample data, nothing real. Like what you see?</span>
+          <span style={{ flex: 1 }} />
+          <button onClick={() => leaveDemoTo('/signup')} style={{ background: '#FF5B1F', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: 100, padding: '9px 18px', fontSize: 13, fontWeight: 700 }}>Create my workspace</button>
+          <button onClick={() => leaveDemoTo('/')} style={{ background: 'none', color: 'rgba(244,241,234,0.75)', border: '1px solid rgba(244,241,234,0.25)', borderRadius: 100, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Back to site</button>
+        </div>
+      </footer>
 
       <CoachTour steps={tourForSuite(suiteKey)} open={tourOpen} onClose={() => setTourOpen(false)} />
       {feedback && <FeedbackModal suiteKey={suiteKey} onDone={reallyExit} />}
