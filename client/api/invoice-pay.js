@@ -15,6 +15,7 @@
 // Public and unauthenticated by design (the customer has no account); both
 // actions act only on the single invoice tied to the share token.
 import { createClient } from '@supabase/supabase-js';
+import { decryptSecret } from './_lib/gatewayCrypto.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -38,7 +39,7 @@ export default async function handler(req, res) {
     const { data: gw } = await admin.from('org_payment_gateways')
       .select('secret_key, enabled').eq('org_id', doc.org_id).maybeSingle();
     if (!gw?.enabled || !gw.secret_key) return json(res, 400, { message: 'This business does not take card payments yet.' });
-    const headers = { Authorization: `Bearer ${gw.secret_key}`, 'Content-Type': 'application/json' };
+    const headers = { Authorization: `Bearer ${decryptSecret(gw.secret_key)}`, 'Content-Type': 'application/json' };
 
     const outstanding = Math.max(0, Number(doc.total) - Number(doc.amount_paid || 0));
 

@@ -17,6 +17,7 @@
 // Public and unauthenticated by design (shoppers have no account); both
 // actions only ever act on the single order tied to the reference/id.
 import { createClient } from '@supabase/supabase-js';
+import { decryptSecret } from './_lib/gatewayCrypto.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -36,7 +37,7 @@ export default async function handler(req, res) {
     if (!org) return json(res, 404, { message: 'Unknown store.' });
     const { data: gw } = await admin.from('org_payment_gateways').select('secret_key, enabled').eq('org_id', org.id).maybeSingle();
     if (!gw?.enabled || !gw.secret_key) return json(res, 400, { message: 'This store does not take card payments.' });
-    const headers = { Authorization: `Bearer ${gw.secret_key}`, 'Content-Type': 'application/json' };
+    const headers = { Authorization: `Bearer ${decryptSecret(gw.secret_key)}`, 'Content-Type': 'application/json' };
 
     if (action === 'init') {
       const { data: order } = await admin.from('site_orders')
