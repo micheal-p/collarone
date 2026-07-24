@@ -1,0 +1,10 @@
+# Vercel (collarone.vercel.app) is a FALLBACK — production is the VPS
+# (collarone.app), where server/index.js mounts every api/*.js via Express with
+# no function cap. Vercel's Hobby plan caps at 12 serverless functions, so we
+# keep the Vercel bundle under that ceiling here.
+#
+# paystack-webhook.js is server-to-server only: Paystack calls it at the fixed
+# collarone.app URL, never the browser and never Vercel. Excluding it from the
+# fallback loses no user-facing feature and keeps us at 12 functions. The VPS
+# still gets it (rsync in deploy/deploy.sh doesn't read this file).
+api/paystack-webhook.js

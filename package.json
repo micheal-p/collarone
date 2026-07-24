@@ -10,7 +10,10 @@
     "dev": "npm run dev --workspace client",
     "dev:client": "npm run dev --workspace client",
     "build": "npm run build --workspace client",
-    "typecheck": "npm run typecheck --workspace client"
+    "typecheck": "npm run typecheck --workspace client",
+    "test": "node test/rls_probe.mjs && node test/payroll_golden.mjs",
+    "test:rls": "node test/rls_probe.mjs",
+    "test:payroll": "node test/payroll_golden.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
