@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import PublicThemeGallery from '../components/PublicThemeGallery.jsx';
 import CardCarousel from '../components/CardCarousel.jsx';
 import { motion, animate, AnimatePresence, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
-import { SUITES, SUITE_META } from '../config/suites.js';
+import { SUITES, SUITE_META, requiresOf, requiredFoundations } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 import { supabase } from '../lib/supabaseClient.js';
 import ChatWidget from './ChatWidget.jsx';
@@ -179,15 +179,29 @@ function PriceCalculator() {
   const monthly = tier.baseFee + extra * tier.extraFee + staffCount * perStaff;
   const total = yearly ? monthly * 12 * (1 - annualDiscount) : monthly;
 
+  // A suite is locked ON when another selected suite requires it (Payroll/Leave/
+  // Attendance require HR). Locked suites can't be turned off and count as paid.
+  const lockedKeys = new Set();
+  for (const k of selected) for (const dep of requiresOf(k)) lockedKeys.add(dep);
+  const lockedNames = [...lockedKeys].map((k) => SUITES.find((s) => s.key === k)?.name).filter(Boolean);
+
   const pickTier = (key) => {
     setTierKey(key);
-    setSelected(new Set(SUITES.slice(0, priceTiers().find((t) => t.key === key).included).map((s) => s.key)));
+    const base = SUITES.slice(0, priceTiers().find((t) => t.key === key).included).map((s) => s.key);
+    setSelected(new Set(requiredFoundations(base))); // never start in a broken state
   };
 
   const toggleSuite = (key) => {
     setSelected((s) => {
       const next = new Set(s);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) {
+        // can't remove a foundation something else selected still needs
+        const neededBy = [...next].some((k) => k !== key && requiresOf(k).includes(key));
+        if (neededBy) return next;
+        next.delete(key);
+      } else {
+        for (const dep of requiredFoundations([key])) next.add(dep); // pulls in HR
+      }
       return next;
     });
   };
@@ -219,17 +233,28 @@ function PriceCalculator() {
             {SUITES.map((s) => {
               const meta = SUITE_META[s.key] || {};
               const on = selected.has(s.key);
+              const locked = lockedKeys.has(s.key);
               return (
-                <button key={s.key} type="button" className={`cl-calc-suite ${on ? 'on' : ''}`} onClick={() => toggleSuite(s.key)}>
+                <button key={s.key} type="button" className={`cl-calc-suite ${on ? 'on' : ''}`}
+                  onClick={() => toggleSuite(s.key)}
+                  title={locked ? `Required by another suite you picked — included automatically` : undefined}
+                  style={locked ? { cursor: 'default' } : undefined}>
                   <span className="cl-calc-suite-icon" style={{ background: on ? meta.tint : 'var(--line)' }}>
                     <SuiteIcon name={meta.icon || 'grid'} size={16} color="#fff" />
                   </span>
                   {s.name}
-                  {on && <svg className="cl-calc-tick" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10"/></svg>}
+                  {locked
+                    ? <svg className="cl-calc-tick" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75 }}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                    : on && <svg className="cl-calc-tick" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10"/></svg>}
                 </button>
               );
             })}
           </div>
+          {lockedNames.length > 0 && (
+            <p className="cl-calc-hint" style={{ margin: '8px 2px 0', fontSize: 12.5, opacity: 0.7 }}>
+              {lockedNames.join(' and ')} {lockedNames.length === 1 ? 'is' : 'are'} included automatically — Payroll, Leave and Attendance all run on your staff records in HR.
+            </p>
+          )}
 
           <div className="cl-calc-row" style={{ marginTop: 20, marginBottom: 8 }}>
             <label className="cl-calc-slider-label" style={{ margin: 0, width: 'auto' }}>How many staff?</label>
