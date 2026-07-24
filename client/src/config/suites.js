@@ -1,17 +1,21 @@
 // Mirrors server/src/config/suites.js. The SERVER is authoritative for access in
 // real mode; in demo mode this list also drives the mock API.
 export const SUITES = [
-  // companions: suites that come along whenever this one is granted — they stay
-  // separate modules (own tiles, own screens) but the paid experience is
-  // connected: HR files letters into Documents, the Employee 360 reads Payroll
-  // and Benefits. Granting HR auto-selects these in the grant picker.
-  { key: 'hr',          name: 'HR & Staff',         tier: 'core',     status: 'live', desc: 'Employee 360 records, letters, org structure, recruiting, onboarding.', companions: ['payroll', 'documents'] },
-  { key: 'leave',       name: 'Leave Management',   tier: 'core',     status: 'live', desc: 'Requests, approvals and balance tracking.' },
+  // Two relationship fields, different jobs:
+  //  • requires: a HARD, PAID dependency — this module can't function without
+  //    the named one, so picking it auto-adds that foundation AND the customer
+  //    pays for it (it counts as a suite). Payroll/Leave/Attendance all run on
+  //    employee records that live in HR, so they require 'hr'. Enforced in the
+  //    price estimator, signup, and server-side. See requiredFoundations().
+  //  • companions: a soft "comes along when granted" convenience in the STAFF
+  //    access picker (not about billing). HR files letters into Documents, etc.
+  { key: 'hr',          name: 'HR & Staff',         tier: 'core',     status: 'live', desc: 'Employee 360 records, letters, org structure, recruiting, onboarding.', companions: ['documents'] },
+  { key: 'leave',       name: 'Leave Management',   tier: 'core',     status: 'live', desc: 'Requests, approvals and balance tracking.', requires: ['hr'] },
   { key: 'tasks',       name: 'Task & Report',      tier: 'core',     status: 'live', desc: 'Assignments, priorities and productivity reports.' },
   { key: 'visitors',    name: 'Visitor Management', tier: 'core',     status: 'live', desc: 'Front-desk check-in, host alerts, visitor logs.' },
-  { key: 'payroll',     name: 'Payroll & Benefits', tier: 'core',     status: 'live', desc: '2026 Tax Act payroll runs, payslips, staff loans — plus HMO, pension/PFA and custom benefits, switchable per person.' },
+  { key: 'payroll',     name: 'Payroll & Benefits', tier: 'core',     status: 'live', desc: '2026 Tax Act payroll runs, payslips, staff loans — plus HMO, pension/PFA and custom benefits, switchable per person.', requires: ['hr'] },
   { key: 'crm',         name: 'CRM',                tier: 'core',     status: 'live', desc: 'Contacts, deals, bookings and money owed — WhatsApp-first.' },
-  { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'live', desc: 'Geo-tagged clock-in/out, timesheets, overtime.' },
+  { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'live', desc: 'Geo-tagged clock-in/out, timesheets, overtime.', requires: ['hr'] },
   { key: 'procurement', name: 'Procurement',        tier: 'extended', status: 'live', desc: 'Purchase requests, vendors and approvals.' },
   { key: 'inventory',   name: 'Inventory & Assets', tier: 'extended', status: 'live', desc: 'Sell stock, staff equipment and company assets — warehouses, bookings, handover and return notes.' },
   { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'live', desc: 'Expenses, budgets and financial reports.' },
@@ -43,6 +47,29 @@ export const SUITE_META = {
 };
 
 export const tierLabel = { core: 'MVP Core', extended: 'Extended' };
+
+// Hard dependency chain. Given the suites a customer picked, return the full
+// paid set with every required foundation added (transitively). Picking Payroll
+// pulls in HR; the customer pays for HR too. Order-stable, deduped. Use this
+// everywhere a selection turns into what-they-pay-for (estimator, signup) so the
+// chain is applied in exactly one place.
+export const requiresOf = (key) => (SUITES.find((s) => s.key === key)?.requires) || [];
+
+export const requiredFoundations = (keys) => {
+  const out = [];
+  const add = (k) => {
+    if (out.includes(k)) return;
+    for (const dep of requiresOf(k)) add(dep); // foundation first
+    if (!out.includes(k)) out.push(k);
+  };
+  for (const k of keys) add(k);
+  return out;
+};
+
+// The suites auto-added purely because something else required them, given a
+// selection — for showing "HR added automatically (required by Payroll)".
+export const addedByRequirement = (keys) =>
+  requiredFoundations(keys).filter((k) => !keys.includes(k));
 
 // Suites that have been through the per-org data-isolation pass (Stage 2 of
 // the roadmap) and are safe to grant to an organization other than the
