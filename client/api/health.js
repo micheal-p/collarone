@@ -73,5 +73,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ status, apiOk, dbOk, responseMs, checkedAt: new Date().toISOString() });
+  return res.status(200).json({ status, apiOk, dbOk, responseMs, build: '2026-07-24a', checkedAt: new Date().toISOString() });
 }
