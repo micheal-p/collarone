@@ -480,6 +480,17 @@
   .cl-calc-total { font-size: 26px; }
   .cl-calc-cta { width: auto; flex: none; white-space: nowrap; }
 }
+/* phones: keep the whole calculator inside the viewport — the summary row
+   (price + CTA) and the suite grid must be allowed to shrink/wrap, or their
+   combined min-width bleeds the card past the screen edge. */
+@media (max-width: 640px) {
+  .cl-calc { padding: 18px 14px; }
+  .cl-calc-summary { flex-wrap: wrap; }
+  .cl-calc-headline { min-width: 0; flex: 1 1 auto; }
+  .cl-calc-total { font-size: 23px; }
+  .cl-calc-suites { grid-template-columns: 1fr 1fr; }
+  .cl-calc-suite { min-width: 0; }
+}
 
 .cl-about-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 40px; align-items: start; }
 @media (max-width: 760px) { .cl-about-grid { grid-template-columns: 1fr; } }
