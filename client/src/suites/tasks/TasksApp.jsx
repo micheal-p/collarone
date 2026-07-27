@@ -447,10 +447,10 @@ export default function TasksApp({ access }) {
   };
 
   const TABS = [
-    { key: 'queue',   label: isSupervisor ? 'Department queue' : 'My queue' },
+    { key: 'queue',   label: isSupervisor ? 'Team tasks' : 'My tasks' },
     ...(isSupervisor ? [
       { key: 'reports', label: 'Reports' },
-      { key: 'stats',   label: 'KPI dashboard' },
+      { key: 'stats',   label: 'Progress' },
     ] : []),
   ];
 

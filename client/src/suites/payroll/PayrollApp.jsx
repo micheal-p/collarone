@@ -804,7 +804,7 @@ export default function PayrollApp({ access }) {
     { selector: '[data-tour="pr-rates"]', title: 'Your rates, your rules', body: "These are your organization's own PAYE bands and deduction rates — already on the 2026 Tax Act schedule. If a regulator circular changes a number, edit it here and the next run uses it." },
     { selector: '[data-tour="pr-loans"]', title: 'Loans & advances', body: 'Approve a staff loan or salary advance and it repays itself — deducted from net pay on every run until cleared, with the balance visible the whole way.' },
     { selector: '[data-tour="pr-benefits"]', title: 'Benefits, per person', body: 'HMO, group life, pension/PFA — or define your own custom benefit. Every benefit is switchable per person: a contractor or intern simply has it turned off, full staff have it on.' },
-    { selector: '[data-tour="pr-bankwall"]', title: 'The Banking Wall', body: "Collarone never touches your bank account. This queue is for whoever liaises with the bank: new staff accounts, CHANGED accounts, and approved runs with a downloadable payment schedule. Mark each item actioned once the bank has it — nothing slips." },
+    { selector: '[data-tour="pr-bankwall"]', title: 'Bank payments', body: "Collarone never touches your bank account. This queue is for whoever liaises with the bank: new staff accounts, CHANGED accounts, and approved runs with a downloadable payment schedule. Mark each item actioned once the bank has it — nothing slips." },
   ];
 
   const upsertRun = (r) => { setRuns((l) => { const i = l.findIndex((x) => x.id === r.id); return i >= 0 ? l.map((x) => (x.id === r.id ? r : x)) : [r, ...l]; }); setOpenRun(r); };
@@ -824,10 +824,10 @@ export default function PayrollApp({ access }) {
       <div className="lv-tabs">
         <button data-tour="pr-runs" className={`lv-tab ${tab === 'runs' ? 'active' : ''}`} onClick={() => setTab('runs')}>Payroll runs</button>
         <button data-tour="pr-employees" className={`lv-tab ${tab === 'employees' ? 'active' : ''}`} onClick={() => setTab('employees')}>Employees</button>
-        <button data-tour="pr-rates" className={`lv-tab ${tab === 'rates' ? 'active' : ''}`} onClick={() => setTab('rates')}>Rates</button>
+        <button data-tour="pr-rates" className={`lv-tab ${tab === 'rates' ? 'active' : ''}`} onClick={() => setTab('rates')}>Tax &amp; rates</button>
         <button data-tour="pr-loans" className={`lv-tab ${tab === 'loans' ? 'active' : ''}`} onClick={() => setTab('loans')}>Loans &amp; advances</button>
         <button data-tour="pr-benefits" className={`lv-tab ${tab === 'benefits' ? 'active' : ''}`} onClick={() => setTab('benefits')}>Benefits</button>
-        {isPayrollManager && <button data-tour="pr-bankwall" className={`lv-tab ${tab === 'bankwall' ? 'active' : ''}`} onClick={() => setTab('bankwall')}>Banking Wall</button>}
+        {isPayrollManager && <button data-tour="pr-bankwall" className={`lv-tab ${tab === 'bankwall' ? 'active' : ''}`} onClick={() => setTab('bankwall')}>Bank payments</button>}
         {isPayrollManager && <button className="btn btn-ghost" style={{ fontSize: 12.5 }} onClick={tour.start}>Tour</button>}
         {isPayrollManager && tab === 'runs' && <button className="btn btn-primary lv-apply" onClick={() => setModal(true)}>{I.add} New run</button>}
       </div>

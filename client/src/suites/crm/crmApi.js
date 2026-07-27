@@ -24,8 +24,8 @@ export const deleteDeal = (id) => apiDelete(`/crm/deals/${id}`);
 // Ordered lead → lost; object key order drives the kanban column order.
 export const DEAL_STAGES = {
   lead:      { label: 'Lead',      bg: '#deecfd', fg: '#194b8f' },
-  qualified: { label: 'Qualified', bg: '#f0e6ff', fg: '#5a2ca0' },
-  proposal:  { label: 'Proposal',  bg: '#fff4ce', fg: '#7a5200' },
+  qualified: { label: 'Interested', bg: '#f0e6ff', fg: '#5a2ca0' },
+  proposal:  { label: 'Quote sent', bg: '#fff4ce', fg: '#7a5200' },
   won:       { label: 'Won',       bg: '#dff6dd', fg: '#1a6a1a' },
   lost:      { label: 'Lost',      bg: '#fde7e9', fg: '#a4262c' },
 };

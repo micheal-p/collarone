@@ -46,8 +46,8 @@ export const RUN_STATUS = {
   draft:     { label: 'Draft',     cls: 'lc-req-draft' },
   review:    { label: 'In review', cls: 'lc-stage-interview' },
   approved:  { label: 'Approved',  cls: 'lc-req-filled' },
-  released:  { label: 'Released',  cls: 'lc-exit-settled' },
-  disbursed: { label: 'Disbursed', cls: 'lc-exit-done' },
+  released:  { label: 'Sent to bank', cls: 'lc-exit-settled' },
+  disbursed: { label: 'Paid',         cls: 'lc-exit-done' },
 };
 
 export const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
