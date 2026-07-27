@@ -11,8 +11,25 @@
 -- scoring + AI structuring live there). Reads are public via RLS.
 -- ============================================================================
 
+-- Lightweight job-board account (separate from a full Collarone customer: no
+-- org, no plan, no payment). You register once here, then post freely — this is
+-- the spam gate AND the lead capture (posters = employers = our ICP).
+create table if not exists public.job_posters (
+  id         uuid primary key references auth.users(id) on delete cascade,
+  name       text not null default '',
+  email      text not null default '',
+  phone      text not null default '',
+  company    text not null default '',
+  created_at timestamptz not null default now()
+);
+alter table public.job_posters enable row level security;
+drop policy if exists "job_posters_self" on public.job_posters;
+create policy "job_posters_self" on public.job_posters for select using (id = auth.uid());
+-- inserts/updates go through the service-role endpoint (registration).
+
 create table if not exists public.job_wall_posts (
   id             uuid primary key default gen_random_uuid(),
+  poster_id      uuid references public.job_posters(id) on delete set null,
   slug           text unique not null,                    -- /jobs/<slug> share link
   title          text not null,
   company        text not null default '',
