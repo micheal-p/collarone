@@ -169,14 +169,17 @@ function TrySuiteStrip() {
 function PriceCalculator() {
   const { perStaff, annualDiscount } = usePricing();
   const PRICE_TIERS = priceTiers();
-  const [tierKey, setTierKey] = useState('standard');
   const [selected, setSelected] = useState(() => new Set(SUITES.slice(0, 5).map((s) => s.key)));
   const [staffCount, setStaffCount] = useState(10);
   const [yearly, setYearly] = useState(false);
-  const tier = PRICE_TIERS.find((t) => t.key === tierKey);
   const suiteCount = selected.size;
-  const extra = Math.max(0, suiteCount - tier.included);
-  const monthly = tier.baseFee + extra * tier.extraFee + staffCount * perStaff;
+  // Honest pricing: the customer picks suites; we ALWAYS put them on the CHEAPEST
+  // plan for that many suites — you can never be stuck "on Startup" paying more
+  // than a bigger plan would cost. No tier to choose, no per-extra-suite trap.
+  const priceFor = (t) => t.baseFee + Math.max(0, suiteCount - t.included) * t.extraFee + staffCount * perStaff;
+  const best = PRICE_TIERS.reduce((a, b) => (priceFor(b) < priceFor(a) ? b : a));
+  const monthly = priceFor(best);
+  const suitesCost = best.baseFee + Math.max(0, suiteCount - best.included) * best.extraFee;
   const total = yearly ? monthly * 12 * (1 - annualDiscount) : monthly;
 
   // A suite is locked ON when another selected suite requires it (Payroll/Leave/
@@ -184,12 +187,6 @@ function PriceCalculator() {
   const lockedKeys = new Set();
   for (const k of selected) for (const dep of requiresOf(k)) lockedKeys.add(dep);
   const lockedNames = [...lockedKeys].map((k) => SUITES.find((s) => s.key === k)?.name).filter(Boolean);
-
-  const pickTier = (key) => {
-    setTierKey(key);
-    const base = SUITES.slice(0, priceTiers().find((t) => t.key === key).included).map((s) => s.key);
-    setSelected(new Set(requiredFoundations(base))); // never start in a broken state
-  };
 
   const toggleSuite = (key) => {
     setSelected((s) => {
@@ -213,9 +210,7 @@ function PriceCalculator() {
         <div className="cl-calc-controls">
           <div className="cl-calc-row">
             <div className="cl-calc-tiers">
-              {PRICE_TIERS.map((t) => (
-                <button key={t.key} type="button" className={`cl-calc-tier ${tierKey === t.key ? 'on' : ''}`} onClick={() => pickTier(t.key)}>{t.name}</button>
-              ))}
+              <span className="cl-calc-tier on" style={{ cursor: 'default' }}>Best plan: {best.name}</span>
             </div>
             <label className="cl-calc-toggle">
               <input type="checkbox" checked={yearly} onChange={(e) => setYearly(e.target.checked)} />
@@ -225,9 +220,7 @@ function PriceCalculator() {
 
           <div className="cl-calc-row" style={{ marginBottom: 10 }}>
             <label className="cl-calc-slider-label" style={{ margin: 0, width: 'auto' }}>Pick your suites</label>
-            <span className={`cl-calc-meter ${extra > 0 ? 'over' : ''}`}>
-              {suiteCount} selected · {tier.included} included{extra > 0 ? ` · ${extra} extra` : ''}
-            </span>
+            <span className="cl-calc-meter">{suiteCount} suite{suiteCount === 1 ? '' : 's'} selected</span>
           </div>
           <div className="cl-calc-presets">
             <span className="cl-calc-presets-label">Quick start:</span>
@@ -295,12 +288,11 @@ function PriceCalculator() {
             </div>
           </div>
           <div className="cl-calc-lines">
-            <div><span>{tier.name} — {tier.included} suites incl.</span><b>{naira(tier.baseFee)}/mo</b></div>
-            {extra > 0 && <div><span>{extra} extra suite{extra === 1 ? '' : 's'} × {naira(tier.extraFee)}</span><b>{naira(extra * tier.extraFee)}/mo</b></div>}
+            <div><span>{best.name} plan · {suiteCount} suite{suiteCount === 1 ? '' : 's'}</span><b>{naira(suitesCost)}/mo</b></div>
             <div><span>{staffCount} staff × {naira(perStaff)}</span><b>{naira(staffCount * perStaff)}/mo</b></div>
             {yearly && <div className="save"><span>Yearly — {Math.round(annualDiscount * 100)}% off</span><b>−{naira(Math.round(monthly * 12 * annualDiscount))}/yr</b></div>}
           </div>
-          <Link className="cl-btn cl-btn-primary cl-calc-cta" to={`/signup?plan=${tierKey}`}>Start with {tier.name}</Link>
+          <Link className="cl-btn cl-btn-primary cl-calc-cta" to={`/signup?plan=${best.key}`}>Start with {best.name}</Link>
         </aside>
       </div>
     </Reveal>
@@ -757,8 +749,8 @@ export default function Landing() {
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">Pricing</p>
-            <h2 className="cl-sec-h">Pick your suites. Pick your tier.</h2>
-            <p className="cl-sec-lede">Every tier is à la carte — choose exactly the suites your business needs on any of them. Tiers differ in how many suites are included, your base fee, and support level, not in what you're allowed to use. No forex markup, no dollar pricing, and your rate locks in at sign-up.</p>
+            <h2 className="cl-sec-h">Pick your suites. We give you the best price.</h2>
+            <p className="cl-sec-lede">No confusing tiers to choose. Pick the suites your business needs and we automatically put you on the cheapest plan for them — the more suites you run, the less each one costs. No forex markup, no dollar pricing, and your rate locks in at sign-up.</p>
           </Reveal>
           <CardCarousel className="cl-grid3" dotLabel="plan">
             {PLANS.map((plan) => {
@@ -770,10 +762,9 @@ export default function Landing() {
               return {
                 key: plan.key, name: plan.name, price: plan.baseFee.toLocaleString('en-NG'),
                 included: plan.includedSuites, featured: meta.featured,
-                pills: [`${plan.includedSuites} suites included`, meta.support],
+                pills: [`${plan.includedSuites} suites`, meta.support],
                 rows: [
-                  ['Suites of your choice', `any ${plan.includedSuites}`],
-                  ['Extra suite', `${naira(plan.extraSuiteFee)}/mo`],
+                  ['Suites of your choice', `${plan.includedSuites}`],
                   ['Per staff member', `${naira(PRICING.perStaff)}/mo`],
                   meta.lastRow,
                 ],

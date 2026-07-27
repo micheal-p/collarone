@@ -27,10 +27,10 @@ function priceQuote(text) {
   const lines = (tier ? [tier] : TIERS).map((t) => {
     const monthly = t.base + (staff || 0) * PER_STAFF;
     return staff
-      ? `${t.name}: ${N(t.base)} base + ${staff} staff × ${N(PER_STAFF)} = ${N(monthly)}/month (${t.included} suites included, extras ${N(t.extra)} each)`
-      : `${t.name}: ${N(t.base)}/month with ${t.included} suites included, extra suites ${N(t.extra)} each`;
+      ? `${t.name}: ${N(t.base)} base + ${staff} staff × ${N(PER_STAFF)} = ${N(monthly)}/month (best for around ${t.included} suites)`
+      : `${t.name}: ${N(t.base)}/month, best for around ${t.included} suites`;
   });
-  const staffNote = staff ? '' : `\nEvery tier adds ${N(PER_STAFF)} per staff member per month.`;
+  const staffNote = (staff ? '' : `\nEvery plan adds ${N(PER_STAFF)} per staff member per month.`) + `\nYou don't pick a plan — you pick your suites and we put you on the cheapest plan for them, so you can never overpay. The more suites you run, the less each one costs.`;
   return `Here's the real arithmetic:\n${lines.join('\n')}${staffNote}\nPay yearly and 15% comes off, and your rate locks in at sign-up. The homepage pricing section has a calculator you can play with.`;
 }
 
