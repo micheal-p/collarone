@@ -463,6 +463,12 @@
 .cl-calc-lines b { font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cl-calc-lines .save, .cl-calc-lines .save b { color: var(--accent-ink); }
 .cl-calc-suites { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.cl-calc-presets { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.cl-calc-presets-label { font-size: 12.5px; font-weight: 600; color: var(--text-soft); }
+.cl-calc-preset { padding: 6px 14px; border-radius: 100px; border: 1px dashed var(--line); background: transparent; font-size: 12.5px; font-weight: 600; color: var(--accent-ink); cursor: pointer; transition: all .15s ease; }
+.cl-calc-preset:hover { border-style: solid; border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.cl-calc-fam-group { margin-bottom: 14px; }
+.cl-calc-fam { font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-faint); margin: 2px 2px 7px; }
 .cl-calc-suite { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--line); background: transparent; font-size: 13px; font-weight: 500; color: var(--text-faint); cursor: pointer; transition: all .15s ease; text-align: left; }
 .cl-calc-suite.on { border-color: var(--accent); color: var(--text); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .cl-calc-suite-icon { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; flex-shrink: 0; transition: background .15s ease; }

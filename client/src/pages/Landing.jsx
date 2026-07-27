@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import PublicThemeGallery from '../components/PublicThemeGallery.jsx';
 import CardCarousel from '../components/CardCarousel.jsx';
 import { motion, animate, AnimatePresence, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
-import { SUITES, SUITE_META, requiresOf, requiredFoundations } from '../config/suites.js';
+import { SUITES, SUITE_META, requiresOf, requiredFoundations, FAMILIES, SUITE_FAMILY, PRESETS } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 import { supabase } from '../lib/supabaseClient.js';
 import ChatWidget from './ChatWidget.jsx';
@@ -229,27 +229,44 @@ function PriceCalculator() {
               {suiteCount} selected · {tier.included} included{extra > 0 ? ` · ${extra} extra` : ''}
             </span>
           </div>
-          <div className="cl-calc-suites">
-            {SUITES.map((s) => {
-              const meta = SUITE_META[s.key] || {};
-              const on = selected.has(s.key);
-              const locked = lockedKeys.has(s.key);
-              return (
-                <button key={s.key} type="button" className={`cl-calc-suite ${on ? 'on' : ''}`}
-                  onClick={() => toggleSuite(s.key)}
-                  title={locked ? `Required by another suite you picked — included automatically` : undefined}
-                  style={locked ? { cursor: 'default' } : undefined}>
-                  <span className="cl-calc-suite-icon" style={{ background: on ? meta.tint : 'var(--line)' }}>
-                    <SuiteIcon name={meta.icon || 'grid'} size={16} color="#fff" />
-                  </span>
-                  {s.name}
-                  {locked
-                    ? <svg className="cl-calc-tick" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75 }}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
-                    : on && <svg className="cl-calc-tick" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10"/></svg>}
-                </button>
-              );
-            })}
+          <div className="cl-calc-presets">
+            <span className="cl-calc-presets-label">Quick start:</span>
+            {PRESETS.map((p) => (
+              <button key={p.key} type="button" className="cl-calc-preset" title={p.hint}
+                onClick={() => setSelected(new Set(requiredFoundations(p.suites)))}>{p.label}</button>
+            ))}
           </div>
+
+          {FAMILIES.map((fam) => {
+            const inFam = SUITES.filter((s) => SUITE_FAMILY[s.key] === fam.key);
+            if (!inFam.length) return null;
+            return (
+              <div key={fam.key} className="cl-calc-fam-group">
+                <div className="cl-calc-fam">{fam.label}</div>
+                <div className="cl-calc-suites">
+                  {inFam.map((s) => {
+                    const meta = SUITE_META[s.key] || {};
+                    const on = selected.has(s.key);
+                    const locked = lockedKeys.has(s.key);
+                    return (
+                      <button key={s.key} type="button" className={`cl-calc-suite ${on ? 'on' : ''}`}
+                        onClick={() => toggleSuite(s.key)}
+                        title={locked ? `Required by another suite you picked — included automatically` : undefined}
+                        style={locked ? { cursor: 'default' } : undefined}>
+                        <span className="cl-calc-suite-icon" style={{ background: on ? meta.tint : 'var(--line)' }}>
+                          <SuiteIcon name={meta.icon || 'grid'} size={16} color="#fff" />
+                        </span>
+                        {s.name}
+                        {locked
+                          ? <svg className="cl-calc-tick" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75 }}><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                          : on && <svg className="cl-calc-tick" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10"/></svg>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
           {lockedNames.length > 0 && (
             <p className="cl-calc-hint" style={{ margin: '8px 2px 0', fontSize: 12.5, opacity: 0.7 }}>
               {lockedNames.join(' and ')} {lockedNames.length === 1 ? 'is' : 'are'} included automatically — Payroll, Leave and Attendance all run on your staff records in HR.
