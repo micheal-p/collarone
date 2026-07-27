@@ -8,7 +8,9 @@ import './Signup.css';
 // the org on the cheapest plan for what it actually runs — no per-extra-suite
 // fee to game (matches the honest landing estimator).
 export { PER_STAFF_FEE, PLANS, ANNUAL_DISCOUNT } from '../lib/pricing.js';
-import { PER_STAFF_FEE, PLANS, ANNUAL_DISCOUNT, usePricing } from '../lib/pricing.js';
+import { PER_STAFF_FEE, PLANS, ANNUAL_DISCOUNT, usePricing, naira } from '../lib/pricing.js';
+import { SUITES, SUITE_META, FAMILIES, SUITE_FAMILY, PRESETS, requiredFoundations, requiresOf } from '../config/suites.js';
+import SuiteIcon from '../components/SuiteIcon.jsx';
 
 // Nigeria-first, but Collarone's stated long-term goal is global — this is
 // the first real signal toward that, captured at signup rather than guessed.
@@ -53,7 +55,7 @@ export default function Signup() {
       window.location.reload();
     }
   }, []);
-  usePricing(); // live published prices re-render the plan cards
+  const { perStaff } = usePricing(); // live published prices re-render the cart
   const [params] = useSearchParams();
   const nav = useNavigate();
   const [stepIdx, setStepIdx] = useState(0);
@@ -62,6 +64,23 @@ export default function Signup() {
   const [busy, setBusy] = useState(false);
 
   const [planTier, setPlanTier] = useState(PLANS.some((p) => p.key === params.get('plan')) ? params.get('plan') : 'startup');
+  // ---- Step 1 is a CART: pick suites → we auto-price the cheapest plan ----
+  const [suites, setSuites] = useState(() => new Set(SUITES.slice(0, 5).map((s) => s.key)));
+  const [staffCount, setStaffCount] = useState(5);
+  const perStaffFee = perStaff || PER_STAFF_FEE;
+  const suiteCount = suites.size;
+  const priceFor = (t) => t.baseFee + Math.max(0, suiteCount - t.includedSuites) * t.extraSuiteFee + staffCount * perStaffFee;
+  const best = PLANS.filter((t) => t.key !== 'enterprise').reduce((a, b) => (priceFor(b) < priceFor(a) ? b : a));
+  const monthly = priceFor(best);
+  const lockedKeys = new Set();
+  for (const k of suites) for (const dep of requiresOf(k)) lockedKeys.add(dep);
+  useEffect(() => { setPlanTier(best.key); }, [best.key]);
+  const toggleSuite = (key) => setSuites((s) => {
+    const next = new Set(s);
+    if (next.has(key)) { if ([...next].some((k) => k !== key && requiresOf(k).includes(key))) return next; next.delete(key); }
+    else for (const dep of requiredFoundations([key])) next.add(dep);
+    return next;
+  });
   const [orgName, setOrgName] = useState('');
   const [orgSlug, setOrgSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
@@ -192,7 +211,7 @@ export default function Signup() {
     setBusy(true);
     try {
       const d = await callSignup('create', {
-        planTier, orgName: orgName.trim(), orgSlug, themeColor,
+        planTier: best.key, suites: [...suites], orgName: orgName.trim(), orgSlug, themeColor,
         websiteType: hasWebsite ? 'none' : websiteType, logoUrl, country,
         externalWebsiteUrl: hasWebsite ? (/^https?:\/\//i.test(externalUrl.trim()) ? externalUrl.trim() : `https://${externalUrl.trim()}`) : '',
         ownerName: ownerName.trim(), email, password, promoCode: promoStatus.state === 'ok' ? promoCode.trim() : '',
@@ -226,19 +245,59 @@ export default function Signup() {
         {step === 'plan' && (
           <>
             <p className="su-kicker">Step 1 of 4</p>
-            <h1 className="su-h">Pick a starting plan</h1>
-            <p className="su-sub">Choose the size that fits today — you can add suites anytime, and we always keep you on the cheapest plan for what you run. Your rate locks in today and never goes up on you.</p>
-            <div className="su-plans">
-              {PLANS.map((p) => (
-                <button key={p.key} type="button" className={`su-plan ${planTier === p.key ? 'on' : ''}`} onClick={() => setPlanTier(p.key)}>
-                  <div>
-                    <div className="su-plan-name">{p.name}</div>
-                    <div className="su-plan-price">{p.price}</div>
-                  </div>
-                  <div className="su-plan-radio" />
-                </button>
+            <h1 className="su-h">Build your workspace</h1>
+            <p className="su-sub">Pick the suites you need — we automatically put you on the cheapest plan for them. Add more anytime; your rate locks in today and never goes up.</p>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#667' }}>Quick start:</span>
+              {PRESETS.map((p) => (
+                <button key={p.key} type="button" title={p.hint} onClick={() => setSuites(new Set(requiredFoundations(p.suites)))}
+                  style={{ padding: '6px 13px', borderRadius: 100, border: '1px dashed #d8d2c4', background: 'transparent', fontSize: 12.5, fontWeight: 600, color: '#C2410C', cursor: 'pointer' }}>{p.label}</button>
               ))}
             </div>
+
+            {FAMILIES.map((fam) => {
+              const inFam = SUITES.filter((s) => SUITE_FAMILY[s.key] === fam.key);
+              if (!inFam.length) return null;
+              return (
+                <div key={fam.key} style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: '#99a', margin: '0 2px 6px' }}>{fam.label}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
+                    {inFam.map((s) => {
+                      const on = suites.has(s.key); const locked = lockedKeys.has(s.key); const meta = SUITE_META[s.key] || {};
+                      return (
+                        <button key={s.key} type="button" onClick={() => toggleSuite(s.key)}
+                          title={locked ? 'Included automatically — needed by another suite you picked' : undefined}
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: `1px solid ${on ? '#FF5B1F' : '#e5e1d6'}`, background: on ? 'rgba(255,91,31,0.07)' : '#fff', fontSize: 13, fontWeight: 500, color: on ? '#14161a' : '#556', cursor: locked ? 'default' : 'pointer', textAlign: 'left' }}>
+                          <span style={{ width: 24, height: 24, borderRadius: 7, display: 'grid', placeItems: 'center', background: on ? (meta.tint || '#FF5B1F') : '#e5e1d6', flexShrink: 0 }}>
+                            <SuiteIcon name={meta.icon || 'grid'} size={14} color="#fff" />
+                          </span>
+                          <span style={{ flex: 1 }}>{s.name}</span>
+                          {locked
+                            ? <span style={{ fontSize: 10.5, color: '#99a', fontWeight: 600 }}>incl.</span>
+                            : on ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FF5B1F" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10" /></svg> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, margin: '18px 0 16px' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#556' }}>How many staff?</span>
+              <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #e5e1d6', borderRadius: 10, overflow: 'hidden' }}>
+                <button type="button" onClick={() => setStaffCount((c) => Math.max(1, c - 1))} style={{ width: 34, height: 34, border: 'none', background: 'transparent', fontSize: 17, cursor: 'pointer' }}>−</button>
+                <input value={staffCount} inputMode="numeric" onChange={(e) => { const n = parseInt(e.target.value.replace(/\D/g, ''), 10); setStaffCount(Number.isNaN(n) ? 1 : Math.min(1000, Math.max(1, n))); }} style={{ width: 54, height: 34, border: 'none', borderLeft: '1px solid #e5e1d6', borderRight: '1px solid #e5e1d6', textAlign: 'center', font: 'inherit', fontWeight: 650 }} />
+                <button type="button" onClick={() => setStaffCount((c) => Math.min(1000, c + 1))} style={{ width: 34, height: 34, border: 'none', background: 'transparent', fontSize: 17, cursor: 'pointer' }}>+</button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '14px 16px', background: '#faf7f0', borderRadius: 12, marginBottom: 18 }}>
+              <span style={{ fontSize: 12.5, color: '#889' }}>Best plan: <b style={{ color: '#14161a' }}>{best.name}</b> · {suiteCount} suite{suiteCount === 1 ? '' : 's'} · {staffCount} staff</span>
+              <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 24, fontWeight: 650 }}>{naira(monthly)}<span style={{ fontSize: 13, color: '#889', fontWeight: 400 }}>/mo</span></span>
+            </div>
+
             <div className="su-actions">
               <span />
               <button type="button" className="su-btn su-btn-primary" onClick={next}>Continue</button>
