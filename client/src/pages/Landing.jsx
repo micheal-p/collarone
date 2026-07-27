@@ -128,13 +128,13 @@ function RotatingWord() {
 
 const GALLERY_SHOTS = [
   { src: shotHome, url: 'collarone.app/home', title: 'One workspace', caption: 'Every suite your company runs, behind one login' },
-  { src: shotTasks, url: 'HR — Employee 360', title: 'Employee 360', caption: 'Pay, leave, assets, documents and reviews — one page per person' },
-  { src: shotCrm, url: 'HR — Letters', title: 'Letters + Collarone AI', caption: 'Drafted by AI on your letterhead, signed, referenced and filed' },
-  { src: shotAnalytics, url: 'HR — Analytics', title: 'HR analytics', caption: 'Headcount, attrition and statutory compliance at a glance' },
-  { src: shotPipeline, url: 'CRM — Pipeline', title: 'Deals pipeline', caption: 'Every deal staged and valued in naira, follow-ups on time' },
+  { src: shotTasks, url: 'collarone.app/hr', title: 'Staff, in full', caption: 'Pay, leave, assets, documents and reviews — one page per person' },
+  { src: shotCrm, url: 'collarone.app/hr/letters', title: 'Letters, drafted by AI', caption: 'On your own letterhead — signed, referenced and filed' },
+  { src: shotAnalytics, url: 'collarone.app/hr/reports', title: 'HR reports', caption: "Headcount, who's leaving, and government paperwork — at a glance" },
+  { src: shotPipeline, url: 'collarone.app/customers', title: 'Deals', caption: 'Every deal staged and valued in naira, with follow-ups on time' },
 ];
 
-const marqueeItems = ['Staff Directory', 'Leave Management', 'Task Tracking', 'Visitor Sign-in', 'Recruiting & Careers', 'Onboarding', 'Performance Reviews', 'Compliance Vault', 'Payroll — PAYE · Pension · NHF', 'Customer CRM', 'Website Builder', 'Invoicing & GRNs', 'Automation'];
+const marqueeItems = ['Staff files', 'Leave & time off', 'Task tracking', 'Visitor sign-in', 'Recruiting & careers', 'Onboarding', 'Performance reviews', 'Compliance calendar', 'Payroll — PAYE · Pension · NHF', 'Customers (CRM)', 'Website builder', 'Invoicing & receipts', 'Automation'];
 
 // pricing comes from the single shared model — do not restate numbers here
 const priceTiers = () => PLANS.map((t) => ({ key: t.key, name: t.name, baseFee: t.baseFee, included: t.includedSuites, extraFee: t.extraSuiteFee }));
