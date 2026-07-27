@@ -8,3 +8,9 @@
 # fallback loses no user-facing feature and keeps us at 12 functions. The VPS
 # still gets it (rsync in deploy/deploy.sh doesn't read this file).
 api/paystack-webhook.js
+
+# Community Job Wall write endpoint — the wall lives on collarone.app (VPS) where
+# the traffic + posting happen; reads are public via Supabase RLS so the wall
+# still displays on the Vercel fallback, only posting is VPS-only. Keeps Vercel
+# under its 12-function Hobby cap.
+api/job-post.js
