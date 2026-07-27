@@ -433,6 +433,27 @@
 .cl-pc .cl-btn-primary { box-shadow: 0 10px 28px rgba(255,91,31,0.4); }
 .cl-price-note { text-align: center; font-size: 12.5px; color: var(--text-faint); max-width: 56ch; margin: 24px auto 0; }
 
+/* Jobs board section — two-column: copy + a real-looking job-post card */
+.cl-jobs-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 52px; align-items: center; }
+@media (max-width: 860px) { .cl-jobs-grid { grid-template-columns: 1fr; gap: 34px; } }
+.cl-jobs-h { font-size: clamp(1.7rem, 3vw, 2.35rem); line-height: 1.08; letter-spacing: -0.02em; margin: 12px 0 0; text-wrap: balance; }
+.cl-jobs-lede { font-size: 1.02rem; line-height: 1.6; color: var(--text-soft); margin: 16px 0 0; max-width: 46ch; }
+.cl-jobs-steps { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 22px 0 0; }
+.cl-jobs-steps span { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; color: var(--text-soft); }
+.cl-jobs-steps b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 100px; background: var(--accent); color: #fff; font-size: 12px; }
+.cl-jobs-ctas { display: flex; gap: 12px; flex-wrap: wrap; margin: 26px 0 0; }
+.cl-jobcard { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 34px 64px -32px rgba(10,14,26,0.30); }
+.cl-jobcard-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #0A0E1A; }
+.cl-jobcard-body { padding: 22px 24px 24px; }
+.cl-jobcard-fresh { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #1a6a1a; background: #dff6dd; padding: 3px 10px; border-radius: 100px; }
+.cl-jobcard-title { font-size: 22px; font-weight: 700; margin: 12px 0 4px; }
+.cl-jobcard-meta { font-size: 14px; color: var(--text-soft); margin: 0; }
+.cl-jobcard-pay { display: inline-block; font-size: 15px; font-weight: 700; color: var(--accent-ink); margin: 10px 0 0; }
+.cl-jobcard-desc { font-size: 14px; line-height: 1.6; color: var(--text-soft); margin: 12px 0 20px; }
+.cl-jobcard-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.cl-jobcard-apply { flex: 1; min-width: 110px; text-align: center; padding: 10px 16px; border-radius: 100px; background: var(--accent); color: #fff; font-size: 13.5px; font-weight: 700; }
+.cl-jobcard-wa { text-align: center; padding: 10px 16px; border-radius: 100px; background: #25D366; color: #fff; font-size: 13.5px; font-weight: 700; }
+
 /* light "plans at a glance" strip — reference only; the estimator above is the real tool */
 .cl-glance-label { text-align: center; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); margin: 34px 0 14px; }
 .cl-plans-glance { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 720px; margin: 0 auto; }

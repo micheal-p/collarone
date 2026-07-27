@@ -779,14 +779,36 @@ export default function Landing() {
 
       <section className="cl-sec cl-tint" id="jobs-board">
         <div className="cl-wrap">
-          <Reveal className="cl-sec-head">
-            <p className="cl-eyebrow">Free jobs board</p>
-            <h2 className="cl-sec-h">Hiring? Post a job free — and share it to WhatsApp</h2>
-            <p className="cl-sec-lede">Collarone runs an open jobs board for Nigerian businesses. Post a role in seconds — or paste it straight from your WhatsApp group and we&apos;ll tidy it up — then get a clean link to share back to your groups. Seekers find you; you find staff.</p>
-          </Reveal>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link to="/jobs/post" className="cl-btn cl-btn-primary">Post a job — free</Link>
-            <Link to="/jobs" className="cl-btn cl-btn-ghost">Browse jobs</Link>
+          <div className="cl-jobs-grid">
+            <Reveal className="cl-jobs-copy">
+              <p className="cl-eyebrow">Free jobs board</p>
+              <h2 className="cl-jobs-h">Hiring? Post it free — and share straight to WhatsApp.</h2>
+              <p className="cl-jobs-lede">Post a role in seconds — or paste it from your WhatsApp group and we tidy it up. You get a clean link to share back to your groups. Seekers find you; you find staff.</p>
+              <div className="cl-jobs-steps">
+                <span><b>1</b> Post or paste</span>
+                <span><b>2</b> Get a link</span>
+                <span><b>3</b> Share to WhatsApp</span>
+              </div>
+              <div className="cl-jobs-ctas">
+                <Link to="/jobs/post" className="cl-btn cl-btn-primary">Post a job — free</Link>
+                <Link to="/jobs" className="cl-btn cl-btn-ghost">Browse jobs</Link>
+              </div>
+            </Reveal>
+
+            <Reveal className="cl-jobcard" delay={0.1} hover>
+              <div className="cl-jobcard-bar"><span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" /><span className="cl-url">collarone.app/jobs</span></div>
+              <div className="cl-jobcard-body">
+                <span className="cl-jobcard-fresh">Posted just now</span>
+                <h3 className="cl-jobcard-title">Sales Assistant</h3>
+                <p className="cl-jobcard-meta">Bright Stores · Ikeja, Lagos</p>
+                <span className="cl-jobcard-pay">₦120,000 / month</span>
+                <p className="cl-jobcard-desc">Friendly and organised, good with customers. Retail experience a plus. Apply on WhatsApp.</p>
+                <div className="cl-jobcard-actions">
+                  <span className="cl-jobcard-apply">Apply now</span>
+                  <span className="cl-jobcard-wa">Share to WhatsApp</span>
+                </div>
+              </div>
+            </Reveal>
           </div>
         </div>
       </section>
