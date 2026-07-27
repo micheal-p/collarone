@@ -1,8 +1,12 @@
-// Community Job Wall — write endpoint (public, no login: it's an OPEN wall).
-// Reads happen client-side via Supabase RLS (public_read policy); this handles
-// the three writes, all through the service role so RLS can stay locked down:
+// Community Job Wall — write endpoint. Posters REGISTER once (a lightweight
+// job-board account: no org/plan/payment) then post freely — the spam gate and
+// the lead capture (posters = employers = ICP). Reads are public via RLS; writes
+// go through the service role. 'structure' and 'create' require the poster's
+// Bearer token; 'register' and 'report' are open. Actions:
 //
-//   POST { action: 'structure', raw }
+//   POST { action: 'register', name, email, phone, company, password }
+//     → creates the job-board account (auto-confirmed). Frontend then signs in.
+//   POST { action: 'structure', raw }                       (Bearer)
 //     → AI turns pasted WhatsApp job text into structured fields + a spam score,
 //       for the poster to eyeball before publishing. No DB write. Falls back to
 //       "put it all in the description" when AI isn't configured.
@@ -59,6 +63,22 @@ async function aiStructure(raw) {
   return JSON.parse(data.choices?.[0]?.message?.content || '{}');
 }
 
+// Resolve the logged-in poster from their Bearer token, creating their
+// job_posters row on first post if needed. Returns null when not authenticated.
+async function authPoster(admin, req) {
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  const { data: { user } } = await admin.auth.getUser(token);
+  if (!user) return null;
+  let { data: poster } = await admin.from('job_posters').select('id, email, phone').eq('id', user.id).maybeSingle();
+  if (!poster) {
+    const m = user.user_metadata || {};
+    await admin.from('job_posters').insert({ id: user.id, name: m.name || '', email: user.email || '', phone: m.phone || '', company: m.company || '' });
+    poster = { id: user.id, email: user.email || '', phone: m.phone || '' };
+  }
+  return poster;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { message: 'Method not allowed' });
   if (!SERVICE_KEY) return json(res, 500, { message: 'Server not configured.' });
@@ -67,8 +87,30 @@ export default async function handler(req, res) {
   const { action } = body;
 
   try {
-    // ---- structure pasted text (no DB write) --------------------------------
+    // ---- register a job-board account (open) --------------------------------
+    if (action === 'register') {
+      const email = clean(body.email, 200).toLowerCase();
+      const password = String(body.password || '');
+      const name = clean(body.name, 120);
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json(res, 400, { message: 'Enter a valid email address.' });
+      if (password.length < 6) return json(res, 400, { message: 'Password must be at least 6 characters.' });
+      if (name.length < 2) return json(res, 400, { message: 'Enter your name.' });
+      const { data: created, error: cErr } = await admin.auth.admin.createUser({
+        email, password, email_confirm: true,
+        user_metadata: { name, phone: clean(body.phone, 40), company: clean(body.company, 120), poster: true },
+      });
+      if (cErr) {
+        if (/registered|already|exists/i.test(cErr.message)) return json(res, 409, { message: 'That email is already registered — log in to post.' });
+        return json(res, 500, { message: 'Could not create your account — try again.' });
+      }
+      await admin.from('job_posters').insert({ id: created.user.id, name, email, phone: clean(body.phone, 40), company: clean(body.company, 120) });
+      return json(res, 200, { ok: true });
+    }
+
+    // ---- structure pasted text (Bearer; no DB write) ------------------------
     if (action === 'structure') {
+      const poster = await authPoster(admin, req);
+      if (!poster) return json(res, 401, { message: 'Register or log in to post a job.' });
       const raw = clean(body.raw, 4000);
       if (raw.length < 15) return json(res, 400, { message: 'Paste the job text first.' });
       if (!AI_ENABLED) {
@@ -92,8 +134,10 @@ export default async function handler(req, res) {
       }
     }
 
-    // ---- publish ------------------------------------------------------------
+    // ---- publish (Bearer) ---------------------------------------------------
     if (action === 'create') {
+      const poster = await authPoster(admin, req);
+      if (!poster) return json(res, 401, { message: 'Register or log in to post a job.' });
       const title = clean(body.title, 120);
       const description = clean(body.description, 2000);
       if (title.length < 3) return json(res, 400, { message: 'Give the job a title.' });
@@ -110,7 +154,7 @@ export default async function handler(req, res) {
         pay_text: clean(body.payText, 60), description,
         apply_method: applyMethod, apply_contact: clean(body.applyContact, 200),
         source: body.source === 'paste' ? 'paste' : 'form', status, spam_score: spamScore,
-        poster_contact: clean(body.posterContact, 200),
+        poster_id: poster.id, poster_contact: poster.email || poster.phone || '',
       }).select('slug, expires_at, status').single();
       if (error) return json(res, 500, { message: 'Could not post the job — try again.' });
 
