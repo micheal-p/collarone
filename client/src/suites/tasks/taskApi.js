@@ -39,7 +39,7 @@ export const PRIORITY = {
 export const STATUS = {
   todo:        { label: 'To do',       cls: 'tk-s-todo' },
   in_progress: { label: 'In progress', cls: 'tk-s-prog' },
-  in_review:   { label: 'In review',   cls: 'tk-s-rev' },
+  in_review:   { label: 'Waiting for check', cls: 'tk-s-rev' },
   done:        { label: 'Done',        cls: 'tk-s-done' },
   cancelled:   { label: 'Cancelled',   cls: 'tk-s-canc' },
 };

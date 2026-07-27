@@ -9,21 +9,21 @@ export const SUITES = [
   //    price estimator, signup, and server-side. See requiredFoundations().
   //  • companions: a soft "comes along when granted" convenience in the STAFF
   //    access picker (not about billing). HR files letters into Documents, etc.
-  { key: 'hr',          name: 'HR & Staff',         tier: 'core',     status: 'live', desc: 'Employee 360 records, letters, org structure, recruiting, onboarding.', companions: ['documents'] },
+  { key: 'hr',          name: 'HR & Staff',         tier: 'core',     status: 'live', desc: 'Everything about each staff member in one place — files, letters, hiring and org chart.', companions: ['documents'] },
   { key: 'leave',       name: 'Leave Management',   tier: 'core',     status: 'live', desc: 'Requests, approvals and balance tracking.', requires: ['hr'] },
-  { key: 'tasks',       name: 'Task & Report',      tier: 'core',     status: 'live', desc: 'Assignments, priorities and productivity reports.' },
+  { key: 'tasks',       name: 'Task & Report',      tier: 'core',     status: 'live', desc: 'Give jobs to staff, mark what’s urgent, and see who’s done what.' },
   { key: 'visitors',    name: 'Visitor Management', tier: 'core',     status: 'live', desc: 'Front-desk check-in, host alerts, visitor logs.' },
-  { key: 'payroll',     name: 'Payroll & Benefits', tier: 'core',     status: 'live', desc: '2026 Tax Act payroll runs, payslips, staff loans — plus HMO, pension/PFA and custom benefits, switchable per person.', requires: ['hr'] },
-  { key: 'crm',         name: 'CRM',                tier: 'core',     status: 'live', desc: 'Contacts, deals, bookings and money owed — WhatsApp-first.' },
-  { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'live', desc: 'Geo-tagged clock-in/out, timesheets, overtime.', requires: ['hr'] },
-  { key: 'procurement', name: 'Procurement',        tier: 'extended', status: 'live', desc: 'Purchase requests, vendors and approvals.' },
-  { key: 'inventory',   name: 'Inventory & Assets', tier: 'extended', status: 'live', desc: 'Sell stock, staff equipment and company assets — warehouses, bookings, handover and return notes.' },
+  { key: 'payroll',     name: 'Payroll & Benefits', tier: 'core',     status: 'live', desc: '2026 Tax Act payroll runs, payslips, staff loans — plus HMO, pension/PFA and custom benefits, set differently for each staff member.', requires: ['hr'] },
+  { key: 'crm',         name: 'Customers (CRM)',    tier: 'core',     status: 'live', desc: 'Contacts, deals, bookings and money owed — WhatsApp-first.' },
+  { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'live', desc: 'Clock in and out with location, track hours and overtime.', requires: ['hr'] },
+  { key: 'procurement', name: 'Buying (Procurement)', tier: 'extended', status: 'live', desc: 'Ask to buy things, track suppliers, and get approvals.' },
+  { key: 'inventory',   name: 'Inventory & Assets', tier: 'extended', status: 'live', desc: 'Track what you sell and the equipment your staff use — stock counts, sign-outs and returns.' },
   { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'live', desc: 'Expenses, budgets and financial reports.' },
-  { key: 'projects',    name: 'Projects',           tier: 'extended', status: 'live', desc: 'Milestones, boards and collaboration.' },
-  { key: 'documents',   name: 'Documents',          tier: 'extended', status: 'live', desc: 'Secure storage, versioning, permissions.' },
-  { key: 'trade-docs',  name: 'Invoicing & Trade Docs', tier: 'extended', status: 'live', desc: 'Invoices customers pay from a link — plus receipts, receivables, GRNs and stock passes.' },
+  { key: 'projects',    name: 'Projects',           tier: 'extended', status: 'live', desc: 'Plan jobs in stages, track them on a board, work as a team.' },
+  { key: 'documents',   name: 'Documents',          tier: 'extended', status: 'live', desc: 'Keep files safe, track changes, and control who sees what.' },
+  { key: 'trade-docs',  name: 'Invoicing & Trade Docs', tier: 'extended', status: 'live', desc: 'Invoices customers pay from a link — plus receipts, money owed, delivery notes and stock passes.' },
   { key: 'automation',  name: 'Automation',         tier: 'extended', status: 'live', desc: 'Rules that run your busywork — auto-assign tasks, approvals, reminders and alerts.' },
-  { key: 'compliance',  name: 'Compliance Calendar', tier: 'extended', status: 'live', desc: 'Nigerian statutory deadlines — PAYE, VAT, pension, NHF, CAC — tracked per month, never missed.' },
+  { key: 'compliance',  name: 'Compliance Calendar', tier: 'extended', status: 'live', desc: 'Nigerian government deadlines — PAYE, VAT, pension, NHF, CAC — tracked per month, never missed.' },
 ];
 
 // Mirrors server/src/config/suites.js for presentation. The SERVER is authoritative

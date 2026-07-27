@@ -344,9 +344,9 @@ export default function InventoryApp({ access }) {
     <div className="lv">
       <div className="lv-tabs">
         <button className={`lv-tab ${tab === 'items' ? 'active' : ''}`} onClick={() => setTab('items')}>Items</button>
-        <button className={`lv-tab ${tab === 'movements' ? 'active' : ''}`} onClick={() => setTab('movements')}>Movements</button>
+        <button className={`lv-tab ${tab === 'movements' ? 'active' : ''}`} onClick={() => setTab('movements')}>Stock in/out</button>
         <button className={`lv-tab ${tab === 'bookings' ? 'active' : ''}`} onClick={() => setTab('bookings')}>Bookings{heldReservations.length > 0 ? ` (${heldReservations.length})` : ''}</button>
-        <button className={`lv-tab ${tab === 'takeouts' ? 'active' : ''}`} onClick={() => setTab('takeouts')}>Staff Takeouts{activeTakeouts.length > 0 ? ` (${activeTakeouts.length})` : ''}</button>
+        <button className={`lv-tab ${tab === 'takeouts' ? 'active' : ''}`} onClick={() => setTab('takeouts')}>Items with staff{activeTakeouts.length > 0 ? ` (${activeTakeouts.length})` : ''}</button>
         <button className={`lv-tab ${tab === 'assets' ? 'active' : ''}`} onClick={() => setTab('assets')}>Company assets</button>
         <button className={`lv-tab ${tab === 'warehouses' ? 'active' : ''}`} onClick={() => setTab('warehouses')}>Warehouses</button>
         {isManager && tab === 'items' && <button className="btn btn-primary lv-apply" onClick={() => setItemModal(true)}>Add item</button>}

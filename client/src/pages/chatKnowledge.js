@@ -85,7 +85,7 @@ const INTENTS = [
     id: 'payroll',
     phrases: ['does it do payroll', 'tell me about payroll', 'salary payment'],
     keys: ['payroll', 'paye', 'pension', 'nhf', 'nsitf', 'payslip', 'salary', 'salaries', 'tax'],
-    answer: 'Payroll runs the 2026 Nigeria Tax Act rules — the new PAYE bands (0% up to ₦800,000, then 15–25%), rent relief in place of the old CRA, plus Pension, NHF and NSITF — with payslips, staff loans and salary advances repaid by automatic deduction, and a Banking Wall for whoever liaises with your bank. Important honesty: Collarone never touches your bank account. It prepares the disbursement instruction; your bank executes it. Payroll is available to Nigerian-registered companies.',
+    answer: 'Payroll runs the 2026 Nigeria Tax Act rules — the new PAYE bands (0% up to ₦800,000, then 15–25%), rent relief in place of the old CRA, plus Pension, NHF and NSITF — with payslips, staff loans and salary advances repaid by automatic deduction, and a Bank payments queue for whoever liaises with your bank. Important honesty: Collarone never touches your bank account. It prepares the disbursement instruction; your bank executes it. Payroll is available to Nigerian-registered companies.',
     chips: ['What does it cost?', 'What suites are included?'],
   },
   {

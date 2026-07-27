@@ -974,7 +974,7 @@ function BookingsTab({ flash }) {
 /* =========================================================================
    Money owed — receivables aged by due date
    ========================================================================= */
-const REC_STATUS = { outstanding: ['Outstanding', '#fff4ce', '#7a5200'], part_paid: ['Part paid', '#deecfd', '#194b8f'], paid: ['Paid', '#dff6dd', '#1a6a1a'], written_off: ['Written off', '#f2f1ef', '#5c5f66'] };
+const REC_STATUS = { outstanding: ['Not paid', '#fff4ce', '#7a5200'], part_paid: ['Part paid', '#deecfd', '#194b8f'], paid: ['Paid', '#dff6dd', '#1a6a1a'], written_off: ['Given up on', '#f2f1ef', '#5c5f66'] };
 const fmtNaira = (n) => `₦${Number(n).toLocaleString('en-NG')}`;
 
 function MoneyTab({ flash }) {
@@ -1086,7 +1086,7 @@ export default function CRMApp() {
   };
   const TABS = [
     { key: 'messages',   label: 'Messages' },
-    { key: 'pipeline',   label: 'Pipeline' },
+    { key: 'pipeline',   label: 'Deals' },
     { key: 'bookings',   label: 'Bookings' },
     { key: 'money',      label: 'Money owed' },
     { key: 'companies',  label: 'Companies' },

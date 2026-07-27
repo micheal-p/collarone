@@ -189,10 +189,10 @@ export default function HRApp({ access }) {
     { target: '[data-tour="hr-tab-myinterviews"]', title: 'My interviews', body: 'If you\'re interviewing a candidate, your schedule and feedback forms are here.' },
     { target: '[data-tour="hr-tab-recruiting"]', title: 'Recruiting', body: 'Post roles to your public careers page, move applicants through the pipeline with interview scorecards, email candidates, send offers as private accept/decline links — then hire in one click.' },
     { target: '[data-tour="hr-tab-letters"]', title: 'Letters', body: 'Confirmation, promotion, query and warning letters — typed, from templates, or drafted by Collarone AI — on your own letterhead, auto-numbered, filed into Documents.' },
-    { target: '[data-tour="hr-tab-onboarding"]', title: 'Onboarding', body: 'New hires get a structured task list, and probation end dates trigger a proper decision: confirm with the letter, extend, or exit.' },
-    { target: '[data-tour="hr-tab-offboarding"]', title: 'Offboarding', body: 'Exits with their own task lists and records — the story ends as cleanly as it began.' },
+    { target: '[data-tour="hr-tab-onboarding"]', title: 'New starters', body: 'New hires get a structured task list, and probation end dates trigger a proper decision: confirm with the letter, extend, or exit.' },
+    { target: '[data-tour="hr-tab-offboarding"]', title: 'Exits', body: 'Exits with their own task lists and records — the story ends as cleanly as it began.' },
     { target: '[data-tour="hr-tab-performance"]', title: 'Performance', body: 'Goals and review cycles, with ratings that show up on the Employee 360.' },
-    { target: '[data-tour="hr-tab-compliance"]', title: 'Compliance', body: 'Discipline done properly — query letter, written response, outcome — plus employee documents with expiry tracking.' },
+    { target: '[data-tour="hr-tab-compliance"]', title: 'Cases & files', body: 'Discipline done properly — query letter, written response, outcome — plus employee documents with expiry tracking.' },
     { target: '[data-tour="hr-tab-analytics"]', title: 'Analytics', body: 'Headcount, attrition, hiring trend, anniversaries, birthdays, and the statutory meter that flags the group-life requirement at 5+ staff.' },
     { title: 'That\'s HR & Staff', body: 'Start with the Directory — add your people, and everything else builds on top. Replay this tour anytime by adding ?tour=1 to the address.' },
   ];
@@ -239,16 +239,16 @@ export default function HRApp({ access }) {
   };
 
   const TABS = [
-    { key: 'directory', label: 'Directory' },
+    { key: 'directory', label: 'Staff' },
     { key: 'orgchart',  label: 'Org chart' },
     { key: 'myinterviews', label: 'My interviews' },
     ...(isHrManager ? [
       { key: 'recruiting',   label: 'Recruiting' },
       { key: 'letters',      label: 'Letters' },
-      { key: 'onboarding',   label: 'Onboarding' },
-      { key: 'offboarding',  label: 'Offboarding' },
+      { key: 'onboarding',   label: 'New starters' },
+      { key: 'offboarding',  label: 'Exits' },
       { key: 'performance',  label: 'Performance' },
-      { key: 'compliance',   label: 'Compliance' },
+      { key: 'compliance',   label: 'Cases & files' },
       { key: 'analytics',    label: 'Analytics' },
     ] : []),
   ];
