@@ -15,12 +15,15 @@
 -- org, no plan, no payment). You register once here, then post freely — this is
 -- the spam gate AND the lead capture (posters = employers = our ICP).
 create table if not exists public.job_posters (
-  id         uuid primary key references auth.users(id) on delete cascade,
-  name       text not null default '',
-  email      text not null default '',
-  phone      text not null default '',
-  company    text not null default '',
-  created_at timestamptz not null default now()
+  id          uuid primary key references auth.users(id) on delete cascade,
+  name        text not null default '',
+  email       text not null default '',
+  phone       text not null default '',
+  company     text not null default '',
+  status      text not null default 'pending' check (status in ('pending','approved','suspended','rejected')),
+  mode        text not null default 'free',    -- free (10/day) | paid tiers later
+  daily_limit integer not null default 10,      -- posts per day in the current mode
+  created_at  timestamptz not null default now()
 );
 alter table public.job_posters enable row level security;
 drop policy if exists "job_posters_self" on public.job_posters;

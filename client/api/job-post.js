@@ -70,11 +70,11 @@ async function authPoster(admin, req) {
   if (!token) return null;
   const { data: { user } } = await admin.auth.getUser(token);
   if (!user) return null;
-  let { data: poster } = await admin.from('job_posters').select('id, email, phone').eq('id', user.id).maybeSingle();
+  let { data: poster } = await admin.from('job_posters').select('id, email, phone, status, daily_limit').eq('id', user.id).maybeSingle();
   if (!poster) {
     const m = user.user_metadata || {};
     await admin.from('job_posters').insert({ id: user.id, name: m.name || '', email: user.email || '', phone: m.phone || '', company: m.company || '' });
-    poster = { id: user.id, email: user.email || '', phone: m.phone || '' };
+    poster = { id: user.id, email: user.email || '', phone: m.phone || '', status: 'pending', daily_limit: 10 };
   }
   return poster;
 }
@@ -87,7 +87,28 @@ export default async function handler(req, res) {
   const { action } = body;
 
   try {
-    // ---- register a job-board account (open) --------------------------------
+    // ---- platform-admin moderation (approve/reject posters) -----------------
+    if (action === 'admin-list-posters' || action === 'admin-set-poster') {
+      const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+      if (!token) return json(res, 401, { message: 'Authentication required.' });
+      const { data: { user } } = await admin.auth.getUser(token);
+      if (!user) return json(res, 401, { message: 'Invalid session.' });
+      const { data: pa } = await admin.from('platform_admins').select('user_id').eq('user_id', user.id).maybeSingle();
+      if (!pa) return json(res, 403, { message: 'Platform admins only.' });
+
+      if (action === 'admin-list-posters') {
+        const { data } = await admin.from('job_posters')
+          .select('id, name, email, phone, company, status, mode, daily_limit, created_at')
+          .order('created_at', { ascending: false }).limit(200);
+        return json(res, 200, { posters: data || [] });
+      }
+      const status = ['pending', 'approved', 'suspended', 'rejected'].includes(body.status) ? body.status : null;
+      if (!body.posterId || !status) return json(res, 400, { message: 'Bad request.' });
+      await admin.from('job_posters').update({ status }).eq('id', body.posterId);
+      return json(res, 200, { ok: true });
+    }
+
+    // ---- register a job-board account (open; starts PENDING approval) --------
     if (action === 'register') {
       const email = clean(body.email, 200).toLowerCase();
       const password = String(body.password || '');
@@ -104,13 +125,14 @@ export default async function handler(req, res) {
         return json(res, 500, { message: 'Could not create your account — try again.' });
       }
       await admin.from('job_posters').insert({ id: created.user.id, name, email, phone: clean(body.phone, 40), company: clean(body.company, 120) });
-      return json(res, 200, { ok: true });
+      return json(res, 200, { ok: true, pending: true, message: 'Account created. You can post once the Collarone team approves you (usually within a day).' });
     }
 
-    // ---- structure pasted text (Bearer; no DB write) ------------------------
+    // ---- structure pasted text (Bearer + approved; no DB write) -------------
     if (action === 'structure') {
       const poster = await authPoster(admin, req);
       if (!poster) return json(res, 401, { message: 'Register or log in to post a job.' });
+      if (poster.status !== 'approved') return json(res, 403, { message: poster.status === 'pending' ? 'Your account is still awaiting approval.' : 'Your posting account is not active.' });
       const raw = clean(body.raw, 4000);
       if (raw.length < 15) return json(res, 400, { message: 'Paste the job text first.' });
       if (!AI_ENABLED) {
@@ -134,10 +156,20 @@ export default async function handler(req, res) {
       }
     }
 
-    // ---- publish (Bearer) ---------------------------------------------------
+    // ---- publish (Bearer + approved + daily cap) ----------------------------
     if (action === 'create') {
       const poster = await authPoster(admin, req);
       if (!poster) return json(res, 401, { message: 'Register or log in to post a job.' });
+      if (poster.status !== 'approved') return json(res, 403, { message: poster.status === 'pending' ? 'Your account is still awaiting approval.' : 'Your posting account is not active.' });
+
+      // free-mode daily cap: posts since Lagos midnight (Nigeria is UTC+1, no DST)
+      const lagosOffset = 60 * 60 * 1000;
+      const since = new Date(Math.floor((Date.now() + lagosOffset) / 86400000) * 86400000 - lagosOffset).toISOString();
+      const { count } = await admin.from('job_wall_posts')
+        .select('id', { count: 'exact', head: true }).eq('poster_id', poster.id).gte('created_at', since);
+      const limit = poster.daily_limit || 10;
+      if ((count || 0) >= limit) return json(res, 429, { message: `You've reached your ${limit} posts for today — try again tomorrow.` });
+
       const title = clean(body.title, 120);
       const description = clean(body.description, 2000);
       if (title.length < 3) return json(res, 400, { message: 'Give the job a title.' });
