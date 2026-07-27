@@ -22,6 +22,7 @@
 // NOTE: real per-IP rate-limiting is a v1.1 TODO (needs a store); today the
 // guards are AI spam-scoring + reports + quarantine + length caps.
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'node:crypto';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -33,6 +34,28 @@ const json = (res, s, o) => res.status(s).json(o);
 const clean = (v, max = 2000) => String(v ?? '').trim().slice(0, max);
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'job';
 const rand = () => Math.random().toString(36).slice(2, 8);
+
+// Server-side scam heuristic — runs on the FINAL content at publish time so the
+// spam gate can't be bypassed by a client sending spam_score:0 or using the
+// form path. Cheap, no AI call. Nigerian job-scam markers score high.
+function spamHeuristic(text) {
+  const t = String(text || '').toLowerCase();
+  const strong = [
+    /\b(registration|application|sign[-\s]?up|activation|processing|form|screening)\s+fee\b/,
+    /pay(ing)?\s+(a\s+)?(fee|money|₦|naira)\s+(to|before)\s+(apply|start|get|join)/,
+    /pay\s+(before|first|to)\s+(you\s+)?(apply|start|resume|begin)/,
+    /send\s+(₦|naira|money|airtime|recharge)/,
+  ];
+  const weak = [/no experience (needed|required)/, /earn\s+₦?\s?\d[\d,]*\s*(daily|weekly|per\s*day|a\s*day)/, /work\s+from\s+home.*earn/, /urgent(ly)?\s+(hiring|needed)!/];
+  if (strong.some((r) => r.test(t))) return 0.9;
+  const w = weak.filter((r) => r.test(t)).length;
+  return w >= 2 ? 0.75 : w === 1 ? 0.5 : 0;
+}
+
+const clientIpHash = (req) => {
+  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
+  return crypto.createHash('sha256').update(ip).digest('hex').slice(0, 32);
+};
 
 async function aiStructure(raw) {
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -73,7 +96,7 @@ async function authPoster(admin, req) {
   let { data: poster } = await admin.from('job_posters').select('id, email, phone, status, daily_limit').eq('id', user.id).maybeSingle();
   if (!poster) {
     const m = user.user_metadata || {};
-    await admin.from('job_posters').insert({ id: user.id, name: m.name || '', email: user.email || '', phone: m.phone || '', company: m.company || '' });
+    await admin.from('job_posters').insert({ id: user.id, name: m.name || '', email: user.email || '', phone: m.phone || '', company: m.company || '', role: m.role || '', website: m.website || '', about: m.about || '' });
     poster = { id: user.id, email: user.email || '', phone: m.phone || '', status: 'pending', daily_limit: 10 };
   }
   return poster;
@@ -118,7 +141,7 @@ export default async function handler(req, res) {
       if (name.length < 2) return json(res, 400, { message: 'Enter your name.' });
       const { data: created, error: cErr } = await admin.auth.admin.createUser({
         email, password, email_confirm: true,
-        user_metadata: { name, phone: clean(body.phone, 40), company: clean(body.company, 120), poster: true },
+        user_metadata: { name, phone: clean(body.phone, 40), company: clean(body.company, 120), role: clean(body.role, 80), website: clean(body.website, 200), about: clean(body.about, 600), poster: true },
       });
       if (cErr) {
         if (/registered|already|exists/i.test(cErr.message)) return json(res, 409, { message: 'That email is already registered — log in to post.' });
@@ -168,8 +191,9 @@ export default async function handler(req, res) {
       // free-mode daily cap: posts since Lagos midnight (Nigeria is UTC+1, no DST)
       const lagosOffset = 60 * 60 * 1000;
       const since = new Date(Math.floor((Date.now() + lagosOffset) / 86400000) * 86400000 - lagosOffset).toISOString();
-      const { count } = await admin.from('job_wall_posts')
+      const { count, error: capErr } = await admin.from('job_wall_posts')
         .select('id', { count: 'exact', head: true }).eq('poster_id', poster.id).gte('created_at', since);
+      if (capErr) return json(res, 503, { message: 'Could not check your daily limit — try again in a moment.' }); // fail closed
       const limit = poster.daily_limit || 10;
       if ((count || 0) >= limit) return json(res, 429, { message: `You've reached your ${limit} posts for today — try again tomorrow.` });
 
@@ -179,7 +203,10 @@ export default async function handler(req, res) {
       if (description.length < 15) return json(res, 400, { message: 'Add a few words about the job.' });
 
       const applyMethod = ['whatsapp', 'phone', 'email', 'link'].includes(body.applyMethod) ? body.applyMethod : 'whatsapp';
-      const spamScore = Math.max(0, Math.min(1, Number(body.spamScore) || 0));
+      // server heuristic on the FINAL content wins over any client value — the
+      // quarantine can't be bypassed by sending spamScore:0 or via the form path
+      const serverScore = spamHeuristic(`${title} ${description} ${clean(body.applyContact, 200)} ${clean(body.company, 120)}`);
+      const spamScore = Math.max(serverScore, Math.max(0, Math.min(1, Number(body.spamScore) || 0)));
       // quarantine obvious spam/scams — inserted but not shown until reviewed
       const status = spamScore >= 0.7 ? 'hidden' : 'live';
       const slug = `${slugify(title)}-${rand()}`;
@@ -204,13 +231,19 @@ export default async function handler(req, res) {
     }
 
     // ---- report -------------------------------------------------------------
+    // Open (no login), but deduped by reporter IP so one person can't hide a post
+    // by spamming reports: each IP counts once, and report_count is the true
+    // distinct count (recounted, not read-then-incremented). Auto-hide at 3
+    // DISTINCT reporters — reversible by the platform admin.
     if (action === 'report') {
       const slug = clean(body.slug, 60);
-      const { data: post } = await admin.from('job_wall_posts').select('id, report_count').eq('slug', slug).maybeSingle();
+      const { data: post } = await admin.from('job_wall_posts').select('id').eq('slug', slug).maybeSingle();
       if (!post) return json(res, 404, { message: 'Post not found.' });
-      await admin.from('job_wall_reports').insert({ post_id: post.id, reason: clean(body.reason, 300) });
-      const next = (post.report_count || 0) + 1;
-      await admin.from('job_wall_posts').update({ report_count: next, ...(next >= 3 ? { status: 'hidden' } : {}) }).eq('id', post.id);
+      await admin.from('job_wall_reports')
+        .upsert({ post_id: post.id, reporter_ip: clientIpHash(req), reason: clean(body.reason, 300) }, { onConflict: 'post_id,reporter_ip', ignoreDuplicates: true });
+      const { count } = await admin.from('job_wall_reports').select('id', { count: 'exact', head: true }).eq('post_id', post.id);
+      const total = count || 0;
+      await admin.from('job_wall_posts').update({ report_count: total, ...(total >= 3 ? { status: 'hidden' } : {}) }).eq('id', post.id);
       return json(res, 200, { ok: true });
     }
 

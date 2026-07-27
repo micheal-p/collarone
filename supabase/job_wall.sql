@@ -55,11 +55,15 @@ create table if not exists public.job_wall_posts (
 create index if not exists job_wall_live_idx on public.job_wall_posts (status, expires_at desc);
 
 create table if not exists public.job_wall_reports (
-  id         uuid primary key default gen_random_uuid(),
-  post_id    uuid not null references public.job_wall_posts(id) on delete cascade,
-  reason     text not null default '',
-  created_at timestamptz not null default now()
+  id          uuid primary key default gen_random_uuid(),
+  post_id     uuid not null references public.job_wall_posts(id) on delete cascade,
+  reporter_ip text not null default '',   -- sha256(ip) — one report per reporter per post
+  reason      text not null default '',
+  created_at  timestamptz not null default now()
 );
+alter table public.job_wall_reports add column if not exists reporter_ip text not null default '';
+-- dedup: a reporter (IP) counts once per post, so a single actor can't hide a post
+create unique index if not exists job_wall_reports_dedup on public.job_wall_reports (post_id, reporter_ip);
 
 alter table public.job_wall_posts enable row level security;
 alter table public.job_wall_reports enable row level security;

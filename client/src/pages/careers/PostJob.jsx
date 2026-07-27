@@ -147,6 +147,7 @@ function PostForm({ onLogout }) {
   const [f, setF] = useState({ title: '', company: '', location: '', payText: '', description: '', applyMethod: 'whatsapp', applyContact: '' });
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null); // { url }
+  const [usedPaste, setUsedPaste] = useState(false); // origin, independent of the view mode
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.value }));
 
   const structure = async () => {
@@ -154,13 +155,13 @@ function PostForm({ onLogout }) {
     try {
       const d = await post({ action: 'structure', raw }, await token());
       if (d.notAJob) { setErr("That doesn't look like a job advert — check the text."); return; }
-      setF((s) => ({ ...s, ...d.fields })); setMode('form');
+      setF((s) => ({ ...s, ...d.fields })); setUsedPaste(true); setMode('form');
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
   const publish = async () => {
     setErr(''); setBusy(true);
     try {
-      const d = await post({ action: 'create', ...f, spamScore: f.spamScore, source: mode === 'paste' ? 'paste' : 'form' }, await token());
+      const d = await post({ action: 'create', ...f, spamScore: f.spamScore, source: usedPaste ? 'paste' : 'form' }, await token());
       setDone(d);
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
@@ -175,7 +176,7 @@ function PostForm({ onLogout }) {
           : <p style={{ color: 'var(--text-soft)', fontSize: 14 }}>It&apos;s live on the board. Share the link to your WhatsApp groups:</p>}
         <div style={{ margin: '14px 0', padding: '10px 12px', background: 'var(--bg-tint)', borderRadius: 10, fontSize: 13, wordBreak: 'break-all' }}>{done.url}</div>
         <a className="cl-btn cl-btn-primary" style={{ width: '100%' }} href={`https://wa.me/?text=${msg}`} target="_blank" rel="noreferrer">Share to WhatsApp</a>
-        <button className="cl-btn cl-btn-ghost" style={{ marginTop: 10 }} onClick={() => { setDone(null); setRaw(''); setF({ title: '', company: '', location: '', payText: '', description: '', applyMethod: 'whatsapp', applyContact: '' }); setMode('paste'); }}>Post another</button>
+        <button className="cl-btn cl-btn-ghost" style={{ marginTop: 10 }} onClick={() => { setDone(null); setRaw(''); setF({ title: '', company: '', location: '', payText: '', description: '', applyMethod: 'whatsapp', applyContact: '' }); setUsedPaste(false); setMode('paste'); }}>Post another</button>
       </div>
     );
   }
