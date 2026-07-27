@@ -15,7 +15,11 @@ export function setSeo({ title, description, canonical, image, jsonLd }) {
   tag('og:title', title, 'property');
   tag('og:description', description, 'property');
   tag('og:type', 'website', 'property');
-  if (image) tag('og:image', image, 'property');
+  // Image is page-specific — clear it when a page doesn't set one, so a previous
+  // page's OG image (e.g. a job card) can't bleed onto the next page's share.
+  const removeTag = (key, attr = 'name') => { const el = document.head.querySelector(`meta[${attr}="${key}"]`); if (el) el.remove(); };
+  if (image) { tag('og:image', image, 'property'); tag('twitter:image', image); }
+  else { removeTag('og:image', 'property'); removeTag('twitter:image'); }
   tag('twitter:card', 'summary_large_image');
   tag('twitter:title', title);
   tag('twitter:description', description);

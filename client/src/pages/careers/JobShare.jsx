@@ -23,7 +23,9 @@ export default function JobShare() {
   const [reported, setReported] = useState(false);
 
   useEffect(() => {
-    supabase.from('job_wall_posts').select('*').eq('slug', slug).maybeSingle()
+    supabase.from('job_wall_posts')
+      .select('slug, title, company, location, pay_text, description, apply_method, apply_contact, created_at, expires_at')
+      .eq('slug', slug).maybeSingle()
       .then(({ data }) => setPost(data || null)).catch(() => setPost(null));
   }, [slug]);
 
