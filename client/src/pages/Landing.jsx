@@ -177,7 +177,9 @@ function PriceCalculator() {
   // plan for that many suites — you can never be stuck "on Startup" paying more
   // than a bigger plan would cost. No tier to choose, no per-extra-suite trap.
   const priceFor = (t) => t.baseFee + Math.max(0, suiteCount - t.included) * t.extraFee + staffCount * perStaff;
-  const best = PRICE_TIERS.reduce((a, b) => (priceFor(b) < priceFor(a) ? b : a));
+  // Enterprise is custom/quoted — never auto-price into it. Self-serve = Startup/Standard.
+  const PRICED = PRICE_TIERS.filter((t) => t.key !== 'enterprise');
+  const best = PRICED.reduce((a, b) => (priceFor(b) < priceFor(a) ? b : a));
   const monthly = priceFor(best);
   const suitesCost = best.baseFee + Math.max(0, suiteCount - best.included) * best.extraFee;
   const total = yearly ? monthly * 12 * (1 - annualDiscount) : monthly;
@@ -759,22 +761,23 @@ export default function Landing() {
                 standard:   { support: 'Priority support',     quote: 'What most growing companies land on — people, money and customers in one place.', cta: ['Get started', '/signup?plan=standard', true], lastRow: ['Add more suites', 'anytime'], featured: true },
                 enterprise: { support: 'Dedicated onboarding', quote: 'For established businesses standardising how they run across branches and states.', cta: ['Talk to us', '#contact', false], lastRow: ['Custom work', 'scoped & quoted'] },
               }[plan.key];
+              const isEnt = plan.key === 'enterprise';
               return {
                 key: plan.key, name: plan.name, price: plan.baseFee.toLocaleString('en-NG'),
                 included: plan.includedSuites, featured: meta.featured,
-                pills: [`${plan.includedSuites} suites`, meta.support],
-                rows: [
-                  ['Suites of your choice', `${plan.includedSuites}`],
-                  ['Per staff member', `${naira(PRICING.perStaff)}/mo`],
-                  meta.lastRow,
-                ],
+                pills: isEnt ? [meta.support] : [`${plan.includedSuites} suites`, meta.support],
+                rows: isEnt
+                  ? [['Suites', 'as many as you need'], ['Onboarding', 'dedicated'], ['Custom work', 'scoped & quoted']]
+                  : [['Suites of your choice', `${plan.includedSuites}`], ['Per staff member', `${naira(PRICING.perStaff)}/mo`], meta.lastRow],
                 quote: meta.quote, cta: meta.cta,
               };
             }).map((p, i) => (
               <Reveal className={`cl-pc${p.featured ? ' cl-pc-feat' : ''}`} key={p.key} delay={i * 0.06}>
                 {p.featured && <span className="cl-pc-badge">What most companies need</span>}
                 <div className="cl-pc-plan">{p.name}</div>
-                <div className="cl-pc-amt">₦{p.price}<span className="cl-pc-per">/mo</span></div>
+                {p.key === 'enterprise'
+                  ? <div className="cl-pc-amt">Custom<span className="cl-pc-per"> pricing</span></div>
+                  : <div className="cl-pc-amt">₦{p.price}<span className="cl-pc-per">/mo</span></div>}
                 <div className="cl-pc-pills">
                   {p.pills.map((pill, j) => <span key={pill} className={`cl-pc-pill${j === 0 ? ' solid' : ''}`}>{pill}</span>)}
                 </div>
