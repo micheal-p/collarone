@@ -98,7 +98,7 @@ export default async function handler(req, res) {
 
       if (action === 'admin-list-posters') {
         const { data } = await admin.from('job_posters')
-          .select('id, name, email, phone, company, status, mode, daily_limit, created_at')
+          .select('id, name, email, phone, company, role, website, about, status, mode, daily_limit, created_at')
           .order('created_at', { ascending: false }).limit(200);
         return json(res, 200, { posters: data || [] });
       }
@@ -124,7 +124,10 @@ export default async function handler(req, res) {
         if (/registered|already|exists/i.test(cErr.message)) return json(res, 409, { message: 'That email is already registered — log in to post.' });
         return json(res, 500, { message: 'Could not create your account — try again.' });
       }
-      await admin.from('job_posters').insert({ id: created.user.id, name, email, phone: clean(body.phone, 40), company: clean(body.company, 120) });
+      await admin.from('job_posters').insert({
+        id: created.user.id, name, email, phone: clean(body.phone, 40), company: clean(body.company, 120),
+        role: clean(body.role, 80), website: clean(body.website, 200), about: clean(body.about, 600),
+      });
       return json(res, 200, { ok: true, pending: true, message: 'Account created. You can post once the Collarone team approves you (usually within a day).' });
     }
 

@@ -23,6 +23,8 @@ import TryChooser from './pages/TryChooser.jsx';
 import Profile from './pages/Profile.jsx';
 import CareersIndex from './pages/careers/CareersIndex.jsx';
 import JobsBoard from './pages/careers/JobsBoard.jsx';
+import PostJob from './pages/careers/PostJob.jsx';
+import JobShare from './pages/careers/JobShare.jsx';
 import CareersApply from './pages/careers/CareersApply.jsx';
 import Terms from './pages/Terms.jsx';
 import Privacy from './pages/Privacy.jsx';
@@ -106,6 +108,8 @@ export default function App() {
       <Route path="/status" element={<Status />} />
       <Route path="/themes" element={<PublicThemes />} />
       <Route path="/jobs" element={<JobsBoard />} />
+      <Route path="/jobs/post" element={<PostJob />} />
+      <Route path="/jobs/:slug" element={<JobShare />} />
       <Route path="/careers" element={<Navigate to="/jobs" replace />} />
       <Route path="/offer/:token" element={<OfferPage />} />
       <Route path="/pay/thanks" element={<PayThanks />} />

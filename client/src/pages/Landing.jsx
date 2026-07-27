@@ -804,6 +804,20 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className="cl-sec cl-tint" id="jobs-board">
+        <div className="cl-wrap">
+          <Reveal className="cl-sec-head">
+            <p className="cl-eyebrow">Free jobs board</p>
+            <h2 className="cl-sec-h">Hiring? Post a job free — and share it to WhatsApp</h2>
+            <p className="cl-sec-lede">Collarone runs an open jobs board for Nigerian businesses. Post a role in seconds — or paste it straight from your WhatsApp group and we&apos;ll tidy it up — then get a clean link to share back to your groups. Seekers find you; you find staff.</p>
+          </Reveal>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link to="/jobs/post" className="cl-btn cl-btn-primary">Post a job — free</Link>
+            <Link to="/jobs" className="cl-btn cl-btn-ghost">Browse jobs</Link>
+          </div>
+        </div>
+      </section>
+
       <section className="cl-sec" id="about">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
