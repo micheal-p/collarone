@@ -754,47 +754,26 @@ export default function Landing() {
             <h2 className="cl-sec-h">Pick your suites. We give you the best price.</h2>
             <p className="cl-sec-lede">No confusing tiers to choose. Pick the suites your business needs and we automatically put you on the cheapest plan for them — the more suites you run, the less each one costs. No forex markup, no dollar pricing, and your rate locks in at sign-up.</p>
           </Reveal>
-          <CardCarousel className="cl-grid3" dotLabel="plan">
-            {PLANS.map((plan) => {
-              const meta = {
-                startup:    { support: 'Standard support',     quote: 'For a small team getting its operations out of spreadsheets and WhatsApp groups.', cta: ['Start your space', '/signup?plan=startup', false], lastRow: ['Add more suites', 'anytime'] },
-                standard:   { support: 'Priority support',     quote: 'What most growing companies land on — people, money and customers in one place.', cta: ['Get started', '/signup?plan=standard', true], lastRow: ['Add more suites', 'anytime'], featured: true },
-                enterprise: { support: 'Dedicated onboarding', quote: 'For established businesses standardising how they run across branches and states.', cta: ['Talk to us', '#contact', false], lastRow: ['Custom work', 'scoped & quoted'] },
-              }[plan.key];
-              const isEnt = plan.key === 'enterprise';
-              return {
-                key: plan.key, name: plan.name, price: plan.baseFee.toLocaleString('en-NG'),
-                included: plan.includedSuites, featured: meta.featured,
-                pills: isEnt ? [meta.support] : [`${plan.includedSuites} suites`, meta.support],
-                rows: isEnt
-                  ? [['Suites', 'as many as you need'], ['Onboarding', 'dedicated'], ['Custom work', 'scoped & quoted']]
-                  : [['Suites of your choice', `${plan.includedSuites}`], ['Per staff member', `${naira(PRICING.perStaff)}/mo`], meta.lastRow],
-                quote: meta.quote, cta: meta.cta,
-              };
-            }).map((p, i) => (
-              <Reveal className={`cl-pc${p.featured ? ' cl-pc-feat' : ''}`} key={p.key} delay={i * 0.06}>
-                {p.featured && <span className="cl-pc-badge">What most companies need</span>}
-                <div className="cl-pc-plan">{p.name}</div>
-                {p.key === 'enterprise'
-                  ? <div className="cl-pc-amt">Custom<span className="cl-pc-per"> pricing</span></div>
-                  : <div className="cl-pc-amt">₦{p.price}<span className="cl-pc-per">/mo</span></div>}
-                <div className="cl-pc-pills">
-                  {p.pills.map((pill, j) => <span key={pill} className={`cl-pc-pill${j === 0 ? ' solid' : ''}`}>{pill}</span>)}
-                </div>
-                <div className="cl-pc-rows">
-                  {p.rows.map(([label, val]) => (
-                    <div className="cl-pc-row" key={label}><span className="cl-pc-check">{I.check}</span><span>{label}</span><em /><strong>{val}</strong></div>
-                  ))}
-                </div>
-                <p className="cl-pc-quote">{p.quote}</p>
-                {p.cta[1].startsWith('#')
-                  ? <a className={`cl-btn cl-pc-btn${p.cta[2] ? ' cl-btn-primary' : ''}`} href={p.cta[1]}>{p.cta[0]}</a>
-                  : <Link className={`cl-btn cl-pc-btn${p.cta[2] ? ' cl-btn-primary' : ''}`} to={p.cta[1]}>{p.cta[0]}</Link>}
-              </Reveal>
-            ))}
-          </CardCarousel>
           <PriceCalculator />
-          <p className="cl-price-note">Pay yearly and save 15% off the total. Your base fee and per-suite rate both lock in at sign-up — they don't change later even if our published prices do.</p>
+          <p className="cl-price-note">Pay yearly and save 15% off the total. Your rate locks in at sign-up — it doesn't change later even if our published prices do.</p>
+
+          <div className="cl-glance-label">Plans at a glance</div>
+          <div className="cl-plans-glance">
+            {PLANS.map((plan) => {
+              const isEnt = plan.key === 'enterprise';
+              const feat = plan.key === 'standard';
+              return (
+                <div key={plan.key} className={`cl-plan-chip${feat ? ' feat' : ''}`}>
+                  {feat && <span className="cl-plan-chip-tag">Most picked</span>}
+                  <div className="cl-plan-chip-name">{plan.name}</div>
+                  <div className="cl-plan-chip-price">{isEnt ? 'Custom' : <>₦{plan.baseFee.toLocaleString('en-NG')}<small>/mo</small></>}</div>
+                  <div className="cl-plan-chip-sub">{isEnt
+                    ? <>Dedicated onboarding · <a href="#contact">talk to us</a></>
+                    : `Best for ${plan.includedSuites} suites · ${naira(PRICING.perStaff)}/staff`}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
