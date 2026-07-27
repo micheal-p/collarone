@@ -161,7 +161,7 @@ function PostForm({ onLogout }) {
   const publish = async () => {
     setErr(''); setBusy(true);
     try {
-      const d = await post({ action: 'create', ...f, spamScore: f.spamScore, source: usedPaste ? 'paste' : 'form' }, await token());
+      const d = await post({ action: 'create', ...f, source: usedPaste ? 'paste' : 'form' }, await token());
       setDone(d);
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };

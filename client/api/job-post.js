@@ -40,21 +40,31 @@ const rand = () => Math.random().toString(36).slice(2, 8);
 // form path. Cheap, no AI call. Nigerian job-scam markers score high.
 function spamHeuristic(text) {
   const t = String(text || '').toLowerCase();
+  // "no registration fee" / "we don't charge a fee" / "beware of anyone asking
+  // for a fee" are anti-scam REASSURANCES — the opposite of a scam. Never flag
+  // on a fee phrase that has a negation word near it.
+  const feeDemand = /\b(registration|application|sign[-\s]?up|activation|processing|screening)\s+fee\b/;
+  const negatedFee = /\b(no|not|without|don'?t|won'?t|never|zero|free|beware|avoid)\b[\s\S]{0,24}\bfee\b/;
   const strong = [
-    /\b(registration|application|sign[-\s]?up|activation|processing|form|screening)\s+fee\b/,
     /pay(ing)?\s+(a\s+)?(fee|money|₦|naira)\s+(to|before)\s+(apply|start|get|join)/,
     /pay\s+(before|first|to)\s+(you\s+)?(apply|start|resume|begin)/,
     /send\s+(₦|naira|money|airtime|recharge)/,
   ];
-  const weak = [/no experience (needed|required)/, /earn\s+₦?\s?\d[\d,]*\s*(daily|weekly|per\s*day|a\s*day)/, /work\s+from\s+home.*earn/, /urgent(ly)?\s+(hiring|needed)!/];
+  if (feeDemand.test(t) && !negatedFee.test(t)) return 0.9;
   if (strong.some((r) => r.test(t))) return 0.9;
+  const weak = [/no experience (needed|required)/, /earn\s+₦?\s?\d[\d,]*\s*(daily|weekly|per\s*day|a\s*day)/, /work\s+from\s+home.*earn/, /urgent(ly)?\s+(hiring|needed)!/];
   const w = weak.filter((r) => r.test(t)).length;
   return w >= 2 ? 0.75 : w === 1 ? 0.5 : 0;
 }
 
+// Reporter identity for dedup. Tries the real client IP (proxy sets x-forwarded-for
+// or x-real-ip); when none is available it falls back to the user-agent so
+// header-less requests don't all collapse to a single 'unknown' reporter.
 const clientIpHash = (req) => {
-  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
-  return crypto.createHash('sha256').update(ip).digest('hex').slice(0, 32);
+  const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+  const ip = fwd || req.headers['x-real-ip'] || req.socket?.remoteAddress || '';
+  const fp = ip || String(req.headers['user-agent'] || '') || 'unknown';
+  return crypto.createHash('sha256').update(fp).digest('hex').slice(0, 32);
 };
 
 async function aiStructure(raw) {
@@ -241,9 +251,9 @@ export default async function handler(req, res) {
       if (!post) return json(res, 404, { message: 'Post not found.' });
       await admin.from('job_wall_reports')
         .upsert({ post_id: post.id, reporter_ip: clientIpHash(req), reason: clean(body.reason, 300) }, { onConflict: 'post_id,reporter_ip', ignoreDuplicates: true });
-      const { count } = await admin.from('job_wall_reports').select('id', { count: 'exact', head: true }).eq('post_id', post.id);
-      const total = count || 0;
-      await admin.from('job_wall_posts').update({ report_count: total, ...(total >= 3 ? { status: 'hidden' } : {}) }).eq('id', post.id);
+      const { count, error: rcErr } = await admin.from('job_wall_reports').select('id', { count: 'exact', head: true }).eq('post_id', post.id);
+      if (rcErr || count == null) return json(res, 200, { ok: true }); // report saved; don't overwrite the count with a bad read
+      await admin.from('job_wall_posts').update({ report_count: count, ...(count >= 3 ? { status: 'hidden' } : {}) }).eq('id', post.id);
       return json(res, 200, { ok: true });
     }
 
