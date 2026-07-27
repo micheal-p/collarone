@@ -25,6 +25,7 @@ function priceQuote(text) {
   if (!staffMatch && !tier) return null;
   const staff = staffMatch ? Math.min(5000, Number(staffMatch[1])) : null;
   const lines = (tier ? [tier] : TIERS).map((t) => {
+    if (t.key === 'enterprise') return `${t.name}: custom pricing with dedicated onboarding — for bigger businesses running across branches and states. Talk to us for a quote.`;
     const monthly = t.base + (staff || 0) * PER_STAFF;
     return staff
       ? `${t.name}: ${N(t.base)} base + ${staff} staff × ${N(PER_STAFF)} = ${N(monthly)}/month (best for around ${t.included} suites)`
