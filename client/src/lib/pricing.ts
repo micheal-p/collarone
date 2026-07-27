@@ -16,9 +16,9 @@ import type { Plan } from '../types';
 export const PER_STAFF_FEE = 2000;
 export const ANNUAL_DISCOUNT = 0.15;
 export const PLANS: Plan[] = [
-  { key: 'startup',    name: 'Startup',    baseFee: 15000, includedSuites: 3, extraSuiteFee: 8000, price: '₦15,000/mo · 3 suites incl., ₦8,000/extra suite, ₦2,000/staff' },
-  { key: 'standard',   name: 'Standard',   baseFee: 25000, includedSuites: 5, extraSuiteFee: 6000, price: '₦25,000/mo · 5 suites incl., ₦6,000/extra suite, ₦2,000/staff' },
-  { key: 'enterprise', name: 'Enterprise', baseFee: 45000, includedSuites: 8, extraSuiteFee: 4000, price: '₦45,000/mo · 8 suites incl., ₦4,000/extra suite, ₦2,000/staff' },
+  { key: 'startup',    name: 'Startup',    baseFee: 15000, includedSuites: 3, extraSuiteFee: 8000, price: '₦15,000/mo · best for 3 suites · ₦2,000/staff' },
+  { key: 'standard',   name: 'Standard',   baseFee: 25000, includedSuites: 5, extraSuiteFee: 6000, price: '₦25,000/mo · best for 5 suites · ₦2,000/staff' },
+  { key: 'enterprise', name: 'Enterprise', baseFee: 45000, includedSuites: 8, extraSuiteFee: 4000, price: '₦45,000/mo · best for 8 suites · ₦2,000/staff' },
 ];
 export const naira = (n: number): string => `₦${Math.round(n).toLocaleString('en-NG')}`;
 
@@ -27,7 +27,7 @@ export const naira = (n: number): string => `₦${Math.round(n).toLocaleString('
 export const PRICING = { perStaff: PER_STAFF_FEE, annualDiscount: ANNUAL_DISCOUNT, loaded: false };
 
 const priceLine = (p: Plan): string =>
-  `${naira(p.baseFee)}/mo · ${p.includedSuites} suites incl., ${naira(p.extraSuiteFee)}/extra suite, ${naira(PRICING.perStaff)}/staff`;
+  `${naira(p.baseFee)}/mo · best for ${p.includedSuites} suites · ${naira(PRICING.perStaff)}/staff`;
 
 let loadPromise: Promise<void> | null = null;
 export const loadPricing = (): Promise<void> => {

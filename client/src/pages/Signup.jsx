@@ -4,9 +4,9 @@ import { supabase } from '../lib/supabaseClient.js';
 import logo from '../assets/collarone-mark.svg';
 import './Signup.css';
 
-// Every tier is à la carte — pick whichever suites you need on any of them.
-// Tiers differ in included-suite count, base fee, support level and
-// contract terms, not in which suites you're allowed to use.
+// Pick a starting plan by size. Suites can be added anytime and billing keeps
+// the org on the cheapest plan for what it actually runs — no per-extra-suite
+// fee to game (matches the honest landing estimator).
 export { PER_STAFF_FEE, PLANS, ANNUAL_DISCOUNT } from '../lib/pricing.js';
 import { PER_STAFF_FEE, PLANS, ANNUAL_DISCOUNT, usePricing } from '../lib/pricing.js';
 
@@ -226,8 +226,8 @@ export default function Signup() {
         {step === 'plan' && (
           <>
             <p className="su-kicker">Step 1 of 4</p>
-            <h1 className="su-h">Choose your plan</h1>
-            <p className="su-sub">Your rate locks in today — it won't change later even if our published prices do.</p>
+            <h1 className="su-h">Pick a starting plan</h1>
+            <p className="su-sub">Choose the size that fits today — you can add suites anytime, and we always keep you on the cheapest plan for what you run. Your rate locks in today and never goes up on you.</p>
             <div className="su-plans">
               {PLANS.map((p) => (
                 <button key={p.key} type="button" className={`su-plan ${planTier === p.key ? 'on' : ''}`} onClick={() => setPlanTier(p.key)}>
