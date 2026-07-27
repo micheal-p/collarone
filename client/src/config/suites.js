@@ -71,6 +71,34 @@ export const requiredFoundations = (keys) => {
 export const addedByRequirement = (keys) =>
   requiredFoundations(keys).filter((k) => !keys.includes(k));
 
+// Suite families — the "brothers". Used only to GROUP the picker so
+// relationships are visible; each suite has one home family (functional links
+// still cross families). This is presentation, not pricing — the price is
+// always the plain à-la-carte total.
+export const FAMILIES = [
+  { key: 'people', label: 'People — run your staff' },
+  { key: 'sales',  label: 'Sales & money — sell and get paid' },
+  { key: 'stock',  label: 'Stock & buying — goods in and out' },
+  { key: 'work',   label: 'Work — get things done' },
+  { key: 'extra',  label: 'Front desk & extras' },
+];
+export const SUITE_FAMILY = {
+  hr: 'people', payroll: 'people', leave: 'people', attendance: 'people',
+  crm: 'sales', 'trade-docs': 'sales', finance: 'sales',
+  inventory: 'stock', procurement: 'stock',
+  tasks: 'work', projects: 'work', documents: 'work',
+  visitors: 'extra', compliance: 'extra', automation: 'extra',
+};
+
+// Business-type presets — one click pre-selects a sensible starter set. The
+// price is just the normal total (no discount, no cannibalisation): a guide,
+// not a priced "pack". requiredFoundations() still pulls in any dependency.
+export const PRESETS = [
+  { key: 'shop',     label: 'Shop / Retail',    hint: 'Sell stock, invoice, track customers', suites: ['inventory', 'trade-docs', 'crm'] },
+  { key: 'service',  label: 'Service business', hint: 'Clients, jobs and invoices',            suites: ['crm', 'projects', 'trade-docs'] },
+  { key: 'employer', label: 'Employer / team',  hint: 'Run and pay your staff',                suites: ['hr', 'payroll', 'leave', 'attendance'] },
+];
+
 // Suites that have been through the per-org data-isolation pass (Stage 2 of
 // the roadmap) and are safe to grant to an organization other than the
 // founding one. Everything
