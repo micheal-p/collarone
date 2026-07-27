@@ -182,7 +182,7 @@ export default function TryDemo() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg, #FAF9F6)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg, #FAF9F6)', display: 'flex', flexDirection: 'column' }}>
       {/* demo chrome — single row that stays put; the helper caption drops on
           phones so the actions never wrap into a stack of stuck rows */}
       <div className="tryd-chrome" style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0A0E1A', color: '#F4F1EA', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -230,7 +230,7 @@ export default function TryDemo() {
       </div>
 
       {/* suite header, mirroring the real shell */}
-      <div style={{ maxWidth: 1160, margin: '0 auto', padding: '22px 20px 60px' }}>
+      <div style={{ maxWidth: 1160, margin: '0 auto', padding: '22px 20px 60px', width: '100%', flex: 1 }}>
         <header className="suite-head">
           <span className="suite-head-icon" style={{ background: meta.tint || '#FF5B1F' }}>
             <SuiteIcon name={meta.icon || 'grid'} size={30} color="#fff" />
