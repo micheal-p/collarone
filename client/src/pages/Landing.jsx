@@ -642,13 +642,12 @@ export default function Landing() {
 
       <section className="cl-sec cl-dark" id="gallery">
         <div className="cl-wrap">
-          <Reveal className="cl-sec-head">
-            <p className="cl-eyebrow">A guided look — real screenshots, not mockups</p>
-            <h2 className="cl-sec-h">This is the actual product</h2>
-            <p className="cl-sec-lede">The same screens your team gets on day one. Click through the flagship work.</p>
-          </Reveal>
           <Reveal className="cl-walk">
-            <div className="cl-walk-tabs" role="tablist" aria-label="Product walkthrough">
+            <div className="cl-walk-rail">
+              <p className="cl-eyebrow">A guided look</p>
+              <h2 className="cl-walk-h">This is the actual product.</h2>
+              <p className="cl-walk-lede">The same screens your team gets on day one — real, not mockups. Tap through the flagship work.</p>
+              <div className="cl-walk-tabs" role="tablist" aria-label="Product walkthrough">
               {GALLERY_SHOTS.map((shot, i) => (
                 <button
                   key={shot.url} type="button" role="tab" aria-selected={i === walkIdx}
@@ -663,6 +662,7 @@ export default function Landing() {
                   )}
                 </button>
               ))}
+              </div>
             </div>
             <div className="cl-walk-stage">
               <AnimatePresence mode="wait" custom={walkDir.current}>
