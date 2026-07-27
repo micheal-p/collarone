@@ -636,6 +636,59 @@ function OrgSiteCell({ org, site, themes }) {
   return <span className="pc-faint" style={{ fontSize: 12.5 }}>—</span>;
 }
 
+// Job-board poster approval queue. New posters register PENDING (with vetting
+// details) and can't post until approved here.
+function JobPostersPanel({ flash }) {
+  const [posters, setPosters] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('pending');
+  const load = () => apiPost('/job-post', { action: 'admin-list-posters' })
+    .then((d) => setPosters(d.posters || [])).catch((e) => flash?.(e.message, true)).finally(() => setLoading(false));
+  useEffect(() => { load(); }, []); // eslint-disable-line
+  const setStatus = async (id, status) => {
+    try { await apiPost('/job-post', { action: 'admin-set-poster', posterId: id, status }); setPosters((ps) => ps.map((p) => (p.id === id ? { ...p, status } : p))); flash?.(`Poster ${status}.`); }
+    catch (e) { flash?.(e.message, true); }
+  };
+  const shown = posters.filter((p) => (filter === 'all' ? true : p.status === filter));
+  const pending = posters.filter((p) => p.status === 'pending').length;
+  const BADGE = { pending: '#7a5200', approved: '#1a6a1a', suspended: '#a4262c', rejected: '#5c5f66' };
+  return (
+    <section className="pc-section">
+      <SectionHead title="Job board — posters" count={pending}>
+        <div className="pc-actions">
+          {['pending', 'approved', 'all'].map((f) => (
+            <button key={f} className={`pc-btn sm${filter === f ? ' primary' : ''}`} onClick={() => setFilter(f)}>{f[0].toUpperCase() + f.slice(1)}</button>
+          ))}
+        </div>
+      </SectionHead>
+      <div className="pc-panel">
+        {loading ? <div className="boot-spinner" style={{ margin: '24px auto' }} />
+          : shown.length === 0 ? <p className="pc-dim" style={{ padding: 16 }}>No {filter === 'all' ? '' : filter} posters.</p>
+          : shown.map((p) => (
+            <div key={p.id} style={{ padding: '14px 16px', borderTop: '1px solid rgba(120,120,140,0.14)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{p.name || '—'} <span className="pc-dim" style={{ fontWeight: 400 }}>· {p.role || 'role n/a'}{p.company ? ` @ ${p.company}` : ''}</span></div>
+                  <div className="pc-dim" style={{ fontSize: 13 }}>{[p.email, p.phone].filter(Boolean).join(' · ')}</div>
+                  {p.website && <div style={{ fontSize: 13 }}><a href={/^https?:/.test(p.website) ? p.website : `https://${p.website}`} target="_blank" rel="noreferrer">{p.website}</a></div>}
+                  {p.about && <div className="pc-dim" style={{ fontSize: 13, marginTop: 4, maxWidth: 560 }}>{p.about}</div>}
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: BADGE[p.status] }}>{p.status}</span>
+                  <div className="pc-actions" style={{ marginTop: 8, justifyContent: 'flex-end' }}>
+                    {p.status !== 'approved' && <button className="pc-btn sm primary" onClick={() => setStatus(p.id, 'approved')}>Approve</button>}
+                    {p.status === 'pending' && <button className="pc-btn sm" onClick={() => setStatus(p.id, 'rejected')}>Reject</button>}
+                    {p.status === 'approved' && <button className="pc-btn sm" onClick={() => setStatus(p.id, 'suspended')}>Suspend</button>}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+      </div>
+    </section>
+  );
+}
+
 export default function PlatformAdmin() {
   const [orgs, setOrgs] = useState([]);
   const [profiles, setProfiles] = useState([]);
@@ -657,7 +710,7 @@ export default function PlatformAdmin() {
   // Section tabs — hash-synced so a refresh (or a shared link) lands on the
   // same view. One long scroll was unusable once the panel count grew.
   const initialTab = (window.location.hash || '').replace('#', '') || 'overview';
-  const [tab, setTabState] = useState(['overview', 'orgs', 'revenue', 'inbox', 'audit'].includes(initialTab) ? initialTab : 'overview');
+  const [tab, setTabState] = useState(['overview', 'orgs', 'revenue', 'inbox', 'audit', 'jobs'].includes(initialTab) ? initialTab : 'overview');
   const setTab = (t) => { setTabState(t); window.history.replaceState(null, '', `#${t}`); };
 
   const [adminIds, setAdminIds] = useState([]);
@@ -784,6 +837,7 @@ export default function PlatformAdmin() {
     ['orgs', 'Organizations', 0],
     ['revenue', 'Revenue', pendingTx.length],
     ['inbox', 'Inbox', 0],
+    ['jobs', 'Jobs', 0],
     ['audit', 'Audit', 0],
   ];
 
@@ -875,6 +929,10 @@ export default function PlatformAdmin() {
       <PricingPanel flash={flash} />
 
       <PromoCodesPanel flash={flash} />
+      </>)}
+
+      {tab === 'jobs' && (<>
+      <JobPostersPanel flash={flash} />
       </>)}
 
       {tab === 'orgs' && (<>
