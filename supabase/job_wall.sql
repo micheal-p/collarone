@@ -20,6 +20,9 @@ create table if not exists public.job_posters (
   email       text not null default '',
   phone       text not null default '',
   company     text not null default '',
+  role        text not null default '',        -- their position, e.g. "HR Manager", "Owner"
+  website     text not null default '',        -- company site or social handle (for verification)
+  about       text not null default '',        -- "tell us about your business / what you hire for"
   status      text not null default 'pending' check (status in ('pending','approved','suspended','rejected')),
   mode        text not null default 'free',    -- free (10/day) | paid tiers later
   daily_limit integer not null default 10,      -- posts per day in the current mode
