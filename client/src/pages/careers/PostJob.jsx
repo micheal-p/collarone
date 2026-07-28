@@ -3,6 +3,7 @@
 // jobs (form or paste-from-WhatsApp → AI structures it). Approved posters get a
 // clean shareable link to forward back to their WhatsApp groups.
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient.js';
 import { setSeo } from '../../lib/seo.js';
 import { PublicNav, PublicFooter } from '../../components/PublicChrome.jsx';
@@ -67,6 +68,16 @@ export default function PostJob() {
       )}
 
       {phase === 'approved' && <PostForm onLogout={async () => { await supabase.auth.signOut(); refresh(); }} />}
+
+      {(phase === 'pending' || phase === 'approved') && (
+        <div style={{ maxWidth: 560, margin: '22px auto 0', padding: '18px 20px', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Ready to run your whole business?</div>
+            <div style={{ fontSize: 13.5, color: 'var(--text-soft)', marginTop: 2 }}>Add HR, payroll, invoicing, CRM and more — pick just the suites you need, on the same account.</div>
+          </div>
+          <Link to="/signup" className="cl-btn cl-btn-primary" style={{ flexShrink: 0 }}>Pick your suites</Link>
+        </div>
+      )}
     </Shell>
   );
 }

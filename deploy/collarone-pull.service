@@ -1,0 +1,10 @@
+[Unit]
+Description=Collarone pull-based deploy (checks GitHub for new commits and deploys)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/collarone/pull-deploy.sh
+# Don't let a slow build overlap the next tick; systemd serialises oneshots anyway.
+TimeoutStartSec=600
