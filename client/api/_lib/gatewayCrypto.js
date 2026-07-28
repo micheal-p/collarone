@@ -15,11 +15,15 @@
 // endpoint.
 import crypto from 'node:crypto';
 
+let _key; let _keyReady = false; // GATEWAY_ENC_KEY is set at process start; derive once
 function key() {
+  if (_keyReady) return _key;
+  _keyReady = true;
   const raw = process.env.GATEWAY_ENC_KEY || '';
-  if (!raw) return null;
+  if (!raw) { _key = null; return _key; }
   const buf = raw.length === 64 ? Buffer.from(raw, 'hex') : Buffer.from(raw, 'base64');
-  return buf.length === 32 ? buf : null; // AES-256 needs exactly 32 bytes
+  _key = buf.length === 32 ? buf : null; // AES-256 needs exactly 32 bytes
+  return _key;
 }
 
 // True only when a valid 32-byte GATEWAY_ENC_KEY is present. Callers that STORE
