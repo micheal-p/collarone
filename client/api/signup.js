@@ -20,6 +20,19 @@ const PLAN = {
 };
 
 // Published prices from the DB, falling back to the constants above.
+// Find an auth user by email (admin API has no email filter; paginate).
+async function findUserByEmail(admin, email) {
+  const target = String(email).toLowerCase();
+  for (let page = 1; page <= 25; page++) {
+    const { data } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    const users = data?.users || [];
+    const hit = users.find((u) => (u.email || '').toLowerCase() === target);
+    if (hit) return hit;
+    if (users.length < 200) break;
+  }
+  return null;
+}
+
 async function livePlan(admin, planTier) {
   const fallback = PLAN[planTier] || PLAN.startup;
   try {
@@ -90,13 +103,32 @@ export default async function handler(req, res) {
       if (existingSlug) return json(res, 409, { message: 'That company handle is already taken.' });
 
       const cleanEmail = email.toLowerCase().trim();
+      let userId;
       const { data: created, error: cErr } = await admin.auth.admin.createUser({
         email: cleanEmail,
         password,
         email_confirm: true,
         user_metadata: { name: ownerName.trim() },
       });
-      if (cErr) return json(res, /registered|exists/i.test(cErr.message) ? 409 : 400, { message: cErr.message });
+      if (cErr) {
+        if (!/registered|exists/i.test(cErr.message)) return json(res, 400, { message: cErr.message });
+        // Email exists. If it's only an unused job-board POSTER stub (no org/profile),
+        // it's likely squatting — remove it and create the real customer account,
+        // so a poster registration can never block a genuine signup.
+        const existing = await findUserByEmail(admin, cleanEmail);
+        const hasProfile = existing ? (await admin.from('profiles').select('id').eq('id', existing.id).maybeSingle()).data : null;
+        if (!existing || existing.user_metadata?.poster !== true || hasProfile) {
+          return json(res, 409, { message: 'That email is already registered — please log in instead.' });
+        }
+        await admin.auth.admin.deleteUser(existing.id);
+        const retry = await admin.auth.admin.createUser({
+          email: cleanEmail, password, email_confirm: true, user_metadata: { name: ownerName.trim() },
+        });
+        if (retry.error || !retry.data?.user) return json(res, 400, { message: retry.error?.message || 'Could not create your account.' });
+        userId = retry.data.user.id;
+      } else {
+        userId = created.user.id;
+      }
 
       // Don't rely on the on_auth_user_created trigger reading this request's
       // metadata reliably at insert time for admin-created users — write the
@@ -104,7 +136,7 @@ export default async function handler(req, res) {
       const plan = await livePlan(admin, planTier);
       const { data: org, error: orgErr } = await admin.from('organizations').insert({
         name: orgName.trim(), slug, plan_tier: planTier, status: 'pending_payment',
-        theme_color: themeColor, logo_url: logoUrl, website_type: websiteType, country, created_by: created.user.id,
+        theme_color: themeColor, logo_url: logoUrl, website_type: websiteType, country, created_by: userId,
         external_website_url: (typeof externalWebsiteUrl === 'string' && /^https?:\/\/.{3,200}$/i.test(externalWebsiteUrl.trim())) ? externalWebsiteUrl.trim() : '',
         // Lock the rate at signup — read back for every future charge.
         base_fee_kobo: plan.baseKobo, per_seat_kobo: plan.seatKobo,
@@ -112,16 +144,16 @@ export default async function handler(req, res) {
         rate_locked_at: new Date().toISOString(),
       }).select('id').single();
       if (orgErr || !org) {
-        await admin.auth.admin.deleteUser(created.user.id);
+        await admin.auth.admin.deleteUser(userId);
         return json(res, orgErr?.code === '23505' ? 409 : 500, { message: orgErr?.code === '23505' ? 'That company handle is already taken.' : 'Could not set up your organization. Please try again.' });
       }
 
       const { error: profErr } = await admin.from('profiles').upsert({
-        id: created.user.id, email: cleanEmail, name: ownerName.trim(), role: 'super_admin',
+        id: userId, email: cleanEmail, name: ownerName.trim(), role: 'super_admin',
         org_id: org.id, suites: [], status: 'active', must_change_password: false,
       }, { onConflict: 'id' });
       if (profErr) {
-        await admin.auth.admin.deleteUser(created.user.id);
+        await admin.auth.admin.deleteUser(userId);
         await admin.from('organizations').delete().eq('id', org.id);
         return json(res, 500, { message: 'Could not set up your account. Please try again.' });
       }
@@ -147,7 +179,7 @@ export default async function handler(req, res) {
         await admin.from('promo_codes').update({ uses: promo.uses + 1 }).eq('id', promo.id);
         if (promo.grant_credits > 0) {
           await admin.from('org_credit_ledger').insert({
-            org_id: org.id, delta: promo.grant_credits, reason: 'promo_grant', created_by: created.user.id,
+            org_id: org.id, delta: promo.grant_credits, reason: 'promo_grant', created_by: userId,
           });
         }
       }

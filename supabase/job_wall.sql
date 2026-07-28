@@ -48,11 +48,15 @@ create table if not exists public.job_wall_posts (
   status         text not null default 'live' check (status in ('live','hidden','expired')),
   spam_score     numeric not null default 0,              -- 0–1, AI-assigned on ingest
   report_count   integer not null default 0,
-  poster_contact text not null default '',                -- optional, for light verification / takedown
   created_at     timestamptz not null default now(),
   expires_at     timestamptz not null default (now() + interval '21 days')
 );
 create index if not exists job_wall_live_idx on public.job_wall_posts (status, expires_at desc);
+-- SECURITY: the public-read RLS is row-level, so anon (the public key) could read
+-- ANY column of live posts. poster_contact (the employer's email/phone) is PII and
+-- redundant — poster_id already links to job_posters, which is NOT anon-readable
+-- and holds the contact for moderation. Drop it so it can never be harvested.
+alter table public.job_wall_posts drop column if exists poster_contact;
 
 create table if not exists public.job_wall_reports (
   id          uuid primary key default gen_random_uuid(),

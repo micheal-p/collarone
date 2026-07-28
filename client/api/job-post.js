@@ -226,7 +226,7 @@ export default async function handler(req, res) {
         pay_text: clean(body.payText, 60), description,
         apply_method: applyMethod, apply_contact: clean(body.applyContact, 200),
         source: body.source === 'paste' ? 'paste' : 'form', status, spam_score: spamScore,
-        poster_id: poster.id, poster_contact: poster.email || poster.phone || '',
+        poster_id: poster.id,
       }).select('slug, expires_at, status').single();
       if (error) return json(res, 500, { message: 'Could not post the job — try again.' });
 
