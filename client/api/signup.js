@@ -112,20 +112,21 @@ export default async function handler(req, res) {
       });
       if (cErr) {
         if (!/registered|exists/i.test(cErr.message)) return json(res, 400, { message: cErr.message });
-        // Email exists. If it's only an unused job-board POSTER stub (no org/profile),
-        // it's likely squatting — remove it and create the real customer account,
-        // so a poster registration can never block a genuine signup.
+        // Email exists in auth. A genuine account has a profile — look it up by
+        // email first (cheap, no user scan): if a profile owns it OR the lookup
+        // errors, refuse rather than risk touching a real account.
+        const { data: existingProfile, error: profLookupErr } = await admin.from('profiles').select('id').eq('email', cleanEmail).maybeSingle();
+        if (profLookupErr || existingProfile) return json(res, 409, { message: 'That email is already registered — please log in instead.' });
+        // No profile → possibly an unused job-board POSTER stub squatting the email.
         const existing = await findUserByEmail(admin, cleanEmail);
-        const hasProfile = existing ? (await admin.from('profiles').select('id').eq('id', existing.id).maybeSingle()).data : null;
-        if (!existing || existing.user_metadata?.poster !== true || hasProfile) {
+        if (!existing || existing.user_metadata?.poster !== true) {
           return json(res, 409, { message: 'That email is already registered — please log in instead.' });
         }
-        await admin.auth.admin.deleteUser(existing.id);
-        const retry = await admin.auth.admin.createUser({
-          email: cleanEmail, password, email_confirm: true, user_metadata: { name: ownerName.trim() },
-        });
-        if (retry.error || !retry.data?.user) return json(res, 400, { message: retry.error?.message || 'Could not create your account.' });
-        userId = retry.data.user.id;
+        // Adopt the stub IN PLACE: set the chosen password and reuse the same auth
+        // user, so nothing is deleted and any posts they made stay linked to them.
+        const { error: updErr } = await admin.auth.admin.updateUserById(existing.id, { password, user_metadata: { ...(existing.user_metadata || {}), name: ownerName.trim() } });
+        if (updErr) return json(res, 400, { message: 'Could not create your account — please try again.' });
+        userId = existing.id;
       } else {
         userId = created.user.id;
       }
