@@ -12,7 +12,7 @@
 //   POST { action: 'connect', publicKey, secretKey }  (Bearer, super_admin) → { ok }
 //   POST { action: 'disconnect' }                     (Bearer, super_admin) → { ok }
 import { createClient } from '@supabase/supabase-js';
-import { encryptSecret } from './_lib/gatewayCrypto.js';
+import { encryptSecret, isEncryptionConfigured } from './_lib/gatewayCrypto.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -50,6 +50,9 @@ export default async function handler(req, res) {
     }
 
     if (action === 'connect') {
+      // Fail closed: never store a secret key in plaintext. If GATEWAY_ENC_KEY
+      // isn't set on the server, refuse rather than passthrough-store the sk.
+      if (!isEncryptionConfigured()) return json(res, 503, { message: 'Card payments aren’t ready to set up yet — our team is finishing secure key storage. Please try again shortly.' });
       const publicKey = String(body.publicKey || '').trim();
       const secretKey = String(body.secretKey || '').trim();
       if (!/^pk_(test|live)_[A-Za-z0-9]+$/.test(publicKey)) return json(res, 400, { message: 'That public key doesn’t look right — it should start with pk_live_ or pk_test_.' });

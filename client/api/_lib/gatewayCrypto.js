@@ -22,6 +22,11 @@ function key() {
   return buf.length === 32 ? buf : null; // AES-256 needs exactly 32 bytes
 }
 
+// True only when a valid 32-byte GATEWAY_ENC_KEY is present. Callers that STORE
+// a secret should refuse (fail closed) when this is false, rather than let
+// encryptSecret() passthrough plaintext.
+export const isEncryptionConfigured = () => key() !== null;
+
 export function encryptSecret(plain) {
   const k = key();
   if (!k || !plain) return plain; // not configured (or empty) → passthrough

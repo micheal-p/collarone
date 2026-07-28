@@ -48,6 +48,8 @@ const SEED = {
   benefit_plans:  (o, u) => c.query('insert into benefit_plans(org_id,name,created_by) values($1,$2,$3) returning id', [o, 'Probe', u]),
   compliance_marks:(o, u) => c.query("insert into compliance_marks(org_id,rule_key,period,done_by) values($1,'paye','2099-01',$2) returning id", [o, u]),
   vendors:        (o, u) => c.query('insert into vendors(org_id,name,created_by) values($1,$2,$3) returning id', [o, 'Probe', u]),
+  overtime_requests:    (o, u) => c.query("insert into overtime_requests(org_id,employee_id,work_date,hours,created_by) values($1,$2,'2099-01-01',2,$3) returning id", [o, u, u]),
+  attendance_device_map:(o, u) => c.query('insert into attendance_device_map(org_id,device_uid,employee_id) values($1,$2,$3) returning id', [o, 'DEV-' + uuid().slice(0, 6), u]),
 };
 
 const seeded = {}; // table -> { A: idA, B: idB }
