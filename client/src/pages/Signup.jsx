@@ -429,7 +429,7 @@ export default function Signup() {
               <label>Promo code <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional)</span></label>
               <input className="su-input" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} placeholder="Got a code? Enter it here" style={{ textTransform: 'uppercase' }} />
               {promoStatus.state === 'checking' && <p style={{ fontSize: 12.5, margin: '6px 0 0', opacity: 0.6 }}>Checking…</p>}
-              {promoStatus.state === 'ok' && <p style={{ fontSize: 12.5, margin: '6px 0 0', color: '#1F6D45', fontWeight: 600 }}>✓ {promoStatus.msg}</p>}
+              {promoStatus.state === 'ok' && <p style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, margin: '6px 0 0', color: '#1F6D45', fontWeight: 600 }}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10" /></svg>{promoStatus.msg}</p>}
               {promoStatus.state === 'bad' && <p style={{ fontSize: 12.5, margin: '6px 0 0', color: '#c02b2b' }}>{promoStatus.msg}</p>}
             </div>
             <p className="su-sub" style={{ marginBottom: 0, fontSize: 12.5 }}>
@@ -539,7 +539,10 @@ function AiSuitePicker({ onPick }) {
 
   return (
     <div style={{ background: 'rgba(255,91,31,0.07)', borderRadius: 12, padding: '13px 15px', marginBottom: 16 }}>
-      <label style={{ display: 'block', fontSize: 13, fontWeight: 650, marginBottom: 7 }}>✨ Not sure what you need? Describe your business</label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 650, marginBottom: 7 }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="#FF5B1F" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2zm7 13l.9 3.1L23 19l-3.1.9L19 23l-.9-3.1L15 19l3.1-.9L19 15z" /></svg>
+        Not sure what you need? Describe your business
+      </label>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <input value={prompt} onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && prompt.trim().length >= 8 && suggest()}

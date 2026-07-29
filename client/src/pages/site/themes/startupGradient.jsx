@@ -59,7 +59,7 @@ export default function StartupGradient({ data }) {
         {(() => { const c = hero; return (
           <>
             <motion.section className="sg-hero" initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.09 } } }}>
-              {c.eyebrow && <motion.div className="sg-chip" variants={rise}>✦ {c.eyebrow}</motion.div>}
+              {c.eyebrow && <motion.div className="sg-chip" variants={rise}><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style={{ verticalAlign: '-1px', marginRight: 5 }} aria-hidden="true"><path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7z" /></svg>{c.eyebrow}</motion.div>}
               <motion.h1 className="sg-h1" variants={rise} dangerouslySetInnerHTML={emph(c.heading)} />
               {c.subheading && <motion.p className="sg-sub" variants={rise}>{c.subheading}</motion.p>}
               {c.button_text && <motion.div variants={rise}><Magnetic><a className="sg-btn" href={c.button_link || '#contact'}>{c.button_text}</a></Magnetic></motion.div>}

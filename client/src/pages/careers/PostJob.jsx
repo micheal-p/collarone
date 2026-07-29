@@ -59,7 +59,10 @@ export default function PostJob() {
 
       {phase === 'pending' && (
         <div style={{ ...card, textAlign: 'center' }}>
-          <h2 style={{ fontSize: 20, margin: '4px 0 10px' }}>You&apos;re on the list ✅</h2>
+          <h2 style={{ fontSize: 20, margin: '4px 0 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            You&apos;re on the list
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#1a6a1a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5" /><path d="M8 12.5l2.7 2.7L16.5 9" /></svg>
+          </h2>
           <p style={{ color: 'var(--text-soft)', fontSize: 14, lineHeight: 1.6 }}>
             Thanks for registering. The Collarone team reviews new posters (usually within a day) to keep the board free of spam and scams. You&apos;ll be able to post the moment you&apos;re approved.
           </p>
@@ -181,7 +184,10 @@ function PostForm({ onLogout }) {
     const msg = encodeURIComponent(`${f.title}${f.company ? ' at ' + f.company : ''} — apply here: ${done.url}`);
     return (
       <div style={{ ...card, textAlign: 'center' }}>
-        <h2 style={{ fontSize: 20, margin: '4px 0 8px' }}>Posted! 🎉</h2>
+        <h2 style={{ fontSize: 20, margin: '4px 0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          Posted!
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink, #C24614)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20l3.5-9.5L17 14l-13 6z" /><path d="M9 9.5l1-2.5M13 8l2-1.5M15.5 12l2.5-.5" /></svg>
+        </h2>
         {done.quarantined
           ? <p style={{ color: 'var(--text-soft)', fontSize: 14 }}>It&apos;s in for a quick review and will appear on the board shortly.</p>
           : <p style={{ color: 'var(--text-soft)', fontSize: 14 }}>It&apos;s live on the board. Share the link to your WhatsApp groups:</p>}

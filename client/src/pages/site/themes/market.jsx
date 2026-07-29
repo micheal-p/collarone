@@ -95,7 +95,7 @@ function Hero({ c }) {
   return (
     <section className="mf-hero">
       <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.09 } } }}>
-        {c.eyebrow && <motion.div className="mf-chip" variants={pop}>🌿 {c.eyebrow}</motion.div>}
+        {c.eyebrow && <motion.div className="mf-chip" variants={pop}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-1px', marginRight: 5 }} aria-hidden="true"><path d="M12 21c-5 0-8-3.5-8-8 0-6 5-9 12-10-.5 7-1.5 18-4 18z" /><path d="M12 21c0-6 2-10 6-13" /></svg>{c.eyebrow}</motion.div>}
         <motion.h1 className="mf-h1" variants={pop} dangerouslySetInnerHTML={{ __html: (c.heading || '').replace(/\*(.+?)\*/g, '<em>$1</em>') }} />
         {c.subheading && <motion.p className="mf-sub" variants={pop}>{c.subheading}</motion.p>}
         {c.button_text && <motion.div variants={pop}><a className="mf-btn" href={c.button_link || '#shop'}>{c.button_text} →</a></motion.div>}

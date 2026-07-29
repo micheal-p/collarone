@@ -86,7 +86,8 @@ export default function LeaveApprovals({ flash }) {
                     const c = conflictsFor(r);
                     return c.length > 0 && (
                       <div className="lv-conflict" title={c.map((a) => `${a.person} (${fmt(a.start_date)} – ${fmt(a.end_date)})`).join(', ')}>
-                        ⚠ {c.length === 1 ? `${c[0].person.split(' ')[0]} is` : `${c.length} from ${r.applicant.department} are`} also away then
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-1px', marginRight: 4 }} aria-hidden="true"><path d="M12 3L2 21h20L12 3z" /><path d="M12 10v5M12 18.5v.01" /></svg>
+                        {c.length === 1 ? `${c[0].person.split(' ')[0]} is` : `${c.length} from ${r.applicant.department} are`} also away then
                       </div>
                     );
                   })()}

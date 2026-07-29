@@ -54,7 +54,10 @@ function Style({ accent }) {
 function CoNav({ data, page, setActiveSlug }) {
   return (
     <>
-      {(data.contactPhone || data.contactEmail) && <div className="co-top">{data.contactPhone && <span>☎ {data.contactPhone}</span>}{data.contactEmail && <span>✉ {data.contactEmail}</span>}</div>}
+      {(data.contactPhone || data.contactEmail) && <div className="co-top">
+        {data.contactPhone && <span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-1px', marginRight: 5 }} aria-hidden="true"><path d="M6.6 10.8c1.4 2.8 3.8 5.2 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.7 21 3 13.3 3 4c0-.6.4-1 1-1h3.4c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.2 1L6.6 10.8z" /></svg>{data.contactPhone}</span>}
+        {data.contactEmail && <span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-1px', marginRight: 5 }} aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" /></svg>{data.contactEmail}</span>}
+      </div>}
       <header className="co-nav">
         <span className="co-word">{data.siteName || data.orgName}</span>
         <nav className="co-links">{data.pages.map((p) => <a key={p.slug} className={`co-link ${page?.slug === p.slug ? 'on' : ''}`} href={`#${p.slug}`} onClick={(e) => { e.preventDefault(); setActiveSlug(p.slug); }}>{p.title}</a>)}</nav>

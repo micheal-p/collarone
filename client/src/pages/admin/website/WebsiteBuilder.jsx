@@ -476,7 +476,7 @@ function ShareEmbedPanel({ orgSlug }) {
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <input className="input" readOnly value={careersUrl} style={{ flex: '1 1 220px', fontSize: 12.5 }} onFocus={(e) => e.target.select()} />
-              <button type="button" className="btn btn-ghost" onClick={() => copy(careersUrl, 'careers')}>{copied === 'careers' ? 'Copied ✓' : 'Copy link'}</button>
+              <button type="button" className="btn btn-ghost" onClick={() => copy(careersUrl, 'careers')}>{copied === 'careers' ? 'Copied' : 'Copy link'}</button>
               <a className="btn btn-ghost" href={careersUrl} target="_blank" rel="noreferrer">See it</a>
             </div>
           </div>
@@ -495,7 +495,7 @@ function ShareEmbedPanel({ orgSlug }) {
               with the note saved in Activity.
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="button" className="btn btn-primary" onClick={() => copy(embedSnippet, 'embed')}>{copied === 'embed' ? 'Copied ✓' : 'Copy the form code'}</button>
+              <button type="button" className="btn btn-primary" onClick={() => copy(embedSnippet, 'embed')}>{copied === 'embed' ? 'Copied' : 'Copy the form code'}</button>
               <a className="btn btn-ghost" href={embedUrl} target="_blank" rel="noreferrer">See what the form looks like</a>
             </div>
           </div>
