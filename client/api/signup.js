@@ -47,6 +47,25 @@ async function livePlan(admin, planTier) {
     };
   } catch { return fallback; }
 }
+
+// Snapshot the FULL rate card (all priced tiers + per-seat + annual discount)
+// at sign-up so renewals always charge best-tier at the rates the customer
+// signed up under — a later price rise never re-prices them. Enterprise is
+// excluded (custom quote). Null → renewals fall back to current_published_rate_card().
+async function liveRateCard(admin) {
+  try {
+    const [{ data: rows }, { data: settings }] = await Promise.all([
+      admin.from('platform_pricing').select('plan_key, base_fee_kobo, included_suites, extra_suite_fee_kobo, sort_order').neq('plan_key', 'enterprise').order('sort_order'),
+      admin.from('platform_billing_settings').select('per_staff_kobo, annual_discount').maybeSingle(),
+    ]);
+    const tiers = (rows || []).map((r) => ({
+      key: r.plan_key, baseKobo: Number(r.base_fee_kobo),
+      included: Number(r.included_suites), extraKobo: Number(r.extra_suite_fee_kobo),
+    }));
+    if (!tiers.length) return null;
+    return { perSeatKobo: Number(settings?.per_staff_kobo ?? 200000), annualDiscount: Number(settings?.annual_discount ?? 0.15), tiers };
+  } catch { return null; }
+}
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -142,12 +161,14 @@ export default async function handler(req, res) {
       // Don't rely on the on_auth_user_created trigger reading this request's
       // metadata reliably at insert time for admin-created users — write the
       // organization and profile explicitly instead, same pattern as admin.js.
-      const plan = await livePlan(admin, planTier);
+      const [plan, rateCard] = await Promise.all([livePlan(admin, planTier), liveRateCard(admin)]);
       const { data: org, error: orgErr } = await admin.from('organizations').insert({
         name: orgName.trim(), slug, plan_tier: planTier, status: 'pending_payment',
         theme_color: themeColor, logo_url: logoUrl, website_type: websiteType, country, created_by: userId,
         external_website_url: (typeof externalWebsiteUrl === 'string' && /^https?:\/\/.{3,200}$/i.test(externalWebsiteUrl.trim())) ? externalWebsiteUrl.trim() : '',
-        // Lock the rate at signup — read back for every future charge.
+        // Lock the rate at signup — read back for every future charge. The
+        // single-tier fields stay for back-compat; rate_card is the full
+        // snapshot best-tier renewals price against.
         base_fee_kobo: plan.baseKobo, per_seat_kobo: plan.seatKobo,
         included_suites: plan.included, extra_suite_fee_kobo: plan.extraKobo,
         rate_locked_at: new Date().toISOString(),
@@ -156,6 +177,11 @@ export default async function handler(req, res) {
         await admin.auth.admin.deleteUser(userId);
         return json(res, orgErr?.code === '23505' ? 409 : 500, { message: orgErr?.code === '23505' ? 'That company handle is already taken.' : 'Could not set up your organization. Please try again.' });
       }
+
+      // Snapshot the locked rate card as a best-effort follow-up so signup works
+      // even if the billing_best_tier.sql migration hasn't been applied yet
+      // (renewals fall back to current_published_rate_card() when it's null).
+      if (rateCard) await admin.from('organizations').update({ rate_card: rateCard }).eq('id', org.id).then(() => {}, () => {});
 
       const { error: profErr } = await admin.from('profiles').upsert({
         id: userId, email: cleanEmail, name: ownerName.trim(), role: 'super_admin',
