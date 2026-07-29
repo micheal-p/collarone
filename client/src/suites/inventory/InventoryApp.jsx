@@ -268,6 +268,7 @@ export default function InventoryApp({ access }) {
   const [typeFilter, setTypeFilter] = useState('all'); // all | sell | staff
   const [returnTarget, setReturnTarget] = useState(null);
   const [itemModal, setItemModal] = useState(false);
+  const [stockTake, setStockTake] = useState(false);
   const [whModal, setWhModal] = useState(false);
   const [moveModal, setMoveModal] = useState(false);
   const [reserveModal, setReserveModal] = useState(false);
@@ -349,6 +350,9 @@ export default function InventoryApp({ access }) {
         <button className={`lv-tab ${tab === 'takeouts' ? 'active' : ''}`} onClick={() => setTab('takeouts')}>Items with staff{activeTakeouts.length > 0 ? ` (${activeTakeouts.length})` : ''}</button>
         <button className={`lv-tab ${tab === 'assets' ? 'active' : ''}`} onClick={() => setTab('assets')}>Company assets</button>
         <button className={`lv-tab ${tab === 'warehouses' ? 'active' : ''}`} onClick={() => setTab('warehouses')}>Warehouses</button>
+        {isManager && tab === 'items' && items.length > 0 && warehouses.length > 0 && (
+          <button className="btn btn-ghost lv-apply" onClick={() => setStockTake(true)}>Stock take</button>
+        )}
         {isManager && tab === 'items' && <button className="btn btn-primary lv-apply" onClick={() => setItemModal(true)}>Add item</button>}
         {isManager && tab === 'movements' && items.length > 0 && warehouses.length > 0 && (
           <button className="btn btn-primary lv-apply" onClick={() => setMoveModal(true)}>Record movement</button>
@@ -513,6 +517,7 @@ export default function InventoryApp({ access }) {
       )}
 
       {itemModal && <ItemModal onClose={() => setItemModal(false)} onSaved={load} flash={flash} />}
+      {stockTake && <StockTakeModal items={items} warehouses={warehouses} onClose={() => setStockTake(false)} onDone={() => { setStockTake(false); load(); }} flash={flash} />}
       {whModal && <WarehouseModal onClose={() => setWhModal(false)} onSaved={load} flash={flash} />}
       {moveModal && <MovementModal items={items} warehouses={warehouses} onClose={() => setMoveModal(false)} onSaved={load} flash={flash} />}
       {reserveModal && <ReserveModal items={items} warehouses={warehouses} onClose={() => setReserveModal(false)} onSaved={(r) => setReservations((rs) => [r, ...rs])} flash={flash} />}
@@ -529,5 +534,108 @@ export default function InventoryApp({ access }) {
       {toastNode}
       {confirmNode}
     </div>
+  );
+}
+
+/* ---- StockTakeModal: count the shelves, book the variances ----------------- */
+// Physical count vs system count, per warehouse. Every difference becomes a
+// real stock movement (in/out, referenced "Stock take <date>") through the
+// same atomic RPC as everything else — the audit trail stays honest.
+// The scan button uses the phone camera (native BarcodeDetector — most
+// Android phones) to jump to an item by barcode/SKU; hidden where unsupported.
+function StockTakeModal({ items, warehouses, onClose, onDone, flash }) {
+  const [wh, setWh] = useState(warehouses[0]?.id || '');
+  const [counts, setCounts] = useState({});   // item_id -> counted string
+  const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const canScan = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+
+  const levelOf = (it) => Number((it.levels || []).find((l) => l.warehouse_id === wh)?.quantity || 0);
+  const countedOf = (it) => (counts[it.id] !== undefined && counts[it.id] !== '' ? Number(counts[it.id]) : levelOf(it));
+  const rows = items.filter((it) => !filter.trim() || `${it.name} ${it.sku}`.toLowerCase().includes(filter.toLowerCase()));
+  const changed = items.filter((it) => countedOf(it) !== levelOf(it));
+
+  const scan = async () => {
+    setScanning(true);
+    let stream;
+    try {
+      const detector = new window.BarcodeDetector();
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const video = document.createElement('video');
+      video.srcObject = stream; await video.play();
+      const started = Date.now();
+      while (Date.now() - started < 15000) {
+        const codes = await detector.detect(video).catch(() => []);
+        if (codes.length) { setFilter(codes[0].rawValue); break; }
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    } catch { flash('Could not open the camera — type the SKU instead.', true); }
+    finally { stream?.getTracks().forEach((t) => t.stop()); setScanning(false); }
+  };
+
+  const apply = async () => {
+    setBusy(true);
+    let ok = 0; let failed = 0;
+    const ref = `Stock take ${new Date().toISOString().slice(0, 10)}`;
+    for (const it of changed) {
+      const diff = countedOf(it) - levelOf(it);
+      if (!diff) continue;
+      try {
+        await INV.recordMovement({
+          itemId: it.id, warehouseId: wh, type: diff > 0 ? 'in' : 'out',
+          quantity: Math.abs(diff), reference: ref, notes: 'Stock take variance',
+        });
+        ok++;
+      } catch { failed++; }
+    }
+    setBusy(false);
+    flash(failed ? `${ok} adjusted, ${failed} failed.` : `Stock take booked — ${ok} item${ok === 1 ? '' : 's'} adjusted.`, failed > 0);
+    onDone();
+  };
+
+  return (
+    <Modal title="Stock take" onClose={onClose} wide>
+      <div className="form-grid" style={{ alignItems: 'flex-end' }}>
+        <div className="field"><label>Warehouse</label>
+          <select className="select" value={wh} onChange={(e) => { setWh(e.target.value); setCounts({}); }}>
+            {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select></div>
+        <div className="field"><label>Find item</label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input className="input" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Name or SKU" />
+            {canScan && <button type="button" className="btn btn-ghost" disabled={scanning} onClick={scan}>{scanning ? 'Scanning…' : 'Scan'}</button>}
+          </div></div>
+      </div>
+      <div className="table-wrap" style={{ maxHeight: 320, overflowY: 'auto' }}>
+        <table className="table" style={{ fontSize: 13 }}>
+          <thead><tr><th>Item</th><th className="ta-r">System</th><th style={{ width: 110 }}>Counted</th><th className="ta-r">Difference</th></tr></thead>
+          <tbody>
+            {rows.map((it) => {
+              const sys = levelOf(it); const diff = countedOf(it) - sys;
+              return (
+                <tr key={it.id}>
+                  <td>{it.name} <span className="muted" style={{ fontSize: 11.5 }}>({it.sku})</span></td>
+                  <td className="ta-r">{sys}</td>
+                  <td><input className="input" type="number" min="0" style={{ padding: '4px 8px' }}
+                    value={counts[it.id] ?? ''} placeholder={String(sys)}
+                    onChange={(e) => setCounts((c) => ({ ...c, [it.id]: e.target.value }))} /></td>
+                  <td className="ta-r" style={{ fontWeight: diff !== 0 ? 700 : 400, color: diff > 0 ? '#1a6a1a' : diff < 0 ? '#a4262c' : 'var(--text-3)' }}>
+                    {diff > 0 ? `+${diff}` : diff || '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <div className="modal-actions">
+        <span className="muted" style={{ fontSize: 12.5, marginRight: 'auto' }}>{changed.length} difference{changed.length === 1 ? '' : 's'} to book</span>
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" disabled={busy || !changed.length} onClick={apply}>
+          {busy ? <span className="spinner" /> : `Book ${changed.length} adjustment${changed.length === 1 ? '' : 's'}`}
+        </button>
+      </div>
+    </Modal>
   );
 }
