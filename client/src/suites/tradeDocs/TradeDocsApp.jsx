@@ -27,6 +27,12 @@ const SAMPLE_DOCS = {
     items: [{ description: 'Web design services', qty: 1, unit_price: 250000 }, { description: 'Hosting (1 year)', qty: 1, unit_price: 60000 }],
     subtotal: 310000, vat_rate: 0.075, vat_amount: 23250, total: 333250, notes: 'Thank you for your business.',
   },
+  quote: {
+    doc_type: 'quote', doc_no: 'QUO-000018', created_at: new Date().toISOString(), status: 'issued',
+    party_name: 'Adaeze Okonkwo', party_phone: '0803 555 1234', party_email: 'adaeze@example.com', party_address: 'Lekki Phase 1, Lagos',
+    reference: 'Enquiry — March', items: [{ description: 'Office fit-out (per floor)', qty: 2, unit_price: 450000 }],
+    subtotal: 900000, vat_rate: 0.075, vat_amount: 67500, total: 967500, notes: 'Valid for 14 days.',
+  },
   receipt: {
     doc_type: 'receipt', doc_no: 'RCT-000045', created_at: new Date().toISOString(), status: 'issued',
     party_name: 'Adaeze Okonkwo', party_phone: '0803 555 1234', party_email: 'adaeze@example.com',
@@ -636,6 +642,25 @@ export default function TradeDocsApp({ access }) {
     catch (e) { flash(e.message, true); }
   };
 
+  // Quote accepted → copy it into a fresh invoice (reference points back),
+  // retire the quote. Two existing paths, no new machinery.
+  const convertQuote = async (q) => {
+    const ok = await confirm({ title: `Convert ${q.doc_no} to an invoice?`, message: 'The invoice copies the customer and line items; the quotation is retired with a reference to it.', confirmLabel: 'Convert' });
+    if (!ok) return;
+    try {
+      const inv = await TD.createDocument({
+        docType: 'invoice', partyName: q.party_name, partyPhone: q.party_phone,
+        partyEmail: q.party_email, partyAddress: q.party_address, contactId: q.contact_id,
+        items: q.items, vatRate: Number(q.vat_rate), reference: q.doc_no, notes: q.notes,
+      });
+      const voided = await TD.setDocumentStatus(q.id, 'void');
+      setDocs((ds) => [inv, ...ds.map((d) => (d.id === voided.id ? voided : d))]);
+      flash(`${q.doc_no} converted → ${inv.doc_no}.`);
+      setTab('invoice');
+    } catch (e) { flash(e.message, true); }
+  };
+  const [statementParty, setStatementParty] = useState(null);
+
   return (
     <div className="lv">
       <div className="lv-tabs">
@@ -711,6 +736,12 @@ export default function TradeDocsApp({ access }) {
                       {isInv && d.status !== 'void' && d.status !== 'draft' && d.share_token && (
                         <button className="iconbtn" onClick={() => setShareDoc(d)}>Share</button>
                       )}
+                      {d.doc_type === 'quote' && isManager && d.status !== 'void' && (
+                        <button className="iconbtn" onClick={() => convertQuote(d)}>→ Invoice</button>
+                      )}
+                      {tab === 'receivables' && d.party_name && (
+                        <button className="iconbtn" onClick={() => setStatementParty(d.party_name)}>Statement</button>
+                      )}
                       {isInv && isManager && d.status !== 'void' && !d.recur_source_id && tab !== 'receivables' && (
                         <select className="select" title="Repeat this invoice automatically" style={{ fontSize: 12, padding: '2px 6px' }}
                           value={d.recur_every || ''} onChange={(e) => setRepeat(d, e.target.value || null)}>
@@ -732,10 +763,55 @@ export default function TradeDocsApp({ access }) {
       {createOpen && <CreateModal docType={tab === 'receivables' ? 'invoice' : tab} onClose={() => setCreateOpen(false)} onSaved={(d) => setDocs((ds) => [d, ...ds])} flash={flash} />}
       {settingsOpen && <SettingsModal orgId={orgId} settings={settings} onClose={() => setSettingsOpen(false)} onSaved={setSettings} flash={flash} />}
       {viewDoc && <PrintView doc={viewDoc} settings={settings} onClose={() => setViewDoc(null)} />}
+      {statementParty && <StatementModal party={statementParty} docs={docs} orgName={settings?.company_name || user?.org?.name} onClose={() => setStatementParty(null)} />}
       {payDoc && <PaymentModal doc={payDoc} onClose={() => setPayDoc(null)} onSaved={updateDoc} flash={flash} />}
       {shareDoc && <ShareModal doc={shareDoc} orgName={settings?.company_name || user?.org?.name} onClose={() => setShareDoc(null)} flash={flash} />}
       {toastNode}
       {confirmNode}
     </div>
+  );
+}
+
+/* ---- StatementModal: one customer's full account, printable --------------- */
+// "How much does Acme owe us across everything?" — every non-void invoice for
+// the party, paid vs outstanding, one total, printable for sending.
+function StatementModal({ party, docs, orgName, onClose }) {
+  const rows = docs.filter((d) => d.doc_type === 'invoice' && d.status !== 'void' && d.party_name === party)
+    .sort((a, b) => (a.created_at < b.created_at ? -1 : 1));
+  const paidOf = (d) => Number(d.amount_paid || 0);
+  const balOf = (d) => Math.max(0, Number(d.total) - paidOf(d));
+  const totals = rows.reduce((t, d) => ({ inv: t.inv + Number(d.total), paid: t.paid + paidOf(d), bal: t.bal + balOf(d) }), { inv: 0, paid: 0, bal: 0 });
+  const line = { display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px solid #eee', fontSize: 13 };
+  return (
+    <Modal title={`Statement — ${party}`} onClose={onClose} wide>
+      <style>{`@media print { body * { visibility: hidden; } #stmt-print, #stmt-print * { visibility: visible; } #stmt-print { position: absolute; top: 0; left: 0; width: 100%; } .no-print { display: none !important; } }`}</style>
+      <div id="stmt-print" style={{ background: '#fff', color: '#14161a', padding: '6px 4px' }}>
+        <div style={{ borderBottom: '2px solid #14161a', paddingBottom: 10, marginBottom: 12 }}>
+          <div style={{ fontSize: 17, fontWeight: 800 }}>{orgName || 'Statement of account'}</div>
+          <div style={{ fontSize: 12.5, color: '#667' }}>Statement of account — {party} · as at {new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+        </div>
+        {rows.map((d) => (
+          <div key={d.id} style={line}>
+            <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>{d.doc_no}</span>
+            <span style={{ flex: 1, color: '#667', fontSize: 12 }}>{TD.fmtDate(d.created_at)}{d.due_date ? ` · due ${TD.fmtDate(d.due_date)}` : ''}</span>
+            <span>{TD.money(d.total)}</span>
+            <span style={{ color: '#1a6a1a' }}>{paidOf(d) > 0 ? `paid ${TD.money(paidOf(d))}` : ''}</span>
+            <span style={{ fontWeight: 700, color: balOf(d) > 0 ? '#a4262c' : '#1a6a1a', minWidth: 90, textAlign: 'right' }}>
+              {balOf(d) > 0 ? TD.money(balOf(d)) : 'settled'}
+            </span>
+          </div>
+        ))}
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12, padding: '12px 14px', background: '#f6f4ee', borderRadius: 10, fontSize: 14, fontWeight: 800 }}>
+          <span>Outstanding balance</span><span>{TD.money(totals.bal)}</span>
+        </div>
+        <p style={{ fontSize: 11, color: '#99a', marginTop: 10 }}>
+          {rows.length} invoice{rows.length === 1 ? '' : 's'} totalling {TD.money(totals.inv)} · {TD.money(totals.paid)} received.
+        </p>
+      </div>
+      <div className="modal-actions no-print">
+        <button className="btn btn-ghost" onClick={onClose}>Close</button>
+        <button className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
+      </div>
+    </Modal>
   );
 }

@@ -61,6 +61,8 @@ export const TEMPLATES = {
 
 export const DOC_TYPES = {
   invoice: { label: 'Invoice', prefix: 'INV', needsParty: true, hasVat: true, hasStatus: true, hasDueDate: true },
+  // priced paperwork BEFORE the sale — convert to an invoice when they say yes
+  quote:   { label: 'Quotation', prefix: 'QUO', needsParty: true, hasVat: true, hasStatus: true, hasDueDate: false },
   receipt: { label: 'Receipt', prefix: 'RCT', needsParty: true, hasVat: true, hasStatus: false, hasDueDate: false },
   grn:     { label: 'Goods received note', prefix: 'GRN', needsParty: true, hasVat: false, hasStatus: false, hasDueDate: false, isStock: true, stockDirection: 'in' },
   srp:     { label: 'Stock release note',  prefix: 'SRP', needsParty: true, hasVat: false, hasStatus: false, hasDueDate: false, isStock: true, stockDirection: 'out' },
