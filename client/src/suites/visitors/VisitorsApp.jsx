@@ -264,21 +264,32 @@ function VisitModal({ onClose, onSaved, flash, showHostPicker = false, staff = [
   };
 
   if (step === 'success') {
+    const waText = encodeURIComponent(
+      `Hi ${vis.name.split(' ')[0]}, your visit is booked.\n\nShow this code at ${vst.accessPoint || 'the entrance'}: ${accessCode}\nWhen: ${new Date(vst.expectedAt).toLocaleString('en-NG', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}\n\nSee you soon.`
+    );
     return (
       <div className="modal-overlay" onMouseDown={onClose}>
+        <style>{`@media print { body * { visibility: hidden; } #gate-pass, #gate-pass * { visibility: visible; } #gate-pass { position: absolute; top: 0; left: 0; width: 100%; } .no-print { display: none !important; } }`}</style>
         <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-          <div className="modal-head"><h2>Visitor registered</h2>
+          <div className="modal-head no-print"><h2>Visitor registered</h2>
             <button className="iconbtn dark" onClick={onClose} aria-label="Close">{I.close}</button>
           </div>
           <div className="modal-body" style={{ textAlign:'center', padding:'24px 32px' }}>
-            <div style={{ fontSize:13, color:'var(--text-2)', marginBottom:12 }}>Share this access code with your visitor:</div>
-            <div className="vs-code-display">{accessCode}</div>
-            <div style={{ fontSize:12, color:'var(--text-2)', marginTop:8 }}>Valid for 24 hours from expected arrival time. Any access point can verify it.</div>
-            <div style={{ display:'flex', gap:10, justifyContent:'center', marginTop:24 }}>
+            <div id="gate-pass">
+              <div style={{ fontSize:13, color:'var(--text-2)', marginBottom:4 }}>Gate pass — {vis.name}</div>
+              <div className="vs-code-display">{accessCode}</div>
+              <QrCode text={accessCode} />
+              <div style={{ fontSize:12, color:'var(--text-2)', marginTop:6 }}>
+                Expected {new Date(vst.expectedAt).toLocaleString('en-NG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · {vst.accessPoint || 'Main Entrance'} · valid 24h from arrival time
+              </div>
+            </div>
+            <div className="no-print" style={{ display:'flex', gap:8, justifyContent:'center', marginTop:20, flexWrap:'wrap' }}>
+              <a className="btn btn-primary" href={`https://wa.me/${(vis.phone || '').replace(/\D/g, '').replace(/^0/, '234')}?text=${waText}`} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+              <button className="btn btn-ghost" onClick={() => window.print()}>Print pass</button>
               <button className="btn btn-ghost" onClick={() => { navigator.clipboard?.writeText(accessCode); flash('Code copied.'); }}>
                 {I.copy} Copy code
               </button>
-              <button className="btn btn-primary" onClick={onClose}>Done</button>
+              <button className="btn btn-ghost" onClick={onClose}>Done</button>
             </div>
           </div>
         </div>
@@ -878,5 +889,23 @@ export default function VisitorsApp({ access }) {
       {!isManagement && !isReceptionist && !isSecurity && <StaffView flash={flash} />}
       {toastNode}
     </div>
+  );
+}
+
+/* ---- QrCode: the visitor's phone-scannable pass (qrcode → canvas) ---------- */
+function QrCode({ text }) {
+  const ref = { current: null };
+  return (
+    <canvas
+      ref={(el) => {
+        if (!el || el.dataset.drawn === text) return;
+        el.dataset.drawn = text;
+        import('qrcode').then((QR) => {
+          QR.toCanvas(el, text, { width: 148, margin: 1, color: { dark: '#14161a', light: '#ffffff' } }, () => {});
+        }).catch(() => {});
+      }}
+      style={{ display: 'block', margin: '14px auto 0', borderRadius: 8 }}
+      aria-label={`QR code for access code ${text}`}
+    />
   );
 }
