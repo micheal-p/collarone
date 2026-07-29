@@ -10,7 +10,15 @@ import { useEffect, useLayoutEffect, useState } from 'react';
    ============================================================================= */
 
 const doneKey = (userId, tourId = 'v1') => `collarone_tour_${tourId}_${userId || 'anon'}`;
-export const tourSeen = (userId, tourId) => { try { return localStorage.getItem(doneKey(userId, tourId)) === 'done'; } catch { return true; } };
+// Inside an iframe (the landing page's "Try it live" embed) auto-tours are
+// noise on a small stage — report "seen" so none ever auto-open there. The
+// explicit replay buttons still work.
+export const tourSeen = (userId, tourId) => {
+  try {
+    if (window.self !== window.top) return true;
+    return localStorage.getItem(doneKey(userId, tourId)) === 'done';
+  } catch { return true; }
+};
 export const markTourDone = (userId, tourId) => { try { localStorage.setItem(doneKey(userId, tourId), 'done'); } catch { /* private mode */ } };
 
 export default function ProductTour({ steps, userId, tourId = 'v1', onClose }) {

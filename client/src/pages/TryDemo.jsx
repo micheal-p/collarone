@@ -25,6 +25,8 @@ const FLAG = 'co-try-demo';
 const leaveDemoTo = (path) => {
   sessionStorage.removeItem(FLAG);
   localStorage.removeItem('orgops_demo_session');
+  // inside the landing-page embed, break out of the iframe to the real page
+  if (window.top !== window.self) { window.top.location.href = path; return; }
   window.location.href = path;
 };
 
@@ -105,6 +107,9 @@ export default function TryDemo() {
   const suite = SUITES.find((s) => s.key === suiteKey);
   const meta = SUITE_META[suiteKey] || {};
   const App = SUITE_APPS[suiteKey];
+  // Embedded on the landing page (?embed=1): skip the auto-tour (noisy inside
+  // a frame) and make outbound CTAs break out of the iframe via target=_top.
+  const embed = new URLSearchParams(window.location.search).get('embed') === '1';
 
   const [state, setState] = useState('checking'); // checking | closed | booting | ready
   const [tourOpen, setTourOpen] = useState(false);
@@ -147,7 +152,7 @@ export default function TryDemo() {
         // funnel: count the start (fire-and-forget, direct to Supabase — works
         // even though the app's API layer is in demo mode)
         supabase.from('demo_events').insert({ suite_key: suiteKey, event: 'started' }).then(() => {}, () => {});
-        setTimeout(() => setTourOpen(true), 900);
+        if (!embed) setTimeout(() => setTourOpen(true), 900);
       } catch { setState('closed'); }
     })();
     return () => { alive = false; };
