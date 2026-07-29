@@ -15,6 +15,85 @@ import ProductTour, { tourSeen } from '../components/ProductTour.jsx';
    the three moves that make the workspace real, detects completion from the
    actual data (not hand-waving), auto-hides at 100%, and can be dismissed.
    Owners only; the founding org never sees it. */
+// Step zero of the checklist: describe the business, AI proposes departments
+// (with access templates) + any business-specific leave types, the owner
+// reviews the proposal and applies it in one click. Endpoint is key-agnostic —
+// the panel only renders when the server says AI is switched on.
+function AiSetupPanel({ onApplied }) {
+  const [enabled, setEnabled] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [plan, setPlan] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const call = async (bodyObj) => {
+    const { data: { session } } = await (await import('../lib/supabaseClient.js')).supabase.auth.getSession();
+    const r = await fetch('/api/onboard-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+      body: JSON.stringify(bodyObj),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.message || 'Something went wrong.');
+    return d;
+  };
+
+  useEffect(() => { call({ action: 'status' }).then((d) => setEnabled(Boolean(d.enabled)), () => {}); }, []); // eslint-disable-line
+  if (!enabled) return null;
+
+  const draft = async () => {
+    setBusy(true); setErr('');
+    try { setPlan((await call({ action: 'plan', prompt })).plan); }
+    catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+  const apply = async () => {
+    setBusy(true); setErr('');
+    try {
+      const d = await call({ action: 'apply', plan });
+      setPlan(null); setPrompt('');
+      onApplied(d.created);
+    } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="setup-ai">
+      {!plan ? (
+        <>
+          <label className="setup-ai-label">✨ Describe your business — we&apos;ll set it up</label>
+          <div className="setup-ai-row">
+            <input className="setup-ai-input" value={prompt} onChange={(e) => setPrompt(e.target.value)}
+              placeholder={'e.g. "a bakery in Surulere with drivers, bakers and two shops"'}
+              onKeyDown={(e) => e.key === 'Enter' && prompt.trim().length >= 8 && draft()} />
+            <button className="btn btn-primary" disabled={busy || prompt.trim().length < 8} onClick={draft}>
+              {busy ? <span className="spinner" /> : 'Set me up'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <div>
+          <div className="setup-ai-label">{plan.summary || 'Here’s the setup — look it over:'}</div>
+          <div className="setup-ai-plan">
+            {plan.departments.map((d) => (
+              <div key={d.code} className="setup-ai-item">
+                <strong>{d.name}</strong>
+                <span>{d.template.length ? d.template.map((t) => t.key).join(', ') : 'no suite template'}</span>
+              </div>
+            ))}
+            {plan.leaveTypes.map((t) => (
+              <div key={t.key} className="setup-ai-item"><strong>{t.name}</strong><span>{t.defaultDays} days · leave type</span></div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <button className="btn btn-primary" disabled={busy} onClick={apply}>{busy ? <span className="spinner" /> : 'Create all of this'}</button>
+            <button className="btn btn-ghost" disabled={busy} onClick={() => setPlan(null)}>Change description</button>
+          </div>
+        </div>
+      )}
+      {err && <div className="error-text" style={{ marginTop: 8, fontSize: 12.5 }}>{err}</div>}
+    </div>
+  );
+}
+
 function SetupChecklist({ orgId, nav }) {
   const hideKey = `co-setup-hide:${orgId}`;
   const openedKey = `co-setup-opened:${orgId}`;
@@ -24,12 +103,13 @@ function SetupChecklist({ orgId, nav }) {
   const [tplCount, setTplCount] = useState(null);
   const [openedSuite, setOpenedSuite] = useState(() => localStorage.getItem(openedKey) === '1');
   const [visitedSite, setVisitedSite] = useState(() => localStorage.getItem(siteKey) === '1');
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     if (hidden) return;
     apiGet('/users').then((d) => setTeamCount((d.users || []).length), () => setTeamCount(0));
     apiGet('/departments').then((d) => setTplCount((d.departments || []).filter((x) => (x.access_suites || []).length > 0).length), () => setTplCount(0));
-  }, [hidden]); // eslint-disable-line
+  }, [hidden, reloadTick]); // eslint-disable-line
 
   if (hidden || teamCount === null || tplCount === null) return null;
 
@@ -83,6 +163,7 @@ function SetupChecklist({ orgId, nav }) {
           Hide
         </button>
       </div>
+      {tplCount === 0 && <AiSetupPanel onApplied={() => setReloadTick((t) => t + 1)} />}
       <div className="setup-steps">
         {steps.map((s) => (
           <div key={s.key} className={`setup-step ${s.done ? 'done' : ''}`}>

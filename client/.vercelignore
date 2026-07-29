@@ -18,3 +18,6 @@ api/job-post.js
 # AI rule drafting for the Automation suite — OPENAI key lives on the box;
 # the rules themselves are plain Supabase CRUD that works everywhere.
 api/automation-ai.js
+
+# AI onboarding (describe your business → workspace setup) — OPENAI key on box
+api/onboard-ai.js
