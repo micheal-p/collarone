@@ -24,3 +24,9 @@ export const money = (n) => n == null ? '—' : `₦${Number(n).toLocaleString('
 export const fmtDate = (d) => d
   ? new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
   : '—';
+
+// ---- Bank reconciliation -----------------------------------------------------
+export const getBankLines = () => apiGet('/finance/bank-lines').then((d) => d.lines);
+export const importBankLines = (rows) => apiPost('/finance/bank-lines', { rows }).then((d) => d.lines);
+export const matchBankLine = (id, body) => apiPatch(`/finance/bank-lines/${id}`, body).then((d) => d.line);
+export const getReconCandidates = () => apiGet('/finance/recon-candidates');

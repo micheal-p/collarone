@@ -2181,6 +2181,44 @@ export async function supabaseApi(path, opts = {}) {
   }
 
   // ---- finance ----
+  // ---- bank reconciliation (finance managers; RLS enforces) ----
+  if (head === 'GET /finance' && seg[1] === 'bank-lines') {
+    const { data, error } = await supabase.from('bank_statement_lines').select('*').order('line_date', { ascending: false }).limit(600);
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { lines: data };
+  }
+  if (head === 'POST /finance' && seg[1] === 'bank-lines') {
+    const { data: { user } } = await supabase.auth.getUser();
+    const batch = crypto.randomUUID();
+    const orgId = await myOrgId();
+    const rows = (body.rows || []).slice(0, 1000).map((r) => ({
+      org_id: orgId, import_batch: batch, line_date: r.date, description: (r.description || '').slice(0, 300),
+      reference: (r.reference || '').slice(0, 120), amount: Number(r.amount) || 0, created_by: user.id,
+    })).filter((r) => r.line_date && r.amount !== 0);
+    if (!rows.length) fail(400, 'No usable lines — check the column mapping.');
+    const { data, error } = await supabase.from('bank_statement_lines').insert(rows).select();
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { lines: data, batch };
+  }
+  if (method === 'PATCH' && seg[0] === 'finance' && seg[1] === 'bank-lines' && seg.length === 3) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const patch = body.clear
+      ? { matched_kind: null, matched_id: null, matched_note: '', matched_by: null, matched_at: null }
+      : { matched_kind: body.kind, matched_id: body.matchedId || null, matched_note: (body.note || '').slice(0, 200), matched_by: user.id, matched_at: new Date().toISOString() };
+    const { data, error } = await supabase.from('bank_statement_lines').update(patch).eq('id', seg[2]).select().single();
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { line: data };
+  }
+  // candidates the matcher suggests against — payments may 403 for finance
+  // managers without the trade-docs suite; that's fine, fewer suggestions.
+  if (head === 'GET /finance' && seg[1] === 'recon-candidates') {
+    const since = new Date(Date.now() - 180 * 86400000).toISOString();
+    const [pay, exp] = await Promise.all([
+      supabase.from('trade_doc_payments').select('id, amount, paid_at, reference, doc:trade_documents(doc_no, party_name)').gte('paid_at', since).limit(400).then((r) => r.data || [], () => []),
+      supabase.from('expenses').select('id, total_amount, expense_date, vendor, description, status').in('status', ['approved', 'paid']).gte('expense_date', since.slice(0, 10)).limit(400).then((r) => r.data || [], () => []),
+    ]);
+    return { payments: pay, expenses: exp };
+  }
   if (head === 'GET /finance' && seg[1] === 'categories') {
     const { data, error } = await supabase.from('expense_categories').select('*').order('name');
     if (error) fail(400, error.message);
