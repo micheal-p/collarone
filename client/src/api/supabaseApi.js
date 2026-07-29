@@ -2031,9 +2031,19 @@ export async function supabaseApi(path, opts = {}) {
     return { document: full };
   }
   if (method === 'PATCH' && seg[0] === 'trade-docs' && seg.length === 2) {
-    const { status } = body;
-    if (!['draft', 'issued', 'paid', 'void'].includes(status)) fail(400, 'Invalid status.');
-    const { data, error } = await supabase.from('trade_documents').update({ status }).eq('id', seg[1]).select(TRADE_DOC_SELECT).single();
+    const patch = {};
+    if (body.status !== undefined) {
+      if (!['draft', 'issued', 'paid', 'void'].includes(body.status)) fail(400, 'Invalid status.');
+      patch.status = body.status;
+    }
+    // Recurring schedule: monthly/yearly re-raises the invoice as a draft
+    // each period (generate_recurring_invoices); null switches it off.
+    if (body.recurEvery !== undefined) {
+      if (body.recurEvery !== null && !['monthly', 'yearly'].includes(body.recurEvery)) fail(400, 'Invalid repeat schedule.');
+      patch.recur_every = body.recurEvery;
+    }
+    if (!Object.keys(patch).length) fail(400, 'Nothing to change.');
+    const { data, error } = await supabase.from('trade_documents').update(patch).eq('id', seg[1]).select(TRADE_DOC_SELECT).single();
     if (error) fail(400, error.message);
     return { document: data };
   }

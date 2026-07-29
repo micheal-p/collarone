@@ -4,6 +4,9 @@ import { uploadSiteImage } from '../../pages/admin/website/websiteApi.js';
 export const getDocuments = () => apiGet('/trade-docs').then((d) => d.documents);
 export const createDocument = (body) => apiPost('/trade-docs', body).then((d) => d.document);
 export const setDocumentStatus = (id, status) => apiPatch(`/trade-docs/${id}`, { status }).then((d) => d.document);
+// 'monthly' | 'yearly' | null — a scheduled invoice re-raises itself as a
+// ready-to-send draft each period (owner reviews, then sends).
+export const setRecurring = (id, every) => apiPatch(`/trade-docs/${id}`, { recurEvery: every }).then((d) => d.document);
 export const deleteDocument = (id) => apiDelete(`/trade-docs/${id}`);
 export const setDocMeta = (id, meta) => apiPost(`/trade-docs/${id}/meta`, { meta }).then((d) => d.document);
 
