@@ -51,8 +51,11 @@ const CSS = `
   .crm-kcol { flex:0 0 232px; min-width:232px; background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:10px; }
   .crm-kcol-head { display:flex; align-items:center; gap:8px; }
   .crm-kcol-total { font-size:12px; font-weight:600; color:var(--text-2); margin:6px 2px 10px; }
-  .crm-deal-card { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
+  .crm-deal-card { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; cursor:grab; }
   .crm-deal-card:hover { border-color:var(--text-2); }
+  .crm-deal-card:active { cursor:grabbing; }
+  .crm-kcol.dragover { outline:2px dashed var(--brand); outline-offset:-2px; background:var(--brand-100, rgba(255,91,31,0.06)); }
+  .crm-quiet-pill { display:inline-block; margin-top:4px; font-size:10.5px; font-weight:700; letter-spacing:.02em; background:#fff4ce; color:#7a5200; border-radius:100px; padding:2px 8px; }
   .crm-deal-title { font-weight:600; font-size:13.5px; margin-bottom:2px; }
   .crm-deal-meta { font-size:12px; color:var(--text-2); }
   .crm-overdue { color:#a4262c !important; font-weight:600; }
@@ -727,15 +730,28 @@ function DealModal({ deal, contacts, companies, onClose, onSaved, onDelete, flas
   );
 }
 
+// A deal has "gone quiet" when it's open and nothing has touched it in 14
+// days — the silent killer of pipelines. updated_at moves on every edit,
+// stage change, or note, so it's an honest "last touched" signal.
+const QUIET_MS = 14 * 24 * 3600 * 1000;
+const quietDays = (deal) => {
+  if (['won', 'lost'].includes(deal.stage)) return 0;
+  const idle = Date.now() - new Date(deal.updated_at || deal.created_at).getTime();
+  return idle > QUIET_MS ? Math.floor(idle / (24 * 3600 * 1000)) : 0;
+};
+
 function DealCard({ deal, onEdit, onStage }) {
   const who = [deal.company?.name, deal.contact?.name].filter(Boolean).join(' · ');
+  const quiet = quietDays(deal);
   return (
-    <div className="crm-deal-card" onClick={() => onEdit(deal)}>
+    <div className="crm-deal-card" onClick={() => onEdit(deal)} draggable
+      onDragStart={(e) => { e.dataTransfer.setData('text/deal-id', deal.id); e.dataTransfer.effectAllowed = 'move'; }}>
       <div className="crm-deal-title">{deal.title}</div>
       <div className="crm-deal-meta">{who || '—'}</div>
       <div style={{ fontWeight: 600, fontSize: 13, margin: '4px 0 2px' }}>{C.fmtNaira(deal.value_naira)}</div>
       {deal.expected_close && <div className={`crm-deal-meta ${dealLate(deal) ? 'crm-overdue' : ''}`}>Close {C.fmtDay(deal.expected_close)}</div>}
-      <select className="select" value={deal.stage} onClick={(e) => e.stopPropagation()}
+      {quiet > 0 && <span className="crm-quiet-pill" title={`Nothing has happened on this deal in ${quiet} days — reach out or close it.`}>quiet {quiet}d</span>}
+      <select className="select" value={deal.stage} onClick={(e) => e.stopPropagation()} aria-label="Move stage"
         onChange={(e) => onStage(deal, e.target.value)} style={{ marginTop: 8, fontSize: 12, padding: '4px 8px', width: '100%' }}>
         {Object.entries(C.DEAL_STAGES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
       </select>
@@ -751,6 +767,7 @@ function PipelineTab({ flash }) {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // null | 'new' | deal
   const [openClosed, setOpenClosed] = useState({}); // { won: bool, lost: bool }
+  const [dragOver, setDragOver] = useState(null); // stage key a card is hovering over
   const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
@@ -827,7 +844,15 @@ function PipelineTab({ flash }) {
             const closed = key === 'won' || key === 'lost';
             const collapsed = closed && !openClosed[key];
             return (
-              <div className="crm-kcol" key={key}>
+              <div className={`crm-kcol${dragOver === key ? ' dragover' : ''}`} key={key}
+                onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOver !== key) setDragOver(key); }}
+                onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null); }}
+                onDrop={(e) => {
+                  e.preventDefault(); setDragOver(null);
+                  const id = e.dataTransfer.getData('text/deal-id');
+                  const deal = deals.find((d) => d.id === id);
+                  if (deal && deal.stage !== key) moveStage(deal, key);
+                }}>
                 <div className="crm-kcol-head">
                   <span className="crm-badge" style={{ background: s.bg, color: s.fg }}>{s.label}</span>
                   <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}>{col.length}</span>
