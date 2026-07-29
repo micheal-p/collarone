@@ -35,6 +35,19 @@ export default async function handler(req, res) {
   const logAudit = (auditAction, targetOrgId, details = {}) =>
     admin.from('platform_admin_audit_log').insert({ actor_id: user.id, action: auditAction, target_org_id: targetOrgId, details });
 
+  // Guard for any action that acts on an arbitrary `id`: the target must be a
+  // real user IN THE CALLER'S OWN ORG (and never a platform admin). Without it
+  // a tenant super_admin could reset/disable users in other orgs. Returns true
+  // (having already sent the error response) when the target is invalid.
+  const rejectForeignTarget = async (id) => {
+    if (!id) { json(res, 400, { message: 'User id is required.' }); return true; }
+    const { data: target } = await admin.from('profiles').select('id, org_id').eq('id', id).maybeSingle();
+    if (!target || target.org_id !== caller.org_id) { json(res, 404, { message: 'User not found in your organization.' }); return true; }
+    const { data: isPlat } = await admin.from('platform_admins').select('user_id').eq('user_id', id).maybeSingle();
+    if (isPlat) { json(res, 403, { message: 'Not permitted.' }); return true; }
+    return false;
+  };
+
   try {
     if (action === 'create') {
       const { name, email, password, role = 'staff', jobTitle = '', department = '', departmentId = null, suites = [] } = body;
@@ -216,9 +229,7 @@ export default async function handler(req, res) {
     if (action === 'grant-suites') {
       const { id, suites } = body;
       if (!id || !Array.isArray(suites)) return json(res, 400, { message: 'id and suites are required.' });
-
-      const { data: target } = await admin.from('profiles').select('id, org_id').eq('id', id).maybeSingle();
-      if (!target || target.org_id !== caller.org_id) return json(res, 404, { message: 'User not found in your organization.' });
+      if (await rejectForeignTarget(id)) return;
 
       const wantsPayroll = suites.some((s) => s.key === 'payroll');
       const ipCountry = (req.headers['x-vercel-ip-country'] || '').toUpperCase();
@@ -237,6 +248,7 @@ export default async function handler(req, res) {
     if (action === 'reset-password') {
       const { id, password } = body;
       if (!password || password.length < 8) return json(res, 400, { message: 'Temporary password must be at least 8 characters.' });
+      if (await rejectForeignTarget(id)) return;
       const { error } = await admin.auth.admin.updateUserById(id, { password });
       if (error) return json(res, 400, { message: error.message });
       await admin.from('profiles').update({ must_change_password: true }).eq('id', id);
@@ -247,6 +259,7 @@ export default async function handler(req, res) {
       const { id, status } = body;
       if (!['active', 'disabled'].includes(status)) return json(res, 400, { message: 'Invalid status.' });
       if (id === user.id) return json(res, 400, { message: 'You cannot change your own account status.' });
+      if (await rejectForeignTarget(id)) return;
       // Ban at the auth layer so the change takes effect immediately.
       await admin.auth.admin.updateUserById(id, { ban_duration: status === 'disabled' ? '876000h' : 'none' });
       const { data: profile, error } = await admin.from('profiles').update({ status }).eq('id', id).select().single();

@@ -61,8 +61,10 @@ function spamHeuristic(text) {
 // or x-real-ip); when none is available it falls back to the user-agent so
 // header-less requests don't all collapse to a single 'unknown' reporter.
 const clientIpHash = (req) => {
-  const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  const ip = fwd || req.headers['x-real-ip'] || req.socket?.remoteAddress || '';
+  // req.ip is resolved by Express from the trusted proxy chain (see
+  // app.set('trust proxy') in server/index.js), so a client can't spoof it via
+  // its own X-Forwarded-For header. Fall back only for non-Express runtimes.
+  const ip = req.ip || req.headers['x-real-ip'] || req.socket?.remoteAddress || '';
   const fp = ip || String(req.headers['user-agent'] || '') || 'unknown';
   return crypto.createHash('sha256').update(fp).digest('hex').slice(0, 32);
 };

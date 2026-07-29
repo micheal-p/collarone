@@ -122,8 +122,16 @@ export default async function handler(req, res) {
         if (!existing || existing.user_metadata?.poster !== true) {
           return json(res, 409, { message: 'That email is already registered — please log in instead.' });
         }
-        // Adopt the stub IN PLACE: set the chosen password and reuse the same auth
-        // user, so nothing is deleted and any posts they made stay linked to them.
+        // SECURITY: adopting the stub resets its password, so require proof the
+        // caller actually owns this poster account — a valid session for THIS
+        // user. Without it, anyone who knew a poster's email could take the
+        // account over. The upgrade CTA sends the logged-in poster's token.
+        const authToken = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+        const { data: tokUser } = authToken ? await admin.auth.getUser(authToken) : { data: { user: null } };
+        if (!tokUser?.user || tokUser.user.id !== existing.id) {
+          return json(res, 409, { message: 'That email already has a job-poster account. Please log in with it first, then pick your suites.' });
+        }
+        // Ownership proven — adopt in place; keep their posts linked to them.
         const { error: updErr } = await admin.auth.admin.updateUserById(existing.id, { password, user_metadata: { ...(existing.user_metadata || {}), name: ownerName.trim() } });
         if (updErr) return json(res, 400, { message: 'Could not create your account — please try again.' });
         userId = existing.id;

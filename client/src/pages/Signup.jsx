@@ -33,9 +33,15 @@ const STEPS = ['plan', 'company', 'brand', 'you', 'payment'];
 const slugify = (s) => s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 
 async function callSignup(action, payload) {
+  // Send the session token when logged in — lets a poster upgrading from their
+  // dashboard prove they own the email so the server can adopt their account.
+  const { data: { session } } = await supabase.auth.getSession();
   const res = await fetch('/api/signup', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    },
     body: JSON.stringify({ action, ...payload }),
   });
   const text = await res.text();
