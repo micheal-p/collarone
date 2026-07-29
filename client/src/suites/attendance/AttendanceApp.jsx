@@ -102,7 +102,7 @@ function MyShiftsTable({ records, onEdit }) {
             </tr>
           </thead>
           <tbody>
-            {records.length === 0 && <tr><td colSpan={onEdit ? 7 : 6} className="td-empty">No records yet.</td></tr>}
+            {records.length === 0 && <tr><td colSpan={onEdit ? 7 : 6} className="td-empty">No attendance yet — records appear the moment someone clocks in from their phone, or a wall device punches in. Set up clock-in rules in Settings.</td></tr>}
             {records.map((r) => {
               const hours = A.hoursBetween(r.clock_in_at, r.clock_out_at);
               const ot = A.overtimeHours(hours);
@@ -171,7 +171,7 @@ function TodayView({ all, onEdit }) {
             <tr><th>Employee</th><th>Clock in</th><th>Status</th><th>Clock out</th><th>Location</th><th style={{ width: 40 }} /></tr>
           </thead>
           <tbody>
-            {open.length === 0 && completed.length === 0 && <tr><td colSpan={6} className="td-empty">No activity today.</td></tr>}
+            {open.length === 0 && completed.length === 0 && <tr><td colSpan={6} className="td-empty">Nobody has clocked in today yet — the live board fills in as your team arrives.</td></tr>}
             {open.map((r) => <Row key={r.id} r={r} done={false} />)}
             {completed.map((r) => <Row key={r.id} r={r} done />)}
           </tbody>
@@ -247,7 +247,7 @@ function TimesheetView({ all, onEdit }) {
             <tr><th style={{ width: 36 }} /><th>Employee</th><th>Days</th><th>Total hours</th><th>Open shifts</th></tr>
           </thead>
           <tbody>
-            {groups.length === 0 && <tr><td colSpan={5} className="td-empty">No shifts this week.</td></tr>}
+            {groups.length === 0 && <tr><td colSpan={5} className="td-empty">No hours recorded this week yet — timesheets build themselves from clock-ins and feed straight into Payroll.</td></tr>}
             {groups.map((g) => (
               <GroupRows key={g.id} g={g} open={expanded.has(g.id)} onToggle={() => toggle(g.id)} onEdit={onEdit} />
             ))}

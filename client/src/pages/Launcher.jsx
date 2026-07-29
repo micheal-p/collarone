@@ -4,9 +4,104 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet } from '../api/client.js';
 import { SUITE_META, tierLabel } from '../config/suites.js';
+import { FOUNDING_ORG_ID } from '../config/org.js';
 import AppLayout from '../components/AppLayout.jsx';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 import ProductTour, { tourSeen } from '../components/ProductTour.jsx';
+
+/* ---- First-run setup checklist --------------------------------------------
+   A fresh workspace used to greet its owner with locked tiles and empty
+   tables — the weakest moment of the product. This walks the owner through
+   the three moves that make the workspace real, detects completion from the
+   actual data (not hand-waving), auto-hides at 100%, and can be dismissed.
+   Owners only; the founding org never sees it. */
+function SetupChecklist({ orgId, nav }) {
+  const hideKey = `co-setup-hide:${orgId}`;
+  const openedKey = `co-setup-opened:${orgId}`;
+  const siteKey = `co-setup-site:${orgId}`;
+  const [hidden, setHidden] = useState(() => localStorage.getItem(hideKey) === '1');
+  const [teamCount, setTeamCount] = useState(null);   // null = loading
+  const [tplCount, setTplCount] = useState(null);
+  const [openedSuite, setOpenedSuite] = useState(() => localStorage.getItem(openedKey) === '1');
+  const [visitedSite, setVisitedSite] = useState(() => localStorage.getItem(siteKey) === '1');
+
+  useEffect(() => {
+    if (hidden) return;
+    apiGet('/users').then((d) => setTeamCount((d.users || []).length), () => setTeamCount(0));
+    apiGet('/departments').then((d) => setTplCount((d.departments || []).filter((x) => (x.access_suites || []).length > 0).length), () => setTplCount(0));
+  }, [hidden]); // eslint-disable-line
+
+  if (hidden || teamCount === null || tplCount === null) return null;
+
+  const steps = [
+    {
+      key: 'team', done: teamCount > 1,
+      title: 'Add your team',
+      desc: teamCount > 1 ? `${teamCount} people on board` : 'One by one, or import your whole staff list from Excel in a minute.',
+      cta: 'Add people', to: '/admin/users',
+    },
+    {
+      key: 'templates', done: tplCount > 0,
+      title: 'Give departments their access',
+      desc: tplCount > 0 ? `${tplCount} department template${tplCount === 1 ? '' : 's'} set` : 'Set which suites each department gets — imports then grant access automatically.',
+      cta: 'Set templates', to: '/admin/departments',
+    },
+    {
+      key: 'open', done: openedSuite,
+      title: 'Open your first suite',
+      desc: 'Everything is live with your name on it — pick any tile below and look around.',
+      cta: 'Show me', to: null, // scrolls to tiles
+    },
+    {
+      key: 'site', done: visitedSite,
+      title: 'Set up your website',
+      desc: 'A real site is included on your plan — pick a theme and make it yours.',
+      cta: 'Open website builder', to: '/admin/website',
+    },
+  ];
+  const doneCount = steps.filter((s) => s.done).length;
+  if (doneCount === steps.length) return null;
+
+  const go = (s) => {
+    if (s.key === 'open') {
+      document.querySelector('[data-tour="tiles"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      localStorage.setItem(openedKey, '1'); setOpenedSuite(true);
+      return;
+    }
+    if (s.key === 'site') { localStorage.setItem(siteKey, '1'); setVisitedSite(true); }
+    nav(s.to);
+  };
+
+  return (
+    <div className="setup-card">
+      <div className="setup-head">
+        <div>
+          <h2>Set up your workspace</h2>
+          <span className="setup-progress">{doneCount} of {steps.length} done</span>
+        </div>
+        <button className="setup-hide" onClick={() => { localStorage.setItem(hideKey, '1'); setHidden(true); }}>
+          Hide
+        </button>
+      </div>
+      <div className="setup-steps">
+        {steps.map((s) => (
+          <div key={s.key} className={`setup-step ${s.done ? 'done' : ''}`}>
+            <span className="setup-check" aria-hidden="true">
+              {s.done
+                ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l4 4 10-10" /></svg>
+                : null}
+            </span>
+            <span className="setup-body">
+              <span className="setup-title">{s.title}</span>
+              <span className="setup-desc">{s.desc}</span>
+            </span>
+            {!s.done && <button className="btn btn-primary setup-cta" onClick={() => go(s)}>{s.cta}</button>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const greeting = () => {
   const h = new Date().getHours();
@@ -108,13 +203,18 @@ export default function Launcher() {
       </motion.div>
 
       {err && <div className="error-text">{err}</div>}
+
+      {!loading && isAdmin && user?.org?.id && user.org.id !== FOUNDING_ORG_ID && (
+        <SetupChecklist orgId={user.org.id} nav={nav} />
+      )}
+
       {loading ? (
         <div className="tile-grid">{Array.from({ length: 8 }).map((_, i) => <div key={i} className="tile tile-skeleton" />)}</div>
       ) : (
         <>
           <div className="suite-group">
             <div className="group-head"><h2>{tierLabel.core}</h2><span className="group-line" /></div>
-            <div className="tile-grid" data-tour="tiles">{core.map((s, i) => <SuiteTile key={s.key} s={s} index={i} reduce={reduce} onOpen={(x) => nav(`/suite/${x.key}`)} />)}</div>
+            <div className="tile-grid" data-tour="tiles">{core.map((s, i) => <SuiteTile key={s.key} s={s} index={i} reduce={reduce} onOpen={(x) => { localStorage.setItem(`co-setup-opened:${user?.org?.id}`, '1'); nav(`/suite/${x.key}`); }} />)}</div>
           </div>
           <div className="suite-group">
             <div className="group-head"><h2>{tierLabel.extended}</h2><span className="group-line" /></div>
