@@ -621,6 +621,14 @@ export default function TradeDocsApp({ access }) {
     catch (e) { flash(e.message, true); }
   };
 
+  const setRepeat = async (doc, every) => {
+    try {
+      const saved = await TD.setRecurring(doc.id, every);
+      flash(every ? `${doc.doc_no} now repeats ${every} — a ready-to-send draft is raised each period.` : `${doc.doc_no} no longer repeats.`);
+      setDocs((ds) => ds.map((d) => (d.id === saved.id ? saved : d)));
+    } catch (e) { flash(e.message, true); setDocs((ds) => [...ds]); }
+  };
+
   const remove = async (doc) => {
     const ok = await confirm({ title: `Delete ${doc.doc_no}?`, message: "This can't be undone.", confirmLabel: 'Delete', danger: true });
     if (!ok) return;
@@ -670,7 +678,11 @@ export default function TradeDocsApp({ access }) {
                 const isInv = d.doc_type === 'invoice';
                 return (
                   <tr key={d.id}>
-                    <td style={{ fontFamily: 'monospace', fontSize: 13 }}>{d.doc_no}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 13 }}>
+                      {d.doc_no}
+                      {d.recur_every && <span title={`Repeats ${d.recur_every} — re-raises itself as a draft each period`} style={{ marginLeft: 5, color: 'var(--brand)', fontWeight: 700, cursor: 'default' }}>↻</span>}
+                      {d.recur_source_id && <span title="Generated automatically from a repeating invoice" style={{ marginLeft: 5, fontSize: 10.5, fontWeight: 700, background: 'var(--brand-100, rgba(255,91,31,0.12))', color: 'var(--brand)', borderRadius: 100, padding: '1px 7px', verticalAlign: 'middle' }}>auto</span>}
+                    </td>
                     <td style={{ fontWeight: 500 }}>{d.party_name || '—'}</td>
                     {meta.hasVat && <td className="muted" style={{ fontSize: 13 }}>{TD.money(d.total)}</td>}
                     {(tab === 'invoice' || tab === 'receivables') && (
@@ -698,6 +710,14 @@ export default function TradeDocsApp({ access }) {
                       )}
                       {isInv && d.status !== 'void' && d.status !== 'draft' && d.share_token && (
                         <button className="iconbtn" onClick={() => setShareDoc(d)}>Share</button>
+                      )}
+                      {isInv && isManager && d.status !== 'void' && !d.recur_source_id && tab !== 'receivables' && (
+                        <select className="select" title="Repeat this invoice automatically" style={{ fontSize: 12, padding: '2px 6px' }}
+                          value={d.recur_every || ''} onChange={(e) => setRepeat(d, e.target.value || null)}>
+                          <option value="">No repeat</option>
+                          <option value="monthly">Monthly</option>
+                          <option value="yearly">Yearly</option>
+                        </select>
                       )}
                       {isManager && tab !== 'receivables' && <button className="iconbtn" onClick={() => remove(d)}>Delete</button>}
                     </td>

@@ -118,6 +118,12 @@ export default async function handler(req, res) {
           });
         }
 
+        // Recurring invoices: re-raise any due this period as ready-to-send
+        // drafts (idempotent per period inside the RPC; notices + feed events
+        // are written there too). Piggybacks the same throttle as everything
+        // else here so it works for every org, not just automation-suite ones.
+        await admin.rpc('generate_recurring_invoices').then(() => {}, () => {});
+
         // Renewal dunning ladder (active -> past_due -> read_only -> suspended).
         // Only runs when the operator has explicitly switched enforcement on —
         // off by default so no live org is ever auto-suspended unwatched.

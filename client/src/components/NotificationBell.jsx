@@ -31,6 +31,7 @@ const COPY = {
   'billing.trial_expired': () => 'Free trial ended — complete activation to continue',
   'hr.hired': (p) => `${p.name || 'A new teammate'} joined the team${p.jobTitle ? ` as ${p.jobTitle}` : ''}`,
   'hr.bulk_imported': (p) => `${p.count || 'New'} staff imported to the team`,
+  'invoice.recurring_generated': (p) => `Recurring invoice ${p.docNo || ''} ready for ${p.party || 'your customer'} — review & send`,
 };
 const ICON = (type) => (type.startsWith('payment.') ? '₦' : type.startsWith('billing.') ? '◷' : type.startsWith('hr.') ? '👤' : '•');
 
