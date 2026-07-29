@@ -6,9 +6,14 @@ const fmt = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 
 const STATUS = { pending: 'st-pending', approved: 'st-approved', rejected: 'st-rejected', cancelled: 'st-cancelled' };
 const initials = (n = '') => n.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 
+// Approved absences from the same department overlapping a pending request —
+// the "will anyone be left?" check an approver otherwise does from memory.
+const overlaps = (a, b) => a.start_date <= b.end_date && b.start_date <= a.end_date;
+
 export default function LeaveApprovals({ flash }) {
   const [filter, setFilter] = useState('pending');
   const [rows, setRows] = useState([]);
+  const [absences, setAbsences] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const { confirm, confirmNode } = useConfirm();
@@ -20,6 +25,14 @@ export default function LeaveApprovals({ flash }) {
     finally { setLoading(false); }
   };
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [filter]);
+  useEffect(() => { L.getTeamCalendar().then(setAbsences).catch(() => {}); }, []);
+
+  const conflictsFor = (r) => {
+    if (r.status !== 'pending' || !r.applicant?.department) return [];
+    return absences.filter((a) =>
+      a.id !== r.id && a.status === 'approved' &&
+      a.department === r.applicant.department && overlaps(a, r));
+  };
 
   const decide = async (r, decision) => {
     let comment = '';
@@ -67,7 +80,17 @@ export default function LeaveApprovals({ flash }) {
                 <td><div className="cell-user"><span className="avatar sm">{initials(r.applicant?.name)}</span>
                   <div><div className="cu-name">{r.applicant?.name}</div><div className="cu-mail">{r.applicant?.department || r.applicant?.email}</div></div></div></td>
                 <td><span className="lv-dot" style={{ background: r.leave_types?.color }} />{r.leave_types?.name}</td>
-                <td>{fmt(r.start_date)}{r.end_date !== r.start_date && ` – ${fmt(r.end_date)}`}{r.half_day && ' ½'}</td>
+                <td>
+                  {fmt(r.start_date)}{r.end_date !== r.start_date && ` – ${fmt(r.end_date)}`}{r.half_day && ' ½'}
+                  {(() => {
+                    const c = conflictsFor(r);
+                    return c.length > 0 && (
+                      <div className="lv-conflict" title={c.map((a) => `${a.person} (${fmt(a.start_date)} – ${fmt(a.end_date)})`).join(', ')}>
+                        ⚠ {c.length === 1 ? `${c[0].person.split(' ')[0]} is` : `${c.length} from ${r.applicant.department} are`} also away then
+                      </div>
+                    );
+                  })()}
+                </td>
                 <td>{r.working_days}</td>
                 <td className="muted">{r.reason || '—'}</td>
                 <td><span className={`lv-status ${STATUS[r.status]}`}>{r.status[0].toUpperCase() + r.status.slice(1)}</span></td>

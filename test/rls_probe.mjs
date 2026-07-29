@@ -108,6 +108,43 @@ try {
     check('loan_balance() · org-checked (null for other org)', r.rows[0].bal === null, `got ${r.rows[0].bal}`);
     await c.query('rollback');
   }
+
+  // ---- team_absences() must be org-scoped. Its predecessor (the
+  // team_calendar VIEW) executed with owner privileges — no RLS, no org
+  // filter — and leaked every org's approved leave org-wide. This makes that
+  // regression impossible to miss again.
+  try {
+    const seedLeave = async (P) => {
+      let { rows: [lt] } = await c.query('select id from leave_types where org_id = $1 limit 1', [P.org]);
+      if (!lt) {
+        // fresh probe orgs have no seeded types — create one (org-scoped key)
+        ({ rows: [lt] } = await c.query(
+          `insert into leave_types(org_id,key,name,default_days) values($1,$2,'Probe Leave',5) returning id`,
+          [P.org, `probe-${P.org.slice(0, 8)}`]));
+      }
+      if (!lt) return null;
+      const { rows: [req] } = await c.query(
+        `insert into leave_requests(org_id,user_id,leave_type_id,start_date,end_date,working_days,status)
+         values($1,$2,$3,current_date,current_date + 1,2,'approved') returning id`, [P.org, P.user, lt.id]);
+      return req.id;
+    };
+    const reqA = await seedLeave(A);
+    const reqB = await seedLeave(B);
+    if (!reqA || !reqB) {
+      check('team_absences() · org-scoped', 'skip', 'no org leave_types seeded');
+    } else {
+      await c.query('begin');
+      await c.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: A.user, role: 'authenticated' })]);
+      await c.query('set local role authenticated');
+      const { rows } = await c.query('select id from public.team_absences()');
+      const idSet = new Set(rows.map((x) => x.id));
+      check('team_absences() · org-scoped (sees own, never the other org)',
+        idSet.has(reqA) && !idSet.has(reqB), `own=${idSet.has(reqA)} other=${idSet.has(reqB)}`);
+      await c.query('rollback');
+    }
+  } catch (e) {
+    check('team_absences() · org-scoped', false, e.message);
+  }
 } finally {
   // ---- cleanup (superuser) ----
   // Delete every org-scoped row for the two disposable orgs — not just the ones
