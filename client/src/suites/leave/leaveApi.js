@@ -50,8 +50,12 @@ export async function getAllRequests({ status } = {}) {
   return data;
 }
 
+// Org-scoped + privacy-safe: names, dates and department only — never the
+// leave type or reason. Approvers also receive pending rows (status field),
+// which powers the overlap warning in Approvals. (Replaced the old
+// team_calendar VIEW, which bypassed RLS and leaked across orgs.)
 export async function getTeamCalendar() {
-  const { data, error } = await supabase.from('team_calendar').select('*');
+  const { data, error } = await supabase.rpc('team_absences');
   if (error) throw error;
   return data;
 }

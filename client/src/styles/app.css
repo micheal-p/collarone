@@ -478,3 +478,6 @@
 .setup-desc { font-size: 12.5px; color: var(--text-2, #666); line-height: 1.45; }
 .setup-cta { flex-shrink: 0; font-size: 12.5px; padding: 7px 14px; }
 @media (max-width: 560px) { .setup-step { flex-wrap: wrap; } .setup-cta { margin-left: 38px; } }
+
+/* leave approvals: departmental overlap warning */
+.lv-conflict { margin-top: 3px; font-size: 11.5px; font-weight: 650; color: #7a5200; background: #fff4ce; border-radius: 8px; padding: 2px 8px; display: inline-block; }
