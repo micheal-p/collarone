@@ -17,6 +17,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export function useCoachTour(storageKey) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
+    // never auto-open inside an iframe (the landing's live embed)
+    if (window.self !== window.top) return undefined;
     if (storageKey && !localStorage.getItem(storageKey)) {
       const t = setTimeout(() => setOpen(true), 700); // let the page settle first
       return () => clearTimeout(t);

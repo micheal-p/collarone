@@ -126,12 +126,14 @@ function RotatingWord() {
   );
 }
 
+// `demo` names the suite the "Try it live" overlay opens for that shot —
+// only rendered when the platform admin has that suite's public demo enabled.
 const GALLERY_SHOTS = [
-  { src: shotHome, url: 'collarone.app/home', title: 'One workspace', caption: 'Every suite your company runs, behind one login' },
-  { src: shotTasks, url: 'collarone.app/hr', title: 'Staff, in full', caption: 'Pay, leave, assets, documents and reviews — one page per person' },
-  { src: shotCrm, url: 'collarone.app/hr/letters', title: 'Letters, drafted by AI', caption: 'On your own letterhead — signed, referenced and filed' },
-  { src: shotAnalytics, url: 'collarone.app/hr/reports', title: 'HR reports', caption: "Headcount, who's leaving, and government paperwork — at a glance" },
-  { src: shotPipeline, url: 'collarone.app/customers', title: 'Deals', caption: 'Every deal staged and valued in naira, with follow-ups on time' },
+  { src: shotHome, url: 'collarone.app/home', title: 'One workspace', caption: 'Every suite your company runs, behind one login', demo: 'hr' },
+  { src: shotTasks, url: 'collarone.app/hr', title: 'Staff, in full', caption: 'Pay, leave, assets, documents and reviews — one page per person', demo: 'hr' },
+  { src: shotCrm, url: 'collarone.app/hr/letters', title: 'Letters, drafted by AI', caption: 'On your own letterhead — signed, referenced and filed', demo: 'hr' },
+  { src: shotAnalytics, url: 'collarone.app/hr/reports', title: 'HR reports', caption: "Headcount, who's leaving, and government paperwork — at a glance", demo: 'hr' },
+  { src: shotPipeline, url: 'collarone.app/customers', title: 'Deals', caption: 'Every deal staged and valued in naira, with follow-ups on time', demo: 'crm' },
 ];
 
 const marqueeItems = ['Staff files', 'Leave & time off', 'Task tracking', 'Visitor sign-in', 'Recruiting & careers', 'Onboarding', 'Performance reviews', 'Compliance calendar', 'Payroll — PAYE · Pension · NHF', 'Customers (CRM)', 'Website builder', 'Invoicing & receipts', 'Automation'];
@@ -368,9 +370,19 @@ export default function Landing() {
   const [navOpen, setNavOpen] = useState(false);
   const [walkIdx, setWalkIdx] = useState(0);
   const [walkAuto, setWalkAuto] = useState(true);
+  // "Try it live" — click-to-load only, so the app bundle never weighs down
+  // the marketing page. Which suites are embeddable comes from the same
+  // platform_demo_suites toggle the Try strip uses.
+  const [walkLive, setWalkLive] = useState(false);
+  const [demoKeys, setDemoKeys] = useState([]);
+  useEffect(() => {
+    supabase.from('platform_demo_suites').select('suite_key').eq('enabled', true)
+      .then(({ data }) => setDemoKeys((data || []).map((r) => r.suite_key)), () => {});
+  }, []);
   const walkDir = useRef(1);            // which way the stage slides
   const walkTabRefs = useRef([]);
   const goWalk = (next, manual = false) => {
+    setWalkLive(false); // leaving the live demo when the tour moves on
     setWalkIdx((cur) => {
       const n = typeof next === 'function' ? next(cur) : next;
       const len = GALLERY_SHOTS.length;
@@ -665,6 +677,20 @@ export default function Landing() {
               </div>
             </div>
             <div className="cl-walk-stage">
+              {walkLive && GALLERY_SHOTS[walkIdx].demo ? (
+                <div className="cl-live-wrap">
+                  <div className="cl-browser-bar">
+                    <span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" />
+                    <span className="cl-url">collarone.app/try/{GALLERY_SHOTS[walkIdx].demo} · live</span>
+                  </div>
+                  <iframe className="cl-live-frame" title="Live Collarone demo — sample data"
+                    src={`/try/${GALLERY_SHOTS[walkIdx].demo}?embed=1`} />
+                  <div className="cl-live-bar">
+                    <button type="button" className="cl-live-back" onClick={() => setWalkLive(false)}>← Back to screenshots</button>
+                    <a href={`/try/${GALLERY_SHOTS[walkIdx].demo}`} target="_blank" rel="noreferrer" className="cl-live-full">Open the full demo ↗</a>
+                  </div>
+                </div>
+              ) : (
               <AnimatePresence mode="wait" custom={walkDir.current}>
                 <motion.button
                   key={walkIdx} type="button" className="cl-gallery-shot-btn"
@@ -686,6 +712,13 @@ export default function Landing() {
                   </div>
                 </motion.button>
               </AnimatePresence>
+              )}
+              {!walkLive && GALLERY_SHOTS[walkIdx].demo && demoKeys.includes(GALLERY_SHOTS[walkIdx].demo) && (
+                <button type="button" className="cl-try-live"
+                  onClick={() => { setWalkLive(true); setWalkAuto(false); }}>
+                  ▶ Try it live right here
+                </button>
+              )}
             </div>
           </Reveal>
         </div>
