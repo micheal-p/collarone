@@ -221,8 +221,10 @@ export default function Profile() {
 }
 
 function MyPayslips() {
+  const { user } = useAuth();
   const [payslips, setPayslips] = useState(null);
   const [open, setOpen] = useState(null);
+  const [printSlip, setPrintSlip] = useState(null);
 
   useEffect(() => { P.getMyPayslips().then(setPayslips).catch(() => setPayslips([])); }, []);
 
@@ -236,10 +238,12 @@ function MyPayslips() {
       </div>
       {payslips.map((p) => (
         <div key={p.id} style={{ borderTop: '1px solid var(--line)', padding: '10px 0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
-            onClick={() => setOpen(open === p.id ? null : p.id)}>
-            <span style={{ fontSize: 13.5, fontWeight: 500 }}>{P.MONTHS[p.run.period_month - 1]} {p.run.period_year}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13.5, fontWeight: 500, cursor: 'pointer', flex: 1 }} onClick={() => setOpen(open === p.id ? null : p.id)}>
+              {P.MONTHS[p.run.period_month - 1]} {p.run.period_year}
+            </span>
             <span style={{ fontSize: 13.5, fontWeight: 600 }}>{P.money(p.net)}</span>
+            <button className="btn btn-ghost" style={{ fontSize: 12, padding: '3px 12px' }} onClick={() => setPrintSlip(p)}>View / print</button>
           </div>
           {open === p.id && (
             <div style={{ fontSize: 12.5, color: 'var(--text-2)', marginTop: 8, lineHeight: 1.8 }}>
@@ -249,6 +253,57 @@ function MyPayslips() {
           )}
         </div>
       ))}
+      {printSlip && <PayslipPrint slip={printSlip} user={user} onClose={() => setPrintSlip(null)} />}
+    </div>
+  );
+}
+
+// The formal document — banks and embassies ask for payslips; this one prints
+// clean on the org's identity via the browser's print-to-PDF.
+function PayslipPrint({ slip, user, onClose }) {
+  const period = `${P.MONTHS[slip.run.period_month - 1]} ${slip.run.period_year}`;
+  const earn = [
+    ['Basic', slip.basic], ['Housing', slip.housing], ['Transport', slip.transport],
+    ['Other allowances', slip.other_allowances], ['Overtime', slip.overtime_pay],
+  ].filter(([, v]) => Number(v) > 0);
+  const ded = [
+    ['PAYE tax', slip.paye], ['Pension (employee 8%)', slip.pension_employee], ['NHF (2.5%)', slip.nhf],
+    ['Lateness', slip.late_deduction], ['Other deductions', slip.other_deductions],
+  ].filter(([, v]) => Number(v) > 0);
+  const row = { display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #eee', fontSize: 13 };
+  return (
+    <div className="modal-overlay" onMouseDown={onClose}>
+      <style>{`@media print { body * { visibility: hidden; } #payslip-print, #payslip-print * { visibility: visible; } #payslip-print { position: absolute; top: 0; left: 0; width: 100%; box-shadow: none !important; } .no-print { display: none !important; } }`}</style>
+      <div className="modal" style={{ maxWidth: 560 }} onMouseDown={(e) => e.stopPropagation()}>
+        <div id="payslip-print" style={{ background: '#fff', color: '#14161a', padding: '28px 30px', borderRadius: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #14161a', paddingBottom: 14, marginBottom: 16 }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>{user?.org?.name || 'Your company'}</div>
+              <div style={{ fontSize: 12, color: '#667' }}>Payslip — {period}</div>
+            </div>
+            {user?.org?.logo_url && <img src={user.org.logo_url} alt="" style={{ height: 40, objectFit: 'contain' }} />}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 16 }}>
+            <div><div style={{ color: '#889', fontSize: 11 }}>EMPLOYEE</div><strong>{user?.name}</strong></div>
+            <div style={{ textAlign: 'right' }}><div style={{ color: '#889', fontSize: 11 }}>PERIOD</div><strong>{period}</strong></div>
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', color: '#889', margin: '10px 0 2px' }}>EARNINGS</div>
+          {earn.map(([l, v]) => <div key={l} style={row}><span>{l}</span><span>{P.money(v)}</span></div>)}
+          <div style={{ ...row, fontWeight: 700 }}><span>Gross pay</span><span>{P.money(slip.gross)}</span></div>
+          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.05em', color: '#889', margin: '14px 0 2px' }}>DEDUCTIONS</div>
+          {ded.map(([l, v]) => <div key={l} style={row}><span>{l}</span><span>−{P.money(v)}</span></div>)}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14, padding: '12px 14px', background: '#f6f4ee', borderRadius: 10, fontSize: 15, fontWeight: 800 }}>
+            <span>Net pay</span><span>{P.money(slip.net)}</span>
+          </div>
+          <p style={{ fontSize: 10.5, color: '#99a', marginTop: 16 }}>
+            Generated by Collarone for {user?.org?.name || 'this workspace'}. Employer pension contribution (10%): {P.money(slip.pension_employer)}.
+          </p>
+        </div>
+        <div className="modal-actions no-print" style={{ padding: '0 6px 6px' }}>
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
+          <button className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
+        </div>
+      </div>
     </div>
   );
 }
