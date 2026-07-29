@@ -34,6 +34,7 @@ const COPY = {
   'invoice.recurring_generated': (p) => `Recurring invoice ${p.docNo || ''} ready for ${p.party || 'your customer'} — review & send`,
   'chat.mention': (p, uid) => `${p.by || 'Someone'} mentioned ${p.mentioned === uid ? 'you' : 'a teammate'} in chat: “${p.snippet || ''}”`,
   'automation.notice': (p) => p.message || 'Automation ran',
+  'task.comment': (p, uid) => `${p.by || 'Someone'} commented on ${Array.isArray(p.for) && p.for.includes(uid) ? 'your task' : 'a task'} “${p.title || ''}”: ${p.snippet || ''}`,
 };
 const ICON = (type) => {
   if (type.startsWith('payment.')) return '₦'; // currency symbol, not decoration

@@ -18,7 +18,7 @@ const EVENTS_PER_TICK = 20;
 const fill = (tpl, payload = {}) =>
   String(tpl || '').replace(/\{(\w+)\}/g, (_, k) => (payload[k] !== undefined ? String(payload[k]) : `{${k}}`));
 
-const periodOf = (schedule, now) => {
+export const periodOf = (schedule, now) => {
   const every = schedule?.every;
   if (every === 'day') return now.toISOString().slice(0, 10);
   if (every === 'week') {
@@ -31,7 +31,7 @@ const periodOf = (schedule, now) => {
   return now.toISOString().slice(0, 7); // month
 };
 
-const scheduleDue = (schedule, now) => {
+export const scheduleDue = (schedule, now) => {
   const every = schedule?.every;
   if (every === 'day') return true;
   if (every === 'week') return now.getDay() === Number(schedule.dow ?? 1);

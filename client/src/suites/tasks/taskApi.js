@@ -60,3 +60,7 @@ export const isOverdue = (task) => {
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   return String(task.due_date).slice(0, 10) < today;
 };
+
+// ---- comments (posted via RPC so notifications ride the spine) --------------
+export const getComments = (taskId) => apiGet(`/tasks/${taskId}/comments`).then((d) => d.comments);
+export const addComment  = (taskId, body) => apiPost(`/tasks/${taskId}/comments`, { body }).then((d) => d.comment);

@@ -600,6 +600,15 @@ export async function supabaseApi(path, opts = {}) {
     if (body.dueDate      !== undefined) patch.due_date      = body.dueDate      || null;
     if (body.assignedTo   !== undefined) patch.assigned_to   = body.assignedTo   || null;
     if (body.departmentId !== undefined) patch.department_id = body.departmentId || null;
+    // recurring schedule: {every:'day'|'week'|'month', dow, dom} or null = off
+    if (body.recur !== undefined) {
+      const r = body.recur;
+      if (r && !['day', 'week', 'month'].includes(r.every)) fail(400, 'Invalid repeat.');
+      patch.recur_every = r ? r.every : null;
+      patch.recur_dow = r?.every === 'week' ? Math.min(6, Math.max(0, Number(r.dow ?? 1))) : null;
+      patch.recur_dom = r?.every === 'month' ? Math.min(28, Math.max(1, Number(r.dom ?? 1))) : null;
+      if (!r) patch.recur_last_period = null;
+    }
     const { data, error } = await supabase.from('tasks').update(patch).eq('id', seg[1]).select(TASK_SELECT).single();
     if (error) fail(400, error.message);
     return { task: data };
@@ -608,6 +617,18 @@ export async function supabaseApi(path, opts = {}) {
     const { error } = await supabase.from('tasks').delete().eq('id', seg[1]);
     if (error) fail(400, error.message);
     return { ok: true };
+  }
+  // ---- task comments (RLS + RPC enforce who can see/say) ----
+  if (head === 'GET /tasks' && seg[2] === 'comments') {
+    const { data, error } = await supabase.from('task_comments')
+      .select('*, author:profiles!author_id(id, name)').eq('task_id', seg[1]).order('created_at', { ascending: true });
+    if (error) fail(400, error.message);
+    return { comments: data };
+  }
+  if (method === 'POST' && seg[0] === 'tasks' && seg[2] === 'comments') {
+    const { data, error } = await supabase.rpc('add_task_comment', { p_task: seg[1], p_body: body.body });
+    if (error) fail(400, error.message);
+    return { comment: data };
   }
   // All task reports across dept (supervisor view)
   if (head === 'GET /taskreports') {
