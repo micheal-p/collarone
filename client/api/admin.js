@@ -122,6 +122,90 @@ export default async function handler(req, res) {
       return json(res, 201, payrollDropped ? { ...profile, warning: 'Payroll can only be enabled from a Nigerian IP address — it was left out for this account.' } : profile);
     }
 
+    // Bulk staff import — the "our staff list is in Excel" path. Takes rows
+    // already parsed/mapped client-side, creates each account with a generated
+    // temp password (returned ONCE for the admin to distribute; never stored
+    // in plaintext anywhere), and reports per-row success/failure so a bad
+    // row never sinks the rest. Same seat-credit economics as single create.
+    if (action === 'bulk-create') {
+      const rows = Array.isArray(body.rows) ? body.rows : [];
+      if (!rows.length) return json(res, 400, { message: 'No rows to import.' });
+      if (rows.length > 200) return json(res, 400, { message: 'Import at most 200 staff at a time.' });
+
+      // Credits: check the FULL batch upfront so the admin isn't left with a
+      // half-imported team and a surprise.
+      if (caller.org_id !== FOUNDING_ORG_ID) {
+        const { data: bal } = await admin.from('org_credit_balance').select('balance').eq('org_id', caller.org_id).maybeSingle();
+        if (!bal || bal.balance < rows.length) {
+          return json(res, 402, { message: `This import needs ${rows.length} seat credits — you have ${bal?.balance || 0}. Buy credits first.` });
+        }
+      }
+
+      const { randomBytes } = await import('node:crypto');
+      const tempPassword = () => randomBytes(9).toString('base64url').replace(/[-_]/g, 'x'); // 12 chars, no confusing symbols
+
+      const results = [];
+      const createdIds = [];
+      for (const r of rows) {
+        const name = String(r.name || '').trim();
+        const email = String(r.email || '').trim().toLowerCase();
+        if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          results.push({ name, email, error: !name ? 'Missing name' : 'Invalid email' });
+          continue;
+        }
+        const password = tempPassword();
+        const { data: created, error: cErr } = await admin.auth.admin.createUser({
+          email, password, email_confirm: true, user_metadata: { name },
+        });
+        if (cErr) {
+          results.push({ name, email, error: /registered|exists/i.test(cErr.message) ? 'Already registered' : cErr.message });
+          continue;
+        }
+        const { data: profile, error: pErr } = await admin.from('profiles').upsert({
+          id: created.user.id, email, name, job_title: String(r.jobTitle || '').trim(),
+          department: String(r.department || '').trim(), org_id: caller.org_id,
+          role: 'staff', suites: [], status: 'active', must_change_password: true,
+        }, { onConflict: 'id' }).select().single();
+        if (pErr) {
+          await admin.auth.admin.deleteUser(created.user.id);
+          results.push({ name, email, error: pErr.message });
+          continue;
+        }
+        if (caller.org_id !== FOUNDING_ORG_ID) {
+          await admin.from('org_credit_ledger').insert({
+            org_id: caller.org_id, delta: -1, reason: 'staff_created', related_profile_id: profile.id, created_by: user.id,
+          });
+        }
+        createdIds.push(profile.id);
+        results.push({ name, email, tempPassword: password, user: profile });
+      }
+
+      // Hire automation for the whole batch: leave balances per person, ONE
+      // summary onboarding task (not N), one feed event (not N bell pings).
+      try {
+        const okIds = createdIds;
+        if (okIds.length) {
+          const year = new Date().getFullYear();
+          const { data: ltypes } = await admin.from('leave_types')
+            .select('id').eq('org_id', caller.org_id).eq('active', true).eq('tracked', true);
+          if (ltypes?.length) {
+            const balanceRows = okIds.flatMap((uid) =>
+              ltypes.map((t) => ({ user_id: uid, leave_type_id: t.id, year, org_id: caller.org_id })));
+            await admin.from('leave_balances').upsert(balanceRows, { onConflict: 'user_id,leave_type_id,year', ignoreDuplicates: true });
+          }
+          await admin.from('tasks').insert({
+            org_id: caller.org_id, created_by: user.id, assigned_to: user.id,
+            title: `Onboard ${okIds.length} imported staff`,
+            description: `You imported ${okIds.length} staff. For each: set salary & bank details (Payroll), assign equipment (IT Assets), enrol benefits, and share their temporary password securely.`,
+            priority: 'high', due_date: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10),
+          });
+          await emitOrgEvent(admin, caller.org_id, 'hr.bulk_imported', { count: okIds.length }, user.id);
+        }
+      } catch { /* automation is a bonus */ }
+
+      return json(res, 200, { results, created: createdIds.length, failed: results.length - createdIds.length });
+    }
+
     if (action === 'purchase-credits') {
       const credits = Number(body.credits);
       if (!Number.isInteger(credits) || credits < 1) return json(res, 400, { message: 'Choose how many credits to buy.' });
