@@ -264,6 +264,9 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
         </div>
 
         <div className="sb-right">
+          <button className="iconbtn" aria-label="Team chat" title="Team chat" onClick={() => go('/chat')}>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.9 8.9 0 0 1-4-.9L3 20l1-4.5A8.4 8.4 0 0 1 12.5 3a8.4 8.4 0 0 1 8.5 8.5Z" /></svg>
+          </button>
           <NotificationBell />
           <div className="waffle-wrap" ref={waffleRef}>
             <button className="iconbtn" aria-label="Open suites" data-tour="waffle" onClick={() => setWaffle((v) => !v)}>

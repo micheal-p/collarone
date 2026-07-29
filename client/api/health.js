@@ -129,6 +129,35 @@ export default async function handler(req, res) {
         // schedules stamp their period) — caps + fences inside.
         await runAutomationRules(admin);
 
+        // Chat @mention delivery: bell is instant via the spine; this sweep
+        // adds email (and WhatsApp when the channel exists) through the same
+        // shared sender. Marks messages notified either way so the queue
+        // drains — a mention from before the key existed is stale news.
+        try {
+          const { emailEnabled: chatMailOn, sendResend: chatSend, wrap: chatWrap, esc: chatEsc, FROM_ADDR: chatFrom } = await import('./_lib/email.js');
+          const { data: pending } = await admin.from('org_chat_messages')
+            .select('id, org_id, room, body, mentions, author:profiles!author_id(name)')
+            .eq('notified', false).not('mentions', 'eq', '{}').limit(20);
+          for (const msg of pending || []) {
+            if (chatMailOn()) {
+              const { data: people } = await admin.from('profiles')
+                .select('email, name').in('id', msg.mentions).eq('org_id', msg.org_id).eq('status', 'active');
+              for (const p of people || []) {
+                await chatSend({
+                  to: p.email, from: `Collarone <${chatFrom}>`,
+                  subject: `${msg.author?.name || 'A teammate'} mentioned you in team chat`,
+                  html: chatWrap('You were mentioned', `
+                    <p style="font-size:14px;line-height:1.6">Hi ${chatEsc(p.name || 'there')},</p>
+                    <p style="font-size:14px;line-height:1.6"><strong>${chatEsc(msg.author?.name || 'A teammate')}</strong> mentioned you in <strong>#${chatEsc(msg.room === 'general' ? 'General' : 'your department room')}</strong>:</p>
+                    <p style="font-size:14px;line-height:1.6;background:#f6f4ee;border-radius:10px;padding:10px 14px">${chatEsc(msg.body.slice(0, 300))}</p>
+                    <p style="margin:18px 0"><a href="https://collarone.app/chat" style="background:#FF5B1F;color:#fff;text-decoration:none;padding:12px 22px;border-radius:100px;font-weight:700;font-size:14px">Open team chat</a></p>`),
+                }).catch(() => {});
+              }
+            }
+            await admin.from('org_chat_messages').update({ notified: true }).eq('id', msg.id);
+          }
+        } catch { /* chat notify must never break health */ }
+
         // Renewal dunning ladder (active -> past_due -> read_only -> suspended).
         // Only runs when the operator has explicitly switched enforcement on —
         // off by default so no live org is ever auto-suspended unwatched.

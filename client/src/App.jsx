@@ -31,6 +31,7 @@ import Privacy from './pages/Privacy.jsx';
 import Contact from './pages/Contact.jsx';
 import OfferPage from './pages/OfferPage.jsx';
 import PayThanks from './pages/PayThanks.jsx';
+import TeamChat from './pages/TeamChat.jsx';
 import Signup from './pages/Signup.jsx';
 import Status from './pages/Status.jsx';
 import EmbedContactForm from './pages/embed/EmbedContactForm.jsx';
@@ -131,6 +132,15 @@ export default function App() {
       />
 
       <Route path="/" element={<HomeRoute />} />
+
+      <Route
+        path="/chat"
+        element={
+          <ProtectedRoute>
+            <TeamChat />
+          </ProtectedRoute>
+        }
+      />
 
       {/* A platform admin has no organization workspace of their own — the
           only way into a tenant view is the audited guest mode, where the
