@@ -9,10 +9,6 @@ import { supabase } from '../lib/supabaseClient.js';
 import ChatWidget from './ChatWidget.jsx';
 import { PLANS, PRICING, usePricing, naira } from '../lib/pricing.js';
 import shotHome from '../assets/shots/home.jpg';
-import shotTasks from '../assets/shots/tasks.jpg';
-import shotCrm from '../assets/shots/crm.jpg';
-import shotAnalytics from '../assets/shots/analytics.jpg';
-import shotPipeline from '../assets/shots/pipeline.jpg';
 import './Landing.css';
 
 const Mark = ({ size = 24 }) => (
@@ -125,16 +121,6 @@ function RotatingWord() {
     </span>
   );
 }
-
-// `demo` names the suite the "Try it live" overlay opens for that shot —
-// only rendered when the platform admin has that suite's public demo enabled.
-const GALLERY_SHOTS = [
-  { src: shotHome, url: 'collarone.app/home', title: 'One workspace', caption: 'Every suite your company runs, behind one login', demo: 'hr' },
-  { src: shotTasks, url: 'collarone.app/hr', title: 'Staff, in full', caption: 'Pay, leave, assets, documents and reviews — one page per person', demo: 'hr' },
-  { src: shotCrm, url: 'collarone.app/hr/letters', title: 'Letters, drafted by AI', caption: 'On your own letterhead — signed, referenced and filed', demo: 'hr' },
-  { src: shotAnalytics, url: 'collarone.app/hr/reports', title: 'HR reports', caption: "Headcount, who's leaving, and government paperwork — at a glance", demo: 'hr' },
-  { src: shotPipeline, url: 'collarone.app/customers', title: 'Deals', caption: 'Every deal staged and valued in naira, with follow-ups on time', demo: 'crm' },
-];
 
 const marqueeItems = ['Staff files', 'Leave & time off', 'Task tracking', 'Visitor sign-in', 'Recruiting & careers', 'Onboarding', 'Performance reviews', 'Compliance calendar', 'Payroll — PAYE · Pension · NHF', 'Customers (CRM)', 'Website builder', 'Invoicing & receipts', 'Automation'];
 
@@ -366,68 +352,9 @@ export default function Landing() {
 
   const [scrolled, setScrolled] = useState(false);
   const [pastHero, setPastHero] = useState(false);
-  const [lightboxIdx, setLightboxIdx] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
-  const [walkIdx, setWalkIdx] = useState(0);
-  const [walkAuto, setWalkAuto] = useState(true);
-  // "Try it live" — click-to-load only, so the app bundle never weighs down
-  // the marketing page. Which suites are embeddable comes from the same
-  // platform_demo_suites toggle the Try strip uses.
-  const [walkLive, setWalkLive] = useState(false);
-  const [demoKeys, setDemoKeys] = useState([]);
-  useEffect(() => {
-    supabase.from('platform_demo_suites').select('suite_key').eq('enabled', true)
-      .then(({ data }) => setDemoKeys((data || []).map((r) => r.suite_key)), () => {});
-  }, []);
-  const walkDir = useRef(1);            // which way the stage slides
-  const walkTabRefs = useRef([]);
-  const goWalk = (next, manual = false) => {
-    setWalkLive(false); // leaving the live demo when the tour moves on
-    setWalkIdx((cur) => {
-      const n = typeof next === 'function' ? next(cur) : next;
-      const len = GALLERY_SHOTS.length;
-      walkDir.current = ((n - cur + len) % len) <= len / 2 ? 1 : -1;
-      return n;
-    });
-    if (manual) setWalkAuto(false);
-  };
-  // Guided tour auto-advances only while the section is on screen and until
-  // the visitor takes over — advancing (and gliding tabs) off-screen was
-  // scrolling the page around underneath people.
-  const [walkVisible, setWalkVisible] = useState(false);
-  useEffect(() => {
-    const sec = document.getElementById('gallery');
-    if (!sec || typeof IntersectionObserver === 'undefined') { setWalkVisible(true); return undefined; }
-    const io = new IntersectionObserver(([e]) => setWalkVisible(e.isIntersecting), { threshold: 0.25 });
-    io.observe(sec);
-    return () => io.disconnect();
-  }, []);
-  useEffect(() => {
-    if (reduce || !walkAuto || !walkVisible) return undefined;
-    const t = setInterval(() => goWalk((x) => (x + 1) % GALLERY_SHOTS.length), 5000);
-    return () => clearInterval(t);
-  }, [reduce, walkAuto, walkVisible]); // eslint-disable-line
-  // Mobile: glide the ACTIVE pill to the strip's centre by scrolling the
-  // strip itself — never scrollIntoView, which also scrolls the page.
-  useEffect(() => {
-    const el = walkTabRefs.current[walkIdx];
-    const strip = el?.parentElement;
-    if (el && strip && strip.scrollWidth > strip.clientWidth + 4) {
-      strip.scrollTo({ left: el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2, behavior: reduce ? 'auto' : 'smooth' });
-    }
-  }, [walkIdx, reduce]);
   const [faqCat, setFaqCat] = useState('All');
   const visibleFaqs = faqCat === 'All' ? faqs : faqs.filter((f) => f.cat === faqCat);
-  useEffect(() => {
-    if (lightboxIdx === null) return undefined;
-    const onKey = (e) => {
-      if (e.key === 'Escape') setLightboxIdx(null);
-      if (e.key === 'ArrowLeft') setLightboxIdx((i) => (i - 1 + GALLERY_SHOTS.length) % GALLERY_SHOTS.length);
-      if (e.key === 'ArrowRight') setLightboxIdx((i) => (i + 1) % GALLERY_SHOTS.length);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [lightboxIdx]);
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, 'change', (v) => { setScrolled(v > 10); setPastHero(v > 520); });
 
@@ -491,7 +418,7 @@ export default function Landing() {
               initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.18 }}
             >
-              {[['#platform', 'Platform'], ['/try', 'Try demo'], ['#gallery', 'Product tour'], ['#pricing', 'Pricing'], ['#themes', 'Themes'], ['#about', 'About'], ['#faq', 'FAQ'], ['/jobs', 'Jobs board']].map(([href, label]) => (
+              {[['#platform', 'Platform'], ['/try', 'Try demo'], ['#pricing', 'Pricing'], ['#themes', 'Themes'], ['#about', 'About'], ['#faq', 'FAQ'], ['/jobs', 'Jobs board']].map(([href, label]) => (
                 <a key={href} className="cl-mm-link" href={href} onClick={() => setNavOpen(false)}>{label}</a>
               ))}
               <div className="cl-mm-actions">
@@ -651,97 +578,6 @@ export default function Landing() {
           </div>
         </div>
       </section>
-
-      <section className="cl-sec cl-dark" id="gallery">
-        <div className="cl-wrap">
-          <Reveal className="cl-walk">
-            <div className="cl-walk-rail">
-              <p className="cl-eyebrow">A guided look</p>
-              <h2 className="cl-walk-h">This is the actual product.</h2>
-              <p className="cl-walk-lede">The same screens your team gets on day one — real, not mockups. Tap through the flagship work.</p>
-              <div className="cl-walk-tabs" role="tablist" aria-label="Product walkthrough">
-              {GALLERY_SHOTS.map((shot, i) => (
-                <button
-                  key={shot.url} type="button" role="tab" aria-selected={i === walkIdx}
-                  ref={(el) => { walkTabRefs.current[i] = el; }}
-                  className={`cl-walk-tab ${i === walkIdx ? 'on' : ''}`}
-                  onClick={() => goWalk(i, true)}
-                >
-                  <span className="cl-walk-tab-t">{shot.title}</span>
-                  <span className="cl-walk-tab-d">{shot.caption}</span>
-                  {i === walkIdx && walkAuto && !reduce && (
-                    <motion.span key={`p${walkIdx}`} className="cl-walk-progress" initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 5, ease: 'linear' }} />
-                  )}
-                </button>
-              ))}
-              </div>
-            </div>
-            <div className="cl-walk-stage">
-              {walkLive && GALLERY_SHOTS[walkIdx].demo ? (
-                <div className="cl-live-wrap">
-                  <div className="cl-browser-bar">
-                    <span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" />
-                    <span className="cl-url">collarone.app/try/{GALLERY_SHOTS[walkIdx].demo} · live</span>
-                  </div>
-                  <iframe className="cl-live-frame" title="Live Collarone demo — sample data"
-                    src={`/try/${GALLERY_SHOTS[walkIdx].demo}?embed=1`} />
-                  <div className="cl-live-bar">
-                    <button type="button" className="cl-live-back" onClick={() => setWalkLive(false)}>← Back to screenshots</button>
-                    <a href={`/try/${GALLERY_SHOTS[walkIdx].demo}`} target="_blank" rel="noreferrer" className="cl-live-full">Open the full demo ↗</a>
-                  </div>
-                </div>
-              ) : (
-              <AnimatePresence mode="wait" custom={walkDir.current}>
-                <motion.button
-                  key={walkIdx} type="button" className="cl-gallery-shot-btn"
-                  custom={walkDir.current}
-                  onClick={() => { setLightboxIdx(walkIdx); setWalkAuto(false); }}
-                  aria-label={`Preview: ${GALLERY_SHOTS[walkIdx].caption}`}
-                  variants={{
-                    enter: (dir) => ({ opacity: 0, x: 56 * dir, scale: 0.975 }),
-                    center: { opacity: 1, x: 0, scale: 1 },
-                    exit: (dir) => ({ opacity: 0, x: -56 * dir, scale: 0.975 }),
-                  }}
-                  initial="enter" animate="center" exit="exit"
-                  transition={{ duration: 0.45, ease: [0.32, 0.72, 0.24, 1] }}
-                >
-                  <div className="cl-browser-bar"><span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" /><span className="cl-url">{GALLERY_SHOTS[walkIdx].url}</span></div>
-                  <div className="cl-shot-img-wrap">
-                    <img className="cl-shot-img" src={GALLERY_SHOTS[walkIdx].src} alt={GALLERY_SHOTS[walkIdx].caption} loading="lazy" />
-                    <span className="cl-gallery-zoom">{I.expand}</span>
-                  </div>
-                </motion.button>
-              </AnimatePresence>
-              )}
-              {!walkLive && GALLERY_SHOTS[walkIdx].demo && demoKeys.includes(GALLERY_SHOTS[walkIdx].demo) && (
-                <button type="button" className="cl-try-live"
-                  onClick={() => { setWalkLive(true); setWalkAuto(false); }}>
-                  ▶ Try it live right here
-                </button>
-              )}
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {lightboxIdx !== null && (
-        <div className="cl-lightbox" onClick={() => setLightboxIdx(null)}>
-          <button type="button" className="cl-lightbox-close" onClick={() => setLightboxIdx(null)} aria-label="Close preview">{I.close}</button>
-          <button
-            type="button" className="cl-lightbox-nav cl-lightbox-prev" aria-label="Previous screenshot"
-            onClick={(e) => { e.stopPropagation(); setLightboxIdx((i) => (i - 1 + GALLERY_SHOTS.length) % GALLERY_SHOTS.length); }}
-          >{I.arrowLeft}</button>
-          <div className="cl-lightbox-inner" onClick={(e) => e.stopPropagation()}>
-            <div className="cl-browser-bar"><span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" /><span className="cl-url">{GALLERY_SHOTS[lightboxIdx].url}</span></div>
-            <img className="cl-lightbox-img" src={GALLERY_SHOTS[lightboxIdx].src} alt={GALLERY_SHOTS[lightboxIdx].caption} />
-            <div className="cl-lightbox-caption">{GALLERY_SHOTS[lightboxIdx].caption}</div>
-          </div>
-          <button
-            type="button" className="cl-lightbox-nav cl-lightbox-next" aria-label="Next screenshot"
-            onClick={(e) => { e.stopPropagation(); setLightboxIdx((i) => (i + 1) % GALLERY_SHOTS.length); }}
-          >{I.arrowRight}</button>
-        </div>
-      )}
 
       <section className="cl-sec cl-tint" id="themes">
         <div className="cl-wrap">
