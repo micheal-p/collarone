@@ -201,7 +201,7 @@ function Marquee({ site }) {
   const items = ['New Season', 'Free Delivery', 'Pay on Delivery', 'Made to Last', 'Secure Checkout'];
   const row = [...items, ...items];
   return (
-    <div className="at-marq"><div className="track">{row.map((t, i) => <span key={i}>{t}<i>✳</i></span>)}</div></div>
+    <div className="at-marq"><div className="track">{row.map((t, i) => <span key={i}>{t}<i><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 2h2v7.2l6.2-3.6 1 1.8L14 11l6.2 3.6-1 1.8L13 12.8V20h-2v-7.2l-6.2 3.6-1-1.8L10 11 3.8 7.4l1-1.8L11 9.2V2z" /></svg></i></span>)}</div></div>
   );
 }
 

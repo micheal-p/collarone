@@ -33,7 +33,12 @@ const COPY = {
   'hr.bulk_imported': (p) => `${p.count || 'New'} staff imported to the team`,
   'invoice.recurring_generated': (p) => `Recurring invoice ${p.docNo || ''} ready for ${p.party || 'your customer'} — review & send`,
 };
-const ICON = (type) => (type.startsWith('payment.') ? '₦' : type.startsWith('billing.') ? '◷' : type.startsWith('hr.') ? '👤' : '•');
+const ICON = (type) => {
+  if (type.startsWith('payment.')) return '₦'; // currency symbol, not decoration
+  if (type.startsWith('billing.')) return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>;
+  if (type.startsWith('hr.')) return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>;
+  return <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /></svg>;
+};
 
 const ago = (iso) => {
   const s = (Date.now() - new Date(iso).getTime()) / 1000;

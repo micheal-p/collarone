@@ -275,7 +275,10 @@ function RuleModal({ staff, aiEnabled, onClose, onSaved, flash }) {
     <Modal title="New automation rule" onClose={onClose} wide>
       {aiEnabled && (
         <div style={{ background: 'var(--brand-100, rgba(255,91,31,0.08))', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
-          <label style={{ fontSize: 13, fontWeight: 650, display: 'block', marginBottom: 6 }}>✨ Describe it — we'll set it up</label>
+          <label style={{ fontSize: 13, fontWeight: 650, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--brand)" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2zm7 13l.9 3.1L23 19l-3.1.9L19 23l-.9-3.1L15 19l3.1-.9L19 15z" /></svg>
+            Describe it — we&apos;ll set it up
+          </label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input className="input" style={{ flex: 1, minWidth: 220 }} value={prompt} onChange={(e) => setPrompt(e.target.value)}
               placeholder={'e.g. "when a deal is won, congratulate everyone" or "every Friday remind Ops to send the report"'}
@@ -361,7 +364,7 @@ function RuleModal({ staff, aiEnabled, onClose, onSaved, flash }) {
       {(f.action_kind === 'banner' || f.action_kind === 'bell') && (
         <div className="field"><label>Message</label>
           <input className="input" value={f.action_config.message} onChange={(e) => setCfg('message', e.target.value)}
-            placeholder={f.action_kind === 'bell' ? '🎉 We won {title} — {valueNaira}!' : 'Message shown across the workspace'} /></div>
+            placeholder={f.action_kind === 'bell' ? 'We won {title} — {valueNaira}!' : 'Message shown across the workspace'} /></div>
       )}
       {f.action_kind === 'email' && (
         <>

@@ -317,7 +317,14 @@ function MyReviews() {
           </div>
           {open === r.id && (
             <div style={{ fontSize: 12.5, color: 'var(--text-2)', marginTop: 8, lineHeight: 1.7 }}>
-              {r.rating && <div>Rating: {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}</div>}
+              {r.rating && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  Rating:
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <svg key={n} width="12" height="12" viewBox="0 0 24 24" fill={n <= r.rating ? 'var(--brand)' : 'none'} stroke={n <= r.rating ? 'var(--brand)' : 'var(--text-3, #999)'} strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z" /></svg>
+                  ))}
+                </div>
+              )}
               {r.strengths && <p style={{ margin: '4px 0 0' }}><b>Strengths:</b> {r.strengths}</p>}
               {r.improvements && <p style={{ margin: '4px 0 0' }}><b>Areas to improve:</b> {r.improvements}</p>}
             </div>

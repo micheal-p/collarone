@@ -62,7 +62,7 @@ function FeedbackModal({ suiteKey, onDone }) {
       <div role="dialog" aria-modal="true" aria-label="Demo feedback" style={{ width: 'min(440px, 100%)', background: '#fff', borderRadius: 16, padding: '26px 28px', boxShadow: '0 30px 80px rgba(0,0,0,0.4)' }} onMouseDown={(e) => e.stopPropagation()}>
         {sent ? (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: 34 }}>🙏</div>
+            <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#1a6a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5" /><path d="M8 12.5l2.7 2.7L16.5 9" /></svg>
             <div style={{ fontWeight: 750, fontSize: 17, marginTop: 8 }}>Thank you — that helps us build better.</div>
           </div>
         ) : (

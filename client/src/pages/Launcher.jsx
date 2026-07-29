@@ -59,7 +59,10 @@ function AiSetupPanel({ onApplied }) {
     <div className="setup-ai">
       {!plan ? (
         <>
-          <label className="setup-ai-label">✨ Describe your business — we&apos;ll set it up</label>
+          <label className="setup-ai-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--brand)" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2zm7 13l.9 3.1L23 19l-3.1.9L19 23l-.9-3.1L15 19l3.1-.9L19 15z" /></svg>
+            Describe your business — we&apos;ll set it up
+          </label>
           <div className="setup-ai-row">
             <input className="setup-ai-input" value={prompt} onChange={(e) => setPrompt(e.target.value)}
               placeholder={'e.g. "a bakery in Surulere with drivers, bakers and two shops"'}

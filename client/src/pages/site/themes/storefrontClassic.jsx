@@ -97,14 +97,17 @@ export default function StorefrontClassic({ data, activeSlug, setActiveSlug }) {
               <div key={i}>
                 <motion.section className="sc-hero" initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.09 } } }}>
                   <div>
-                    {c.eyebrow && <motion.div className="sc-badge" variants={rise}>★ {c.eyebrow}</motion.div>}
+                    {c.eyebrow && <motion.div className="sc-badge" variants={rise}><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" style={{ verticalAlign: '-1px', marginRight: 5 }} aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z" /></svg>{c.eyebrow}</motion.div>}
                     <motion.h1 className="sc-h1" variants={rise} dangerouslySetInnerHTML={emph(c.heading)} />
                     {c.subheading && <motion.p className="sc-sub" variants={rise}>{c.subheading}</motion.p>}
                     {c.button_text && <motion.div variants={rise}><a className="sc-btn" href={c.button_link || '#shop'}>{c.button_text}</a></motion.div>}
                   </div>
                   {c.image_url && <motion.div className="sc-shot" variants={rise}><img src={c.image_url} alt="" /></motion.div>}
                 </motion.section>
-                <div className="sc-trust"><div className="sc-trust-in"><span><b>✓</b> Secure checkout</span><span><b>✓</b> Nationwide delivery</span><span><b>✓</b> Pay on delivery</span><span><b>✓</b> Real Nigerian sellers</span></div></div>
+                {(() => {
+                  const tick = <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: '-1px' }} aria-hidden="true"><path d="M5 12l5 5 9-10" /></svg>;
+                  return <div className="sc-trust"><div className="sc-trust-in"><span><b>{tick}</b> Secure checkout</span><span><b>{tick}</b> Nationwide delivery</span><span><b>{tick}</b> Pay on delivery</span><span><b>{tick}</b> Real Nigerian sellers</span></div></div>;
+                })()}
               </div>
             );
             if (b.type === 'products') return <Products key={i} c={c} site={data} />;

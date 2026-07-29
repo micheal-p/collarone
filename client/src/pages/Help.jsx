@@ -90,7 +90,7 @@ const SECTIONS = [
   {
     id: 'mobile',
     title: '4. On your phone',
-    body: 'The whole platform is responsive — suite tiles stack to a single column, the left rail collapses behind the hamburger menu (☰) top-left, and tables scroll horizontally where needed. Everything you can do on desktop, you can do on mobile — this was built for teams who are out in the field as often as they\'re at a desk.',
+    body: 'The whole platform is responsive — suite tiles stack to a single column, the left rail collapses behind the menu button top-left, and tables scroll horizontally where needed. Everything you can do on desktop, you can do on mobile — this was built for teams who are out in the field as often as they\'re at a desk.',
     mockup: <MobileMockup />,
   },
 ];

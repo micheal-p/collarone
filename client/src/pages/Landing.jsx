@@ -481,7 +481,7 @@ export default function Landing() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ delay: 1.15, duration: 0.55, ease: [0.16, 0.8, 0.2, 1] }}
             >
-              <span className="cl-toast-ic ok">✓</span>
+              <span className="cl-toast-ic ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10" /></svg></span>
               <span><strong>Leave approved</strong><small>Bola A. · just now</small></span>
             </motion.div>
             <motion.div
