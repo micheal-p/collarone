@@ -797,6 +797,43 @@ export async function supabaseApi(path, opts = {}) {
     return { loan: data };
   }
 
+  // ---- attendance shifts (rosters) ----
+  if (head === 'GET /attendance' && seg[1] === 'shifts') {
+    const [sh, asn] = await Promise.all([
+      supabase.from('attendance_shifts').select('*').order('start_time'),
+      supabase.from('attendance_shift_assignments').select('shift_id, user_id'),
+    ]);
+    if (sh.error) fail(sh.error.code === '42501' ? 403 : 400, sh.error.message);
+    return { shifts: sh.data, assignments: asn.data || [] };
+  }
+  if (head === 'POST /attendance' && seg[1] === 'shifts' && seg.length === 2) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('attendance_shifts').insert({
+      org_id: await myOrgId(), name: (body.name || '').trim(), start_time: body.startTime,
+      end_time: body.endTime, days: body.days || [1, 2, 3, 4, 5], created_by: user.id,
+    }).select().single();
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { shift: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'attendance' && seg[1] === 'shifts' && seg.length === 3) {
+    const { error } = await supabase.from('attendance_shifts').delete().eq('id', seg[2]);
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { ok: true };
+  }
+  if (method === 'POST' && seg[0] === 'attendance' && seg[1] === 'shifts' && seg[3] === 'assign') {
+    const orgId = await myOrgId();
+    const ids = (body.userIds || []).slice(0, 200);
+    if (!ids.length) fail(400, 'Pick at least one person.');
+    const { error } = await supabase.from('attendance_shift_assignments')
+      .upsert(ids.map((u) => ({ org_id: orgId, shift_id: seg[2], user_id: u })), { onConflict: 'org_id,user_id' });
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { ok: true };
+  }
+  if (method === 'POST' && seg[0] === 'attendance' && seg[1] === 'shifts' && seg[2] === 'unassign') {
+    const { error } = await supabase.from('attendance_shift_assignments').delete().eq('user_id', body.userId);
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { ok: true };
+  }
   if (head === 'GET /payroll' && seg[1] === 'mypayslips') {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('payroll_lines')
