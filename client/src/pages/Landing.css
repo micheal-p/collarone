@@ -450,7 +450,7 @@
 .cl-plan-chip-sub a { color: var(--accent-ink); font-weight: 600; }
 .cl-plan-chip-tag { position: absolute; top: -9px; left: 18px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 100px; letter-spacing: .04em; text-transform: uppercase; }
 
-.cl-calc { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px 32px; margin: 32px auto; max-width: 960px; box-shadow: var(--shadow-sm); }
+.cl-calc { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 28px 32px; margin: 32px auto; max-width: 1140px; box-shadow: var(--shadow-sm); }
 .cl-calc-h { font-size: 15px; font-weight: 700; margin: 0 0 18px; }
 .cl-calc-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
 .cl-calc-controls { min-width: 0; }

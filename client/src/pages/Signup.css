@@ -12,6 +12,9 @@
 .su-back { display: block; text-align: center; font-size: 12.5px; color: rgba(244,241,234,0.5); text-decoration: none; margin: -18px 0 24px; }
 .su-back:hover { color: rgba(244,241,234,0.85); text-decoration: underline; }
 
+/* Step 1 (the suite cart) breathes at near-full width so the whole pick fits
+   one screen; the form steps stay narrow — long lines hurt form filling. */
+.su-card-wide { max-width: 920px !important; }
 .su-card { width: 100%; max-width: 560px; background: #fff; border: 1px solid rgba(10,14,26,0.09); border-radius: 20px;
   box-shadow: 0 24px 64px rgba(10,14,26,0.10), 0 4px 12px rgba(10,14,26,0.04); padding: 36px 36px 32px; }
 @media (max-width: 600px) { .su-card { padding: 28px 22px 24px; } }

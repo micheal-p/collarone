@@ -239,7 +239,7 @@ export default function Signup() {
       </Link>
       <Link className="su-back" to="/">← Back to homepage</Link>
 
-      <div className="su-card">
+      <div className={`su-card${step === 'plan' ? ' su-card-wide' : ''}`}>
         <div className="su-steps">
           {STEPS.map((s, i) => (
             <div key={s} className={`su-step-dot ${i < stepIdx ? 'done' : i === stepIdx ? 'active' : ''}`} />
