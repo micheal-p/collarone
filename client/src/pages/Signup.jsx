@@ -254,6 +254,8 @@ export default function Signup() {
             <h1 className="su-h">Build your workspace</h1>
             <p className="su-sub">Pick the suites you need — we automatically put you on the cheapest plan for them. Add more anytime; your rate locks in today and never goes up.</p>
 
+            <AiSuitePicker onPick={(keys) => setSuites(new Set(requiredFoundations(keys)))} />
+
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <span style={{ fontSize: 12.5, fontWeight: 600, color: '#667' }}>Quick start:</span>
               {PRESETS.map((p) => (
@@ -506,6 +508,56 @@ export default function Signup() {
       {step !== 'payment' && (
         <p className="su-foot">Already have a workspace? <Link to="/login">Sign in</Link></p>
       )}
+    </div>
+  );
+}
+
+// "Describe your business — we'll pick your suites." The AI signup helper:
+// public read-only endpoint (throttled server-side), applies its suggestion
+// straight to the cart (foundations auto-added), and the visitor can still
+// tick anything on or off afterwards. Hidden entirely until the platform's
+// AI is switched on — no dead UI.
+function AiSuitePicker({ onPick }) {
+  const [enabled, setEnabled] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [why, setWhy] = useState('');
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    fetch('/api/onboard-ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'status' }) })
+      .then((r) => r.json()).then((d) => setEnabled(Boolean(d.enabled))).catch(() => {});
+  }, []);
+  if (!enabled) return null;
+
+  const suggest = async () => {
+    setBusy(true); setErr(''); setWhy('');
+    try {
+      const r = await fetch('/api/onboard-ai', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'suggest', prompt }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.message || 'Suggestion failed.');
+      const valid = d.suites.filter((k) => SUITES.some((s) => s.key === k && s.status === 'live'));
+      if (valid.length) { onPick(valid); setWhy(d.why || 'Done — your picks are ticked below. Adjust anything.'); }
+      else setErr('No matching suites — pick them yourself below.');
+    } catch (e) { setErr(e.message); } finally { setBusy(false); }
+  };
+
+  return (
+    <div style={{ background: 'rgba(255,91,31,0.07)', borderRadius: 12, padding: '13px 15px', marginBottom: 16 }}>
+      <label style={{ display: 'block', fontSize: 13, fontWeight: 650, marginBottom: 7 }}>✨ Not sure what you need? Describe your business</label>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && prompt.trim().length >= 8 && suggest()}
+          placeholder={'e.g. "a fashion store in Aba with 12 staff and two tailoring units"'}
+          style={{ flex: 1, minWidth: 220, padding: '9px 12px', borderRadius: 10, border: '1px solid #d8d2c4', font: 'inherit', fontSize: 13.5 }} />
+        <button type="button" className="su-btn su-btn-primary" disabled={busy || prompt.trim().length < 8} onClick={suggest}
+          style={{ flexShrink: 0 }}>{busy ? 'Thinking…' : 'Pick for me'}</button>
+      </div>
+      {why && <p style={{ fontSize: 12.5, color: '#1a6a1a', margin: '8px 0 0', lineHeight: 1.5 }}>{why}</p>}
+      {err && <p style={{ fontSize: 12.5, color: '#a4262c', margin: '8px 0 0' }}>{err}</p>}
     </div>
   );
 }
