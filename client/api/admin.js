@@ -89,6 +89,35 @@ export default async function handler(req, res) {
           org_id: caller.org_id, delta: -1, reason: 'staff_created', related_profile_id: profile.id, created_by: user.id,
         });
       }
+
+      // ---- hire automation: the suites act like brothers, not silos --------
+      // All best-effort — a hiccup here never fails the account creation.
+      try {
+        // 1) Leave: seed this year's balances for every tracked leave type
+        //    (entitled=null → "use the type's default_days"), so the new
+        //    person can request leave on day one without HR doing setup.
+        const year = new Date().getFullYear();
+        const { data: ltypes } = await admin.from('leave_types')
+          .select('id').eq('org_id', caller.org_id).eq('active', true).eq('tracked', true);
+        if (ltypes?.length) {
+          await admin.from('leave_balances').upsert(
+            ltypes.map((t) => ({ user_id: profile.id, leave_type_id: t.id, year, org_id: caller.org_id })),
+            { onConflict: 'user_id,leave_type_id,year', ignoreDuplicates: true },
+          );
+        }
+        // 2) Tasks: one onboarding task for the admin who hired them, listing
+        //    the setup only a human can decide (salary, bank, assets, benefits).
+        await admin.from('tasks').insert({
+          org_id: caller.org_id, created_by: user.id, assigned_to: user.id,
+          title: `Onboard ${name.trim()}`,
+          description: `Finish setting up ${name.trim()}${jobTitle ? ` (${jobTitle})` : ''}:\n• Salary structure & bank details (Payroll)\n• Assign any equipment (IT Assets)\n• Enrol benefits (HMO / pension)\n• Share their login and first-day info`,
+          priority: 'high',
+          due_date: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10),
+        });
+        // 3) The event spine: visible in every teammate's notification bell.
+        await emitOrgEvent(admin, caller.org_id, 'hr.hired', { name: name.trim(), jobTitle: jobTitle || '' }, user.id);
+      } catch { /* automation is a bonus on top of a successful hire */ }
+
       const payrollDropped = (suites || []).some((s) => s.key === 'payroll') && !grantedSuites.some((s) => s.key === 'payroll');
       return json(res, 201, payrollDropped ? { ...profile, warning: 'Payroll can only be enabled from a Nigerian IP address — it was left out for this account.' } : profile);
     }
