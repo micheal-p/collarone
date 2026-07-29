@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PublicThemeGallery from '../components/PublicThemeGallery.jsx';
+import { PublicFooter } from '../components/PublicChrome.jsx';
 import './Landing.css';
 
 const rise = { initial: { opacity: 0, y: 22 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: '-40px' }, transition: { duration: 0.55 } };
@@ -108,9 +109,7 @@ export default function PublicThemes() {
         </div>
       </section>
 
-      <footer style={{ textAlign: 'center', padding: '40px 20px', borderTop: '1px solid var(--line)', color: 'var(--text-faint)', fontSize: 13 }}>
-        © {new Date().getFullYear()} Collarone · <Link to="/" style={{ color: 'inherit' }}>Home</Link>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

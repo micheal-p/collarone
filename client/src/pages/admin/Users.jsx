@@ -123,6 +123,7 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [bulkGrantOpen, setBulkGrantOpen] = useState(false);
   const [manage,  setManage]  = useState(null);
   const [viewUser, setViewUser] = useState(null);
   const [rowMenu, setRowMenu] = useState(null); // { id, rect } | null
@@ -165,6 +166,22 @@ export default function AdminUsers() {
     let n = 0; for (const u of targets) { if (await setStatus(u, status)) n++; }
     setSelected(new Set()); flash(`${n} account${n === 1 ? '' : 's'} ${status === 'active' ? 'enabled' : 'disabled'}.`);
   };
+  // Grant one suite set to every selected user — the "we hired a department"
+  // move. Server-side grant-suites re-checks org ownership per user.
+  const applyBulkGrant = async (suites) => {
+    const targets = view.filter((u) => selected.has(u.id) && u.role !== 'super_admin');
+    let n = 0; let warned = false;
+    for (const u of targets) {
+      try {
+        const d = await apiPut(`/users/${u.id}/suites`, { suites });
+        replace(d.user || d);
+        if (d.warning && !warned) { flash(d.warning, true); warned = true; }
+        n++;
+      } catch (e) { flash(`${u.name}: ${e.message}`, true); }
+    }
+    setSelected(new Set()); setBulkGrantOpen(false);
+    if (n) flash(`Suites updated for ${n} account${n === 1 ? '' : 's'}.`);
+  };
   const resetPw = async (u) => {
     const res = await confirm({
       title: 'Reset password',
@@ -186,6 +203,7 @@ export default function AdminUsers() {
       <button className="cmd" onClick={() => { setLoading(true); load(); }}><span className="ci">{I.refresh}</span> Refresh</button>
       {hasSel && (<>
         <span className="cmd-divider" />
+        <button className="cmd" onClick={() => setBulkGrantOpen(true)}><span className="ci">{I.check}</span> Grant suites ({selected.size})</button>
         <button className="cmd" onClick={() => bulkStatus('disabled')}><span className="ci">{I.block}</span> Disable ({selected.size})</button>
         <button className="cmd" onClick={() => bulkStatus('active')}><span className="ci">{I.check}</span> Enable</button>
       </>)}
@@ -271,8 +289,10 @@ export default function AdminUsers() {
         </table>
       </div>
 
-      {importOpen && <BulkImportModal flash={flash} onClose={() => setImportOpen(false)}
+      {importOpen && <BulkImportModal catalog={grantableCatalog} flash={flash} onClose={() => setImportOpen(false)}
         onDone={() => load()} />}
+      {bulkGrantOpen && <BulkGrantModal catalog={grantableCatalog} count={selected.size} onClose={() => setBulkGrantOpen(false)}
+        onApply={applyBulkGrant} />}
       {createOpen && <CreateUserModal catalog={grantableCatalog} departments={departments} onClose={() => setCreateOpen(false)}
         onCreated={(u, warning) => { setUsers((l) => [u, ...l]); setCreateOpen(false); flash(warning || `${u.name} created.`, Boolean(warning)); }} onError={(m) => flash(m, true)} />}
       {manage && <EditUserModal user={manage} catalog={grantableCatalog} departments={departments} onClose={() => setManage(null)}
@@ -519,11 +539,16 @@ const FIELDS = [
   { key: 'department', label: 'Department', guess: /dept|department|unit/i },
 ];
 
-function BulkImportModal({ onClose, onDone, flash }) {
+function BulkImportModal({ catalog, onClose, onDone, flash }) {
   const [rows, setRows] = useState(null);       // parsed csv incl header
   const [map, setMap] = useState({});           // fieldKey -> column index
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState(null); // server results
+  // One role + suite set for EVERYONE in the file — so imported staff land
+  // ready to work, not locked out of an empty launcher. Fine-tune individuals
+  // later from this page. Bulk deliberately can't mint System Admins.
+  const [role, setRole] = useState('staff');
+  const [suites, setSuites] = useState([]);
 
   const loadText = (text) => {
     const parsed = parseCsv(text);
@@ -562,8 +587,9 @@ function BulkImportModal({ onClose, onDone, flash }) {
     setBusy(true);
     try {
       const payload = mapped.filter((_, i) => !problems[i]);
-      const d = await apiPost('/users/bulk', { rows: payload });
+      const d = await apiPost('/users/bulk', { rows: payload, role, suites });
       setOutcome(d);
+      if (d.warning) flash(d.warning, true);
       onDone(d);
     } catch (e) { flash(e.message, true); } finally { setBusy(false); }
   };
@@ -632,6 +658,19 @@ function BulkImportModal({ onClose, onDone, flash }) {
               </div>
             ))}
           </div>
+          <div className="form-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', marginTop: 4 }}>
+            <div className="field" style={{ minWidth: 140, flex: '0 0 auto' }}>
+              <label>Everyone joins as</label>
+              <select className="select" value={role} onChange={(e) => setRole(e.target.value)}>
+                <option value="staff">Staff</option>
+                <option value="manager">Manager</option>
+              </select>
+            </div>
+            <div className="field" style={{ flex: 1, minWidth: 260 }}>
+              <label>Suites for everyone in this file <span className="muted">— adjust individuals later</span></label>
+              <SuiteGrantPicker catalog={catalog} value={suites} onChange={setSuites} />
+            </div>
+          </div>
           <div style={{ margin: '10px 0 4px', fontSize: 13 }}>
             <strong>{validCount}</strong> of {body.length} row{body.length === 1 ? '' : 's'} ready to import
             {validCount < body.length && <span className="muted"> — rows with problems are skipped, shown below</span>}
@@ -658,6 +697,26 @@ function BulkImportModal({ onClose, onDone, flash }) {
           </div>
         </div>
       )}
+    </Modal>
+  );
+}
+
+// One suite set applied to every selected user at once.
+function BulkGrantModal({ catalog, count, onClose, onApply }) {
+  const [suites, setSuites] = useState([]);
+  const [busy, setBusy] = useState(false);
+  return (
+    <Modal title={`Grant suites — ${count} selected`} onClose={onClose}>
+      <p className="muted" style={{ fontSize: 13, margin: '2px 0 10px' }}>
+        This replaces each selected person&apos;s suite access with the set below. System Admins are never affected.
+      </p>
+      <SuiteGrantPicker catalog={catalog} value={suites} onChange={setSuites} />
+      <div className="modal-actions">
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" disabled={busy} onClick={async () => { setBusy(true); await onApply(suites); setBusy(false); }}>
+          {busy ? <span className="spinner" /> : `Apply to ${count}`}
+        </button>
+      </div>
     </Modal>
   );
 }
