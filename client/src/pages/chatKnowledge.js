@@ -39,6 +39,13 @@ function priceQuote(text) {
 // answer, follow-up chips, and optionally human=true to open the hand-off.
 const INTENTS = [
   {
+    id: 'ai-included',
+    phrases: ['is ai free', 'ai cost', 'pay for ai', 'ai extra', 'ai included', 'artificial intelligence'],
+    keys: ['ai', 'free', 'included', 'cost', 'extra', 'charge'],
+    answer: 'AI is included — every Collarone customer gets the AI features at no extra charge: AI-drafted company letters, AI-built automations ("describe it and it sets itself up"), AI job-post tidy-up on the free jobs board, and AI workspace setup when you join. No add-on fee, no credits to buy — if you\'re on Collarone, it\'s yours.',
+    chips: ['What does Collarone cost?', 'What suites are included?', 'How do I get started?'],
+  },
+  {
     id: 'greeting',
     // single-word greetings are phrases (weight 3): a bare "hi" must clear
     // the confidence threshold — matching is word-boundary-safe, see norm()

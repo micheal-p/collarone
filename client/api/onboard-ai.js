@@ -57,6 +57,18 @@ function validatePlan(raw) {
   return { departments, leaveTypes, suggestedSuites, summary };
 }
 
+// Cheap in-memory throttle for the PUBLIC suggest action (it burns OpenAI
+// tokens): a handful of calls per IP per minute is plenty for real signups.
+const suggestHits = new Map();
+const throttled = (ip) => {
+  const now = Date.now();
+  const hits = (suggestHits.get(ip) || []).filter((t) => now - t < 60_000);
+  hits.push(now);
+  suggestHits.set(ip, hits);
+  if (suggestHits.size > 5000) suggestHits.clear(); // bound memory
+  return hits.length > 8;
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { message: 'Method not allowed' });
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
@@ -64,6 +76,46 @@ export default async function handler(req, res) {
   if (body.action === 'status') return json(res, 200, { enabled: AI_ENABLED });
   if (!AI_ENABLED) return json(res, 400, { message: 'AI setup is not switched on yet.' });
   if (!SERVICE_KEY) return json(res, 500, { message: 'Server not configured.' });
+
+  // 'suggest' — the SIGNUP CART helper: describe the business, get the suites
+  // that fit. Public (the visitor has no account yet), read-only, throttled.
+  if (body.action === 'suggest') {
+    if (throttled(req.ip || req.socket?.remoteAddress || 'unknown')) {
+      return json(res, 429, { message: 'A moment — try again shortly.' });
+    }
+    const prompt = String(body.prompt || '').slice(0, 300).trim();
+    if (prompt.length < 8) return json(res, 400, { message: 'Describe the business in a sentence.' });
+    try {
+      const r = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: OPENAI_MODEL,
+          response_format: { type: 'json_object' },
+          messages: [
+            {
+              role: 'system',
+              content:
+                'A Nigerian business owner describes their business; pick which Collarone suites fit. Return ONLY JSON: ' +
+                `suites (3-7 keys from ${ALL_SUITES.join(', ')}, most valuable for THIS business first — hr for any team, crm for selling/clients, inventory+trade-docs for shops, attendance for field/shift work, payroll when they run salaries, projects for client-project work), ` +
+                'why (one warm plain-English sentence saying what you picked and why, no jargon).',
+            },
+            { role: 'user', content: prompt },
+          ],
+          max_tokens: 250,
+          temperature: 0.3,
+        }),
+      });
+      if (!r.ok) throw new Error('ai_failed');
+      const data = await r.json();
+      const raw = JSON.parse(data.choices?.[0]?.message?.content || '{}');
+      const suites = [...new Set((Array.isArray(raw.suites) ? raw.suites : []).filter((k) => ALL_SUITES.includes(k)))].slice(0, 8);
+      if (!suites.length) return json(res, 422, { message: "Couldn't match that to suites — try saying what the business does." });
+      return json(res, 200, { suites, why: String(raw.why || '').slice(0, 250) });
+    } catch {
+      return json(res, 502, { message: 'AI suggestion hiccuped — try again, or pick suites yourself below.' });
+    }
+  }
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
