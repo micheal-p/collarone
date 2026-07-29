@@ -517,6 +517,9 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { users: data.map(toPublic) };
   }
+  if (head === 'POST /users' && seg[1] === 'bulk') {
+    return callAdmin('bulk-create', { rows: body.rows });
+  }
   if (head === 'POST /users') {
     const created = await callAdmin('create', body);
     return { user: toPublic(created), warning: created.warning };

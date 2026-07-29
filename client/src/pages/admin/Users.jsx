@@ -122,6 +122,7 @@ export default function AdminUsers() {
   const [selected, setSelected] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [manage,  setManage]  = useState(null);
   const [viewUser, setViewUser] = useState(null);
   const [rowMenu, setRowMenu] = useState(null); // { id, rect } | null
@@ -181,6 +182,7 @@ export default function AdminUsers() {
   const commandBar = (
     <>
       <button className="cmd" onClick={() => setCreateOpen(true)}><span className="ci">{I.addUser}</span> Add a user</button>
+      <button className="cmd" onClick={() => setImportOpen(true)}><span className="ci">{I.addUser}</span> Import from Excel</button>
       <button className="cmd" onClick={() => { setLoading(true); load(); }}><span className="ci">{I.refresh}</span> Refresh</button>
       {hasSel && (<>
         <span className="cmd-divider" />
@@ -269,6 +271,8 @@ export default function AdminUsers() {
         </table>
       </div>
 
+      {importOpen && <BulkImportModal flash={flash} onClose={() => setImportOpen(false)}
+        onDone={() => load()} />}
       {createOpen && <CreateUserModal catalog={grantableCatalog} departments={departments} onClose={() => setCreateOpen(false)}
         onCreated={(u, warning) => { setUsers((l) => [u, ...l]); setCreateOpen(false); flash(warning || `${u.name} created.`, Boolean(warning)); }} onError={(m) => flash(m, true)} />}
       {manage && <EditUserModal user={manage} catalog={grantableCatalog} departments={departments} onClose={() => setManage(null)}
@@ -479,6 +483,181 @@ function EditUserModal({ user, catalog, departments, onClose, onSaved, onError }
         <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
         <button className="btn btn-primary" onClick={save} disabled={busy}>{busy ? <span className="spinner" /> : 'Save changes'}</button>
       </div>
+    </Modal>
+  );
+}
+
+// ---------- Bulk import (the "our staff list is in Excel" path) ----------
+// Quote-aware CSV parser — tiny and dependency-free on purpose (the repo
+// avoids new deps for one feature). Handles quoted fields, escaped quotes,
+// and both \n and \r\n.
+function parseCsv(text) {
+  const rows = []; let row = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += ch;
+    } else if (ch === '"') inQ = true;
+    else if (ch === ',') { row.push(cur); cur = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(cur); cur = '';
+      if (row.some((c) => c.trim() !== '')) rows.push(row);
+      row = [];
+    } else cur += ch;
+  }
+  row.push(cur);
+  if (row.some((c) => c.trim() !== '')) rows.push(row);
+  return rows;
+}
+
+const FIELDS = [
+  { key: 'name', label: 'Full name', required: true, guess: /name/i },
+  { key: 'email', label: 'Email', required: true, guess: /mail/i },
+  { key: 'jobTitle', label: 'Job title', guess: /title|role|position|designation/i },
+  { key: 'department', label: 'Department', guess: /dept|department|unit/i },
+];
+
+function BulkImportModal({ onClose, onDone, flash }) {
+  const [rows, setRows] = useState(null);       // parsed csv incl header
+  const [map, setMap] = useState({});           // fieldKey -> column index
+  const [busy, setBusy] = useState(false);
+  const [outcome, setOutcome] = useState(null); // server results
+
+  const loadText = (text) => {
+    const parsed = parseCsv(text);
+    if (parsed.length < 2) { flash('That file needs a header row plus at least one staff row.', true); return; }
+    const header = parsed[0];
+    const guessed = {};
+    for (const f of FIELDS) {
+      const idx = header.findIndex((h) => f.guess.test(h));
+      if (idx >= 0) guessed[f.key] = idx;
+    }
+    setMap(guessed); setRows(parsed);
+  };
+  const onFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    file.text().then(loadText, () => flash('Could not read that file.', true));
+    e.target.value = '';
+  };
+
+  const header = rows?.[0] || [];
+  const body = rows ? rows.slice(1) : [];
+  const mapped = body.map((r) => Object.fromEntries(FIELDS.map((f) => [f.key, map[f.key] != null ? String(r[map[f.key]] || '').trim() : ''])));
+  const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const seen = new Set();
+  const problems = mapped.map((m) => {
+    if (!m.name) return 'Missing name';
+    if (!emailRx.test(m.email)) return 'Invalid email';
+    const e = m.email.toLowerCase();
+    if (seen.has(e)) return 'Duplicate email in file';
+    seen.add(e); return null;
+  });
+  const validCount = problems.filter((p) => !p).length;
+  const ready = map.name != null && map.email != null && validCount > 0;
+
+  const runImport = async () => {
+    setBusy(true);
+    try {
+      const payload = mapped.filter((_, i) => !problems[i]);
+      const d = await apiPost('/users/bulk', { rows: payload });
+      setOutcome(d);
+      onDone(d);
+    } catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+
+  const downloadCredentials = () => {
+    const ok = (outcome?.results || []).filter((r) => r.tempPassword);
+    const csv = ['Name,Email,Temporary password',
+      ...ok.map((r) => `"${r.name.replace(/"/g, '""')}",${r.email},${r.tempPassword}`)].join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = 'collarone-staff-logins.csv';
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+
+  if (outcome) {
+    const ok = outcome.results.filter((r) => r.tempPassword);
+    const bad = outcome.results.filter((r) => r.error);
+    return (
+      <Modal title="Import finished" onClose={onClose}>
+        <p style={{ fontSize: 14, margin: '2px 0 12px' }}>
+          <strong>{ok.length}</strong> account{ok.length === 1 ? '' : 's'} created{bad.length > 0 && <> · <strong>{bad.length}</strong> skipped</>}.
+        </p>
+        {ok.length > 0 && (
+          <div className="field">
+            <button className="btn btn-primary" onClick={downloadCredentials}>Download logins (CSV)</button>
+            <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
+              Each person gets a temporary password and must change it at first sign-in. Share these privately — this is the only time they're shown.
+            </p>
+          </div>
+        )}
+        {bad.length > 0 && (
+          <div className="field" style={{ maxHeight: 180, overflowY: 'auto' }}>
+            {bad.map((r, i) => <div key={i} style={{ fontSize: 12.5, padding: '3px 0' }}><strong>{r.email || r.name || `Row ${i + 1}`}</strong> — {r.error}</div>)}
+          </div>
+        )}
+        <div className="modal-actions"><button className="btn btn-primary" onClick={onClose}>Done</button></div>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title="Import staff from Excel" onClose={onClose} wide>
+      {!rows ? (
+        <div>
+          <p style={{ fontSize: 14, lineHeight: 1.6, margin: '0 0 14px' }}>
+            Bring your existing staff list instead of typing it. In Excel or Google Sheets:
+            <strong> File → Save As / Download → CSV</strong>, then choose the file here.
+            You'll match the columns and review before anything is created.
+          </p>
+          <label className="btn btn-primary" style={{ display: 'inline-block', cursor: 'pointer' }}>
+            Choose CSV file
+            <input type="file" accept=".csv,text/csv" onChange={onFile} style={{ display: 'none' }} />
+          </label>
+          <p className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>Needs at least a name and email column. Job title and department come along if you have them.</p>
+        </div>
+      ) : (
+        <div>
+          <div className="form-row" style={{ flexWrap: 'wrap' }}>
+            {FIELDS.map((f) => (
+              <div className="field" key={f.key} style={{ minWidth: 150 }}>
+                <label>{f.label}{f.required && ' *'}</label>
+                <select className="input" value={map[f.key] ?? ''} onChange={(e) => setMap((m) => ({ ...m, [f.key]: e.target.value === '' ? undefined : Number(e.target.value) }))}>
+                  <option value="">— not in file —</option>
+                  {header.map((h, i) => <option key={i} value={i}>{h || `Column ${i + 1}`}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+          <div style={{ margin: '10px 0 4px', fontSize: 13 }}>
+            <strong>{validCount}</strong> of {body.length} row{body.length === 1 ? '' : 's'} ready to import
+            {validCount < body.length && <span className="muted"> — rows with problems are skipped, shown below</span>}
+          </div>
+          <div style={{ maxHeight: 240, overflow: 'auto', border: '1px solid var(--line)', borderRadius: 10 }}>
+            <table className="table" style={{ fontSize: 12.5 }}>
+              <thead><tr><th>Name</th><th>Email</th><th>Job title</th><th>Department</th><th /></tr></thead>
+              <tbody>
+                {mapped.slice(0, 60).map((m, i) => (
+                  <tr key={i} style={problems[i] ? { opacity: 0.55 } : undefined}>
+                    <td>{m.name}</td><td>{m.email}</td><td>{m.jobTitle}</td><td>{m.department}</td>
+                    <td style={{ color: 'var(--danger, #a4262c)', fontSize: 11.5 }}>{problems[i] || ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {mapped.length > 60 && <div className="muted" style={{ padding: 8, fontSize: 12 }}>…and {mapped.length - 60} more</div>}
+          </div>
+          <div className="modal-actions">
+            <button className="btn btn-ghost" onClick={() => { setRows(null); setMap({}); }}>Choose another file</button>
+            <button className="btn btn-primary" disabled={!ready || busy} onClick={runImport}>
+              {busy ? <span className="spinner" /> : `Create ${validCount} account${validCount === 1 ? '' : 's'}`}
+            </button>
+          </div>
+        </div>
+      )}
     </Modal>
   );
 }

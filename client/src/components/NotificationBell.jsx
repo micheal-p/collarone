@@ -30,6 +30,7 @@ const COPY = {
   'billing.suspended': () => 'Workspace suspended for an overdue payment',
   'billing.trial_expired': () => 'Free trial ended — complete activation to continue',
   'hr.hired': (p) => `${p.name || 'A new teammate'} joined the team${p.jobTitle ? ` as ${p.jobTitle}` : ''}`,
+  'hr.bulk_imported': (p) => `${p.count || 'New'} staff imported to the team`,
 };
 const ICON = (type) => (type.startsWith('payment.') ? '₦' : type.startsWith('billing.') ? '◷' : type.startsWith('hr.') ? '👤' : '•');
 
