@@ -2522,12 +2522,31 @@ export async function supabaseApi(path, opts = {}) {
     });
     return { document: data };
   }
+  // ---- document e-signatures ----
+  if (head === 'GET /documents' && seg[2] === 'signatures') {
+    const { data, error } = await supabase.from('document_signatures')
+      .select('*, of:profiles!requested_of(id,name), by:profiles!requested_by(id,name)')
+      .eq('document_id', seg[1]).order('created_at', { ascending: true });
+    if (error) fail(400, error.message);
+    return { signatures: data };
+  }
+  if (method === 'POST' && seg[0] === 'documents' && seg[2] === 'signatures') {
+    const { data, error } = await supabase.rpc('request_document_signature', { p_document: seg[1], p_of: body.of, p_note: body.note || '' });
+    if (error) fail(400, error.message);
+    return { signature: data };
+  }
+  if (method === 'POST' && seg[0] === 'signatures' && seg[2] === 'sign') {
+    const { data, error } = await supabase.rpc('sign_document', { p_sig: seg[1], p_name: body.name, p_style: body.style, p_data: body.data || '' });
+    if (error) fail(400, error.message);
+    return { signature: data };
+  }
   if (method === 'PATCH' && seg[0] === 'documents' && seg.length === 2) {
     const { name, folderId, visibility } = body;
     const patch = { updated_at: new Date().toISOString() };
     if (name !== undefined) patch.name = name;
     if (folderId !== undefined) patch.folder_id = folderId || null;
     if (visibility !== undefined) patch.visibility = visibility;
+    if (body.expiresAt !== undefined) patch.expires_at = body.expiresAt || null;
     const { data, error } = await supabase.from('documents').update(patch).eq('id', seg[1]).select(DOC_SELECT).single();
     if (error) fail(400, error.message);
     return { document: data };
