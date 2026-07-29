@@ -24,8 +24,34 @@ jobs:
       - run: npm ci --workspace client
       - run: npm run typecheck --workspace client
 
+  # The safety-net tests. The pricing golden's estimator layer always runs
+  # (no secrets needed). When a DATABASE_URL secret exists (Supabase session
+  # pooler string), the live layers run too: SQL-vs-estimator pricing matrix,
+  # the cross-tenant RLS probe, and the payroll golden values — so the bug
+  # classes we've fixed (cross-tenant leaks, display-vs-billing drift, tax
+  # math) can never quietly return.
+  tests:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pg driver (only needed for the live-DB layers)
+        if: env.DATABASE_URL != ''
+        run: npm install --no-save pg
+      - name: Pricing golden (estimator layer; + live SQL matrix when DB secret set)
+        run: node test/pricing_besttier_golden.mjs
+      - name: Cross-tenant RLS probe + payroll golden (live DB)
+        if: env.DATABASE_URL != ''
+        run: |
+          node test/rls_probe.mjs
+          node test/payroll_golden.mjs
+
   deploy:
-    needs: typecheck
+    needs: [typecheck, tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

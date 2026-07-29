@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet, apiPost } from '../api/client.js';
 import { SUITE_META } from '../config/suites.js';
 import SuiteIcon from './SuiteIcon.jsx';
+import NotificationBell from './NotificationBell.jsx';
 import logoMark from '../assets/collarone-mark.svg';
 
 const initials = (name = '') =>
@@ -263,6 +264,7 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
         </div>
 
         <div className="sb-right">
+          <NotificationBell />
           <div className="waffle-wrap" ref={waffleRef}>
             <button className="iconbtn" aria-label="Open suites" data-tour="waffle" onClick={() => setWaffle((v) => !v)}>
               <SuiteIcon name="grid" size={20} color="currentColor" />
