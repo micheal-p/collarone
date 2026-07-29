@@ -43,3 +43,9 @@ export const fmtBytes = (n) => {
 export const fmtDt = (d) => d
   ? new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   : '—';
+
+// ---- e-signatures + expiry ---------------------------------------------------
+export const getSignatures = (docId) => apiGet(`/documents/${docId}/signatures`).then((d) => d.signatures);
+export const requestSignature = (docId, of, note) => apiPost(`/documents/${docId}/signatures`, { of, note }).then((d) => d.signature);
+export const signDocument = (sigId, body) => apiPost(`/signatures/${sigId}/sign`, body).then((d) => d.signature);
+export const setExpiry = (docId, expiresAt) => apiPatch(`/documents/${docId}`, { expiresAt }).then((d) => d.document);

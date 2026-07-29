@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as D from './documentsApi.js';
 import { apiGet } from '../../api/client.js';
+import { useAuth } from '../../auth/AuthContext.jsx';
 import { useToast, useConfirm, Modal, EmptyState, searchMatcher, usePagedList, Paginator } from '../../components/ui.jsx';
 
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
@@ -55,6 +56,7 @@ function DocEditModal({ doc, folders, onClose, onSaved, flash }) {
   const [name, setName] = useState(doc.name);
   const [folderId, setFolderId] = useState(doc.folder?.id || '');
   const [visibility, setVisibility] = useState(doc.visibility || 'org');
+  const [expiresAt, setExpiresAt] = useState(doc.expires_at || '');
   const [busy, setBusy] = useState(false);
 
   const submit = async (e) => {
@@ -62,7 +64,7 @@ function DocEditModal({ doc, folders, onClose, onSaved, flash }) {
     if (!name.trim()) return flash('Name is required.', true);
     setBusy(true);
     try {
-      const saved = await D.updateDocument(doc.id, { name: name.trim(), folderId: folderId || null, visibility });
+      const saved = await D.updateDocument(doc.id, { name: name.trim(), folderId: folderId || null, visibility, expiresAt: expiresAt || null });
       flash('Document updated.'); onSaved(saved); onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
@@ -86,6 +88,10 @@ function DocEditModal({ doc, folders, onClose, onSaved, flash }) {
         {visibility === 'restricted' && (
           <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px' }}>Use the Access button on the row to grant specific people access.</p>
         )}
+        <Field label="Expiry date (optional)">
+          <input className="input" type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+        </Field>
+        <p className="muted" style={{ fontSize: 12, margin: '-6px 0 12px' }}>Contracts, licences, permits — you&apos;ll be reminded about two weeks before it expires.</p>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save changes'}</button>
@@ -254,6 +260,7 @@ export default function DocumentsApp({ access }) {
   const [loading, setLoading] = useState(true);
   const [uploadModal, setUploadModal] = useState(false);
   const [versionDoc, setVersionDoc] = useState(null);
+  const [signDoc, setSignDoc] = useState(null);
   const [permDoc, setPermDoc] = useState(null);
   const [editDoc, setEditDoc] = useState(null);
   const { flash, toastNode } = useToast();
@@ -338,6 +345,7 @@ export default function DocumentsApp({ access }) {
                       <td style={{ whiteSpace: 'nowrap' }}>
                         <button className="iconbtn" onClick={() => download(d)}>Download</button>
                         <button className="iconbtn" onClick={() => setVersionDoc(d)}>Versions</button>
+                        <button className="iconbtn" onClick={() => setSignDoc(d)}>Signatures</button>
                         <button className="iconbtn" onClick={() => setEditDoc(d)}>Edit</button>
                         {d.visibility === 'restricted' && <button className="iconbtn" onClick={() => setPermDoc(d)}>Access</button>}
                         <button className="iconbtn" onClick={() => remove(d)}>Delete</button>
@@ -352,6 +360,7 @@ export default function DocumentsApp({ access }) {
         </div>
       )}
 
+      {signDoc && <SignaturesModal doc={signDoc} onClose={() => setSignDoc(null)} flash={flash} />}
       {uploadModal && <UploadModal folders={folders} defaultFolderId={activeFolder} onClose={() => setUploadModal(false)} onSaved={load} flash={flash} />}
       {editDoc && <DocEditModal doc={editDoc} folders={folders} onClose={() => setEditDoc(null)} onSaved={applyDocUpdate} flash={flash} />}
       {versionDoc && <VersionModal doc={versionDoc} onClose={() => { setVersionDoc(null); load(); }} flash={flash} />}
@@ -359,5 +368,95 @@ export default function DocumentsApp({ access }) {
       {confirmNode}
       {toastNode}
     </div>
+  );
+}
+
+/* ---- SignaturesModal: request + sign + audit trail ------------------------- */
+function SignaturesModal({ doc, onClose, flash }) {
+  const { user } = useAuth();
+  const [sigs, setSigs] = useState(null);
+  const [staff, setStaff] = useState([]);
+  const [of, setOf] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [signing, setSigning] = useState(null); // the sig row being signed
+  const [signName, setSignName] = useState(user?.name || '');
+
+  const load = () => D.getSignatures(doc.id).then(setSigs, (e) => { setSigs([]); flash(e.message, true); });
+  useEffect(() => {
+    load();
+    apiGet('/staff').then((d) => setStaff((d.staff || []).filter((s) => s.id !== user?.id))).catch(() => {});
+  }, [doc.id]); // eslint-disable-line
+
+  const request = async () => {
+    if (!of) { flash('Pick who should sign.', true); return; }
+    setBusy(true);
+    try { await D.requestSignature(doc.id, of, note); setOf(''); setNote(''); flash('Signature requested — they’ve been notified.'); load(); }
+    catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+
+  const sign = async () => {
+    if (signName.trim().length < 2) { flash('Type your full name to sign.', true); return; }
+    setBusy(true);
+    try {
+      await D.signDocument(signing.id, { name: signName.trim(), style: 'typed', data: signName.trim() });
+      setSigning(null); flash('Signed.'); load();
+    } catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title={`Signatures — ${doc.name}`} onClose={onClose}>
+      {sigs === null && <div className="suite-loading"><div className="boot-spinner" /></div>}
+      {sigs?.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No signatures yet — request one below. Signed and unsigned copies are different documents; this is the record of who agreed.</p>}
+      {(sigs || []).map((s) => (
+        <div key={s.id} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 13 }}>
+              <strong>{s.of?.name}</strong>
+              <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>asked by {s.by?.name} · {D.fmtDt(s.created_at)}</span>
+              {s.note && <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>{s.note}</div>}
+            </div>
+            {s.signed_at ? (
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 17 }}>{s.signature_name}</div>
+                <div className="muted" style={{ fontSize: 11 }}>Signed {D.fmtDt(s.signed_at)}</div>
+              </div>
+            ) : s.requested_of === user?.id ? (
+              <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '5px 14px' }} onClick={() => setSigning(s)}>Sign now</button>
+            ) : (
+              <span style={{ fontSize: 11.5, fontWeight: 700, background: '#fff4ce', color: '#7a5200', borderRadius: 100, padding: '3px 10px' }}>Awaiting signature</span>
+            )}
+          </div>
+          {signing?.id === s.id && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+              <div className="field"><label>Type your full legal name to sign</label>
+                <input className="input" value={signName} onChange={(e) => setSignName(e.target.value)} autoFocus /></div>
+              {signName.trim().length >= 2 && (
+                <div style={{ fontFamily: 'Georgia, serif', fontStyle: 'italic', fontSize: 24, padding: '6px 2px 10px' }}>{signName}</div>
+              )}
+              <p className="muted" style={{ fontSize: 11.5, margin: '0 0 10px' }}>By signing you agree to this document. Your name, the time, and your account are recorded permanently.</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-primary" disabled={busy} onClick={sign}>{busy ? <span className="spinner" /> : 'Sign document'}</button>
+                <button className="btn btn-ghost" onClick={() => setSigning(null)}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+
+      <div style={{ borderTop: '1px solid var(--line)', marginTop: 14, paddingTop: 12 }}>
+        <div className="field"><label>Request a signature from</label>
+          <select className="select" value={of} onChange={(e) => setOf(e.target.value)}>
+            <option value="">— pick a teammate —</option>
+            {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select></div>
+        <div className="field"><label>Note <span className="muted">— optional</span></label>
+          <input className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Please sign before Friday" /></div>
+        <div className="modal-actions">
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
+          <button className="btn btn-primary" disabled={busy || !of} onClick={request}>{busy ? <span className="spinner" /> : 'Request signature'}</button>
+        </div>
+      </div>
+    </Modal>
   );
 }

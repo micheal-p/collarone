@@ -150,6 +150,29 @@ export default async function handler(req, res) {
           }
         } catch { /* never break health */ }
 
+        // Document expiry: contracts/licences with expires_at within 14 days
+        // raise a banner + spine event once per expiry (outbox dedupe).
+        try {
+          const soon = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10);
+          const { data: expiring } = await admin.from('documents')
+            .select('id, org_id, name, expires_at')
+            .not('expires_at', 'is', null).lte('expires_at', soon)
+            .gte('expires_at', new Date().toISOString().slice(0, 10)).limit(100);
+          for (const doc of expiring || []) {
+            const { data: claim } = await admin.from('notification_outbox').upsert(
+              { org_id: doc.org_id, kind: 'document_expiring', dedupe_key: `${doc.id}:expiring:${doc.expires_at}` },
+              { onConflict: 'dedupe_key', ignoreDuplicates: true },
+            ).select('id');
+            if (!claim?.[0]) continue;
+            await admin.from('org_notices').insert({
+              org_id: doc.org_id, kind: 'automation',
+              message: `Document "${doc.name}" expires on ${doc.expires_at} — renew or replace it in Documents.`,
+            }).then(() => {}, () => {});
+            await emitOrgEvent(admin, doc.org_id, 'document.expiring', { documentId: doc.id, name: doc.name, expiresAt: doc.expires_at });
+            await admin.from('notification_outbox').update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', claim[0].id).then(() => {}, () => {});
+          }
+        } catch { /* never break health */ }
+
         // Chat @mention delivery: bell is instant via the spine; this sweep
         // adds email (and WhatsApp when the channel exists) through the same
         // shared sender. Marks messages notified either way so the queue
