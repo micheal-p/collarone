@@ -2,6 +2,7 @@
 // Supabase SERVICE ROLE key. Runs server-side only; the key never reaches the
 // browser. Set SUPABASE_SERVICE_KEY (and optionally SUPABASE_URL) in Vercel env.
 import { createClient } from '@supabase/supabase-js';
+import { emitOrgEvent } from './_lib/events.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -133,6 +134,38 @@ export default async function handler(req, res) {
         await admin.rpc('apply_confirmed_renewal', { p_tx_id: tx.id });
       }
       await logAudit('confirm_payment', tx.org_id, { transactionId, type: tx.type, amountKobo: tx.amount_kobo });
+      await emitOrgEvent(admin, tx.org_id, 'payment.confirmed',
+        { type: tx.type, amountKobo: tx.amount_kobo, reference: tx.reference, via: 'manual_confirm' }, user.id);
+      return json(res, 200, { ok: true });
+    }
+
+    // Record a refund against a confirmed transaction. The money itself moves
+    // in the Paystack dashboard / by bank transfer — this records it, claws
+    // back credit-pack credits via a negative ledger entry, and audits it.
+    // Deliberately does NOT touch org access: suspending stays a separate,
+    // explicit action so a refund can never accidentally lock a workspace.
+    if (action === 'refund-transaction') {
+      await requirePlatformAdmin();
+      const { transactionId, reason } = body;
+      if (!reason?.trim()) return json(res, 400, { message: 'A refund reason is required.' });
+      const { data: tx } = await admin.from('billing_transactions').select('*').eq('id', String(transactionId || '')).maybeSingle();
+      if (!tx) return json(res, 404, { message: 'Transaction not found.' });
+      if (tx.status !== 'confirmed') return json(res, 400, { message: `Only confirmed payments can be refunded (this one is ${tx.status}).` });
+
+      const { error: updErr } = await admin.from('billing_transactions')
+        .update({ status: 'refunded', refunded_at: new Date().toISOString(), refunded_by: user.id, refund_reason: reason.trim() })
+        .eq('id', tx.id).eq('status', 'confirmed');
+      if (updErr) return json(res, 400, { message: updErr.message });
+
+      if (tx.type === 'credit_purchase' && tx.credits_granted > 0) {
+        await admin.from('org_credit_ledger').insert({
+          org_id: tx.org_id, delta: -tx.credits_granted, reason: 'refund_clawback',
+          related_transaction_id: tx.id, created_by: user.id,
+        });
+      }
+      await logAudit('refund_transaction', tx.org_id, { transactionId: tx.id, type: tx.type, amountKobo: tx.amount_kobo, reason: reason.trim() });
+      await emitOrgEvent(admin, tx.org_id, 'payment.refunded',
+        { type: tx.type, amountKobo: tx.amount_kobo, reference: tx.reference }, user.id);
       return json(res, 200, { ok: true });
     }
 

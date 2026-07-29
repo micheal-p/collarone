@@ -14,6 +14,8 @@
 // set the endpoint 200s and does nothing, so configuring the Paystack
 // dashboard webhook early is harmless.
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'node:crypto';
+import { emitOrgEvent } from './_lib/events.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -24,6 +26,19 @@ export default async function handler(req, res) {
   // transient DB hiccup to make it hammer us. Effects are idempotent.
   if (req.method !== 'POST') return res.status(405).end();
   if (!PAYSTACK_SECRET || !SERVICE_KEY) return res.status(200).json({ ok: true, skipped: 'not configured' });
+
+  // Defense-in-depth: verify Paystack's HMAC-SHA512 signature over the RAW
+  // body when the runtime captured it (server/index.js does; a runtime that
+  // didn't still has the authoritative server-to-server re-verify below).
+  // A present-but-wrong signature is always rejected.
+  const sig = req.headers['x-paystack-signature'];
+  if (req.rawBody && sig) {
+    const expected = crypto.createHmac('sha512', PAYSTACK_SECRET).update(req.rawBody).digest('hex');
+    const a = Buffer.from(String(sig)); const b = Buffer.from(expected);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+      return res.status(401).json({ ok: false, message: 'Bad signature' });
+    }
+  }
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
@@ -85,6 +100,9 @@ export default async function handler(req, res) {
       org_id: tx.org_id, kind: 'payment_confirmed',
       message: 'Payment received — your workspace is active. Thank you!',
     }).then(() => {}, () => {});
+
+    await emitOrgEvent(admin, tx.org_id, 'payment.confirmed',
+      { type: tx.type, amountKobo: tx.amount_kobo, reference: tx.reference, via: 'paystack_webhook' });
 
     return res.status(200).json({ ok: true, applied: tx.type });
   } catch (e) {

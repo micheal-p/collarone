@@ -13,40 +13,21 @@
 //   POST { action: 'billing-reminder', orgId } (Bearer, platform admin) → { ok }
 //         — emails the org's account owner about their pending payment.
 import { createClient } from '@supabase/supabase-js';
+// One shared sender/template for every email the platform sends — the
+// automated billing notices (_lib/billingNotify.js) use the same path.
+import { emailEnabled, sendResend, wrap, esc, naira, nairaN, FROM_ADDR } from './_lib/email.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const RESEND_KEY = process.env.RESEND_API_KEY;
-const FROM_ADDR = process.env.EMAIL_FROM || 'notify@collarone.app';
 
 const json = (res, s, o) => res.status(s).json(o);
-const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const naira = (kobo) => `₦${(Number(kobo) / 100).toLocaleString('en-NG')}`;
-const nairaN = (n) => `₦${Number(n).toLocaleString('en-NG')}`;
-
-// minimal branded shell so the mail doesn't look like a bare paragraph
-const wrap = (heading, inner) => `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#14171f">
-  <div style="font-family:Georgia,serif;font-size:20px;font-weight:650;margin-bottom:14px">Collar<span style="color:#FF5B1F">One</span></div>
-  <h2 style="font-size:18px;margin:0 0 10px">${esc(heading)}</h2>
-  ${inner}
-  <p style="font-size:11px;color:#99a;margin-top:22px">Sent via Collarone — the business platform for Nigerian companies.</p>
-</div>`;
-
-async function sendResend({ to, from, replyTo, subject, html }) {
-  const r = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from, to: [to], reply_to: replyTo || undefined, subject, html }),
-  });
-  if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.message || 'Email failed to send.'); }
-}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { message: 'Method not allowed' });
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
 
-  if (body.action === 'status') return json(res, 200, { enabled: Boolean(RESEND_KEY) });
-  if (!RESEND_KEY) return json(res, 400, { message: 'Email is not switched on yet.' });
+  if (body.action === 'status') return json(res, 200, { enabled: emailEnabled() });
+  if (!emailEnabled()) return json(res, 400, { message: 'Email is not switched on yet.' });
   if (!SERVICE_KEY) return json(res, 500, { message: 'Server not configured.' });
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });

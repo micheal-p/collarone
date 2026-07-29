@@ -15,6 +15,7 @@
 //     admin confirm: tx → confirmed, activation → org active, credit pack →
 //     ledger credit. Safe to call repeatedly.
 import { createClient } from '@supabase/supabase-js';
+import { emitOrgEvent } from './_lib/events.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -93,6 +94,8 @@ export default async function handler(req, res) {
       actor_id: tx.created_by, action: 'confirm_payment', target_org_id: tx.org_id,
       details: { transactionId: tx.id, type: tx.type, amountKobo: tx.amount_kobo, via: 'paystack_self_serve' },
     }).then(() => {}, () => {});
+    await emitOrgEvent(admin, tx.org_id, 'payment.confirmed',
+      { type: tx.type, amountKobo: tx.amount_kobo, reference: tx.reference, via: 'paystack_self_serve' });
     return json(res, 200, { paid: true, type: tx.type });
   }
 
