@@ -8,6 +8,7 @@ import { useAuth } from '../../auth/AuthContext.jsx';
 import AppLayout from '../../components/AppLayout.jsx';
 import SuiteIcon from '../../components/SuiteIcon.jsx';
 import { useToast, useConfirm } from '../../components/ui.jsx';
+import { parseCsv } from '../../lib/csv.js';
 
 const ROLE_LABEL = { super_admin: 'System Admin', manager: 'Manager', staff: 'Staff' };
 const ROLE_FILTERS = [
@@ -508,30 +509,6 @@ function EditUserModal({ user, catalog, departments, onClose, onSaved, onError }
 }
 
 // ---------- Bulk import (the "our staff list is in Excel" path) ----------
-// Quote-aware CSV parser — tiny and dependency-free on purpose (the repo
-// avoids new deps for one feature). Handles quoted fields, escaped quotes,
-// and both \n and \r\n.
-function parseCsv(text) {
-  const rows = []; let row = []; let cur = ''; let inQ = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inQ) {
-      if (ch === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
-      else cur += ch;
-    } else if (ch === '"') inQ = true;
-    else if (ch === ',') { row.push(cur); cur = ''; }
-    else if (ch === '\n' || ch === '\r') {
-      if (ch === '\r' && text[i + 1] === '\n') i++;
-      row.push(cur); cur = '';
-      if (row.some((c) => c.trim() !== '')) rows.push(row);
-      row = [];
-    } else cur += ch;
-  }
-  row.push(cur);
-  if (row.some((c) => c.trim() !== '')) rows.push(row);
-  return rows;
-}
-
 const FIELDS = [
   { key: 'name', label: 'Full name', required: true, guess: /name/i },
   { key: 'email', label: 'Email', required: true, guess: /mail/i },

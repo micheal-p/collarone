@@ -211,6 +211,7 @@ export default function FinanceApp({ access }) {
         <button className={`lv-tab ${tab === 'expenses' ? 'active' : ''}`} onClick={() => setTab('expenses')}>Expenses</button>
         {isManager && <button className={`lv-tab ${tab === 'budgets' ? 'active' : ''}`} onClick={() => setTab('budgets')}>Budgets</button>}
         {isManager && <button className={`lv-tab ${tab === 'report' ? 'active' : ''}`} onClick={() => setTab('report')}>Report</button>}
+        {isManager && <button className={`lv-tab ${tab === 'recon' ? 'active' : ''}`} onClick={() => setTab('recon')}>Reconciliation</button>}
         {tab === 'expenses' && <button className="btn btn-primary lv-apply" onClick={() => setExpModal(true)}>Submit expense</button>}
         {tab === 'budgets' && isManager && (
           <>
@@ -299,6 +300,8 @@ export default function FinanceApp({ access }) {
         </div>
       )}
 
+      {tab === 'recon' && isManager && <ReconTab flash={flash} />}
+
       {!loading && tab === 'report' && isManager && (
         <div style={{ maxWidth: 640 }}>
           <p className="muted" style={{ fontSize: 13, margin: '8px 0 16px' }}>Annual budget vs. actual spend (approved + paid expenses), {new Date().getFullYear()}.</p>
@@ -328,5 +331,189 @@ export default function FinanceApp({ access }) {
       {confirmNode}
       {toastNode}
     </div>
+  );
+}
+
+/* ==== Bank reconciliation ======================================================
+   Import the bank's own CSV, match each line against what the workspace
+   already knows — customer payments in, approved expenses out — and see
+   what's explained, what isn't, and what the books are missing. Suggestions
+   are exact-amount within ±5 days; a human always confirms. */
+
+function ReconTab({ flash }) {
+  const [lines, setLines] = useState(null);
+  const [cands, setCands] = useState({ payments: [], expenses: [] });
+  const [mapOpen, setMapOpen] = useState(false);
+  const [csv, setCsv] = useState(null);      // parsed rows incl header
+  const [map, setMap] = useState({});        // field -> column index
+  const [busy, setBusy] = useState(false);
+  const { confirm, confirmNode } = useConfirm();
+
+  const load = () => {
+    F.getBankLines().then(setLines, (e) => { setLines([]); flash(e.message, true); });
+    F.getReconCandidates().then(setCands, () => {});
+  };
+  useEffect(load, []); // eslint-disable-line
+
+  const onFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const { parseCsv } = await import('../../lib/csv.js');
+    const rows = parseCsv(await file.text());
+    if (rows.length < 2) { flash('That file needs a header row plus data.', true); return; }
+    // guess columns
+    const h = rows[0].map((x) => x.toLowerCase());
+    const g = (rx) => h.findIndex((x) => rx.test(x));
+    setMap({
+      date: g(/date/), description: g(/desc|narrat|detail|particular/), reference: g(/ref/),
+      amount: g(/^amount$/), debit: g(/debit|withdraw/), credit: g(/credit|deposit|lodg/),
+    });
+    setCsv(rows); setMapOpen(true);
+    e.target.value = '';
+  };
+
+  const parseAmount = (v) => Number(String(v || '').replace(/[^0-9.-]/g, '')) || 0;
+  const parseDate = (v) => {
+    const s = String(v || '').trim();
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);                      // 2026-07-29
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);            // 29/07/2026 (NG banks: day first)
+    if (m) { const y = m[3].length === 2 ? `20${m[3]}` : m[3]; return `${y}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`; }
+    return null;
+  };
+
+  const doImport = async () => {
+    setBusy(true);
+    try {
+      const rows = csv.slice(1).map((r) => {
+        const amount = map.amount >= 0
+          ? parseAmount(r[map.amount])
+          : parseAmount(r[map.credit]) - parseAmount(r[map.debit]);   // credit positive, debit negative
+        return {
+          date: map.date >= 0 ? parseDate(r[map.date]) : null,
+          description: map.description >= 0 ? r[map.description] : '',
+          reference: map.reference >= 0 ? r[map.reference] : '',
+          amount,
+        };
+      }).filter((r) => r.date && r.amount !== 0);
+      if (!rows.length) { flash('No usable lines — check the column mapping.', true); return; }
+      await F.importBankLines(rows);
+      flash(`${rows.length} statement line${rows.length === 1 ? '' : 's'} imported.`);
+      setMapOpen(false); setCsv(null); load();
+    } catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+
+  // exact-amount suggestion within ±5 days, first unused candidate wins
+  const usedIds = new Set((lines || []).filter((l) => l.matched_id).map((l) => l.matched_id));
+  const near = (a, b) => Math.abs(new Date(a) - new Date(b)) <= 5 * 86400000;
+  const suggestionFor = (l) => {
+    if (l.matched_kind) return null;
+    if (l.amount > 0) {
+      const hit = cands.payments.find((p) => !usedIds.has(p.id) && Number(p.amount) === Number(l.amount) && near(p.paid_at, l.line_date));
+      return hit ? { kind: 'invoice_payment', id: hit.id, label: `Payment · ${hit.doc?.doc_no || hit.reference || ''} ${hit.doc?.party_name || ''}`.trim() } : null;
+    }
+    const hit = cands.expenses.find((x) => !usedIds.has(x.id) && Number(x.total_amount) === Math.abs(Number(l.amount)) && near(x.expense_date, l.line_date));
+    return hit ? { kind: 'expense', id: hit.id, label: `Expense · ${hit.vendor || hit.description || ''}`.slice(0, 60) } : null;
+  };
+
+  const apply = async (l, body, msg) => {
+    try { const saved = await F.matchBankLine(l.id, body); setLines((ls) => ls.map((x) => (x.id === saved.id ? saved : x))); if (msg) flash(msg); }
+    catch (e) { flash(e.message, true); }
+  };
+  const manualNote = async (l) => {
+    const res = await confirm({
+      title: 'Match manually', message: 'Say what this line is (e.g. "July payroll", "bank charges", "owner top-up").',
+      confirmLabel: 'Save match', input: { label: 'What is it?', required: true },
+    });
+    if (res) apply(l, { kind: 'manual', note: res.value }, 'Matched.');
+  };
+
+  const open = (lines || []).filter((l) => !l.matched_kind);
+  const inSum = open.filter((l) => l.amount > 0).reduce((s, l) => s + Number(l.amount), 0);
+  const outSum = open.filter((l) => l.amount < 0).reduce((s, l) => s + Math.abs(Number(l.amount)), 0);
+  const money = (n) => `₦${Number(n).toLocaleString('en-NG', { maximumFractionDigits: 2 })}`;
+
+  return (
+    <>
+      <div className="filterbar" style={{ marginTop: 8, gap: 10, flexWrap: 'wrap' }}>
+        <span className="count">
+          {lines === null ? 'Loading…' : `${open.length} unexplained line${open.length === 1 ? '' : 's'}`}
+          {open.length > 0 && ` — in ${money(inSum)} · out ${money(outSum)}`}
+        </span>
+        <label className="btn btn-primary lv-apply" style={{ cursor: 'pointer' }}>
+          Import bank CSV
+          <input type="file" accept=".csv,text/csv" onChange={onFile} style={{ display: 'none' }} />
+        </label>
+      </div>
+      <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 12px', lineHeight: 1.5 }}>
+        Export the statement from your bank app as CSV and import it — we suggest matches against customer payments and approved expenses; you confirm each one. Payroll and bank charges match manually with a note.
+      </p>
+
+      {lines !== null && lines.length === 0 && (
+        <EmptyState title="No statement imported yet" hint="Import your bank statement CSV — matching your bank against your books is how the numbers become trustworthy." />
+      )}
+
+      {lines !== null && lines.length > 0 && (
+        <div className="table-wrap">
+          <table className="table" style={{ fontSize: 13 }}>
+            <thead><tr><th>Date</th><th>Description</th><th className="ta-r">In</th><th className="ta-r">Out</th><th>Status</th><th className="ta-r">Action</th></tr></thead>
+            <tbody>
+              {lines.map((l) => {
+                const sug = suggestionFor(l);
+                return (
+                  <tr key={l.id} style={l.matched_kind ? { opacity: 0.55 } : undefined}>
+                    <td className="muted" style={{ whiteSpace: 'nowrap' }}>{new Date(l.line_date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</td>
+                    <td style={{ maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={l.description}>{l.description || l.reference || '—'}</td>
+                    <td className="ta-r" style={{ color: '#1a6a1a', fontWeight: l.amount > 0 ? 650 : 400 }}>{l.amount > 0 ? money(l.amount) : ''}</td>
+                    <td className="ta-r" style={{ color: '#a4262c', fontWeight: l.amount < 0 ? 650 : 400 }}>{l.amount < 0 ? money(-l.amount) : ''}</td>
+                    <td>
+                      {l.matched_kind
+                        ? <span className="muted" style={{ fontSize: 12 }}>{l.matched_kind === 'ignored' ? 'Ignored' : `Matched${l.matched_note ? ` · ${l.matched_note}` : ''}`}</span>
+                        : sug
+                          ? <span style={{ fontSize: 12, background: '#dff6dd', color: '#1a6a1a', borderRadius: 100, padding: '2px 10px', fontWeight: 600 }}>{sug.label}</span>
+                          : <span style={{ fontSize: 12, background: '#fff4ce', color: '#7a5200', borderRadius: 100, padding: '2px 10px', fontWeight: 600 }}>Unexplained</span>}
+                    </td>
+                    <td className="ta-r">
+                      {!l.matched_kind && (
+                        <div className="row-actions" style={{ justifyContent: 'flex-end' }}>
+                          {sug && <button className="btn btn-primary btn-sm" onClick={() => apply(l, { kind: sug.kind, matchedId: sug.id, note: sug.label }, 'Matched.')}>Confirm</button>}
+                          <button className="btn btn-ghost btn-sm" onClick={() => manualNote(l)}>Match…</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => apply(l, { kind: 'ignored', note: '' })}>Ignore</button>
+                        </div>
+                      )}
+                      {l.matched_kind && <button className="btn btn-ghost btn-sm" onClick={() => apply(l, { clear: true })}>Undo</button>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {mapOpen && csv && (
+        <Modal title="Match the columns" onClose={() => { setMapOpen(false); setCsv(null); }}>
+          <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
+            Tell us which column is which. Use a single signed Amount column, or separate Debit/Credit columns.
+          </p>
+          {['date', 'description', 'reference', 'amount', 'debit', 'credit'].map((f) => (
+            <div className="field" key={f} style={{ marginBottom: 8 }}>
+              <label style={{ textTransform: 'capitalize' }}>{f}{f === 'date' ? ' *' : ''}</label>
+              <select className="select" value={map[f] ?? -1} onChange={(e) => setMap((m) => ({ ...m, [f]: Number(e.target.value) }))}>
+                <option value={-1}>— not in file —</option>
+                {csv[0].map((h, i) => <option key={i} value={i}>{h || `Column ${i + 1}`}</option>)}
+              </select>
+            </div>
+          ))}
+          <div className="modal-actions">
+            <button className="btn btn-ghost" onClick={() => { setMapOpen(false); setCsv(null); }}>Cancel</button>
+            <button className="btn btn-primary" disabled={busy || map.date < 0 || (map.amount < 0 && map.debit < 0 && map.credit < 0)} onClick={doImport}>
+              {busy ? <span className="spinner" /> : `Import ${csv.length - 1} lines`}
+            </button>
+          </div>
+        </Modal>
+      )}
+      {confirmNode}
+    </>
   );
 }
