@@ -259,7 +259,7 @@ export default function Signup() {
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <span style={{ fontSize: 12.5, fontWeight: 600, color: '#667' }}>Quick start:</span>
               {PRESETS.map((p) => (
-                <button key={p.key} type="button" title={p.hint} onClick={() => setSuites(new Set(requiredFoundations(p.suites)))}
+                <button key={p.key} type="button" onClick={() => setSuites(new Set(requiredFoundations(p.suites)))}
                   style={{ padding: '6px 13px', borderRadius: 100, border: '1px dashed #d8d2c4', background: 'transparent', fontSize: 12.5, fontWeight: 600, color: '#C2410C', cursor: 'pointer' }}>{p.label}</button>
               ))}
             </div>
@@ -268,26 +268,23 @@ export default function Signup() {
               const inFam = SUITES.filter((s) => SUITE_FAMILY[s.key] === fam.key);
               if (!inFam.length) return null;
               return (
-                <div key={fam.key} style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: '#99a', margin: '0 2px 6px' }}>{fam.label}</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
+                <div key={fam.key} style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 7, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: '#99a', flex: '0 0 78px' }}>{fam.shortLabel || fam.label.split(' — ')[0]}</span>
+                  <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flex: 1, minWidth: 260 }}>
                     {inFam.map((s) => {
                       const on = suites.has(s.key); const locked = lockedKeys.has(s.key); const meta = SUITE_META[s.key] || {};
                       return (
                         <button key={s.key} type="button" onClick={() => toggleSuite(s.key)}
-                          title={locked ? 'Included automatically — needed by another suite you picked' : undefined}
-                          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, border: `1px solid ${on ? '#FF5B1F' : '#e5e1d6'}`, background: on ? 'rgba(255,91,31,0.07)' : '#fff', fontSize: 13, fontWeight: 500, color: on ? '#14161a' : '#556', cursor: locked ? 'default' : 'pointer', textAlign: 'left' }}>
-                          <span style={{ width: 24, height: 24, borderRadius: 7, display: 'grid', placeItems: 'center', background: on ? (meta.tint || '#FF5B1F') : '#e5e1d6', flexShrink: 0 }}>
-                            <SuiteIcon name={meta.icon || 'grid'} size={14} color="#fff" />
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 11px 5px 6px', borderRadius: 100, border: `1px solid ${on ? '#FF5B1F' : '#e5e1d6'}`, background: on ? 'rgba(255,91,31,0.08)' : '#fff', fontSize: 12.5, fontWeight: 550, color: on ? '#14161a' : '#556', cursor: locked ? 'default' : 'pointer' }}>
+                          <span style={{ width: 20, height: 20, borderRadius: 100, display: 'grid', placeItems: 'center', background: on ? (meta.tint || '#FF5B1F') : '#e5e1d6', flexShrink: 0 }}>
+                            <SuiteIcon name={meta.icon || 'grid'} size={11} color="#fff" />
                           </span>
-                          <span style={{ flex: 1 }}>{s.name}</span>
-                          {locked
-                            ? <span style={{ fontSize: 10.5, color: '#99a', fontWeight: 600 }}>incl.</span>
-                            : on ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FF5B1F" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12l5 5 9-10" /></svg> : null}
+                          {s.name}
+                          {locked && <span style={{ fontSize: 10, color: '#99a', fontWeight: 600 }}>incl.</span>}
                         </button>
                       );
                     })}
-                  </div>
+                  </span>
                 </div>
               );
             })}
@@ -518,17 +515,12 @@ export default function Signup() {
 // tick anything on or off afterwards. Hidden entirely until the platform's
 // AI is switched on — no dead UI.
 function AiSuitePicker({ onPick }) {
-  const [enabled, setEnabled] = useState(false);
+  // Always visible — if the platform AI isn't switched on yet, submitting
+  // shows the server's honest message and the visitor picks manually.
   const [prompt, setPrompt] = useState('');
   const [busy, setBusy] = useState(false);
   const [why, setWhy] = useState('');
   const [err, setErr] = useState('');
-
-  useEffect(() => {
-    fetch('/api/onboard-ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'status' }) })
-      .then((r) => r.json()).then((d) => setEnabled(Boolean(d.enabled))).catch(() => {});
-  }, []);
-  if (!enabled) return null;
 
   const suggest = async () => {
     setBusy(true); setErr(''); setWhy('');
