@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from '../../api/client.js';
+import { apiGet, apiPatch, apiPost, apiDelete } from '../../api/client.js';
 
 export const getAllRecords = () => apiGet('/attendance/records').then((d) => d.records);
 export const getMyRecords  = () => apiGet('/attendance/mine').then((d) => d.records);
@@ -96,3 +96,10 @@ export const downloadCsv = (csv, filename) => {
   a.click();
   URL.revokeObjectURL(url);
 };
+
+// ---- shift rosters -----------------------------------------------------------
+export const getShifts = () => apiGet('/attendance/shifts');
+export const createShift = (body) => apiPost('/attendance/shifts', body).then((d) => d.shift);
+export const deleteShift = (id) => apiDelete(`/attendance/shifts/${id}`);
+export const assignShift = (id, userIds) => apiPost(`/attendance/shifts/${id}/assign`, { userIds });
+export const unassignShift = (userId) => apiPost('/attendance/shifts/unassign', { userId });

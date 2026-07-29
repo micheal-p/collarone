@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as A from './attendanceApi.js';
-import { Modal, useToast } from '../../components/ui.jsx';
+import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
+import { apiGet } from '../../api/client.js';
 
 /* ---- inline icons ---- */
 const IcPencil = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.8 2.8 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>;
@@ -371,7 +372,7 @@ export default function AttendanceApp({ access }) {
   };
 
   const TABS = useMemo(() => isManager
-    ? [{ key: 'mine', label: 'My attendance' }, { key: 'today', label: 'Today' }, { key: 'timesheet', label: 'Timesheet' }]
+    ? [{ key: 'mine', label: 'My attendance' }, { key: 'today', label: 'Today' }, { key: 'timesheet', label: 'Timesheet' }, { key: 'shifts', label: 'Shifts' }]
     : [{ key: 'mine', label: 'My attendance' }], [isManager]);
 
   return (
@@ -389,8 +390,151 @@ export default function AttendanceApp({ access }) {
       )}
       {!loading && tab === 'today' && isManager && <TodayView all={all} onEdit={setEditRec} />}
       {!loading && tab === 'timesheet' && isManager && <TimesheetView all={all} onEdit={setEditRec} />}
+      {tab === 'shifts' && isManager && <ShiftsTab flash={flash} />}
       {editRec && <EditShiftModal rec={editRec} onClose={() => setEditRec(null)} onSaved={applyUpdate} flash={flash} />}
       {toastNode}
     </div>
+  );
+}
+
+/* ---- ShiftsTab: rosters — lateness judged against each person's own shift ---- */
+function ShiftsTab({ flash }) {
+  const [data, setData] = useState(null);   // { shifts, assignments }
+  const [staff, setStaff] = useState([]);
+  const [modal, setModal] = useState(false);
+  const [assignFor, setAssignFor] = useState(null); // shift being assigned
+  const { confirm, confirmNode } = useConfirm();
+
+  const load = () => {
+    A.getShifts().then(setData, (e) => { setData({ shifts: [], assignments: [] }); flash(e.message, true); });
+    apiGet('/staff').then((d) => setStaff(d.staff || [])).catch(() => {});
+  };
+  useEffect(load, []); // eslint-disable-line
+
+  const nameOf = (id) => staff.find((s) => s.id === id)?.name || '—';
+  const membersOf = (shiftId) => (data?.assignments || []).filter((a) => a.shift_id === shiftId).map((a) => a.user_id);
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const fmtT = (t) => String(t).slice(0, 5);
+
+  const remove = async (sh) => {
+    const ok = await confirm({ title: `Delete "${sh.name}"?`, message: 'Its members fall back to the company-wide schedule.', confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
+    try { await A.deleteShift(sh.id); load(); flash('Shift deleted.'); } catch (e) { flash(e.message, true); }
+  };
+
+  return (
+    <>
+      <div className="filterbar" style={{ marginTop: 8 }}>
+        <span className="count">{data ? `${data.shifts.length} shift${data.shifts.length === 1 ? '' : 's'}` : 'Loading…'}</span>
+        <button className="btn btn-primary lv-apply" onClick={() => setModal(true)}>New shift</button>
+      </div>
+      <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 12px', lineHeight: 1.5 }}>
+        Lateness is judged against each person&apos;s own shift (plus the grace window) — anyone without a shift follows the company-wide schedule in Settings. Lateness still flows into payroll exactly as configured.
+      </p>
+
+      {data && data.shifts.length === 0 && (
+        <EmptyState title="No shifts yet" hint="Create shifts like Morning 7–3 or Gate night, assign your teams, and clock-in judges each person against their own start time." />
+      )}
+      {data && data.shifts.map((sh) => {
+        const members = membersOf(sh.id);
+        return (
+          <div key={sh.id} style={{ border: '1px solid var(--line)', borderRadius: 12, padding: '12px 16px', marginBottom: 10, background: 'var(--surface)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <strong style={{ fontSize: 14.5 }}>{sh.name}</strong>
+                <span className="muted" style={{ marginLeft: 10, fontSize: 12.5 }}>
+                  {fmtT(sh.start_time)}–{fmtT(sh.end_time)} · {(sh.days || []).map((d) => DAYS[d]).join(' ')}
+                </span>
+              </div>
+              <button className="btn btn-ghost btn-sm" onClick={() => setAssignFor(sh)}>Assign staff</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => remove(sh)}>Delete</button>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: members.length ? 8 : 0 }}>
+              {members.map((uid) => (
+                <span key={uid} className="pill active" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {nameOf(uid)}
+                  <button onClick={async () => { try { await A.unassignShift(uid); load(); } catch (e) { flash(e.message, true); } }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'inherit', padding: 0, lineHeight: 1 }} aria-label={`Remove ${nameOf(uid)}`}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {modal && <ShiftModal onClose={() => setModal(false)} onSaved={() => { setModal(false); load(); flash('Shift created.'); }} flash={flash} />}
+      {assignFor && (
+        <AssignModal shift={assignFor} staff={staff} current={membersOf(assignFor.id)}
+          onClose={() => setAssignFor(null)}
+          onSaved={() => { setAssignFor(null); load(); flash('Roster updated.'); }} flash={flash} />
+      )}
+      {confirmNode}
+    </>
+  );
+}
+
+function ShiftModal({ onClose, onSaved, flash }) {
+  const [f, setF] = useState({ name: '', startTime: '08:00', endTime: '17:00', days: [1, 2, 3, 4, 5] });
+  const [busy, setBusy] = useState(false);
+  const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const toggleDay = (i) => setF((s) => ({ ...s, days: s.days.includes(i) ? s.days.filter((d) => d !== i) : [...s.days, i].sort() }));
+  const save = async () => {
+    if (!f.name.trim()) { flash('Give the shift a name.', true); return; }
+    setBusy(true);
+    try { await A.createShift(f); onSaved(); } catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+  return (
+    <Modal title="New shift" onClose={onClose}>
+      <div className="field"><label>Shift name</label>
+        <input className="input" value={f.name} onChange={(e) => setF((s) => ({ ...s, name: e.target.value }))} placeholder="Morning crew / Gate night…" autoFocus /></div>
+      <div className="form-grid">
+        <div className="field"><label>Starts</label>
+          <input className="input" type="time" value={f.startTime} onChange={(e) => setF((s) => ({ ...s, startTime: e.target.value }))} /></div>
+        <div className="field"><label>Ends</label>
+          <input className="input" type="time" value={f.endTime} onChange={(e) => setF((s) => ({ ...s, endTime: e.target.value }))} /></div>
+      </div>
+      <div className="field"><label>Days</label>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {DAYS.map((d, i) => (
+            <button key={d} type="button" className={`pill ${f.days.includes(i) ? 'active' : ''}`} onClick={() => toggleDay(i)}>{d}</button>
+          ))}
+        </div></div>
+      <div className="modal-actions">
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? <span className="spinner" /> : 'Create shift'}</button>
+      </div>
+    </Modal>
+  );
+}
+
+function AssignModal({ shift, staff, current, onClose, onSaved, flash }) {
+  const [sel, setSel] = useState(() => new Set(current));
+  const [busy, setBusy] = useState(false);
+  const toggle = (id) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const save = async () => {
+    setBusy(true);
+    try {
+      const add = [...sel].filter((id) => !current.includes(id));
+      const drop = current.filter((id) => !sel.has(id));
+      if (add.length) await A.assignShift(shift.id, add);
+      for (const id of drop) await A.unassignShift(id);
+      onSaved();
+    } catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+  return (
+    <Modal title={`Assign staff — ${shift.name}`} onClose={onClose}>
+      <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>A person can be on one shift at a time — assigning here moves them off any other shift.</p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 300, overflowY: 'auto' }}>
+        {staff.map((s) => (
+          <button key={s.id} type="button" className={`pill ${sel.has(s.id) ? 'active' : ''}`} onClick={() => toggle(s.id)}>{s.name}</button>
+        ))}
+      </div>
+      <div className="modal-actions">
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? <span className="spinner" /> : `Save roster`}</button>
+      </div>
+    </Modal>
   );
 }
