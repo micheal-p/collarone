@@ -30,6 +30,9 @@ function TaskModal({ task, staff, myDeptId, onClose, onSaved, onError, isSupervi
     assignedTo:  task?.assigned_to  || '',
     // supervisors always work within their own dept
     departmentId: task?.department_id || myDeptId || '',
+    recurEvery: task?.recur_every || '',
+    recurDow: task?.recur_dow ?? 1,
+    recurDom: task?.recur_dom ?? 1,
   });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -46,6 +49,11 @@ function TaskModal({ task, staff, myDeptId, onClose, onSaved, onError, isSupervi
         assignedTo: f.assignedTo || null,
         departmentId: f.departmentId ? Number(f.departmentId) : null,
       };
+      if (task) {
+        payload.recur = f.recurEvery
+          ? { every: f.recurEvery, dow: Number(f.recurDow), dom: Number(f.recurDom) }
+          : null;
+      }
       const saved = task ? await T.updateTask(task.id, payload) : await T.createTask(payload);
       onSaved(saved);
     } catch (e2) { onError(e2.message); } finally { setBusy(false); }
@@ -75,6 +83,28 @@ function TaskModal({ task, staff, myDeptId, onClose, onSaved, onError, isSupervi
               <input className="input" type="date" value={f.dueDate} onChange={(e) => set('dueDate', e.target.value)} />
             </div>
           </div>
+          {task && !task.recur_source_id && (
+            <div className="form-grid">
+              <div className="field"><label>Repeats <span className="muted">— re-raises itself as a fresh task</span></label>
+                <select className="select" value={f.recurEvery} onChange={(e) => set('recurEvery', e.target.value)}>
+                  <option value="">Never</option><option value="day">Every day</option>
+                  <option value="week">Weekly</option><option value="month">Monthly</option>
+                </select>
+              </div>
+              {f.recurEvery === 'week' && (
+                <div className="field"><label>On</label>
+                  <select className="select" value={f.recurDow} onChange={(e) => set('recurDow', e.target.value)}>
+                    {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((d, i) => <option key={d} value={i}>{d}</option>)}
+                  </select>
+                </div>
+              )}
+              {f.recurEvery === 'month' && (
+                <div className="field"><label>Day of month</label>
+                  <input className="input" type="number" min="1" max="28" value={f.recurDom} onChange={(e) => set('recurDom', e.target.value)} />
+                </div>
+              )}
+            </div>
+          )}
           {isSupervisor && (
             <div className="field"><label>Assign to</label>
               <select className="select" value={f.assignedTo} onChange={(e) => set('assignedTo', e.target.value)}>
@@ -259,7 +289,14 @@ function TaskRow({ task, isSupervisor, myId, locked, onEdit, onDelete, onStatusC
       {expanded && (
         <tr>
           <td colSpan={6} style={{ padding:'0 16px 16px', background:'var(--surface)' }}>
+            {task.recur_every && !task.recur_source_id && (
+              <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+                Repeats {task.recur_every === 'day' ? 'every day' : task.recur_every === 'week' ? 'weekly' : 'monthly'} — a fresh copy is raised each period.
+              </p>
+            )}
+            {task.recur_source_id && <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>Raised automatically from a repeating task.</p>}
             <TaskReports task={task} canMutate={canMutate} flash={flash} />
+            <TaskComments task={task} flash={flash} />
           </td>
         </tr>
       )}
@@ -587,6 +624,52 @@ export default function TasksApp({ access }) {
       )}
       {toastNode}
       {confirmNode}
+    </div>
+  );
+}
+
+/* ---- TaskComments (inline discussion — distinct from formal reports) ------- */
+function TaskComments({ task, flash }) {
+  const [comments, setComments] = useState(null);
+  const [body, setBody] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    T.getComments(task.id).then(setComments, (e) => { setComments([]); flash(e.message, true); });
+  }, [task.id]); // eslint-disable-line
+
+  const post = async () => {
+    const text = body.trim();
+    if (!text) return;
+    setBusy(true);
+    try { const c = await T.addComment(task.id, text); setComments((cs) => [...(cs || []), c]); setBody(''); }
+    catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="tk-reports-panel" style={{ marginTop: 10 }}>
+      <div className="tk-reports-head">
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Comments {comments ? `(${comments.length})` : ''}</span>
+      </div>
+      {comments === null && <div style={{ padding: '8px 0' }}><div className="boot-spinner" style={{ width: 16, height: 16 }} /></div>}
+      {comments?.length === 0 && <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>Quick back-and-forth about this task lives here — the assignee and creator get notified.</p>}
+      {(comments || []).map((c) => (
+        <div key={c.id} style={{ display: 'flex', gap: 8, padding: '7px 0', alignItems: 'flex-start' }}>
+          <span className="avatar sm" style={{ flexShrink: 0 }}>{(c.author?.name || '?').split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12 }}><strong>{c.author?.name || 'Someone'}</strong><span className="muted" style={{ marginLeft: 7, fontSize: 11 }}>{T.fmtDt(c.created_at)}</span></div>
+            <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{c.body}</div>
+          </div>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <input className="input" value={body} onChange={(e) => setBody(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && post()}
+          placeholder="Write a comment…" style={{ flex: 1, fontSize: 13 }} />
+        <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '4px 14px' }} disabled={busy || !body.trim()} onClick={post}>
+          {busy ? <span className="spinner" /> : 'Post'}
+        </button>
+      </div>
     </div>
   );
 }

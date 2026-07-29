@@ -9,7 +9,7 @@
 // (not a script hammering this URL) is what drives the write rate.
 import { createClient } from '@supabase/supabase-js';
 import { sendBillingNotice } from './_lib/billingNotify.js';
-import { runAutomationRules } from './_lib/automationRules.js';
+import { runAutomationRules, periodOf, scheduleDue } from './_lib/automationRules.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -128,6 +128,27 @@ export default async function handler(req, res) {
         // Org-built automation rules (event rules drain their cursor;
         // schedules stamp their period) — caps + fences inside.
         await runAutomationRules(admin);
+
+        // Recurring tasks: sources re-raise themselves as fresh todos each
+        // period (same stamp idempotency as recurring invoices; clones never
+        // recur). Cheap when nothing is due.
+        try {
+          const nowD = new Date();
+          const { data: recur } = await admin.from('tasks')
+            .select('id, org_id, title, description, priority, assigned_to, created_by, recur_every, recur_dow, recur_dom, recur_last_period')
+            .not('recur_every', 'is', null).is('recur_source_id', null).limit(300);
+          for (const t of recur || []) {
+            const sched = { every: t.recur_every, dow: t.recur_dow ?? 1, dom: t.recur_dom ?? 1 };
+            const period = periodOf(sched, nowD);
+            if (!scheduleDue(sched, nowD) || t.recur_last_period === period) continue;
+            await admin.from('tasks').insert({
+              org_id: t.org_id, title: t.title, description: t.description, priority: t.priority,
+              assigned_to: t.assigned_to, created_by: t.created_by, status: 'todo',
+              due_date: nowD.toISOString().slice(0, 10), recur_source_id: t.id,
+            });
+            await admin.from('tasks').update({ recur_last_period: period }).eq('id', t.id);
+          }
+        } catch { /* never break health */ }
 
         // Chat @mention delivery: bell is instant via the spine; this sweep
         // adds email (and WhatsApp when the channel exists) through the same
