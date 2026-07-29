@@ -317,6 +317,9 @@ export async function supabaseApi(path, opts = {}) {
   if (head === 'POST /platform' && seg[1] === 'confirm-payment') {
     return callAdmin('confirm-org-payment', { transactionId: body.transactionId });
   }
+  if (head === 'POST /platform' && seg[1] === 'refund-transaction') {
+    return callAdmin('refund-transaction', { transactionId: body.transactionId, reason: body.reason });
+  }
   if (head === 'POST /platform' && seg[1] === 'delete-org') {
     return callAdmin('delete-org', { orgId: body.orgId });
   }

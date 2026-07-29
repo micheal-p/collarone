@@ -14,7 +14,10 @@ const app = express();
 // client-sent X-Forwarded-For can't be spoofed. The job-post report dedup keys
 // off req.ip, so this prevents forged reports from hiding posts.
 app.set('trust proxy', 1);
-app.use(express.json());
+// Keep the raw request bytes alongside the parsed body — webhook HMAC
+// signatures (Paystack x-paystack-signature) are computed over the raw body,
+// and a re-stringified JSON.parse round-trip would not match byte-for-byte.
+app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
 for (const file of readdirSync(apiDir).filter((f) => f.endsWith('.js'))) {
   const name = file.slice(0, -3);

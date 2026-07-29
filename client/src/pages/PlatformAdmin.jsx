@@ -12,7 +12,7 @@ import ThemePreviewModal from '../components/ThemePreview.jsx';
 const GUEST_KEY = 'collarone_guest_mode';
 
 const STATUS_LABEL = { pending_payment: 'Pending payment', active: 'Active', past_due: 'Past due', read_only: 'Read-only', suspended: 'Suspended', cancelled: 'Cancelled' };
-const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', delete_org: 'Deleted organization', impersonate: 'Impersonated admin (retired)', guest_mode: 'Guested into organization', payment_gateway: 'Changed card-payment gateway' };
+const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', refund_transaction: 'Recorded refund', delete_org: 'Deleted organization', impersonate: 'Impersonated admin (retired)', guest_mode: 'Guested into organization', payment_gateway: 'Changed card-payment gateway' };
 const ALL_SUITE_KEYS = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'procurement', 'inventory', 'finance', 'projects', 'documents'];
 const COUNTRY_NAME = { NG: 'Nigeria', GH: 'Ghana', KE: 'Kenya', ZA: 'South Africa', EG: 'Egypt', GB: 'United Kingdom', US: 'United States' };
 
@@ -281,21 +281,21 @@ function DemoSuitesPanel({ flash }) {
 const TX_TYPE = { activation_fee: 'Activation fee', credit_purchase: 'Seat credits', renewal: 'Renewal' };
 
 // Full money history across every org — pending, confirmed, everything.
-function TransactionsPanel({ transactions, orgName }) {
+function TransactionsPanel({ transactions, orgName, onRefund, refunding }) {
   const [filter, setFilter] = useState('all');
   const rows = transactions.filter((t) => (filter === 'all' ? true : t.status === filter)).slice(0, 200);
   return (
     <section className="pc-section">
       <SectionHead title="Transactions" count={String(transactions.length)}>
-        {['all', 'pending', 'confirmed'].map((f) => (
+        {['all', 'pending', 'confirmed', 'refunded'].map((f) => (
           <button key={f} className={`pc-btn sm${filter === f ? ' primary' : ''}`} onClick={() => setFilter(f)} style={{ textTransform: 'capitalize' }}>{f}</button>
         ))}
       </SectionHead>
       <div className="pc-panel pc-tablewrap">
         <table className="pc-table collapsible">
-          <thead><tr><th>Date</th><th>Organization</th><th>Type</th><th>Reference</th><th>Method</th><th className="r">Amount</th><th>Status</th></tr></thead>
+          <thead><tr><th>Date</th><th>Organization</th><th>Type</th><th>Reference</th><th>Method</th><th className="r">Amount</th><th>Status</th><th /></tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={7} className="pc-dim" style={{ fontSize: 12.5 }}>Nothing here yet.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={8} className="pc-dim" style={{ fontSize: 12.5 }}>Nothing here yet.</td></tr>}
             {rows.map((t) => (
               <tr key={t.id}>
                 <td className="pc-mono pc-dim" style={{ fontSize: 12 }}>{fmtDate(t.created_at)}</td>
@@ -305,10 +305,17 @@ function TransactionsPanel({ transactions, orgName }) {
                 <td className="pc-dim">{t.method === 'paystack' ? 'Card' : 'Transfer'}</td>
                 <td className="num" style={{ fontWeight: 600 }}>{naira(t.amount_kobo)}</td>
                 <td>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
-                    <span className="pc-dot" style={{ background: t.status === 'confirmed' ? 'var(--ok)' : t.status === 'pending' ? '#e8b23f' : 'var(--faint)' }} />
+                  <span title={t.status === 'refunded' && t.refund_reason ? t.refund_reason : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                    <span className="pc-dot" style={{ background: t.status === 'confirmed' ? 'var(--ok)' : t.status === 'pending' ? '#e8b23f' : t.status === 'refunded' ? 'var(--err)' : 'var(--faint)' }} />
                     {t.status}
                   </span>
+                </td>
+                <td className="r">
+                  {t.status === 'confirmed' && (
+                    <button className="pc-btn sm" disabled={refunding === t.id} onClick={() => onRefund(t)}>
+                      {refunding === t.id ? 'Working…' : 'Refund'}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -768,6 +775,21 @@ export default function PlatformAdmin() {
     } catch (e) { flash(e.message, true); } finally { setConfirming(null); }
   };
 
+  const [refunding, setRefunding] = useState(null);
+  const refundTx = async (t) => {
+    // The money itself is returned in the Paystack dashboard / by transfer —
+    // this records it (and claws back credit-pack credits), audited.
+    const reason = window.prompt(`Refund ${naira(t.amount_kobo)} (${t.reference}) for ${orgName(t.org_id)}?\n\nType the refund reason:`);
+    if (reason === null) return;
+    if (!reason.trim()) { flash('A refund reason is required.', true); return; }
+    setRefunding(t.id);
+    try {
+      await apiPost('/platform/refund-transaction', { transactionId: t.id, reason: reason.trim() });
+      flash('Refund recorded.');
+      load();
+    } catch (e) { flash(e.message, true); } finally { setRefunding(null); }
+  };
+
   // No real login/impersonation — platform admin must never see a customer's
   // actual business data. This runs a count-only reachability check per
   // suite (never row content) so we can confirm "is it working, any errors"
@@ -924,7 +946,7 @@ export default function PlatformAdmin() {
       </>)}
 
       {tab === 'revenue' && (<>
-      <TransactionsPanel transactions={transactions} orgName={orgName} />
+      <TransactionsPanel transactions={transactions} orgName={orgName} onRefund={refundTx} refunding={refunding} />
 
       <PricingPanel flash={flash} />
 
