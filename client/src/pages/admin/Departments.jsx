@@ -3,6 +3,12 @@ import { createPortal } from 'react-dom';
 import { apiGet, apiPost, apiPatch } from '../../api/client.js';
 import AppLayout from '../../components/AppLayout.jsx';
 import SuiteIcon from '../../components/SuiteIcon.jsx';
+import { SUITES, BULK_SAFE_SUITES } from '../../config/suites.js';
+
+// Everyday (bulk-safe) suites only — money/PII suites can never enter a
+// department template; those are granted per person from the Users page.
+const TEMPLATE_SUITES = SUITES.filter((s) => BULK_SAFE_SUITES.includes(s.key) && s.status === 'live');
+const suiteName = (k) => SUITES.find((s) => s.key === k)?.name || k;
 
 const I = {
   add:     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>,
@@ -52,7 +58,12 @@ function RowMenu({ dept, rect, onClose, onEdit, onToggle }) {
 function DeptModal({ dept, onClose, onSaved, onError }) {
   const [name, setName] = useState(dept?.name || '');
   const [code, setCode] = useState(dept?.code || '');
+  const [suites, setSuites] = useState(() => (dept?.access_suites || []).filter((g) => BULK_SAFE_SUITES.includes(g.key)));
   const [busy, setBusy] = useState(false);
+  const on = new Set(suites.map((g) => g.key));
+  const toggle = (key) => setSuites(on.has(key)
+    ? suites.filter((g) => g.key !== key)
+    : [...suites, { key, role: key === 'visitors' ? 'staff' : 'member' }]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -60,8 +71,8 @@ function DeptModal({ dept, onClose, onSaved, onError }) {
     setBusy(true);
     try {
       const d = dept
-        ? await apiPatch(`/departments/${dept.id}`, { name, code })
-        : await apiPost('/departments', { name, code });
+        ? await apiPatch(`/departments/${dept.id}`, { name, code, accessSuites: suites })
+        : await apiPost('/departments', { name, code, accessSuites: suites });
       onSaved(d.department);
     } catch (e2) { onError(e2.message); } finally { setBusy(false); }
   };
@@ -75,6 +86,20 @@ function DeptModal({ dept, onClose, onSaved, onError }) {
         <div className="field"><label>Code <span className="muted">(e.g. IT, HR, FINANCE)</span></label>
           <input className="input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} required
             placeholder="Short uppercase code" maxLength={12} />
+        </div>
+        <div className="field">
+          <label>Access template <span className="muted">— suites this department's staff get automatically on bulk import</span></label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {TEMPLATE_SUITES.map((s) => (
+              <label key={s.key} className={`pill ${on.has(s.key) ? 'active' : ''}`} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <input type="checkbox" checked={on.has(s.key)} onChange={() => toggle(s.key)} style={{ display: 'none' }} />
+                {s.name}
+              </label>
+            ))}
+          </div>
+          <p className="muted" style={{ fontSize: 12, margin: '8px 0 0', lineHeight: 1.5 }}>
+            Everyday suites only. Payroll, Finance, HR, Benefits, Documents, Buying and Invoicing are always granted per person from the Users page.
+          </p>
         </div>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
@@ -154,13 +179,14 @@ export default function AdminDepartments() {
             <tr>
               <th>Department name</th>
               <th>Code</th>
+              <th>Access template</th>
               <th>Status</th>
               <th className="col-check"></th>
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={4} className="td-empty">Loading…</td></tr>}
-            {!loading && view.length === 0 && <tr><td colSpan={4} className="td-empty">No departments found.</td></tr>}
+            {loading && <tr><td colSpan={5} className="td-empty">Loading…</td></tr>}
+            {!loading && view.length === 0 && <tr><td colSpan={5} className="td-empty">No departments found.</td></tr>}
             {!loading && view.map((dept) => (
               <tr key={dept.id}>
                 <td>
@@ -172,6 +198,11 @@ export default function AdminDepartments() {
                   </div>
                 </td>
                 <td><span className="chip" style={{ fontFamily: 'monospace', letterSpacing: '.04em' }}>{dept.code}</span></td>
+                <td className="muted" style={{ fontSize: 12.5 }}>
+                  {(dept.access_suites || []).length
+                    ? (dept.access_suites || []).map((g) => suiteName(g.key)).join(', ')
+                    : '—'}
+                </td>
                 <td><span className={`status-dot ${dept.active ? 'active' : 'disabled'}`} />{dept.active ? 'Active' : 'Inactive'}</td>
                 <td className="col-check">
                   <button className="kebab" aria-label="Row actions"

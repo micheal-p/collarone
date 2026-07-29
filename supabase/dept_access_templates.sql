@@ -1,0 +1,16 @@
+-- ============================================================================
+-- Department access templates. Run after hr_multitenancy.sql. Idempotent.
+--
+-- A department can carry a suite set ("Sales → Customers + Tasks") that bulk
+-- staff import applies automatically by matching each row's department —
+-- access that fits the job, per person, with zero per-person clicking.
+--
+-- Deliberate limits (the A+B decision, 2026-07-30):
+--   • Templates may only contain BULK-SAFE suites — money/PII suites
+--     (HR, Payroll, Finance, Benefits, Documents, Buying, Invoicing) can
+--     never enter a template; those are always granted person-by-person.
+--     Enforced in the API (admin.js sanitizes on use) and the UI.
+--   • Only the workspace owner can edit departments (departments_admin_write
+--     is super_admin-gated), so a template can't be poisoned by staff.
+-- ============================================================================
+alter table public.departments add column if not exists access_suites jsonb not null default '[]'::jsonb;

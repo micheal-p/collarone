@@ -144,15 +144,35 @@ export default async function handler(req, res) {
       const { randomBytes } = await import('node:crypto');
       const tempPassword = () => randomBytes(9).toString('base64url').replace(/[-_]/g, 'x'); // 12 chars, no confusing symbols
 
-      // One role + suite set for the whole batch — imported staff arrive ready
-      // to work, not staring at an empty launcher. Bulk can never mint admins
-      // (that stays a deliberate, one-at-a-time act), and the same
-      // Nigeria-only payroll gate as single create applies.
+      // Access in bulk follows the A+B decision (2026-07-30): a safe-floor
+      // baseline + per-DEPARTMENT templates, and money/PII suites (HR,
+      // Payroll, Finance, Benefits, Documents, Buying, Invoicing) can NEVER
+      // be granted in bulk — those stay deliberate, person-by-person grants.
+      // Bulk also can't mint admins and forces each suite's base role, so a
+      // careless import can't hand 50 people manager-level anything.
+      // Mirror of BULK_SAFE_SUITES in client/src/config/suites.js.
+      const BULK_SAFE = new Set(['leave', 'tasks', 'visitors', 'attendance', 'projects', 'crm', 'inventory', 'it-assets']);
+      const baseRoleOf = (key) => (key === 'visitors' ? 'staff' : 'member');
+      const sanitizeBulk = (list) => {
+        const seenKeys = new Set();
+        return (Array.isArray(list) ? list : [])
+          .filter((s) => s && BULK_SAFE.has(s.key) && !seenKeys.has(s.key) && seenKeys.add(s.key))
+          .map((s) => ({ key: s.key, role: baseRoleOf(s.key) }));
+      };
       const batchRole = ['staff', 'manager'].includes(body.role) ? body.role : 'staff';
-      let batchSuites = Array.isArray(body.suites) ? body.suites : [];
-      const batchIpCountry = (req.headers['x-vercel-ip-country'] || '').toUpperCase();
-      const batchPayrollDropped = batchIpCountry && batchIpCountry !== 'NG' && batchSuites.some((s) => s.key === 'payroll');
-      if (batchPayrollDropped) batchSuites = batchSuites.filter((s) => s.key !== 'payroll');
+      const baseline = sanitizeBulk(body.suites);
+      // Department templates: match each row's department to the org's own
+      // departments (owner-edited only — departments_admin_write is
+      // super_admin-gated) and add that department's template suites.
+      const { data: deptRows } = await admin.from('departments')
+        .select('name, access_suites').eq('org_id', caller.org_id);
+      const templateByName = new Map((deptRows || []).map((d) => [String(d.name).trim().toLowerCase(), sanitizeBulk(d.access_suites)]));
+      const suitesForRow = (r) => {
+        const tpl = templateByName.get(String(r.department || '').trim().toLowerCase()) || [];
+        const merged = [...baseline];
+        for (const s of tpl) if (!merged.some((m) => m.key === s.key)) merged.push(s);
+        return merged;
+      };
 
       const results = [];
       const createdIds = [];
@@ -174,7 +194,7 @@ export default async function handler(req, res) {
         const { data: profile, error: pErr } = await admin.from('profiles').upsert({
           id: created.user.id, email, name, job_title: String(r.jobTitle || '').trim(),
           department: String(r.department || '').trim(), org_id: caller.org_id,
-          role: batchRole, suites: batchSuites, status: 'active', must_change_password: true,
+          role: batchRole, suites: suitesForRow(r), status: 'active', must_change_password: true,
         }, { onConflict: 'id' }).select().single();
         if (pErr) {
           await admin.auth.admin.deleteUser(created.user.id);
@@ -213,10 +233,7 @@ export default async function handler(req, res) {
         }
       } catch { /* automation is a bonus */ }
 
-      return json(res, 200, {
-        results, created: createdIds.length, failed: results.length - createdIds.length,
-        ...(batchPayrollDropped ? { warning: 'Payroll can only be enabled from a Nigerian IP address — it was left out for these accounts.' } : {}),
-      });
+      return json(res, 200, { results, created: createdIds.length, failed: results.length - createdIds.length });
     }
 
     if (action === 'purchase-credits') {

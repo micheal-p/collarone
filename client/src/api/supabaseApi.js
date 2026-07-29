@@ -469,7 +469,7 @@ export async function supabaseApi(path, opts = {}) {
   }
   if (head === 'GET /departments') {
     const all = path.includes('all=true');
-    let q = supabase.from('departments').select('id, name, code, active').order('name');
+    let q = supabase.from('departments').select('id, name, code, active, access_suites').order('name');
     if (!all) q = q.eq('active', true);
     const { data, error } = await q;
     if (error) fail(400, error.message);
@@ -478,7 +478,10 @@ export async function supabaseApi(path, opts = {}) {
   if (head === 'POST /departments') {
     const { name, code } = body;
     if (!name || !code) fail(400, 'Name and code are required.');
-    const { data, error } = await supabase.from('departments').insert({ name: name.trim(), code: code.trim().toUpperCase(), org_id: await myOrgId() }).select().single();
+    const { data, error } = await supabase.from('departments').insert({
+      name: name.trim(), code: code.trim().toUpperCase(), org_id: await myOrgId(),
+      access_suites: Array.isArray(body.accessSuites) ? body.accessSuites : [],
+    }).select().single();
     if (error) fail(400, error.code === '23505' ? 'Department code already exists.' : error.message);
     return { department: data };
   }
@@ -486,6 +489,8 @@ export async function supabaseApi(path, opts = {}) {
     const patch = {};
     if (body.name !== undefined) patch.name = body.name.trim();
     if (body.code !== undefined) patch.code = body.code.trim().toUpperCase();
+    // Access template — bulk-safe suites only; the server re-sanitizes on use.
+    if (body.accessSuites !== undefined) patch.access_suites = Array.isArray(body.accessSuites) ? body.accessSuites : [];
     const { data, error } = await supabase.from('departments').update(patch).eq('id', seg[1]).select().single();
     if (error) fail(400, error.code === '23505' ? 'Department code already exists.' : error.message);
     return { department: data };
