@@ -17,8 +17,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export function useCoachTour(storageKey) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
-    // never auto-open inside an iframe (the landing's live embed)
+    // never auto-open inside an iframe (the landing's live embed) or the
+    // try-demo sandbox — the demo's own bespoke tour is the only voice there
     if (window.self !== window.top) return undefined;
+    try { if (sessionStorage.getItem('co-try-demo') === '1') return undefined; } catch { /* private mode */ }
     if (storageKey && !localStorage.getItem(storageKey)) {
       const t = setTimeout(() => setOpen(true), 700); // let the page settle first
       return () => clearTimeout(t);

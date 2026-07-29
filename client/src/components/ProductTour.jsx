@@ -10,12 +10,14 @@ import { useEffect, useLayoutEffect, useState } from 'react';
    ============================================================================= */
 
 const doneKey = (userId, tourId = 'v1') => `collarone_tour_${tourId}_${userId || 'anon'}`;
-// Inside an iframe (the landing page's "Try it live" embed) auto-tours are
-// noise on a small stage — report "seen" so none ever auto-open there. The
-// explicit replay buttons still work.
+// Suite tours stay quiet in two places: inside an iframe (the landing
+// embed), and inside the try-demo sandbox — the demo runs its OWN bespoke
+// tour, and a second near-identical tour underneath it reads like a stutter.
+// Reporting "seen" suppresses only the auto-open; replay buttons still work.
 export const tourSeen = (userId, tourId) => {
   try {
     if (window.self !== window.top) return true;
+    if (sessionStorage.getItem('co-try-demo') === '1') return true;
     return localStorage.getItem(doneKey(userId, tourId)) === 'done';
   } catch { return true; }
 };
