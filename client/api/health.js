@@ -9,6 +9,7 @@
 // (not a script hammering this URL) is what drives the write rate.
 import { createClient } from '@supabase/supabase-js';
 import { sendBillingNotice } from './_lib/billingNotify.js';
+import { runAutomationRules } from './_lib/automationRules.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -123,6 +124,10 @@ export default async function handler(req, res) {
         // are written there too). Piggybacks the same throttle as everything
         // else here so it works for every org, not just automation-suite ones.
         await admin.rpc('generate_recurring_invoices').then(() => {}, () => {});
+
+        // Org-built automation rules (event rules drain their cursor;
+        // schedules stamp their period) — caps + fences inside.
+        await runAutomationRules(admin);
 
         // Renewal dunning ladder (active -> past_due -> read_only -> suspended).
         // Only runs when the operator has explicitly switched enforcement on —

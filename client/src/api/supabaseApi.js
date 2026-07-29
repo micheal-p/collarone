@@ -2130,6 +2130,38 @@ export async function supabaseApi(path, opts = {}) {
   }
 
   // ---- automation ----
+  // Custom rules ("when X → do Y") — RLS enforces same-org + automation
+  // manager for writes; the executor re-fences everything server-side anyway.
+  if (head === 'GET /automation' && seg[1] === 'rules') {
+    const { data, error } = await supabase.from('org_automation_rules').select('*').order('created_at', { ascending: false });
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { rules: data };
+  }
+  if (head === 'POST /automation' && seg[1] === 'rules') {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('org_automation_rules').insert({
+      org_id: await myOrgId(), name: body.name, trigger_kind: body.trigger_kind,
+      event_type: body.event_type || null, schedule: body.schedule || null,
+      action_kind: body.action_kind, action_config: body.action_config || {},
+      created_by: user.id,
+    }).select().single();
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { rule: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'automation' && seg[1] === 'rules' && seg.length === 3) {
+    const patch = { updated_at: new Date().toISOString() };
+    for (const k of ['name', 'enabled', 'event_type', 'schedule', 'action_kind', 'action_config', 'trigger_kind']) {
+      if (body[k] !== undefined) patch[k] = body[k];
+    }
+    const { data, error } = await supabase.from('org_automation_rules').update(patch).eq('id', seg[2]).select().single();
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { rule: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'automation' && seg[1] === 'rules' && seg.length === 3) {
+    const { error } = await supabase.from('org_automation_rules').delete().eq('id', seg[2]);
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { ok: true };
+  }
   if (head === 'GET /automation' && seg[1] === 'settings') {
     const { data, error } = await supabase.from('automation_settings').select('*');
     if (error) fail(400, error.message);
