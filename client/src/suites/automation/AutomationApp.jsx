@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import * as AUTO from './automationApi.js';
 import { SUITE_META } from '../../config/suites.js';
 import SuiteIcon from '../../components/SuiteIcon.jsx';
-import { useToast } from '../../components/ui.jsx';
+import { Modal, useConfirm, useToast } from '../../components/ui.jsx';
 
 // The AUTOMATIONS catalog names suites for humans ("Trade Documents"); this
 // maps back to the real suite key so the card can borrow that suite's own
@@ -101,7 +101,6 @@ function AutomationCard({ def, setting, lastRun, isManager, onToggle, onConfigSa
 // Africa's Talking Voice) on top of that — an API key alone doesn't make a
 // phone ring into this app. Nothing here pretends otherwise.
 const ROADMAP = [
-  { icon: RI.flow, name: 'Custom automation builder', needs: 'In development', desc: 'Chain your own trigger → action workflows across suites from this dashboard, instead of picking from a fixed list.' },
   { icon: RI.phone, name: 'AI call assistant', needs: 'Needs a business phone line + call provider', desc: 'Picks up customer calls, has a real conversation, and books what it agreed to as a task or CRM note.' },
   { icon: RI.waveform, name: 'Call transcripts & logs', needs: 'Needs the call assistant above', desc: 'Every call recorded as a searchable transcript in one log — who called, what they needed, what happened next.' },
   { icon: RI.mail, name: 'AI email replies', needs: 'Needs an OpenAI key (same as above)', desc: 'Drafts — and once you approve the pattern, sends — replies to routine customer emails in your own voice.' },
@@ -183,10 +182,12 @@ export default function AutomationApp({ access }) {
             ))}
           </div>
 
+          <RulesSection isManager={isManager} flash={flash} />
+
           <div style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid var(--line)' }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>Smart business automation — what's next</h3>
             <p className="muted" style={{ fontSize: 13, margin: '0 0 16px', maxWidth: '70ch' }}>
-              The bigger idea: automation that runs your busywork end to end — answering calls, logging every conversation, replying to routine emails, and letting you wire up your own workflows instead of picking from a fixed list. Not live yet — each card names exactly what it's waiting on.
+              The bigger idea: automation that runs your busywork end to end — answering calls, logging every conversation, replying to routine emails. Not live yet — each card names exactly what it's waiting on.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
               {ROADMAP.map((item) => <RoadmapCard key={item.name} item={item} />)}
@@ -195,6 +196,263 @@ export default function AutomationApp({ access }) {
         </>
       )}
       {toastNode}
+    </div>
+  );
+}
+
+/* ==== Custom rules — "when X happens (or every Monday), do Y" ==================
+   The org builds its own automations on the event spine, from menus (or by
+   describing them — AI drafts into the SAME fenced structure, then the human
+   reviews and saves). Actions are the safe set only; the server executor
+   re-validates everything regardless of what the UI sent. */
+
+const ruleTriggerLabel = (r) => {
+  if (r.trigger_kind === 'event') return AUTO.RULE_EVENTS.find((e) => e.key === r.event_type)?.label || r.event_type;
+  const s = r.schedule || {};
+  if (s.every === 'day') return 'Every day';
+  if (s.every === 'week') return `Every ${AUTO.DOW[s.dow ?? 1]}`;
+  if (s.every === 'month') return `Monthly on day ${s.dom ?? 1}`;
+  return 'Schedule';
+};
+const ruleActionLabel = (r) => AUTO.RULE_ACTIONS.find((a) => a.key === r.action_kind)?.label || r.action_kind;
+
+function RuleModal({ staff, aiEnabled, onClose, onSaved, flash }) {
+  const [prompt, setPrompt] = useState('');
+  const [drafting, setDrafting] = useState(false);
+  const [f, setF] = useState({
+    name: '', trigger_kind: 'event', event_type: AUTO.RULE_EVENTS[0].key,
+    schedule: { every: 'week', dow: 1 }, action_kind: 'task',
+    action_config: { title: '', description: '', priority: 'medium', assigneeId: '', message: '', subject: '', recipientIds: [] },
+  });
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  const setCfg = (k, v) => setF((s) => ({ ...s, action_config: { ...s.action_config, [k]: v } }));
+
+  const draft = async () => {
+    setDrafting(true);
+    try {
+      const rule = await AUTO.aiDraftRule(prompt);
+      setF({
+        name: rule.name, trigger_kind: rule.trigger_kind,
+        event_type: rule.event_type || AUTO.RULE_EVENTS[0].key,
+        schedule: rule.schedule || { every: 'week', dow: 1 },
+        action_kind: rule.action_kind,
+        action_config: {
+          title: '', description: '', priority: 'medium', assigneeId: '', message: '', subject: '', recipientIds: [],
+          ...rule.action_config,
+          assigneeId: rule.action_config?.assigneeId || '',
+        },
+      });
+      flash('Drafted — review below, adjust anything, then save.');
+    } catch (e) { flash(e.message, true); } finally { setDrafting(false); }
+  };
+
+  const save = async () => {
+    if (!f.name.trim()) { flash('Give the rule a name.', true); return; }
+    setBusy(true);
+    try {
+      const cfg = f.action_kind === 'task'
+        ? { title: f.action_config.title || f.name, description: f.action_config.description, priority: f.action_config.priority, assigneeId: f.action_config.assigneeId || null }
+        : f.action_kind === 'email'
+          ? { subject: f.action_config.subject || f.name, message: f.action_config.message, recipientIds: f.action_config.recipientIds }
+          : { message: f.action_config.message || f.name };
+      const rule = await AUTO.createRule({
+        name: f.name.trim(), trigger_kind: f.trigger_kind,
+        event_type: f.trigger_kind === 'event' ? f.event_type : null,
+        schedule: f.trigger_kind === 'schedule' ? f.schedule : null,
+        action_kind: f.action_kind, action_config: cfg,
+      });
+      onSaved(rule);
+    } catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+
+  const toggleRecipient = (id) => setCfg('recipientIds',
+    f.action_config.recipientIds.includes(id)
+      ? f.action_config.recipientIds.filter((x) => x !== id)
+      : [...f.action_config.recipientIds, id].slice(0, 10));
+
+  return (
+    <Modal title="New automation rule" onClose={onClose} wide>
+      {aiEnabled && (
+        <div style={{ background: 'var(--brand-100, rgba(255,91,31,0.08))', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
+          <label style={{ fontSize: 13, fontWeight: 650, display: 'block', marginBottom: 6 }}>✨ Describe it — we'll set it up</label>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <input className="input" style={{ flex: 1, minWidth: 220 }} value={prompt} onChange={(e) => setPrompt(e.target.value)}
+              placeholder={'e.g. "when a deal is won, congratulate everyone" or "every Friday remind Ops to send the report"'}
+              onKeyDown={(e) => e.key === 'Enter' && prompt.trim().length >= 8 && draft()} />
+            <button className="btn btn-primary" disabled={drafting || prompt.trim().length < 8} onClick={draft}>
+              {drafting ? <span className="spinner" /> : 'Draft with AI'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="field"><label>Rule name</label>
+        <input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. New joiner IT setup" />
+      </div>
+
+      <div className="form-row" style={{ flexWrap: 'wrap', gap: 12 }}>
+        <div className="field" style={{ minWidth: 160 }}>
+          <label>When</label>
+          <select className="select" value={f.trigger_kind} onChange={(e) => set('trigger_kind', e.target.value)}>
+            <option value="event">Something happens…</option>
+            <option value="schedule">On a schedule…</option>
+          </select>
+        </div>
+        {f.trigger_kind === 'event' ? (
+          <div className="field" style={{ flex: 1, minWidth: 220 }}>
+            <label>Which event</label>
+            <select className="select" value={f.event_type} onChange={(e) => set('event_type', e.target.value)}>
+              {AUTO.RULE_EVENTS.map((ev) => <option key={ev.key} value={ev.key}>{ev.label}</option>)}
+            </select>
+          </div>
+        ) : (
+          <>
+            <div className="field" style={{ minWidth: 130 }}>
+              <label>Repeats</label>
+              <select className="select" value={f.schedule.every} onChange={(e) => set('schedule', { every: e.target.value, dow: 1, dom: 1 })}>
+                <option value="day">Every day</option><option value="week">Weekly</option><option value="month">Monthly</option>
+              </select>
+            </div>
+            {f.schedule.every === 'week' && (
+              <div className="field" style={{ minWidth: 130 }}>
+                <label>On</label>
+                <select className="select" value={f.schedule.dow} onChange={(e) => set('schedule', { ...f.schedule, dow: Number(e.target.value) })}>
+                  {AUTO.DOW.map((d, i) => <option key={d} value={i}>{d}</option>)}
+                </select>
+              </div>
+            )}
+            {f.schedule.every === 'month' && (
+              <div className="field" style={{ minWidth: 110 }}>
+                <label>Day of month</label>
+                <input className="input" type="number" min="1" max="28" value={f.schedule.dom}
+                  onChange={(e) => set('schedule', { ...f.schedule, dom: Math.min(28, Math.max(1, Number(e.target.value) || 1)) })} />
+              </div>
+            )}
+          </>
+        )}
+        <div className="field" style={{ minWidth: 190 }}>
+          <label>Do</label>
+          <select className="select" value={f.action_kind} onChange={(e) => set('action_kind', e.target.value)}>
+            {AUTO.RULE_ACTIONS.map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {f.action_kind === 'task' && (
+        <>
+          <div className="form-row" style={{ flexWrap: 'wrap', gap: 12 }}>
+            <div className="field" style={{ flex: 1, minWidth: 200 }}><label>Task title</label>
+              <input className="input" value={f.action_config.title} onChange={(e) => setCfg('title', e.target.value)} placeholder="Prepare laptop for {name}" /></div>
+            <div className="field" style={{ minWidth: 150 }}><label>Assign to</label>
+              <select className="select" value={f.action_config.assigneeId} onChange={(e) => setCfg('assigneeId', e.target.value)}>
+                <option value="">— Unassigned —</option>
+                {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select></div>
+            <div className="field" style={{ minWidth: 120 }}><label>Priority</label>
+              <select className="select" value={f.action_config.priority} onChange={(e) => setCfg('priority', e.target.value)}>
+                <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="urgent">Urgent</option>
+              </select></div>
+          </div>
+          <div className="field"><label>Details <span className="muted">— optional</span></label>
+            <textarea className="input" style={{ minHeight: 60 }} value={f.action_config.description} onChange={(e) => setCfg('description', e.target.value)} /></div>
+        </>
+      )}
+      {(f.action_kind === 'banner' || f.action_kind === 'bell') && (
+        <div className="field"><label>Message</label>
+          <input className="input" value={f.action_config.message} onChange={(e) => setCfg('message', e.target.value)}
+            placeholder={f.action_kind === 'bell' ? '🎉 We won {title} — {valueNaira}!' : 'Message shown across the workspace'} /></div>
+      )}
+      {f.action_kind === 'email' && (
+        <>
+          <div className="field"><label>Subject</label>
+            <input className="input" value={f.action_config.subject} onChange={(e) => setCfg('subject', e.target.value)} /></div>
+          <div className="field"><label>Message</label>
+            <textarea className="input" style={{ minHeight: 60 }} value={f.action_config.message} onChange={(e) => setCfg('message', e.target.value)} /></div>
+          <div className="field"><label>Send to <span className="muted">— your staff only, max 10</span></label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {staff.map((s) => (
+                <label key={s.id} className={`pill ${f.action_config.recipientIds.includes(s.id) ? 'active' : ''}`} style={{ cursor: 'pointer' }}>
+                  <input type="checkbox" style={{ display: 'none' }} checked={f.action_config.recipientIds.includes(s.id)} onChange={() => toggleRecipient(s.id)} />
+                  {s.name}
+                </label>
+              ))}
+            </div></div>
+        </>
+      )}
+
+      <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0', lineHeight: 1.5 }}>
+        Placeholders like {'{name}'}, {'{title}'}, {'{party}'}, {'{total}'} fill in from the event. Rules run within a few minutes of the trigger; capped at 50 actions a day each.
+      </p>
+      <div className="modal-actions">
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" disabled={busy} onClick={save}>{busy ? <span className="spinner" /> : 'Save rule'}</button>
+      </div>
+    </Modal>
+  );
+}
+
+function RulesSection({ isManager, flash }) {
+  const [rules, setRules] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [aiEnabled, setAiEnabled] = useState(false);
+  const [modal, setModal] = useState(false);
+  const { confirm, confirmNode } = useConfirm();
+
+  useEffect(() => {
+    AUTO.getRules().then(setRules).catch(() => {});
+    AUTO.aiStatus().then(setAiEnabled);
+    import('../tasks/taskApi.js').then((T) => T.getStaff().then(setStaff)).catch(() => {});
+  }, []);
+
+  const toggle = async (r) => {
+    try { const saved = await AUTO.updateRule(r.id, { enabled: !r.enabled }); setRules((rs) => rs.map((x) => (x.id === saved.id ? saved : x))); }
+    catch (e) { flash(e.message, true); }
+  };
+  const remove = async (r) => {
+    const ok = await confirm({ title: `Delete "${r.name}"?`, message: 'The rule stops running immediately.', confirmLabel: 'Delete', danger: true });
+    if (!ok) return;
+    try { await AUTO.deleteRule(r.id); setRules((rs) => rs.filter((x) => x.id !== r.id)); flash('Rule deleted.'); }
+    catch (e) { flash(e.message, true); }
+  };
+
+  return (
+    <div style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid var(--line)' }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>Your rules</h3>
+          <p className="muted" style={{ fontSize: 13, margin: 0, maxWidth: '70ch' }}>
+            Build your own: when something happens — or on a schedule — create a task, show a banner, ring the bell, or email your staff.{aiEnabled ? ' Or just describe it and AI drafts it for you.' : ''}
+          </p>
+        </div>
+        {isManager && <button className="btn btn-primary" onClick={() => setModal(true)}>New rule</button>}
+      </div>
+      {rules.length === 0 ? (
+        <p className="muted" style={{ fontSize: 13, margin: '16px 0 0' }}>
+          No rules yet{isManager ? ' — try one: “when a new staff member joins → task for IT: prepare their laptop.”' : '.'}
+        </p>
+      ) : (
+        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {rules.map((r) => (
+            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', border: '1px solid var(--line)', borderRadius: 12, padding: '10px 14px', background: 'var(--surface)', opacity: r.enabled ? 1 : 0.55 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 650, fontSize: 14 }}>{r.name}</div>
+                <div className="muted" style={{ fontSize: 12.5 }}>{ruleTriggerLabel(r)} → {ruleActionLabel(r)}{r.runs_today > 0 ? ` · ran ${r.runs_today}× today` : ''}</div>
+              </div>
+              {isManager && (
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => toggle(r)}>{r.enabled ? 'Pause' : 'Resume'}</button>
+                  <button className="btn btn-ghost btn-sm" onClick={() => remove(r)}>Delete</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {modal && <RuleModal staff={staff} aiEnabled={aiEnabled} flash={flash}
+        onClose={() => setModal(false)}
+        onSaved={(rule) => { setRules((rs) => [rule, ...rs]); setModal(false); flash(`"${rule.name}" is live.`); }} />}
+      {confirmNode}
     </div>
   );
 }

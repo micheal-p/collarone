@@ -14,3 +14,7 @@ api/paystack-webhook.js
 # still displays on the Vercel fallback, only posting is VPS-only. Keeps Vercel
 # under its 12-function Hobby cap.
 api/job-post.js
+
+# AI rule drafting for the Automation suite — OPENAI key lives on the box;
+# the rules themselves are plain Supabase CRUD that works everywhere.
+api/automation-ai.js
