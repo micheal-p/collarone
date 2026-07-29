@@ -130,3 +130,62 @@ export const exportBankCsv = (run, lines) => {
   a.click();
   URL.revokeObjectURL(url);
 };
+
+// ---- Statutory remittance schedule -----------------------------------------
+// Turns a run's statutory columns into the compliance to-do: who to pay, how
+// much, and when it's due. PAYE is grouped BY STATE because each state's IRS
+// is a separate payee — a Lagos+Ogun team makes two PAYE payments, not one.
+// Due dates follow the statutes: PAYE by the 10th of the following month
+// (PITA), pension within 7 working days of salary payment (PRA 2014), NHF
+// within a month of deduction, NSITF/ECS monthly for the period.
+export const remittanceSummary = (run, lines) => {
+  const next = new Date(run.period_year, run.period_month, 1); // 1st of the FOLLOWING month
+  const fmt = (d) => d.toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' });
+  const endOfNext = new Date(next.getFullYear(), next.getMonth() + 1, 0);
+
+  const payeByState = {};
+  let pensionEmp = 0; let pensionEr = 0; let nhf = 0; let nsitf = 0;
+  for (const l of lines) {
+    const st = (l.state_of_residence || '').trim() || 'State not set';
+    payeByState[st] = (payeByState[st] || 0) + Number(l.paye);
+    pensionEmp += Number(l.pension_employee); pensionEr += Number(l.pension_employer);
+    nhf += Number(l.nhf); nsitf += Number(l.nsitf);
+  }
+  return [
+    ...Object.entries(payeByState).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([state, amount]) => ({
+      body: `${state} Internal Revenue Service`, item: `PAYE — ${state}`, amount,
+      due: `by ${fmt(new Date(next.getFullYear(), next.getMonth(), 10))}`,
+      note: 'Pay via the state IRS e-tax portal; keep the receipt for your annual returns.',
+    })),
+    ...(pensionEmp + pensionEr > 0 ? [{
+      body: "Each employee's PFA", item: 'Pension (8% employee + 10% employer)', amount: pensionEmp + pensionEr,
+      due: 'within 7 working days of paying salaries',
+      note: 'Remit per employee to their own Pension Fund Administrator with RSA PINs on the schedule.',
+    }] : []),
+    ...(nhf > 0 ? [{
+      body: 'Federal Mortgage Bank of Nigeria', item: 'NHF (2.5%)', amount: nhf,
+      due: `by ${fmt(endOfNext)}`,
+      note: 'Remit with your employer NHF registration number.',
+    }] : []),
+    ...(nsitf > 0 ? [{
+      body: 'NSITF', item: 'Employee Compensation Scheme (1%)', amount: nsitf,
+      due: `during ${MONTHS[next.getMonth()]} ${next.getFullYear()}`,
+      note: 'Employer cost — not deducted from staff pay.',
+    }] : []),
+  ];
+};
+
+export const exportRemittanceCsv = (run, lines) => {
+  const items = remittanceSummary(run, lines);
+  const rows = [
+    ['Pay to', 'Item', 'Amount', 'Due', 'Notes'],
+    ...items.map((r) => [r.body, r.item, r.amount.toFixed(2), r.due, r.note]),
+  ];
+  const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `payroll-${run.period_year}-${String(run.period_month).padStart(2, '0')}-remittances.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
