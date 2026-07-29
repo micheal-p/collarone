@@ -32,6 +32,8 @@ const COPY = {
   'hr.hired': (p) => `${p.name || 'A new teammate'} joined the team${p.jobTitle ? ` as ${p.jobTitle}` : ''}`,
   'hr.bulk_imported': (p) => `${p.count || 'New'} staff imported to the team`,
   'invoice.recurring_generated': (p) => `Recurring invoice ${p.docNo || ''} ready for ${p.party || 'your customer'} — review & send`,
+  'chat.mention': (p, uid) => `${p.by || 'Someone'} mentioned ${p.mentioned === uid ? 'you' : 'a teammate'} in chat: “${p.snippet || ''}”`,
+  'automation.notice': (p) => p.message || 'Automation ran',
 };
 const ICON = (type) => {
   if (type.startsWith('payment.')) return '₦'; // currency symbol, not decoration
@@ -95,7 +97,7 @@ export default function NotificationBell() {
               <div key={e.id} className="notif-row">
                 <span className="notif-ic" aria-hidden="true">{ICON(e.type)}</span>
                 <span className="notif-body">
-                  <span className="notif-text">{(COPY[e.type] || (() => e.type.replace(/[._]/g, ' ')))(e.payload || {})}</span>
+                  <span className="notif-text">{(COPY[e.type] || (() => e.type.replace(/[._]/g, ' ')))(e.payload || {}, user?.id)}</span>
                   <span className="notif-time">{ago(e.created_at)}</span>
                 </span>
               </div>
