@@ -144,6 +144,16 @@ export default async function handler(req, res) {
       const { randomBytes } = await import('node:crypto');
       const tempPassword = () => randomBytes(9).toString('base64url').replace(/[-_]/g, 'x'); // 12 chars, no confusing symbols
 
+      // One role + suite set for the whole batch — imported staff arrive ready
+      // to work, not staring at an empty launcher. Bulk can never mint admins
+      // (that stays a deliberate, one-at-a-time act), and the same
+      // Nigeria-only payroll gate as single create applies.
+      const batchRole = ['staff', 'manager'].includes(body.role) ? body.role : 'staff';
+      let batchSuites = Array.isArray(body.suites) ? body.suites : [];
+      const batchIpCountry = (req.headers['x-vercel-ip-country'] || '').toUpperCase();
+      const batchPayrollDropped = batchIpCountry && batchIpCountry !== 'NG' && batchSuites.some((s) => s.key === 'payroll');
+      if (batchPayrollDropped) batchSuites = batchSuites.filter((s) => s.key !== 'payroll');
+
       const results = [];
       const createdIds = [];
       for (const r of rows) {
@@ -164,7 +174,7 @@ export default async function handler(req, res) {
         const { data: profile, error: pErr } = await admin.from('profiles').upsert({
           id: created.user.id, email, name, job_title: String(r.jobTitle || '').trim(),
           department: String(r.department || '').trim(), org_id: caller.org_id,
-          role: 'staff', suites: [], status: 'active', must_change_password: true,
+          role: batchRole, suites: batchSuites, status: 'active', must_change_password: true,
         }, { onConflict: 'id' }).select().single();
         if (pErr) {
           await admin.auth.admin.deleteUser(created.user.id);
@@ -203,7 +213,10 @@ export default async function handler(req, res) {
         }
       } catch { /* automation is a bonus */ }
 
-      return json(res, 200, { results, created: createdIds.length, failed: results.length - createdIds.length });
+      return json(res, 200, {
+        results, created: createdIds.length, failed: results.length - createdIds.length,
+        ...(batchPayrollDropped ? { warning: 'Payroll can only be enabled from a Nigerian IP address — it was left out for these accounts.' } : {}),
+      });
     }
 
     if (action === 'purchase-credits') {
