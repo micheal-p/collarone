@@ -488,6 +488,8 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
         </div>
       )}
 
+      {payable && lines?.length > 0 && <RemittancePanel run={run} lines={lines} />}
+
       {lines === null ? <div className="suite-loading"><div className="boot-spinner" /></div> : (
         <div className="table-wrap">
           <table className="table">
@@ -896,3 +898,41 @@ const PAYROLL_CSS = `
   .danger-icon { color:#a4262c; }
   .danger-icon:hover { background:#fde7e9; }
 `;
+
+/* ---- RemittancePanel: what the law says leaves your account next ----------------- */
+// Paying salaries is half of payroll; the other half is remitting what was
+// withheld. This turns the run's statutory columns into a payee-by-payee
+// checklist with real due dates, so nobody meets FIRS/PenCom the hard way.
+function RemittancePanel({ run, lines }) {
+  const items = P.remittanceSummary(run, lines);
+  if (!items.length) return null;
+  const total = items.reduce((s, r) => s + r.amount, 0);
+  return (
+    <div className="lv-card" style={{ margin: '0 0 16px', padding: '16px 18px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+        <h3 style={{ margin: 0, fontSize: 15 }}>Statutory remittances</h3>
+        <span className="muted" style={{ fontSize: 12.5 }}>what leaves your account besides salaries — {P.money(total)} total</span>
+        <button className="btn btn-ghost" style={{ marginLeft: 'auto', fontSize: 12.5, padding: '4px 12px' }}
+          onClick={() => P.exportRemittanceCsv(run, lines)}>Download schedule (CSV)</button>
+      </div>
+      <div className="table-wrap">
+        <table className="table" style={{ fontSize: 13 }}>
+          <thead><tr><th>Pay to</th><th>Item</th><th style={{ textAlign: 'right' }}>Amount</th><th>Due</th></tr></thead>
+          <tbody>
+            {items.map((r, i) => (
+              <tr key={i} title={r.note}>
+                <td style={{ fontWeight: 600 }}>{r.body}</td>
+                <td>{r.item}</td>
+                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{P.money(r.amount)}</td>
+                <td className="muted">{r.due}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted" style={{ fontSize: 11.5, margin: '10px 2px 0' }}>
+        Collarone calculates and reminds — the payments themselves are made through each body's own portal. Hover a row for how.
+      </p>
+    </div>
+  );
+}
