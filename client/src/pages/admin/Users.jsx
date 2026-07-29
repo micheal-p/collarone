@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { apiGet, apiPost, apiPatch, apiPut } from '../../api/client.js';
-import { SUITE_META, SUITE_ROLES, MULTI_TENANT_SAFE_SUITES, suiteAllowedForCountry } from '../../config/suites.js';
+import { SUITE_META, SUITE_ROLES, MULTI_TENANT_SAFE_SUITES, BULK_SAFE_SUITES, suiteAllowedForCountry } from '../../config/suites.js';
 import { FOUNDING_ORG_ID } from '../../config/org.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import AppLayout from '../../components/AppLayout.jsx';
@@ -289,7 +289,7 @@ export default function AdminUsers() {
         </table>
       </div>
 
-      {importOpen && <BulkImportModal catalog={grantableCatalog} flash={flash} onClose={() => setImportOpen(false)}
+      {importOpen && <BulkImportModal catalog={grantableCatalog} departments={departments} flash={flash} onClose={() => setImportOpen(false)}
         onDone={() => load()} />}
       {bulkGrantOpen && <BulkGrantModal catalog={grantableCatalog} count={selected.size} onClose={() => setBulkGrantOpen(false)}
         onApply={applyBulkGrant} />}
@@ -539,14 +539,33 @@ const FIELDS = [
   { key: 'department', label: 'Department', guess: /dept|department|unit/i },
 ];
 
-function BulkImportModal({ catalog, onClose, onDone, flash }) {
+// Bulk paths (import, templates, multi-grant) only ever offer the BULK-SAFE
+// suites at their base role — money/PII suites are always person-by-person.
+function SafeSuitePicker({ catalog, value, onChange }) {
+  const safe = catalog.filter((s) => BULK_SAFE_SUITES.includes(s.key));
+  const on = new Set(value.map((g) => g.key));
+  const toggle = (key) => onChange(on.has(key)
+    ? value.filter((g) => g.key !== key)
+    : [...value, { key, role: key === 'visitors' ? 'staff' : 'member' }]);
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+      {safe.map((s) => (
+        <label key={s.key} className={`pill ${on.has(s.key) ? 'active' : ''}`} style={{ cursor: 'pointer', userSelect: 'none' }}>
+          <input type="checkbox" checked={on.has(s.key)} onChange={() => toggle(s.key)} style={{ display: 'none' }} />
+          {s.name}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function BulkImportModal({ catalog, departments, onClose, onDone, flash }) {
   const [rows, setRows] = useState(null);       // parsed csv incl header
   const [map, setMap] = useState({});           // fieldKey -> column index
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState(null); // server results
-  // One role + suite set for EVERYONE in the file — so imported staff land
-  // ready to work, not locked out of an empty launcher. Fine-tune individuals
-  // later from this page. Bulk deliberately can't mint System Admins.
+  // Safe-floor baseline for everyone + per-DEPARTMENT templates on top.
+  // Bulk deliberately can't mint System Admins or touch money/PII suites.
   const [role, setRole] = useState('staff');
   const [suites, setSuites] = useState([]);
 
@@ -658,7 +677,7 @@ function BulkImportModal({ catalog, onClose, onDone, flash }) {
               </div>
             ))}
           </div>
-          <div className="form-row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', marginTop: 4 }}>
+          <div className="form-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', marginTop: 4 }}>
             <div className="field" style={{ minWidth: 140, flex: '0 0 auto' }}>
               <label>Everyone joins as</label>
               <select className="select" value={role} onChange={(e) => setRole(e.target.value)}>
@@ -667,10 +686,28 @@ function BulkImportModal({ catalog, onClose, onDone, flash }) {
               </select>
             </div>
             <div className="field" style={{ flex: 1, minWidth: 260 }}>
-              <label>Suites for everyone in this file <span className="muted">— adjust individuals later</span></label>
-              <SuiteGrantPicker catalog={catalog} value={suites} onChange={setSuites} />
+              <label>Baseline suites for everyone <span className="muted">— everyday suites only</span></label>
+              <SafeSuitePicker catalog={catalog} value={suites} onChange={setSuites} />
             </div>
           </div>
+          {(() => {
+            // Which department templates will fire for this file?
+            const tplByName = new Map((departments || []).map((d) => [String(d.name).trim().toLowerCase(), (d.access_suites || []).filter((g) => BULK_SAFE_SUITES.includes(g.key))]));
+            const inFile = [...new Set(mapped.filter((_, i) => !problems[i]).map((m) => (m.department || '').trim()).filter(Boolean))];
+            const matched = inFile.filter((d) => (tplByName.get(d.toLowerCase()) || []).length > 0);
+            const nameOf = (k) => catalog.find((s) => s.key === k)?.name || k;
+            return (
+              <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.6, margin: '2px 0 6px' }}>
+                {matched.length > 0 && (
+                  <div>Department templates will apply on top: {matched.map((d) => `${d} → ${tplByName.get(d.toLowerCase()).map((g) => nameOf(g.key)).join(', ')}`).join(' · ')}</div>
+                )}
+                {matched.length === 0 && inFile.length > 0 && (
+                  <div>No department templates set yet — add suite sets to departments (Admin → Departments) and imports apply them automatically.</div>
+                )}
+                <div>Payroll, Finance, HR, Benefits, Documents, Buying and Invoicing are never granted in bulk — give those per person afterwards.</div>
+              </div>
+            );
+          })()}
           <div style={{ margin: '10px 0 4px', fontSize: 13 }}>
             <strong>{validCount}</strong> of {body.length} row{body.length === 1 ? '' : 's'} ready to import
             {validCount < body.length && <span className="muted"> — rows with problems are skipped, shown below</span>}
@@ -701,16 +738,18 @@ function BulkImportModal({ catalog, onClose, onDone, flash }) {
   );
 }
 
-// One suite set applied to every selected user at once.
+// One suite set applied to every selected user at once — safe-floor suites
+// only, base roles only. Money/PII suites stay person-by-person by design.
 function BulkGrantModal({ catalog, count, onClose, onApply }) {
   const [suites, setSuites] = useState([]);
   const [busy, setBusy] = useState(false);
   return (
     <Modal title={`Grant suites — ${count} selected`} onClose={onClose}>
       <p className="muted" style={{ fontSize: 13, margin: '2px 0 10px' }}>
-        This replaces each selected person&apos;s suite access with the set below. System Admins are never affected.
+        Replaces each selected person&apos;s suite access with the set below (everyday suites, base level).
+        Payroll, Finance, HR, Benefits, Documents, Buying and Invoicing are granted per person, never in bulk. System Admins are never affected.
       </p>
-      <SuiteGrantPicker catalog={catalog} value={suites} onChange={setSuites} />
+      <SafeSuitePicker catalog={catalog} value={suites} onChange={setSuites} />
       <div className="modal-actions">
         <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
         <button className="btn btn-primary" disabled={busy} onClick={async () => { setBusy(true); await onApply(suites); setBusy(false); }}>

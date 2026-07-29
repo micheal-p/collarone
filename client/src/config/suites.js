@@ -106,6 +106,14 @@ export const PRESETS = [
 // other key on write) — this list just keeps the UI honest about it.
 export const MULTI_TENANT_SAFE_SUITES = ['hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'procurement', 'inventory', 'finance', 'projects', 'documents', 'trade-docs', 'automation', 'compliance'];
 
+// Suites that may be granted IN BULK (imports, department templates, multi-
+// select grants). The line: anything exposing org-wide money or other people's
+// personal files — HR, Payroll, Finance, Benefits, Documents, Buying,
+// Invoicing — is NEVER bulk-grantable; those are deliberate, person-by-person
+// grants. Bulk paths also force each suite's base (non-manager) role.
+// Mirrored server-side in client/api/admin.js — keep the two lists identical.
+export const BULK_SAFE_SUITES = ['leave', 'tasks', 'visitors', 'attendance', 'projects', 'crm', 'inventory', 'it-assets'];
+
 // Payroll runs Nigerian statutory deductions (PAYE, pension, NHF) — it isn't
 // built for any other country's tax/pension regime yet, so it's gated to
 // orgs registered in Nigeria. Enforced here for the UI and again in Postgres
