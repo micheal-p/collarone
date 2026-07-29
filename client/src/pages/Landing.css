@@ -1,5 +1,10 @@
 /* ===== Collarone — public landing page ===== */
 .cl {
+  /* Hard backstop against any wide child (grids, decorative orbs, marquee)
+     ballooning the mobile layout viewport and zooming the whole page out.
+     `clip` (not `hidden`) so it doesn't create a scroll container — the
+     sticky nav and walkthrough rail keep working. */
+  overflow-x: clip;
   --ink: #0A0E1A;
   --bolt: #FF5B1F;
   --paper: #F4F1EA;
@@ -71,7 +76,8 @@
 @media (max-width: 640px) { .cl-trust-row { gap: 10px; padding: 12px 16px; } .cl-trust-dot { display: none; } .cl-trust-cell { white-space: normal; text-align: center; flex: 1 1 40%; font-size: 12px; } }
 
 /* ---- interactive walkthrough ---- */
-.cl-walk { display: grid; grid-template-columns: 380px 1fr; gap: 40px; align-items: start; }
+.cl-walk { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 40px; align-items: start; }
+.cl-walk-stage { min-width: 0; }
 .cl-walk-rail { position: sticky; top: 96px; }
 .cl-walk-h { font-size: clamp(1.8rem, 2.6vw, 2.35rem); line-height: 1.06; letter-spacing: -0.02em; color: #F4F1EA; margin: 10px 0 0; text-wrap: balance; }
 .cl-walk-lede { font-size: 1rem; line-height: 1.6; color: rgba(244,241,234,0.6); margin: 14px 0 0; max-width: 40ch; }
@@ -323,8 +329,8 @@
 .cl-icon-wrap { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; margin-bottom: 18px; background: var(--accent-soft); transition: transform .3s ease; }
 .cl-card:hover .cl-icon-wrap { transform: scale(1.1) rotate(-6deg); }
 
-.cl-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.cl-grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.cl-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.cl-grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
 @media (max-width: 900px) { .cl-grid3, .cl-grid4 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 600px) { .cl-grid3, .cl-grid4 { grid-template-columns: 1fr; } }
 

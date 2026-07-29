@@ -10,6 +10,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiDir = path.join(__dirname, '..', 'client', 'api');
 
 const app = express();
+// Behind nginx (a single proxy hop): derive req.ip from the trusted chain so a
+// client-sent X-Forwarded-For can't be spoofed. The job-post report dedup keys
+// off req.ip, so this prevents forged reports from hiding posts.
+app.set('trust proxy', 1);
 app.use(express.json());
 
 for (const file of readdirSync(apiDir).filter((f) => f.endsWith('.js'))) {
