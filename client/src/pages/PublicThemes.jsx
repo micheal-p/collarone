@@ -22,7 +22,7 @@ const IC = {
 export default function PublicThemes() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
   return (
-    <div className="cl">
+    <div className="cl tpg">
       <header className="cl-nav cl-nav-scrolled">
         <div className="cl-wrap">
           <Link to="/" className="cl-brand"><span className="cl-wm">Collar<em>One</em></span></Link>
@@ -45,6 +45,14 @@ export default function PublicThemes() {
         </div>
       </section>
 
+      {/* The themes ARE the page — they come first. Everything explanatory
+          (how it works, payments) reads better after you've seen the goods. */}
+      <section className="cl-sec" id="themes-list">
+        <div className="cl-wrap">
+          <PublicThemeGallery showFilters />
+        </div>
+      </section>
+
       <section className="cl-sec cl-tint">
         <div className="cl-wrap">
           <motion.div className="cl-sec-head" {...rise}>
@@ -61,18 +69,7 @@ export default function PublicThemes() {
         </div>
       </section>
 
-      <section className="cl-sec" id="themes-list">
-        <div className="cl-wrap">
-          <motion.div className="cl-sec-head" {...rise}>
-            <p className="cl-eyebrow">All the themes</p>
-            <h2 className="cl-sec-h">Find the one that fits your business</h2>
-            <p className="cl-sec-lede">Online stores sell products with a cart and checkout. Landing pages pitch one thing well. Company profiles introduce your business and services. Tap Preview on any theme to walk through it live with sample Nigerian content.</p>
-          </motion.div>
-          <PublicThemeGallery showFilters />
-        </div>
-      </section>
-
-      <section className="cl-sec cl-tint">
+      <section className="cl-sec">
         <div className="cl-wrap">
           <motion.div className="cl-sec-head" {...rise}>
             <p className="cl-eyebrow">Getting paid</p>
@@ -103,7 +100,7 @@ export default function PublicThemes() {
         </div>
       </section>
 
-      <section className="cl-sec" style={{ textAlign: 'center' }}>
+      <section className="cl-sec cl-tint" style={{ textAlign: 'center' }}>
         <div className="cl-wrap">
           <motion.h2 className="cl-sec-h" {...rise}>Ready to build yours?</motion.h2>
           <motion.p className="cl-sec-lede" {...rise} style={{ margin: '0 auto 26px' }}>Your website is included on every plan — one less bill, one less thing to outsource.</motion.p>

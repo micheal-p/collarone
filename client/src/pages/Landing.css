@@ -652,7 +652,7 @@
 .ptg-chip { border: 1px solid var(--line-strong); background: var(--surface); color: var(--text-soft); font: inherit; font-size: 13.5px; font-weight: 600; padding: 8px 18px; border-radius: 999px; cursor: pointer; transition: all .15s ease; }
 .ptg-chip:hover { color: var(--text); border-color: var(--text-faint); }
 .ptg-chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
-.ptg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 22px; }
+.ptg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 18px; }
 .ptg-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-sm); transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease; }
 .ptg-card:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); border-color: var(--line-strong); }
 .ptg-mock { display: block; width: 100%; border: none; background: var(--surface-2); padding: 16px 16px 0; cursor: pointer; position: relative; }
@@ -667,7 +667,29 @@
 .ptg-desc { font-size: 13.5px; line-height: 1.55; color: var(--text-soft); margin: 8px 0 16px; }
 .ptg-preview { width: 100%; background: var(--accent-soft); color: var(--accent-ink); border: 1px solid transparent; font: inherit; font-weight: 700; font-size: 14px; padding: 11px; border-radius: 10px; cursor: pointer; transition: background .15s ease, color .15s ease; }
 .ptg-preview:hover { background: var(--accent); color: #fff; }
-@media (max-width: 640px) { .ptg-grid { grid-template-columns: 1fr; } }
+/* Mobile: two compact cards per row (a 1-up list of 11 cards was ~4,600px of
+   scrolling). The thumb sells the theme — the description can go. */
+@media (max-width: 640px) {
+  .ptg-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ptg-mock { padding: 8px 8px 0; }
+  .ptg-mock-hover { inset: 8px 8px 0; }
+  .ptg-meta { padding: 10px 10px 12px; }
+  .ptg-name { font-size: 13px; }
+  .ptg-cat { display: none; }
+  .ptg-desc { display: none; }
+  .ptg-preview { padding: 8px; font-size: 12.5px; }
+  .ptg-filters { margin: 4px 0 16px; }
+  .ptg-chip { font-size: 12.5px; padding: 6px 13px; }
+}
+
+/* /themes page: denser rhythm than the landing — it's a catalogue, not a
+   pitch. Also puts the first theme cards inside the first screenful. */
+.tpg .cl-sec { padding: 56px 0; }
+.tpg .tpg-hero { padding: 40px 0 8px; }
+.tpg .tpg-hero .tpg-h1 { margin-bottom: 14px; }
+.tpg .tpg-back { margin-bottom: 16px; }
+.tpg .ptg-filters { margin-top: 0; }
+@media (max-width: 640px) { .tpg .cl-sec { padding: 40px 0; } .tpg .tpg-hero { padding: 28px 0 4px; } }
 
 /* pause the decorative marquee for reduced-motion users */
 @media (prefers-reduced-motion: reduce) { .cl-marquee-track { animation: none; } }
