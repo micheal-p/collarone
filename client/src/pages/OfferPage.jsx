@@ -73,7 +73,7 @@ export default function OfferPage() {
               <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{accepted ? 'Offer accepted' : 'Offer declined'}</div>
               <p style={{ fontSize: 14, color: '#5C5F66', margin: 0, lineHeight: 1.6 }}>
                 {accepted
-                  ? <>Congratulations, {offer.candidateName.split(' ')[0]} — {offer.orgName} has been notified and will be in touch about your start.</>
+                  ? <>Congratulations, {offer.candidateName?.split(' ')[0] || 'there'} — {offer.orgName} has been notified and will be in touch about your start.</>
                   : <>{offer.orgName} has been notified of your decision. Thank you for your time.</>}
               </p>
             </div>

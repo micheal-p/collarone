@@ -29,6 +29,11 @@ export default function TeamChat() {
 
   const staffByName = useMemo(() => staff.filter((s) => s.id !== user?.id), [staff, user]);
 
+  // the realtime callback resolves message authors from staff; keep a ref so it
+  // reads the current list without resubscribing every time staff loads/changes.
+  const staffRef = useRef([]);
+  useEffect(() => { staffRef.current = staff; }, [staff]);
+
   useEffect(() => {
     apiGet('/staff').then((d) => setStaff(d.staff || [])).catch(() => {});
     apiGet('/departments').then((d) => setDepartments((d.departments || []).filter((x) => x.active !== false))).catch(() => {});
@@ -47,7 +52,7 @@ export default function TeamChat() {
         if (m.org_id !== orgId) return;
         setMessages((ms) => {
           if (!ms || ms.some((x) => x.id === m.id)) return ms;
-          const author = staff.find((s) => s.id === m.author_id);
+          const author = staffRef.current.find((s) => s.id === m.author_id);
           return [...ms, { ...m, author: author ? { id: author.id, name: author.name } : null }];
         });
       })

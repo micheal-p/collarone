@@ -50,7 +50,7 @@ function SalaryModal({ employee, structure = null, onClose, onSaved, onError }) 
   };
 
   return (
-    <Modal title={`New salary — ${employee.name}`} onClose={onClose}>
+    <Modal title={`${structure ? 'Edit' : 'New'} salary — ${employee.name}`} onClose={onClose}>
         <form onSubmit={submit}>
           <div className="form-grid">
             <div className="field"><label>Basic (₦/mo)</label>
@@ -495,7 +495,7 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
           <table className="table">
             <thead><tr><th>Employee</th><th>Gross</th><th>Pension</th><th>NHF</th><th>PAYE</th><th>Other ded.</th><th>Net</th>{payable && <th>Payment</th>}</tr></thead>
             <tbody>
-              {lines.length === 0 && <tr><td colSpan={7} className="td-empty">No lines — every active employee is missing a salary structure.</td></tr>}
+              {lines.length === 0 && <tr><td colSpan={payable ? 8 : 7} className="td-empty">No lines — every active employee is missing a salary structure.</td></tr>}
               {lines.map((l) => (
                 <tr key={l.id}>
                   <td>{l.employee?.name}</td>

@@ -177,7 +177,8 @@ export default function Signup() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 3 * 1024 * 1024) { setErr('Logo must be under 3 MB.'); return; }
-    setLogoPreview(URL.createObjectURL(file));
+    const previewUrl = URL.createObjectURL(file);
+    setLogoPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return previewUrl; });
     setLogoUploading(true);
     setErr('');
     try {
@@ -190,6 +191,7 @@ export default function Signup() {
       setLogoUrl(`${SUPABASE_URL}/storage/v1/object/public/org-logos/${path}`);
     } catch (e2) {
       setErr(e2.message);
+      URL.revokeObjectURL(previewUrl);
       setLogoPreview('');
     } finally {
       setLogoUploading(false);
@@ -241,7 +243,7 @@ export default function Signup() {
 
       <div className={`su-card${step === 'plan' ? ' su-card-wide' : ''}`}>
         <div className="su-steps">
-          {STEPS.map((s, i) => (
+          {STEPS.filter((s) => s !== 'payment').map((s, i) => (
             <div key={s} className={`su-step-dot ${i < stepIdx ? 'done' : i === stepIdx ? 'active' : ''}`} />
           ))}
         </div>

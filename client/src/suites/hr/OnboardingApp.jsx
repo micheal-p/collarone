@@ -92,12 +92,13 @@ function EmployeeRow({ emp, isHrManager, onProbationChange, onConfirm, flash }) 
   );
 }
 
-export default function OnboardingApp({ access }) {
+export default function OnboardingApp({ access, onComposeLetter }) {
   const isHrManager = access?.role === 'manager';
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState('pending');
+  const [decideEmp, setDecideEmp] = useState(null);
   const { flash, toastNode } = useToast();
 
   const load = () => { setLoading(true); H.getDirectory().then(setStaff).catch((e) => flash(e.message, true)).finally(() => setLoading(false)); };
@@ -107,9 +108,18 @@ export default function OnboardingApp({ access }) {
     try { await L.setProbation(id, date || null); setStaff((l) => l.map((s) => (s.id === id ? { ...s, probationEndDate: date } : s))); flash('Probation date updated.'); }
     catch (e) { flash(e.message, true); }
   };
-  const confirmEmployee = async (id) => {
-    try { const u = await L.confirmEmployee(id); setStaff((l) => l.map((s) => (s.id === id ? { ...s, confirmedAt: new Date().toISOString() } : s))); flash(`${u.name} confirmed.`); }
-    catch (e) { flash(e.message, true); }
+  const confirmEmployee = async (emp, withLetter) => {
+    try {
+      const u = await L.confirmEmployee(emp.id);
+      setStaff((l) => l.map((s) => (s.id === emp.id ? { ...s, confirmedAt: new Date().toISOString() } : s)));
+      setDecideEmp(null);
+      flash(`${u.name} confirmed.`);
+      if (withLetter && onComposeLetter) onComposeLetter({ employeeId: emp.id, letterType: 'confirmation' });
+    } catch (e) { flash(e.message, true); }
+  };
+  const extendProbation = async (emp, date) => {
+    await setProbation(emp.id, date);
+    setDecideEmp(null);
   };
 
   const view = useMemo(() => {
@@ -140,11 +150,19 @@ export default function OnboardingApp({ access }) {
             <tbody>
               {view.length === 0 && <tr><td colSpan={5} className="td-empty">No employees found.</td></tr>}
               {view.map((emp) => (
-                <EmployeeRow key={emp.id} emp={emp} isHrManager={isHrManager} onProbationChange={setProbation} onConfirm={confirmEmployee} flash={flash} />
+                <EmployeeRow key={emp.id} emp={emp} isHrManager={isHrManager} onProbationChange={setProbation} onConfirm={setDecideEmp} flash={flash} />
               ))}
             </tbody>
           </table>
         </div>
+      )}
+      {decideEmp && (
+        <DecisionModal
+          emp={decideEmp}
+          onClose={() => setDecideEmp(null)}
+          onConfirm={(withLetter) => confirmEmployee(decideEmp, withLetter)}
+          onExtend={(date) => extendProbation(decideEmp, date)}
+        />
       )}
       {toastNode}
     </div>

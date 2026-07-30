@@ -325,8 +325,13 @@ function ProjectDetail({ project, onBack, onProjectUpdated, flash }) {
 
       {taskModal && (
         <TaskModal
-          milestones={milestones} members={members} onClose={() => setTaskModal(false)} flash={flash}
-          onSaved={async (f) => { await PR.createTask(project.id, f); flash('Task added.'); load(); }}
+          task={taskModal === 'new' ? null : taskModal}
+          milestones={milestones} members={members} onClose={() => setTaskModal(null)} flash={flash}
+          onSaved={async (f) => {
+            if (taskModal === 'new') { await PR.createTask(project.id, f); flash('Task added.'); }
+            else { await PR.updateTask(project.id, taskModal.id, f); flash('Task updated.'); }
+            load();
+          }}
         />
       )}
       {confirmNode}

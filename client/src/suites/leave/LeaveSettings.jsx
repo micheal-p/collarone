@@ -243,7 +243,7 @@ function BalanceEditor({ staff, types, flash, onChange }) {
         ]);
         if (stale) return;
         setHasRow(Boolean(row));
-        setEntitled(row?.entitled ?? row?.entitled === 0 ? String(row.entitled) : '');
+        setEntitled(typeof row?.entitled === 'number' ? String(row.entitled) : '');
         setCarried(String(row?.carried_over ?? 0));
         setAdjustment(String(row?.adjustment ?? 0));
         setAvailable(avail);
