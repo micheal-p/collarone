@@ -705,7 +705,11 @@ export default function TradeDocsApp({ access }) {
                   <tr key={d.id}>
                     <td style={{ fontFamily: 'monospace', fontSize: 13 }}>
                       {d.doc_no}
-                      {d.recur_every && <span title={`Repeats ${d.recur_every} — re-raises itself as a draft each period`} style={{ marginLeft: 5, color: 'var(--brand)', fontWeight: 700, cursor: 'default' }}>↻</span>}
+                      {d.recur_every && (
+                        <span title={`Repeats ${d.recur_every} — re-raises itself as a draft each period`} style={{ marginLeft: 5, color: 'var(--brand)', cursor: 'default', display: 'inline-flex', verticalAlign: 'middle' }}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></svg>
+                        </span>
+                      )}
                       {d.recur_source_id && <span title="Generated automatically from a repeating invoice" style={{ marginLeft: 5, fontSize: 10.5, fontWeight: 700, background: 'var(--brand-100, rgba(255,91,31,0.12))', color: 'var(--brand)', borderRadius: 100, padding: '1px 7px', verticalAlign: 'middle' }}>auto</span>}
                     </td>
                     <td style={{ fontWeight: 500 }}>{d.party_name || '—'}</td>
