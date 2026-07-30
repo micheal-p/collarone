@@ -225,6 +225,7 @@ function ProjectDetail({ project, onBack, onProjectUpdated, flash }) {
         <button className={`lv-tab ${tab === 'board' ? 'active' : ''}`} onClick={() => setTab('board')}>Board</button>
         <button className={`lv-tab ${tab === 'milestones' ? 'active' : ''}`} onClick={() => setTab('milestones')}>Milestones</button>
         <button className={`lv-tab ${tab === 'members' ? 'active' : ''}`} onClick={() => setTab('members')}>Members</button>
+        <button className={`lv-tab ${tab === 'time' ? 'active' : ''}`} onClick={() => setTab('time')}>Time</button>
         {tab === 'board' && <button className="btn btn-primary lv-apply" onClick={() => setTaskModal('new')}>Add task</button>}
       </div>
 
@@ -292,6 +293,8 @@ function ProjectDetail({ project, onBack, onProjectUpdated, flash }) {
           </div>
         </>
       )}
+
+      {tab === 'time' && <ProjectTime project={project} flash={flash} />}
 
       {!loading && tab === 'members' && (
         <>
@@ -403,6 +406,114 @@ export default function ProjectsApp() {
       {modal && <ProjectModal onClose={() => setModal(false)} onSaved={load} flash={flash} />}
       {confirmNode}
       {toastNode}
+    </div>
+  );
+}
+
+/* ---- ProjectTime: log hours → roll up → draft a real invoice --------------- */
+function ProjectTime({ project, flash }) {
+  const [entries, setEntries] = useState(null);
+  const [f, setF] = useState({ date: new Date().toISOString().slice(0, 10), hours: '', note: '', billable: true, rate: '' });
+  const [busy, setBusy] = useState(false);
+  const [drafting, setDrafting] = useState(false);
+  const { confirm, confirmNode } = useConfirm();
+
+  const load = () => PR.getTimeEntries(project.id).then(setEntries, (e) => { setEntries([]); flash(e.message, true); });
+  useEffect(load, [project.id]); // eslint-disable-line
+
+  const money = (n) => `₦${Number(n).toLocaleString('en-NG')}`;
+  const unbilled = (entries || []).filter((e) => e.billable && !e.invoiced_doc_id);
+  const unbilledHours = unbilled.reduce((s, e) => s + Number(e.hours), 0);
+  const unbilledValue = unbilled.reduce((s, e) => s + Number(e.hours) * Number(e.rate_naira), 0);
+
+  const log = async () => {
+    if (!Number(f.hours)) { flash('How many hours?', true); return; }
+    setBusy(true);
+    try {
+      const entry = await PR.logTime(project.id, f);
+      setEntries((es) => [entry, ...(es || [])]);
+      setF((s) => ({ ...s, hours: '', note: '' }));
+    } catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+
+  // Unbilled billable time → one real invoice (grouped by rate), entries
+  // stamped with the invoice so they can never be billed twice.
+  const draftInvoice = async () => {
+    if (!unbilled.length) return;
+    const ok = await confirm({
+      title: `Invoice ${unbilledHours}h (${money(unbilledValue)})?`,
+      message: 'Creates a draft invoice in Invoicing from all unbilled billable time on this project. Add the customer details there before sending.',
+      confirmLabel: 'Draft invoice',
+    });
+    if (!ok) return;
+    setDrafting(true);
+    try {
+      const byRate = {};
+      for (const e of unbilled) (byRate[e.rate_naira] = byRate[e.rate_naira] || []).push(e);
+      const items = Object.entries(byRate).map(([rate, es]) => ({
+        description: `${project.name} — professional services (${es.reduce((s, e) => s + Number(e.hours), 0)}h @ ${money(rate)}/h)`,
+        qty: es.reduce((s, e) => s + Number(e.hours), 0),
+        unit_price: Number(rate),
+      }));
+      const { createDocument } = await import('../tradeDocs/tradeDocsApi.js');
+      const inv = await createDocument({ docType: 'invoice', partyName: '', items, vatRate: 0.075, reference: `Project: ${project.name}`, notes: `Time billed ${new Date().toISOString().slice(0, 10)}` });
+      await PR.markTimeInvoiced(project.id, unbilled.map((e) => e.id), inv.id);
+      flash(`Draft ${inv.doc_no} created in Invoicing — add the customer and send.`);
+      load();
+    } catch (e) { flash(e.message, true); } finally { setDrafting(false); }
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', margin: '14px 0' }}>
+        <div className="field" style={{ margin: 0 }}><label>Date</label>
+          <input className="input" type="date" value={f.date} onChange={(e) => setF((s) => ({ ...s, date: e.target.value }))} style={{ width: 150 }} /></div>
+        <div className="field" style={{ margin: 0 }}><label>Hours</label>
+          <input className="input" type="number" min="0.25" step="0.25" value={f.hours} onChange={(e) => setF((s) => ({ ...s, hours: e.target.value }))} style={{ width: 90 }} /></div>
+        <div className="field" style={{ margin: 0 }}><label>Rate ₦/h</label>
+          <input className="input" type="number" min="0" value={f.rate} onChange={(e) => setF((s) => ({ ...s, rate: e.target.value }))} style={{ width: 110 }} placeholder="0" /></div>
+        <div className="field" style={{ margin: 0, flex: 1, minWidth: 160 }}><label>What did you work on?</label>
+          <input className="input" value={f.note} onChange={(e) => setF((s) => ({ ...s, note: e.target.value }))} onKeyDown={(e) => e.key === 'Enter' && log()} /></div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, paddingBottom: 9 }}>
+          <input type="checkbox" checked={f.billable} onChange={(e) => setF((s) => ({ ...s, billable: e.target.checked }))} /> Billable
+        </label>
+        <button className="btn btn-primary" disabled={busy} onClick={log} style={{ marginBottom: 1 }}>{busy ? <span className="spinner" /> : 'Log time'}</button>
+      </div>
+
+      {unbilled.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '10px 16px', marginBottom: 12 }}>
+          <span style={{ fontSize: 13.5 }}><strong>{unbilledHours}h unbilled</strong>{unbilledValue > 0 && <> · {money(unbilledValue)}</>}</span>
+          <button className="btn btn-primary" style={{ marginLeft: 'auto', fontSize: 12.5, padding: '6px 16px' }} disabled={drafting || unbilledValue <= 0} onClick={draftInvoice}>
+            {drafting ? <span className="spinner" /> : 'Draft invoice from time'}
+          </button>
+        </div>
+      )}
+
+      {entries === null && <div className="suite-loading"><div className="boot-spinner" /></div>}
+      {entries?.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No time logged yet — log hours above; billable time rolls up into an invoice with one click.</p>}
+      {entries?.length > 0 && (
+        <div className="table-wrap">
+          <table className="table" style={{ fontSize: 13 }}>
+            <thead><tr><th>Date</th><th>Who</th><th>Note</th><th className="ta-r">Hours</th><th className="ta-r">Rate</th><th>Status</th><th /></tr></thead>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e.id} style={e.invoiced_doc_id ? { opacity: 0.6 } : undefined}>
+                  <td className="muted" style={{ whiteSpace: 'nowrap' }}>{e.entry_date}</td>
+                  <td>{e.person?.name || '—'}</td>
+                  <td className="muted" style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.note || '—'}</td>
+                  <td className="ta-r" style={{ fontWeight: 600 }}>{e.hours}</td>
+                  <td className="ta-r">{Number(e.rate_naira) > 0 ? money(e.rate_naira) : '—'}</td>
+                  <td style={{ fontSize: 12 }}>{e.invoiced_doc_id ? 'Invoiced' : e.billable ? 'Unbilled' : 'Non-billable'}</td>
+                  <td className="ta-r">{!e.invoiced_doc_id && (
+                    <button className="iconbtn" onClick={async () => { try { await PR.deleteTime(project.id, e.id); setEntries((es) => es.filter((x) => x.id !== e.id)); } catch (err) { flash(err.message, true); } }}>Delete</button>
+                  )}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {confirmNode}
     </div>
   );
 }

@@ -36,3 +36,9 @@ export const COLUMNS = [
 export const fmtDate = (d) => d
   ? new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
   : '—';
+
+// ---- time tracking → invoice -------------------------------------------------
+export const getTimeEntries = (projectId) => apiGet(`/projects/${projectId}/time`).then((d) => d.entries);
+export const logTime = (projectId, body) => apiPost(`/projects/${projectId}/time`, body).then((d) => d.entry);
+export const deleteTime = (projectId, id) => apiDelete(`/projects/${projectId}/time/${id}`);
+export const markTimeInvoiced = (projectId, ids, docId) => apiPost(`/projects/${projectId}/time/mark-invoiced`, { ids, docId });
