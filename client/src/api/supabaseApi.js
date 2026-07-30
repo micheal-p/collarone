@@ -2412,6 +2412,35 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
 
+  // ---- project time entries ----
+  if (head === 'GET /projects' && seg[2] === 'time') {
+    const { data, error } = await supabase.from('project_time_entries')
+      .select('*, person:profiles!user_id(id, name)').eq('project_id', seg[1]).order('entry_date', { ascending: false }).limit(500);
+    if (error) fail(400, error.message);
+    return { entries: data };
+  }
+  if (method === 'POST' && seg[0] === 'projects' && seg[2] === 'time' && seg.length === 3) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from('project_time_entries').insert({
+      org_id: await myOrgId(), project_id: seg[1], user_id: user.id,
+      entry_date: body.date || new Date().toISOString().slice(0, 10),
+      hours: Number(body.hours), note: (body.note || '').slice(0, 300),
+      billable: body.billable !== false, rate_naira: Math.max(0, Number(body.rate) || 0),
+    }).select('*, person:profiles!user_id(id, name)').single();
+    if (error) fail(400, error.message);
+    return { entry: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'projects' && seg[2] === 'time' && seg.length === 4) {
+    const { error } = await supabase.from('project_time_entries').delete().eq('id', seg[3]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+  if (method === 'POST' && seg[0] === 'projects' && seg[2] === 'time' && seg[3] === 'mark-invoiced') {
+    const { error } = await supabase.from('project_time_entries')
+      .update({ invoiced_doc_id: body.docId }).in('id', body.ids || []).is('invoiced_doc_id', null);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
   if (head === 'GET /projects' && seg[2] === 'milestones') {
     const { data, error } = await supabase.from('milestones').select('*').eq('project_id', seg[1]).order('sort_order');
     if (error) fail(400, error.message);
