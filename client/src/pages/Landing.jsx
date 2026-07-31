@@ -122,7 +122,7 @@ function RotatingWord() {
   );
 }
 
-const marqueeItems = ['Staff files', 'Leave & time off', 'Task tracking', 'Visitor sign-in', 'Recruiting & careers', 'Onboarding', 'Performance reviews', 'Compliance calendar', 'Payroll — PAYE · Pension · NHF', 'Customers (CRM)', 'Website builder', 'Invoicing & receipts', 'Automation'];
+const marqueeItems = ['Staff files', 'Leave & time off', 'Task tracking', 'Visitor sign-in', 'Recruiting & careers', 'Onboarding', 'Performance reviews', 'Compliance calendar', 'Payroll: PAYE · Pension · NHF', 'Customers (CRM)', 'Website builder', 'Invoicing & receipts', 'Automation'];
 
 // pricing comes from the single shared model — do not restate numbers here
 const priceTiers = () => PLANS.map((t) => ({ key: t.key, name: t.name, baseFee: t.baseFee, included: t.includedSuites, extraFee: t.extraSuiteFee }));
@@ -139,7 +139,7 @@ function TrySuiteStrip() {
   if (!keys.length) return null;
   return (
     <Reveal className="cl-try-strip">
-      <span className="cl-try-label">Try a suite right now — sample data, no sign-up:</span>
+      <span className="cl-try-label">Try a suite right now. Sample data, no sign-up:</span>
       {keys.map((k) => {
         const s2 = SUITES.find((x) => x.key === k);
         const meta = SUITE_META[k] || {};
@@ -234,7 +234,7 @@ function PriceCalculator() {
                     return (
                       <button key={s.key} type="button" className={`cl-calc-suite ${on ? 'on' : ''}`}
                         onClick={() => toggleSuite(s.key)}
-                        title={locked ? `Required by another suite you picked — included automatically` : undefined}
+                        title={locked ? `Required by another suite you picked, included automatically` : undefined}
                         style={locked ? { cursor: 'default' } : undefined}>
                         <span className="cl-calc-suite-icon" style={{ background: on ? meta.tint : 'var(--line)' }}>
                           <SuiteIcon name={meta.icon || 'grid'} size={16} color="#fff" />
@@ -252,7 +252,7 @@ function PriceCalculator() {
           })}
           {lockedNames.length > 0 && (
             <p className="cl-calc-hint" style={{ margin: '8px 2px 0', fontSize: 12.5, opacity: 0.7 }}>
-              {lockedNames.join(' and ')} {lockedNames.length === 1 ? 'is' : 'are'} included automatically — Payroll, Leave and Attendance all run on your staff records in HR.
+              {lockedNames.join(' and ')} {lockedNames.length === 1 ? 'is' : 'are'} included automatically. Payroll, Leave and Attendance all run on your staff records in HR.
             </p>
           )}
 
@@ -274,13 +274,13 @@ function PriceCalculator() {
           <div className="cl-calc-headline">
             <div className="cl-calc-total">{naira(Math.round(total))}<small>{yearly ? '/yr' : '/mo'}</small></div>
             <div className="cl-calc-sub">
-              {yearly ? `works out to ${naira(Math.round(total / 12))}/mo` : 'rate locked at sign-up — never goes up on you'}
+              {yearly ? `works out to ${naira(Math.round(total / 12))}/mo` : 'rate locked at sign-up, never goes up on you'}
             </div>
           </div>
           <div className="cl-calc-lines">
             <div><span>{best.name} plan · {suiteCount} suite{suiteCount === 1 ? '' : 's'}</span><b>{naira(suitesCost)}/mo</b></div>
             <div><span>{staffCount} staff × {naira(perStaff)}</span><b>{naira(staffCount * perStaff)}/mo</b></div>
-            {yearly && <div className="save"><span>Yearly — {Math.round(annualDiscount * 100)}% off</span><b>−{naira(Math.round(monthly * 12 * annualDiscount))}/yr</b></div>}
+            {yearly && <div className="save"><span>Yearly, {Math.round(annualDiscount * 100)}% off</span><b>−{naira(Math.round(monthly * 12 * annualDiscount))}/yr</b></div>}
           </div>
           <Link className="cl-btn cl-btn-primary cl-calc-cta" to={`/signup?plan=${best.key}`}>Start with {best.name}</Link>
         </aside>
@@ -318,21 +318,21 @@ const modules = [
 
 const FAQ_CATS = ['All', 'General', 'Pricing', 'Product', 'Security'];
 const faqs = [
-  { cat: 'General', q: 'What is Collarone?', a: 'Fifteen business suites — HR, payroll and benefits, invoicing, CRM, inventory, compliance and more — behind one login, priced and billed in naira. Your company gets its own isolated workspace, and you switch on only the suites you need.' },
-  { cat: 'General', q: 'Can I try it before paying anything?', a: 'Yes. Open the demo from the menu, pick a suite, and you land inside it — real screens, sample data, and a guided tour that assumes you\'ve never seen it before. No sign-up, nothing to install, and you can\'t break anything.' },
-  { cat: 'General', q: 'How long does it take to get started?', a: 'Minutes. Sign up, pick your plan and suites, and your workspace is created straight away. During early access we also set things up with you personally on WhatsApp — most businesses are live the same day.' },
-  { cat: 'Pricing', q: 'How much does Collarone cost?', a: 'Every tier is à la carte — you pick the suites. Startup is ₦15,000/month with any 3 suites included, Standard is ₦25,000 with 5, and extra suites cost ₦8,000 or ₦6,000 each by tier. Add ₦2,000 per staff member, save 15% by paying yearly, and your rate locks in at sign-up — no dollar pricing, no forex markup. Enterprise is quote-based: tell us what you want to run under Collarone and we scope it with dedicated onboarding.' },
-  { cat: 'Pricing', q: 'Is Collarone only for large companies?', a: 'No — it starts at a corner-shop size. Startup is ₦15,000 a month, and every suite ships complete, not as a stripped-down trial. A 5-person team gets the same payroll engine and the same CRM an enterprise gets.' },
-  { cat: 'Pricing', q: 'Is there a contract, or can I cancel anytime?', a: 'No long-term contract — Collarone is billed monthly, or yearly for 15% off. And the rate you sign up at is locked: it never changes for you, even when our published prices do.' },
-  { cat: 'Pricing', q: 'What happens if I miss a renewal?', a: 'Nothing dramatic. You get a grace window with full access and clear reminders; after that your workspace turns read-only — everything still visible, nothing deletable — until you renew. We never delete your data over a late payment.' },
-  { cat: 'Product', q: 'Does Collarone include a website builder?', a: 'Yes, on every tier. Pick from 11 designed themes across online store, landing page and company-profile categories, edit every word and picture in place, and sell with a real cart — transfer, pay on delivery, or card through your own Paystack account. Already have a site? Link it instead.' },
-  { cat: 'Product', q: 'Is there a CRM for managing customers?', a: 'Yes — contacts, companies, a WhatsApp-first activity log, a deals pipeline valued in naira, a bookings day-sheet, and a Money Owed tracker that ages what customers owe you. Enquiries from your website land in it automatically, so nothing gets ignored.' },
-  { cat: 'Product', q: 'Can Collarone run my hiring end to end?', a: 'Yes — post a role to your public careers page, move applicants through a pipeline with interview scorecards, send the offer as a private link they accept online, then hire in one click: their staff login is created instantly and onboarding starts.' },
-  { cat: 'Product', q: 'Can Collarone write my company letters?', a: 'Yes. The Letters engine drafts confirmation, promotion, verification, query and warning letters — from templates or with Collarone AI — rendered on your letterhead with your logo and authorised signature, auto-numbered, and filed into Documents automatically.' },
-  { cat: 'Product', q: 'What about payroll?', a: 'Payroll runs the 2026 Nigeria Tax Act rules — the new PAYE bands with the ₦800,000 exemption and rent relief — plus pension, NHF and NSITF, payslips, and staff loans that repay themselves by deduction. Benefits live in the same suite: HMO, pension and custom benefits, switchable per person. Collarone never touches your bank account — it prepares the disbursement, your bank executes it.' },
-  { cat: 'Product', q: 'Can I generate invoices and automate follow-ups?', a: 'Yes — create a numbered invoice and share it as a link your customer can pay from, by transfer or by card straight into your own Paystack account. Receipts, GRNs, stock passes and signed handover notes come from the same engine, on your letterhead. Automation then does the chasing: overdue-invoice reminders, low-stock alerts and follow-up tasks, daily.' },
-  { cat: 'Product', q: 'Does it help with tax deadlines?', a: 'Yes — the Compliance Calendar tracks Nigeria\'s statutory dates: PAYE by the 10th, VAT by the 21st, pension, NHF, NSITF, and annual filings like CAC returns. Each month you mark them done with a reference, so “did we file?” always has an answer with a name on it.' },
-  { cat: 'Security', q: 'Is my company’s data secure?', a: 'Every screen checks who is allowed to see it before showing anything, and every company\'s data is isolated from every other company\'s at the database level — verified directly, not assumed. And Collarone never holds or moves your money; payments settle in your own accounts.' },
+  { cat: 'General', q: 'What is Collarone?', a: 'Fifteen business suites behind one login, priced and billed in naira: HR, payroll and benefits, invoicing, CRM, inventory, compliance and more. Your company gets its own isolated workspace, and you switch on only the suites you need.' },
+  { cat: 'General', q: 'Can I try it before paying anything?', a: 'Yes. Open the demo from the menu, pick a suite, and you land inside it: real screens, sample data, and a guided tour that assumes you\'ve never seen it before. No sign-up, nothing to install, and you can\'t break anything.' },
+  { cat: 'General', q: 'How long does it take to get started?', a: 'Minutes. Sign up, pick your plan and suites, and your workspace is created straight away. During early access we also set things up with you personally on WhatsApp. Most businesses are live the same day.' },
+  { cat: 'Pricing', q: 'How much does Collarone cost?', a: 'Every tier is à la carte. You pick the suites. Startup is ₦15,000/month with any 3 suites included, Standard is ₦25,000 with 5, and extra suites cost ₦8,000 or ₦6,000 each by tier. Add ₦2,000 per staff member, save 15% by paying yearly, and your rate locks in at sign-up, with no dollar pricing or forex markup. Enterprise is quote-based: tell us what you want to run under Collarone and we scope it with dedicated onboarding.' },
+  { cat: 'Pricing', q: 'Is Collarone only for large companies?', a: 'No. It starts at a corner-shop size. Startup is ₦15,000 a month, and every suite ships complete, not as a stripped-down trial. A 5-person team gets the same payroll engine and the same CRM an enterprise gets.' },
+  { cat: 'Pricing', q: 'Is there a contract, or can I cancel anytime?', a: 'No long-term contract. Collarone is billed monthly, or yearly for 15% off. And the rate you sign up at is locked: it never changes for you, even when our published prices do.' },
+  { cat: 'Pricing', q: 'What happens if I miss a renewal?', a: 'Nothing dramatic. You get a grace window with full access and clear reminders; after that your workspace turns read-only (everything still visible, nothing deletable) until you renew. We never delete your data over a late payment.' },
+  { cat: 'Product', q: 'Does Collarone include a website builder?', a: 'Yes, on every tier. Pick from 11 designed themes across online store, landing page and company-profile categories, edit every word and picture in place, and sell with a real cart: transfer, pay on delivery, or card through your own Paystack account. Already have a site? Link it instead.' },
+  { cat: 'Product', q: 'Is there a CRM for managing customers?', a: 'Yes. Contacts, companies, a WhatsApp-first activity log, a deals pipeline valued in naira, a bookings day-sheet, and a Money Owed tracker that ages what customers owe you. Enquiries from your website land in it automatically, so nothing gets ignored.' },
+  { cat: 'Product', q: 'Can Collarone run my hiring end to end?', a: 'Yes. Post a role to your public careers page, move applicants through a pipeline with interview scorecards, send the offer as a private link they accept online, then hire in one click: their staff login is created instantly and onboarding starts.' },
+  { cat: 'Product', q: 'Can Collarone write my company letters?', a: 'Yes. The Letters engine drafts confirmation, promotion, verification, query and warning letters, from templates or with Collarone AI, rendered on your letterhead with your logo and authorised signature, auto-numbered, and filed into Documents automatically.' },
+  { cat: 'Product', q: 'What about payroll?', a: 'Payroll runs the 2026 Nigeria Tax Act rules (the new PAYE bands with the ₦800,000 exemption and rent relief) plus pension, NHF and NSITF, payslips, and staff loans that repay themselves by deduction. Benefits live in the same suite: HMO, pension and custom benefits, switchable per person. Collarone never touches your bank account. It prepares the disbursement, your bank executes it.' },
+  { cat: 'Product', q: 'Can I generate invoices and automate follow-ups?', a: 'Yes. Create a numbered invoice and share it as a link your customer can pay from, by transfer or by card straight into your own Paystack account. Receipts, GRNs, stock passes and signed handover notes come from the same engine, on your letterhead. Automation then does the chasing: overdue-invoice reminders, low-stock alerts and follow-up tasks, daily.' },
+  { cat: 'Product', q: 'Does it help with tax deadlines?', a: 'Yes. The Compliance Calendar tracks Nigeria\'s statutory dates: PAYE by the 10th, VAT by the 21st, pension, NHF, NSITF, and annual filings like CAC returns. Each month you mark them done with a reference, so “did we file?” always has an answer with a name on it.' },
+  { cat: 'Security', q: 'Is my company’s data secure?', a: 'Every screen checks who is allowed to see it before showing anything, and every company\'s data is isolated from every other company\'s at the database level, verified directly, not assumed. And Collarone never holds or moves your money; payments settle in your own accounts.' },
 ];
 
 export default function Landing() {
@@ -454,7 +454,7 @@ export default function Landing() {
           <motion.div className="cl-hero-inner" {...heroTextProps}>
             <motion.span {...heroItemVariants} className="cl-kicker"><span className="cl-dot" />Now onboarding early businesses</motion.span>
             <motion.h1 {...heroItemVariants}>Run your<br /><RotatingWord /><br /><span className="cl-grad-word">One login.</span></motion.h1>
-            <motion.p {...heroItemVariants} className="cl-hero-sub">HR with an Employee 360 and AI-drafted company letters, payroll, CRM and your website — 15 live suites behind one login, priced in naira.</motion.p>
+            <motion.p {...heroItemVariants} className="cl-hero-sub">HR with an Employee 360 and AI-drafted company letters, payroll, CRM and your website: 15 live suites behind one login, priced in naira.</motion.p>
             <motion.div {...heroItemVariants} className="cl-hero-ctas">
               <Link className="cl-btn cl-btn-primary" to="/signup">Get started</Link>
               <a className="cl-btn cl-btn-ghost" href="#platform">See what's inside</a>
@@ -473,7 +473,7 @@ export default function Landing() {
                 <span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" />
                 <span className="cl-url">collarone.app/home</span>
               </div>
-              <img className="cl-shot-img" src={shotHome} alt="Collarone — real product screenshot" loading="eager" />
+              <img className="cl-shot-img" src={shotHome} alt="Collarone real product screenshot" loading="eager" />
             </motion.div>
             <motion.div
               className="cl-float-toast cl-toast-a"
@@ -507,7 +507,7 @@ export default function Landing() {
           <span className="cl-trust-dot" aria-hidden="true" />
           <span className="cl-trust-cell">Role-checked on every screen</span>
           <span className="cl-trust-dot" aria-hidden="true" />
-          <span className="cl-trust-cell">Priced in naira — rate locked at sign-up</span>
+          <span className="cl-trust-cell">Priced in naira, rate locked at sign-up</span>
         </div>
       </section>
 
@@ -519,8 +519,8 @@ export default function Landing() {
             <p className="cl-sec-lede">Every screen does one job well. No settings maze, no module you have to configure before it's useful.</p>
           </Reveal>
           <CardCarousel className="cl-grid4 cl-process" dotLabel="step">
-            <Reveal className="cl-process-card" hover><span className="cl-process-num">01</span><div className="cl-icon-wrap">{I.bolt}</div><h3>Set up in minutes</h3><p>Sign up, add your team, and your space is ready — no onboarding call required.</p></Reveal>
-            <Reveal className="cl-process-card" delay={0.05} hover><span className="cl-process-num">02</span><div className="cl-icon-wrap">{I.shield}</div><h3>Access, done right</h3><p>Every screen checks who's allowed to see it — tested as different roles before anything ships.</p></Reveal>
+            <Reveal className="cl-process-card" hover><span className="cl-process-num">01</span><div className="cl-icon-wrap">{I.bolt}</div><h3>Set up in minutes</h3><p>Sign up, add your team, and your space is ready, no onboarding call required.</p></Reveal>
+            <Reveal className="cl-process-card" delay={0.05} hover><span className="cl-process-num">02</span><div className="cl-icon-wrap">{I.shield}</div><h3>Access, done right</h3><p>Every screen checks who's allowed to see it, tested as different roles before anything ships.</p></Reveal>
             <Reveal className="cl-process-card" delay={0.1} hover><span className="cl-process-num">03</span><div className="cl-icon-wrap">{I.money}</div><h3>Priced in naira</h3><p>Pay by transfer or card, no forex markup, no bill that moves with the exchange rate.</p></Reveal>
             <Reveal className="cl-process-card" delay={0.15} hover><span className="cl-process-num">04</span><div className="cl-icon-wrap">{I.globeBig}</div><h3>Grows with you</h3><p>Start with a website and a staff list. Turn on leave, tasks and the rest the day you need them.</p></Reveal>
           </CardCarousel>
@@ -532,7 +532,7 @@ export default function Landing() {
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">One platform</p>
             <h2 className="cl-sec-h">Everything a growing business runs on</h2>
-            <p className="cl-sec-lede">Start with what you need today. The rest turns on the moment you're ready — same account, nothing to migrate.</p>
+            <p className="cl-sec-lede">Start with what you need today. The rest turns on the moment you're ready. Same account, nothing to migrate.</p>
           </Reveal>
           <TrySuiteStrip />
           <div className="cl-bento">
@@ -584,7 +584,7 @@ export default function Landing() {
           <motion.div className="cl-sec-head" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
             <p className="cl-eyebrow">A real website, included on every plan</p>
             <h2 className="cl-sec-h">Give your business a site worth visiting</h2>
-            <p className="cl-sec-lede">Pick a theme, edit every word, and sell online or take enquiries — no designer, no monthly website bill. Tap Preview to see one live.</p>
+            <p className="cl-sec-lede">Pick a theme, edit every word, and sell online or take enquiries. No designer, no monthly website bill. Tap Preview to see one live.</p>
           </motion.div>
           <PublicThemeGallery limit={5} seeMoreHref="/themes" showFilters={false} />
         </div>
@@ -621,10 +621,10 @@ export default function Landing() {
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">Pricing</p>
             <h2 className="cl-sec-h">Pick your suites. We give you the best price.</h2>
-            <p className="cl-sec-lede">No confusing tiers to choose. Pick the suites your business needs and we automatically put you on the cheapest plan for them — the more suites you run, the less each one costs. No forex markup, no dollar pricing, and your rate locks in at sign-up.</p>
+            <p className="cl-sec-lede">No confusing tiers to choose. Pick the suites your business needs and we automatically put you on the cheapest plan for them. The more suites you run, the less each one costs. No forex markup, no dollar pricing, and your rate locks in at sign-up.</p>
           </Reveal>
           <PriceCalculator />
-          <p className="cl-price-note">Pay yearly and save 15% off the total. Your rate locks in at sign-up — it doesn't change later even if our published prices do.</p>
+          <p className="cl-price-note">Pay yearly and save 15% off the total. Your rate locks in at sign-up. It doesn't change later even if our published prices do.</p>
 
           <div className="cl-glance-label">Plans at a glance</div>
           <div className="cl-plans-glance">
@@ -651,15 +651,15 @@ export default function Landing() {
           <div className="cl-jobs-grid">
             <Reveal className="cl-jobs-copy">
               <p className="cl-eyebrow">Free jobs board</p>
-              <h2 className="cl-jobs-h">Hiring? Post it free — and share straight to WhatsApp.</h2>
-              <p className="cl-jobs-lede">Post a role in seconds — or paste it from your WhatsApp group and we tidy it up. You get a clean link to share back to your groups. Seekers find you; you find staff.</p>
+              <h2 className="cl-jobs-h">Hiring? Post it free, and share straight to WhatsApp.</h2>
+              <p className="cl-jobs-lede">Post a role in seconds, or paste it from your WhatsApp group and we tidy it up. You get a clean link to share back to your groups. Seekers find you; you find staff.</p>
               <div className="cl-jobs-steps">
                 <span><b>1</b> Post or paste</span>
                 <span><b>2</b> Get a link</span>
                 <span><b>3</b> Share to WhatsApp</span>
               </div>
               <div className="cl-jobs-ctas">
-                <Link to="/jobs/post" className="cl-btn cl-btn-primary">Post a job — free</Link>
+                <Link to="/jobs/post" className="cl-btn cl-btn-primary">Post a job for free</Link>
                 <Link to="/jobs" className="cl-btn cl-btn-ghost">Browse jobs</Link>
               </div>
             </Reveal>
@@ -690,9 +690,9 @@ export default function Landing() {
           </Reveal>
           <div className="cl-about-grid">
             <Reveal className="cl-about-copy">
-              <p>Collarone didn't start as a plan for a "business platform." It started as a tool built to solve one real problem for one real Nigerian business — watching what actually broke, what actually got used, and what a Nigerian back office genuinely needed on an ordinary working day.</p>
+              <p>Collarone didn't start as a plan for a "business platform." It started as a tool built to solve one real problem for one real Nigerian business: watching what actually broke, what actually got used, and what a Nigerian back office genuinely needed on an ordinary working day.</p>
               <blockquote className="cl-about-pullquote">Why should only one company have this?</blockquote>
-              <p>That's what Collarone is now — built for the Nigerian businesses quietly outgrowing spreadsheets and WhatsApp groups, tired of paying for software that was never built with a single Nigerian working day in mind. Whether you're a startup finding your feet, a growing company standardising how you run, or an established business scaling across states, we're building this for how Nigerian companies actually operate — remote, hybrid and on-site teams alike. Real business software, priced and built like it belongs here. Because it does.</p>
+              <p>That's what Collarone is now, built for the Nigerian businesses quietly outgrowing spreadsheets and WhatsApp groups, tired of paying for software that was never built with a single Nigerian working day in mind. Whether you're a startup finding your feet, a growing company standardising how you run, or an established business scaling across states, we're building this for how Nigerian companies actually operate: remote, hybrid and on-site teams alike. Real business software, priced and built like it belongs here. Because it does.</p>
             </Reveal>
             <Reveal className="cl-founder-card" delay={0.1}>
               <div className="cl-founder-avatar">AP</div>
@@ -737,7 +737,7 @@ export default function Landing() {
         <div className="cl-wrap">
           <Reveal className="cl-contact-card cl-dark-card">
             <h2>Let's get your business on Collarone.</h2>
-            <p>Tell us about your business and we'll set up your space personally — no queue during early access.</p>
+            <p>Tell us about your business and we'll set up your space personally, with no queue during early access.</p>
             <div className="cl-contact-row">
               <a className="cl-btn cl-btn-primary" href="mailto:hello@collarone.app?subject=Early%20access">Email hello@collarone.app</a>
               <a className="cl-btn cl-btn-ghost" href="https://wa.me/2348148128551" target="_blank" rel="noreferrer">Chat on WhatsApp</a>
@@ -755,7 +755,7 @@ export default function Landing() {
                 <Mark size={20} />
                 <span>Collar<em>One</em></span>
               </div>
-              <p>The business platform for Nigerian companies — team, leave, tasks and front desk today, customers and your website joining the same space. Built and supported in Nigeria.</p>
+              <p>The business platform for Nigerian companies: team, leave, tasks and front desk today, customers and your website joining the same space. Built and supported in Nigeria.</p>
               <div className="cl-footer-contact">
                 <a href="https://wa.me/2348148128551" target="_blank" rel="noreferrer">WhatsApp</a>
                 <a href="mailto:hello@collarone.app">hello@collarone.app</a>
