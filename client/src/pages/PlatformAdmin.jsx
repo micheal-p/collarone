@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { apiGet, apiPost, apiPatch } from '../api/client.js';
+import { apiGet, apiPost, apiPatch, getAccessToken } from '../api/client.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { waLink } from '../lib/whatsapp.js';
 import { FOUNDING_ORG_ID } from '../config/org.js';
@@ -649,11 +649,23 @@ function JobPostersPanel({ flash }) {
   const [posters, setPosters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
-  const load = () => apiPost('/job-post', { action: 'admin-list-posters' })
+  // Job-board posters live behind the /api/job-post Express handler (admin
+  // actions authorised via platform_admins), not the Supabase route table.
+  const postJob = async (bodyObj) => {
+    const r = await fetch('/api/job-post', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAccessToken() || ''}` },
+      body: JSON.stringify(bodyObj),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.message || 'Something went wrong.');
+    return d;
+  };
+  const load = () => postJob({ action: 'admin-list-posters' })
     .then((d) => setPosters(d.posters || [])).catch((e) => flash?.(e.message, true)).finally(() => setLoading(false));
   useEffect(() => { load(); }, []); // eslint-disable-line
   const setStatus = async (id, status) => {
-    try { await apiPost('/job-post', { action: 'admin-set-poster', posterId: id, status }); setPosters((ps) => ps.map((p) => (p.id === id ? { ...p, status } : p))); flash?.(`Poster ${status}.`); }
+    try { await postJob({ action: 'admin-set-poster', posterId: id, status }); setPosters((ps) => ps.map((p) => (p.id === id ? { ...p, status } : p))); flash?.(`Poster ${status}.`); }
     catch (e) { flash?.(e.message, true); }
   };
   const shown = posters.filter((p) => (filter === 'all' ? true : p.status === filter));
