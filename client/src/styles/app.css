@@ -22,6 +22,15 @@
    narrow screens where the topbar has no room for words. */
 .iconbtn-labelled { width: auto; grid-auto-flow: column; align-items: center; gap: 7px; padding: 0 11px; }
 .iconbtn-label { font-size: 13px; font-weight: 600; letter-spacing: 0.01em; }
+/* Unread count, messenger-style: rides the top-right of the button. Anchored
+   to the button, so it stays put when the label drops off on mobile. */
+.iconbtn-labelled { position: relative; }
+.iconbtn-badge {
+  position: absolute; top: 2px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px;
+  display: grid; place-items: center; border-radius: 100px;
+  background: var(--brand); color: #fff; font-size: 11px; font-weight: 700; line-height: 1;
+  box-shadow: 0 0 0 2px var(--ink);
+}
 @media (max-width: 700px) { .iconbtn-labelled { width: 40px; padding: 0; } .iconbtn-label { display: none; } }
 .suitebar .iconbtn { color: rgba(244,241,234,0.72); }
 .suitebar .iconbtn:hover { background: rgba(244,241,234,0.1); color: var(--paper); }
