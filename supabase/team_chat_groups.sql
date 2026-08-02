@@ -63,70 +63,75 @@ returns boolean language sql security definer stable set search_path = public as
   );
 $$;
 
--- May the caller actually OPEN this group? Membership is not the whole answer:
---   • a closed (archived) group opens for nobody, member or not — otherwise
---     "Close this group" closes nothing and the room keeps taking messages;
---   • a System Admin can open any group in their own org. That mirrors
---     in_chat_department() below, which has always let admins into every
---     department room, and it's what keeps Manage group working: the admin who
---     creates a group for other people must still be able to run it.
---   • the org check is inside, because is_super_admin() only answers "is an
---     admin", never "an admin of which tenant".
-create or replace function public.can_open_chat_group(p_group uuid)
-returns boolean language sql security definer stable set search_path = public as $$
-  select exists (
-    select 1 from public.chat_groups g
-    where g.id = p_group
-      and not g.archived
-      and public.same_org(g.org_id)
-      and (
-        public.is_super_admin()
-        or exists (select 1 from public.chat_group_members m
-                    where m.group_id = g.id and m.user_id = auth.uid())
-      )
-  );
-$$;
+-- Superseded by user_can_read_chat_room() below — dropped so a database that
+-- ran an earlier revision of this file doesn't keep a second, diverging answer
+-- to the same question lying around.
+drop function if exists public.can_open_chat_group(uuid);
+drop function if exists public.in_chat_department(int);
 
--- Is the caller in the department a 'dept:<id>' room belongs to? profiles
--- carries the department NAME as free text, departments carries the id, so the
--- join is by name — matching how the rest of HR resolves it. System admins see
--- every department room; they manage them.
--- department_id is the canonical link and survives a rename; the name match is
--- only a fallback for rows that never got one (bulk import writes the free-text
--- `department` and no id — see admin.js sanitizeBulk). Joining on the TEXT alone
--- would mean renaming a department in Admin › Departments silently threw that
--- whole department out of its own chat room, history included, because nothing
--- rewrites profiles.department when departments.name changes.
-create or replace function public.in_chat_department(p_dept_id int)
+-- THE authority on room access, for ANY person — not just the caller.
+--
+-- It takes p_user rather than reading auth.uid() because the same question gets
+-- asked about someone else: may this person be @mentioned in this room? The
+-- first cut of this file answered that with a fourth hand-written copy of the
+-- department rule, and when the rule changed the copy didn't — a mention could
+-- then fire a notification, carrying a snippet of the message, to somebody who
+-- couldn't open the room it came from. One function, no copies.
+--
+-- On departments: department_id is canonical and survives a rename; the name
+-- match is only a fallback for rows that never got an id (bulk import writes
+-- the free-text `department` and no id — see admin.js sanitizeBulk). Matching
+-- on the TEXT alone meant renaming a department in Admin › Departments silently
+-- threw that whole department out of its own room, history included, since
+-- nothing rewrites profiles.department when departments.name changes.
+--
+-- System admins can open every room in their own org — that's how they manage
+-- department rooms and the groups they create for other people.
+create or replace function public.user_can_read_chat_room(p_user uuid, p_room text)
 returns boolean language sql security definer stable set search_path = public as $$
-  select public.is_super_admin() or exists (
-    select 1
-    from public.profiles p
-    left join public.departments d
-      on d.id = p_dept_id and d.org_id = p.org_id
-    where p.id = auth.uid()
-      and (
-        p.department_id = p_dept_id
-        or (p.department_id is null and d.id is not null
-            and lower(trim(d.name)) = lower(trim(p.department)))
-      )
-  );
-$$;
-
--- One place that answers "may the caller read this room?", so the policy, the
--- write RPC and the member list can never drift apart.
-create or replace function public.can_read_chat_room(p_room text)
-returns boolean language sql stable set search_path = public as $$
   select case
-    when p_room = 'general' then true
-    when p_room ~ '^dept:[0-9]+$'
-      then public.in_chat_department(substr(p_room, 6)::int)
-    when p_room ~ '^group:[0-9a-fA-F-]{36}$'
-      then public.can_open_chat_group(substr(p_room, 7)::uuid)
+    when p_user is null then false
+    when p_room = 'general'
+      then exists (select 1 from public.profiles p where p.id = p_user)
+    when p_room ~ '^dept:[0-9]+$' then exists (
+      select 1
+      from public.profiles p
+      left join public.departments d
+        on d.id = substr(p_room, 6)::int and d.org_id = p.org_id
+      where p.id = p_user
+        and (
+          -- d is joined on the caller's OWN org, so requiring it to exist is
+          -- what stops an admin's blanket access reaching another tenant's
+          -- department id
+          (p.role = 'super_admin' and d.id is not null)
+          or p.department_id = substr(p_room, 6)::int
+          or (p.department_id is null and d.id is not null
+              and lower(trim(d.name)) = lower(trim(p.department)))
+        )
+    )
+    when p_room ~ '^group:[0-9a-fA-F-]{36}$' then exists (
+      select 1
+      from public.chat_groups g
+      join public.profiles p on p.id = p_user and p.org_id = g.org_id
+      where g.id = substr(p_room, 7)::uuid
+        and not g.archived
+        and (
+          p.role = 'super_admin'
+          or exists (select 1 from public.chat_group_members m
+                      where m.group_id = g.id and m.user_id = p_user)
+        )
+    )
     else false
   end;
 $$;
+
+-- The caller's own answer — everything else delegates here.
+create or replace function public.can_read_chat_room(p_room text)
+returns boolean language sql stable set search_path = public as $$
+  select public.user_can_read_chat_room(auth.uid(), p_room);
+$$;
 grant execute on function public.can_read_chat_room(text) to authenticated;
+grant execute on function public.user_can_read_chat_room(uuid, text) to authenticated;
 
 -- ---- RLS -------------------------------------------------------------------
 alter table public.chat_groups enable row level security;
@@ -209,9 +214,14 @@ declare row public.chat_groups;
 begin
   if not public.is_super_admin() then raise exception 'Only a System Admin can rename a group'; end if;
   if char_length(trim(coalesce(p_name, ''))) < 1 then raise exception 'Give the group a name'; end if;
-  update public.chat_groups set name = trim(p_name)
-   where id = p_group and org_id = public.my_org_id()
-  returning * into row;
+  begin
+    update public.chat_groups set name = trim(p_name)
+     where id = p_group and org_id = public.my_org_id()
+    returning * into row;
+  exception when unique_violation then
+    -- rename hits the same partial unique index as create; say so the same way
+    raise exception 'You already have a group called "%".', trim(p_name);
+  end;
   if row.id is null then raise exception 'Group not found'; end if;
   return row;
 end;
@@ -273,7 +283,7 @@ begin
       where p.org_id = v_org and p.status = 'active'
       order by p.name;
   elsif p_room ~ '^dept:[0-9]+$' then
-    -- same id-first, name-as-fallback rule as in_chat_department()
+    -- same id-first, name-as-fallback rule as user_can_read_chat_room()
     return query
       select p.id, p.name, p.department, false
       from public.profiles p
@@ -328,21 +338,14 @@ begin
   if char_length(trim(p_body)) < 1 then raise exception 'Empty message'; end if;
 
   -- mentions must be active members of the author's own org AND able to read
-  -- this room — no pulling someone into a room they can't open.
+  -- this room — no pulling someone into a room they can't open, and no
+  -- notification carrying a snippet out through the room's own boundary.
+  -- Same function the read policy uses, asked about them instead of me.
   select coalesce(array_agg(p.id), '{}') into v_clean
   from public.profiles p
   where p.id = any(coalesce(p_mentions, '{}')) and p.org_id = v_org and p.status = 'active'
     and p.id <> v_author
-    and (
-      p_room = 'general'
-      or (p_room ~ '^group:[0-9a-fA-F-]{36}$'
-          and exists (select 1 from public.chat_group_members g
-                       where g.group_id = substr(p_room, 7)::uuid and g.user_id = p.id))
-      or (p_room ~ '^dept:[0-9]+$'
-          and exists (select 1 from public.departments d
-                       where d.id = substr(p_room, 6)::int and d.org_id = v_org
-                         and lower(trim(d.name)) = lower(trim(p.department))))
-    );
+    and public.user_can_read_chat_room(p.id, p_room);
 
   insert into public.org_chat_messages (org_id, room, author_id, body, mentions)
   values (v_org, p_room, v_author, left(trim(p_body), 2000), v_clean)
