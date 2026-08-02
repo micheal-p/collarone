@@ -63,18 +63,53 @@ returns boolean language sql security definer stable set search_path = public as
   );
 $$;
 
+-- May the caller actually OPEN this group? Membership is not the whole answer:
+--   • a closed (archived) group opens for nobody, member or not — otherwise
+--     "Close this group" closes nothing and the room keeps taking messages;
+--   • a System Admin can open any group in their own org. That mirrors
+--     in_chat_department() below, which has always let admins into every
+--     department room, and it's what keeps Manage group working: the admin who
+--     creates a group for other people must still be able to run it.
+--   • the org check is inside, because is_super_admin() only answers "is an
+--     admin", never "an admin of which tenant".
+create or replace function public.can_open_chat_group(p_group uuid)
+returns boolean language sql security definer stable set search_path = public as $$
+  select exists (
+    select 1 from public.chat_groups g
+    where g.id = p_group
+      and not g.archived
+      and public.same_org(g.org_id)
+      and (
+        public.is_super_admin()
+        or exists (select 1 from public.chat_group_members m
+                    where m.group_id = g.id and m.user_id = auth.uid())
+      )
+  );
+$$;
+
 -- Is the caller in the department a 'dept:<id>' room belongs to? profiles
 -- carries the department NAME as free text, departments carries the id, so the
 -- join is by name — matching how the rest of HR resolves it. System admins see
 -- every department room; they manage them.
+-- department_id is the canonical link and survives a rename; the name match is
+-- only a fallback for rows that never got one (bulk import writes the free-text
+-- `department` and no id — see admin.js sanitizeBulk). Joining on the TEXT alone
+-- would mean renaming a department in Admin › Departments silently threw that
+-- whole department out of its own chat room, history included, because nothing
+-- rewrites profiles.department when departments.name changes.
 create or replace function public.in_chat_department(p_dept_id int)
 returns boolean language sql security definer stable set search_path = public as $$
   select public.is_super_admin() or exists (
     select 1
     from public.profiles p
-    join public.departments d
-      on lower(trim(d.name)) = lower(trim(p.department)) and d.org_id = p.org_id
-    where p.id = auth.uid() and d.id = p_dept_id
+    left join public.departments d
+      on d.id = p_dept_id and d.org_id = p.org_id
+    where p.id = auth.uid()
+      and (
+        p.department_id = p_dept_id
+        or (p.department_id is null and d.id is not null
+            and lower(trim(d.name)) = lower(trim(p.department)))
+      )
   );
 $$;
 
@@ -87,7 +122,7 @@ returns boolean language sql stable set search_path = public as $$
     when p_room ~ '^dept:[0-9]+$'
       then public.in_chat_department(substr(p_room, 6)::int)
     when p_room ~ '^group:[0-9a-fA-F-]{36}$'
-      then public.in_chat_group(substr(p_room, 7)::uuid)
+      then public.can_open_chat_group(substr(p_room, 7)::uuid)
     else false
   end;
 $$;
@@ -98,9 +133,15 @@ alter table public.chat_groups enable row level security;
 alter table public.chat_group_members enable row level security;
 
 -- You see the groups you're in; a system admin sees all of them (they manage).
+-- Archived groups are gone from everyone's list, admins included: a closed group
+-- is closed. (The rows survive so the history isn't destroyed — reopening is a
+-- one-line update if it's ever needed.)
 drop policy if exists chat_groups_select on public.chat_groups;
 create policy chat_groups_select on public.chat_groups for select
-  using (public.same_org(org_id) and (public.is_super_admin() or public.in_chat_group(id)));
+  using (
+    public.same_org(org_id) and not archived
+    and (public.is_super_admin() or public.in_chat_group(id))
+  );
 
 -- "See all in the group": members of a group can see its member list. Writes
 -- go through the admin RPCs below, never straight from the client.
@@ -140,9 +181,14 @@ begin
   if not public.is_super_admin() then raise exception 'Only a System Admin can create a group'; end if;
   if char_length(trim(coalesce(p_name, ''))) < 1 then raise exception 'Give the group a name'; end if;
 
-  insert into public.chat_groups (org_id, name, created_by)
-  values (v_org, trim(p_name), v_me)
-  returning * into row;
+  begin
+    insert into public.chat_groups (org_id, name, created_by)
+    values (v_org, trim(p_name), v_me)
+    returning * into row;
+  exception when unique_violation then
+    -- the partial unique index, in words the admin can act on
+    raise exception 'You already have a group called "%".', trim(p_name);
+  end;
 
   -- the creator is always in it, plus anyone passed in who is really in the org
   insert into public.chat_group_members (group_id, user_id, added_by)
@@ -227,12 +273,18 @@ begin
       where p.org_id = v_org and p.status = 'active'
       order by p.name;
   elsif p_room ~ '^dept:[0-9]+$' then
+    -- same id-first, name-as-fallback rule as in_chat_department()
     return query
       select p.id, p.name, p.department, false
       from public.profiles p
-      join public.departments d
-        on lower(trim(d.name)) = lower(trim(p.department)) and d.org_id = p.org_id
-      where p.org_id = v_org and p.status = 'active' and d.id = substr(p_room, 6)::int
+      left join public.departments d
+        on d.id = substr(p_room, 6)::int and d.org_id = p.org_id
+      where p.org_id = v_org and p.status = 'active'
+        and (
+          p.department_id = substr(p_room, 6)::int
+          or (p.department_id is null and d.id is not null
+              and lower(trim(d.name)) = lower(trim(p.department)))
+        )
       order by p.name;
   elsif p_room ~ '^group:[0-9a-fA-F-]{36}$' then
     return query

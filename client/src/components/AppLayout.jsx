@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet, apiPost } from '../api/client.js';
+import { supabase } from '../lib/supabaseClient.js';
 import { SUITE_META, PINNED_TOOLS } from '../config/suites.js';
 import SuiteIcon from './SuiteIcon.jsx';
 import NotificationBell from './NotificationBell.jsx';
@@ -42,6 +43,7 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
   const [suites, setSuites] = useState([]);
   const [sbQ, setSbQ] = useState('');
   const [sbUsers, setSbUsers] = useState([]);
+  const [chatUnread, setChatUnread] = useState(0);
   const [guestMode, setGuestMode] = useState(() => {
     // localStorage (matching where the auth session lives) — a guest marker
     // must outlive the tab, or a closed tab leaves you logged into a
@@ -71,6 +73,23 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
       setGuestMode(info);
       window.history.replaceState({}, '', window.location.pathname);
     }
+  }, []);
+
+  // Unread chat total for the topbar badge. Polled rather than streamed: the
+  // count only has to be roughly live, and a second realtime channel on every
+  // page of the app is a lot of connection for a number. The chat page fires
+  // 'collarone:chat-read' when it clears a room so the badge drops immediately
+  // instead of lagging a poll behind.
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      const { data } = await supabase.rpc('chat_unread_counts');
+      if (alive && data) setChatUnread(data.reduce((n, r) => n + Number(r.unread || 0), 0));
+    };
+    load();
+    const t = setInterval(load, 45000);
+    window.addEventListener('collarone:chat-read', load);
+    return () => { alive = false; clearInterval(t); window.removeEventListener('collarone:chat-read', load); };
   }, []);
 
   const exitGuestMode = () => {
@@ -266,9 +285,10 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
         <div className="sb-right">
           {/* Labelled on purpose: as a bare glyph this was the least
               discoverable thing in the product — nobody knew chat existed. */}
-          <button className="iconbtn iconbtn-labelled" aria-label="Team chat" title="Team chat" onClick={() => go('/chat')}>
+          <button className="iconbtn iconbtn-labelled" aria-label={chatUnread ? `Team chat, ${chatUnread} unread` : 'Team chat'} title="Team chat" onClick={() => go('/chat')}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.9 8.9 0 0 1-4-.9L3 20l1-4.5A8.4 8.4 0 0 1 12.5 3a8.4 8.4 0 0 1 8.5 8.5Z" /></svg>
             <span className="iconbtn-label">Chat</span>
+            {chatUnread > 0 && <span className="iconbtn-badge">{chatUnread > 99 ? '99+' : chatUnread}</span>}
           </button>
           <NotificationBell />
           <div className="waffle-wrap" ref={waffleRef}>

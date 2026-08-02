@@ -14,6 +14,16 @@
 }
 .chat-room:hover { background: rgba(10,14,26,0.05); }
 .chat-room.on { font-weight: 700; background: var(--brand-100); color: var(--brand-ink); }
+.chat-room { display: flex; align-items: center; gap: 8px; }
+.chat-room-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Unread pill on a room. A room with unread messages reads as bold, like every
+   messenger — the count alone is easy to miss in a list. */
+.chat-room:has(.chat-unread) .chat-room-label { font-weight: 700; }
+.chat-unread {
+  margin-left: auto; flex: none; min-width: 20px; height: 20px; padding: 0 6px;
+  display: grid; place-items: center; border-radius: 100px;
+  background: var(--brand); color: #fff; font-size: 11px; font-weight: 700; line-height: 1;
+}
 
 .chat-room-new { color: var(--brand-dark, var(--brand)); font-weight: 650; }
 

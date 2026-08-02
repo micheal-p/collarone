@@ -22,6 +22,7 @@ export default function TeamChat() {
   const [staff, setStaff] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [unread, setUnread] = useState({});   // room key → count
   const [room, setRoom] = useState('general');
   // group admin + "who's in here" panel
   const [members, setMembers] = useState(null);   // null = panel closed
@@ -43,17 +44,33 @@ export default function TeamChat() {
   // reads the current list without resubscribing every time staff loads/changes.
   const staffRef = useRef([]);
   useEffect(() => { staffRef.current = staff; }, [staff]);
+  const roomRef = useRef(room);
+  useEffect(() => { roomRef.current = room; }, [room]);
 
   // RLS decides what comes back here: a member sees their own groups, a system
   // admin sees all of them. The client never filters for security, only for tidiness.
-  const loadGroups = () => supabase.from('chat_groups').select('id, name')
-    .eq('archived', false).order('name')
-    .then(({ data }) => setGroups(data || []));
+  const loadGroups = async () => {
+    const { data, error } = await supabase.from('chat_groups').select('id, name').order('name');
+    // Surfaced, not swallowed: if the migration hasn't been applied this is the
+    // only thing that would tell you, instead of a silently empty room list.
+    if (error) setErr(error.message); else setGroups(data || []);
+  };
+
+  const loadUnread = async () => {
+    const { data } = await supabase.rpc('chat_unread_counts');
+    if (data) setUnread(Object.fromEntries(data.map((r) => [r.room, Number(r.unread)])));
+  };
 
   useEffect(() => {
     apiGet('/staff').then((d) => setStaff(d.staff || [])).catch(() => {});
     apiGet('/departments').then((d) => setDepartments((d.departments || []).filter((x) => x.active !== false))).catch(() => {});
     loadGroups();
+    loadUnread();
+    // Being added to a group is somebody else's action, so nothing tells this
+    // tab about it. A slow poll keeps the room list and the counts honest
+    // without another realtime channel.
+    const t = setInterval(() => { loadGroups(); loadUnread(); }, 60000);
+    return () => clearInterval(t);
   }, []); // eslint-disable-line
 
   // load the room + subscribe to live inserts (RLS scopes the stream)
@@ -95,6 +112,29 @@ export default function TeamChat() {
   // Runs after the new message is in the DOM, so "near the bottom" already
   // includes its height — one message is well inside the 140px slack.
   useEffect(() => { if (nearBottom()) scrollToEnd(); }, [messages?.length]); // eslint-disable-line
+
+  // Reading a room clears its badge — you're looking at it. Fires on entry and
+  // again as messages land while you sit here, same as a phone messenger. The
+  // window event is what tells the topbar badge to drop without waiting for its
+  // own poll; the local zero keeps the sidebar pill honest in the meantime.
+  // Throttled: this effect keys off message count, so a busy room would
+  // otherwise fire one write per arriving message. Entering a room always
+  // marks; sitting in it re-marks at most every few seconds.
+  const lastMark = useRef({ room: null, at: 0 });
+  useEffect(() => {
+    if (messages === null) return undefined;
+    const now = Date.now();
+    const fresh = lastMark.current.room !== room || now - lastMark.current.at > 4000;
+    if (!fresh) return undefined;
+    lastMark.current = { room, at: now };
+    let alive = true;
+    supabase.rpc('mark_chat_room_read', { p_room: room }).then(() => {
+      if (!alive) return;
+      setUnread((u) => (u[room] ? { ...u, [room]: 0 } : u));
+      window.dispatchEvent(new CustomEvent('collarone:chat-read'));
+    });
+    return () => { alive = false; };
+  }, [room, messages?.length]); // eslint-disable-line
 
   // ---- composer: parse @mentions --------------------------------------------
   const onBodyChange = (e) => {
@@ -156,9 +196,13 @@ export default function TeamChat() {
   // One RPC for all three room kinds, so the list can never disagree with the
   // read policy: General answers "everyone", a department room answers "that
   // department", a group answers its membership.
+  // `asked` is pinned so a slow reply can't paint one room's people under
+  // another room's heading when you switch while it's in flight.
   const openMembers = async () => {
+    const asked = room;
     setMembers([]); setErr('');
-    const { data, error } = await supabase.rpc('chat_room_members', { p_room: room });
+    const { data, error } = await supabase.rpc('chat_room_members', { p_room: asked });
+    if (asked !== roomRef.current) return;
     if (error) { setErr(error.message); setMembers(null); return; }
     setMembers(data || []);
   };
@@ -203,7 +247,10 @@ export default function TeamChat() {
           {rooms.map((r) => (
             <button key={r.key} onClick={() => { setRoom(r.key); setMembers(null); }}
               className={`chat-room${room === r.key ? ' on' : ''}`}>
-              # {r.label}
+              <span className="chat-room-label"># {r.label}</span>
+              {unread[r.key] > 0 && room !== r.key && (
+                <span className="chat-unread">{unread[r.key] > 99 ? '99+' : unread[r.key]}</span>
+              )}
             </button>
           ))}
           {isAdmin && (
@@ -353,8 +400,10 @@ function GroupModal({ group, staff, me, onClose, onSaved }) {
     const ok = await run(inGroup ? 'remove_chat_group_member' : 'add_chat_group_member',
       { p_group: group.id, p_user: id });
     if (!ok) return;
-    const { data } = await supabase.rpc('chat_room_members', { p_room: `group:${group.id}` });
-    setCurrent(data || []);
+    // Keep the error: if this ever fails, an empty list would read as "this
+    // group has nobody in it" and un-tick every chip, which is a lie.
+    const { data, error } = await supabase.rpc('chat_room_members', { p_room: `group:${group.id}` });
+    if (error) setErr(error.message); else setCurrent(data || []);
   };
   const close = async () => {
     if (await run('archive_chat_group', { p_group: group.id })) onSaved('general');
@@ -375,13 +424,19 @@ function GroupModal({ group, staff, me, onClose, onSaved }) {
         <div className="chat-picker">
           {staff.map((s) => {
             const on = isNew ? picked.includes(s.id) : inGroup(s.id);
+            // You can't take yourself out from here. Removing the admin who is
+            // managing the group mid-edit leaves them looking at a group they
+            // just locked themselves out of.
+            const isMe = s.id === me;
             return (
-              <button key={s.id} type="button" className={`chat-pick${on ? ' on' : ''}`} disabled={busy || (!isNew && current === null)}
+              <button key={s.id} type="button" className={`chat-pick${on ? ' on' : ''}`}
+                disabled={busy || (!isNew && current === null) || (isMe && on)}
+                title={isMe && on ? 'You manage this group — you stay in it' : undefined}
                 onClick={() => (isNew
                   ? setPicked((p) => (p.includes(s.id) ? p.filter((x) => x !== s.id) : [...p, s.id]))
                   : toggleMember(s.id, on))}>
                 <span className="avatar sm">{initials(s.name)}</span>
-                <span>{s.name}{s.id === me ? ' (you)' : ''}</span>
+                <span>{s.name}{isMe ? ' (you)' : ''}</span>
               </button>
             );
           })}
