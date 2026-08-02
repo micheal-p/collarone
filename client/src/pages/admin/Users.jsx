@@ -635,7 +635,7 @@ function BulkImportModal({ catalog, departments, onClose, onDone, flash }) {
             <strong> File → Save As / Download → CSV</strong>, then choose the file here.
             You'll match the columns and review before anything is created.
           </p>
-          <label className="btn btn-primary" style={{ display: 'inline-block', cursor: 'pointer' }}>
+          <label className="btn btn-primary" style={{ cursor: 'pointer' }}>
             Choose CSV file
             <input type="file" accept=".csv,text/csv" onChange={onFile} style={{ display: 'none' }} />
           </label>

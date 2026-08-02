@@ -103,7 +103,7 @@ export default function Help() {
         <p className="muted" style={{ fontSize: 13.5, marginBottom: 14 }}>
           A quick walkthrough of how the platform is laid out — on desktop and on mobile. If you get stuck, reach out to your System Administrator.
         </p>
-        <a href="/?tour=1" className="btn btn-primary" style={{ textDecoration: 'none', display: 'inline-block', marginBottom: 20, fontSize: 13 }}>
+        <a href="/?tour=1" className="btn btn-primary" style={{ textDecoration: 'none', marginBottom: 20, fontSize: 13 }}>
           Replay the guided tour
         </a>
         {SECTIONS.map((s) => (
