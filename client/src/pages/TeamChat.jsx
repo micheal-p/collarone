@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet } from '../api/client.js';
 import { supabase } from '../lib/supabaseClient.js';
 import AppLayout from '../components/AppLayout.jsx';
+import { Modal } from '../components/ui.jsx';
 import { useKeyboardInset } from '../lib/keyboardInset.js';
 import './TeamChat.css';
 
@@ -17,9 +18,14 @@ const dayOf = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric
 export default function TeamChat() {
   const { user } = useAuth();
   const orgId = user?.org?.id;
+  const isAdmin = user?.role === 'super_admin';
   const [staff, setStaff] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [room, setRoom] = useState('general');
+  // group admin + "who's in here" panel
+  const [members, setMembers] = useState(null);   // null = panel closed
+  const [manage, setManage] = useState(null);     // null | 'new' | group object
   const [messages, setMessages] = useState(null);
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -38,10 +44,17 @@ export default function TeamChat() {
   const staffRef = useRef([]);
   useEffect(() => { staffRef.current = staff; }, [staff]);
 
+  // RLS decides what comes back here: a member sees their own groups, a system
+  // admin sees all of them. The client never filters for security, only for tidiness.
+  const loadGroups = () => supabase.from('chat_groups').select('id, name')
+    .eq('archived', false).order('name')
+    .then(({ data }) => setGroups(data || []));
+
   useEffect(() => {
     apiGet('/staff').then((d) => setStaff(d.staff || [])).catch(() => {});
     apiGet('/departments').then((d) => setDepartments((d.departments || []).filter((x) => x.active !== false))).catch(() => {});
-  }, []);
+    loadGroups();
+  }, []); // eslint-disable-line
 
   // load the room + subscribe to live inserts (RLS scopes the stream)
   useEffect(() => {
@@ -124,8 +137,45 @@ export default function TeamChat() {
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
 
-  const rooms = [{ key: 'general', label: 'General' },
-    ...departments.map((d) => ({ key: `dept:${d.id}`, label: d.name }))];
+  // Department rooms are private to their department now (system admins see all
+  // of them, since they manage them). This mirrors can_read_chat_room() in
+  // team_chat_groups.sql — the database is the enforcement, this is just so
+  // nobody is shown a door that won't open.
+  const myDept = (user?.department || '').trim().toLowerCase();
+  const visibleDepts = isAdmin ? departments
+    : departments.filter((d) => String(d.name).trim().toLowerCase() === myDept);
+
+  const rooms = [
+    { key: 'general', label: 'General', kind: 'general' },
+    ...visibleDepts.map((d) => ({ key: `dept:${d.id}`, label: d.name, kind: 'dept' })),
+    ...groups.map((g) => ({ key: `group:${g.id}`, label: g.name, kind: 'group', group: g })),
+  ];
+  const currentRoom = rooms.find((r) => r.key === room) || rooms[0];
+
+  // ---- who's in this room ----------------------------------------------------
+  // One RPC for all three room kinds, so the list can never disagree with the
+  // read policy: General answers "everyone", a department room answers "that
+  // department", a group answers its membership.
+  const openMembers = async () => {
+    setMembers([]); setErr('');
+    const { data, error } = await supabase.rpc('chat_room_members', { p_room: room });
+    if (error) { setErr(error.message); setMembers(null); return; }
+    setMembers(data || []);
+  };
+
+  const groupAction = async (fn, args, after) => {
+    setErr('');
+    const { error } = await supabase.rpc(fn, args);
+    if (error) { setErr(error.message); return false; }
+    await after?.();
+    return true;
+  };
+
+  const removeMember = (userId) => groupAction(
+    'remove_chat_group_member',
+    { p_group: currentRoom.group?.id, p_user: userId },
+    openMembers,
+  );
 
   const renderBody = (text) => {
     // bold the @mentions for readability
@@ -151,14 +201,51 @@ export default function TeamChat() {
         <div className="chat-rooms">
           <div className="chat-rooms-head">Rooms</div>
           {rooms.map((r) => (
-            <button key={r.key} onClick={() => setRoom(r.key)}
+            <button key={r.key} onClick={() => { setRoom(r.key); setMembers(null); }}
               className={`chat-room${room === r.key ? ' on' : ''}`}>
               # {r.label}
             </button>
           ))}
+          {isAdmin && (
+            <button className="chat-room chat-room-new" onClick={() => setManage('new')}>+ New group</button>
+          )}
         </div>
 
         <div className="chat-main">
+          <div className="chat-roombar">
+            <div className="chat-roombar-name"># {currentRoom.label}</div>
+            <div className="chat-roombar-actions">
+              <button className="btn btn-subtle" onClick={() => (members ? setMembers(null) : openMembers())}>
+                {members ? 'Hide people' : 'People'}
+              </button>
+              {isAdmin && currentRoom.kind === 'group' && (
+                <button className="btn btn-subtle" onClick={() => setManage(currentRoom.group)}>Manage group</button>
+              )}
+            </div>
+          </div>
+
+          {members && (
+            <div className="chat-members">
+              <div className="chat-members-head">
+                {currentRoom.kind === 'general' && 'Everyone in your organisation is in here — nobody can be removed from General.'}
+                {currentRoom.kind === 'dept' && `Everyone in ${currentRoom.label}. Membership follows the department.`}
+                {currentRoom.kind === 'group' && `${members.length} ${members.length === 1 ? 'person' : 'people'} in this group.`}
+              </div>
+              <div className="chat-members-list">
+                {members.map((m) => (
+                  <div key={m.id} className="chat-member">
+                    <span className="avatar sm">{initials(m.name)}</span>
+                    <span className="chat-member-name">{m.name}{m.department ? <span className="muted"> · {m.department}</span> : null}</span>
+                    {isAdmin && m.removable && m.id !== user?.id && (
+                      <button className="btn btn-subtle chat-member-remove" onClick={() => removeMember(m.id)}>Remove</button>
+                    )}
+                  </div>
+                ))}
+                {members.length === 0 && <p className="muted" style={{ fontSize: 13 }}>Nobody yet.</p>}
+              </div>
+            </div>
+          )}
+
           <div className="chat-stream" ref={streamRef}>
             {messages === null && <div className="suite-loading"><div className="boot-spinner" /></div>}
             {messages?.length === 0 && (
@@ -202,7 +289,7 @@ export default function TeamChat() {
             <div className="chat-composer-row">
               <input ref={inputRef} value={body} onChange={onBodyChange} className="chat-input"
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && mentionMatches.length === 0) { e.preventDefault(); send(); } if (e.key === 'Escape') setMentionQ(null); }}
-                placeholder={`Message #${rooms.find((r) => r.key === room)?.label || 'General'} — @ to mention`} />
+                placeholder={`Message #${currentRoom.label} — @ to mention`} />
               <button className="btn btn-primary" disabled={busy || !body.trim()} onClick={send}>
                 {busy ? <span className="spinner" /> : 'Send'}
               </button>
@@ -210,6 +297,106 @@ export default function TeamChat() {
           </div>
         </div>
       </div>
+
+      {manage && (
+        <GroupModal
+          group={manage === 'new' ? null : manage}
+          staff={staff}
+          me={user?.id}
+          onClose={() => setManage(null)}
+          onSaved={async (nextRoomKey) => {
+            setManage(null);
+            await loadGroups();
+            if (nextRoomKey) { setRoom(nextRoomKey); setMembers(null); }
+            else if (members) await openMembers();
+          }}
+        />
+      )}
     </AppLayout>
+  );
+}
+
+/* ---- Create / manage a group ---------------------------------------------
+   System admins only, and the database says so too — every RPC behind this
+   re-checks is_super_admin() rather than trusting the UI to have hidden the
+   button. Naming, membership and closing the group all live here. */
+function GroupModal({ group, staff, me, onClose, onSaved }) {
+  const isNew = !group;
+  const [name, setName] = useState(group?.name || '');
+  const [picked, setPicked] = useState([]);      // new groups only
+  const [current, setCurrent] = useState(null);  // existing membership
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (isNew) return;
+    supabase.rpc('chat_room_members', { p_room: `group:${group.id}` })
+      .then(({ data, error }) => { if (error) setErr(error.message); else setCurrent(data || []); });
+  }, [group, isNew]);
+
+  const run = async (fn, args) => {
+    setBusy(true); setErr('');
+    const { data, error } = await supabase.rpc(fn, args);
+    setBusy(false);
+    if (error) { setErr(error.message); return null; }
+    return data ?? true;
+  };
+
+  const create = async () => {
+    const row = await run('create_chat_group', { p_name: name.trim(), p_members: picked });
+    if (row) onSaved(`group:${row.id}`);
+  };
+  const rename = async () => {
+    if (await run('rename_chat_group', { p_group: group.id, p_name: name.trim() })) onSaved(null);
+  };
+  const toggleMember = async (id, inGroup) => {
+    const ok = await run(inGroup ? 'remove_chat_group_member' : 'add_chat_group_member',
+      { p_group: group.id, p_user: id });
+    if (!ok) return;
+    const { data } = await supabase.rpc('chat_room_members', { p_room: `group:${group.id}` });
+    setCurrent(data || []);
+  };
+  const close = async () => {
+    if (await run('archive_chat_group', { p_group: group.id })) onSaved('general');
+  };
+
+  const inGroup = (id) => (current || []).some((m) => m.id === id);
+
+  return (
+    <Modal title={isNew ? 'New group' : `Manage ${group.name}`} onClose={onClose}>
+      <div className="field">
+        <label>Group name</label>
+        <input className="input" value={name} maxLength={60} onChange={(e) => setName(e.target.value)}
+          placeholder="Lagos branch, Management, Night shift…" />
+      </div>
+
+      <div className="field">
+        <label>{isNew ? 'Who joins now' : 'Who is in this group'} <span className="muted">— you can change this any time</span></label>
+        <div className="chat-picker">
+          {staff.map((s) => {
+            const on = isNew ? picked.includes(s.id) : inGroup(s.id);
+            return (
+              <button key={s.id} type="button" className={`chat-pick${on ? ' on' : ''}`} disabled={busy || (!isNew && current === null)}
+                onClick={() => (isNew
+                  ? setPicked((p) => (p.includes(s.id) ? p.filter((x) => x !== s.id) : [...p, s.id]))
+                  : toggleMember(s.id, on))}>
+                <span className="avatar sm">{initials(s.name)}</span>
+                <span>{s.name}{s.id === me ? ' (you)' : ''}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {err && <p className="chat-err">{err}</p>}
+
+      <div className="modal-actions">
+        {!isNew && <button className="btn btn-ghost" disabled={busy} onClick={close}>Close this group</button>}
+        <button className="btn btn-ghost" onClick={onClose}>Done</button>
+        {isNew
+          ? <button className="btn btn-primary" disabled={busy || !name.trim()} onClick={create}>Create group</button>
+          : <button className="btn btn-primary" disabled={busy || !name.trim() || name.trim() === group.name} onClick={rename}>Save name</button>}
+      </div>
+    </Modal>
   );
 }
