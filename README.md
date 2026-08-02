@@ -62,8 +62,7 @@ npm run dev                # http://localhost:5173
 
 Running against a real backend needs a Supabase project with the schema in `supabase/`
 applied — run the `.sql` files in that folder in order (each one documents its own
-dependencies at the top). See `ops/hostinger/README.md` for self-hosting Supabase instead
-of using Supabase Cloud.
+dependencies at the top).
 
 ## Deployment
 
