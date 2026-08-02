@@ -7,6 +7,8 @@ import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet } from '../api/client.js';
 import { supabase } from '../lib/supabaseClient.js';
 import AppLayout from '../components/AppLayout.jsx';
+import { useKeyboardInset } from '../lib/keyboardInset.js';
+import './TeamChat.css';
 
 const initials = (n = '') => n.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const timeOf = (iso) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -26,6 +28,8 @@ export default function TeamChat() {
   const [mentionQ, setMentionQ] = useState(null); // null = closed; '' or query = open
   const inputRef = useRef(null);
   const endRef = useRef(null);
+  const streamRef = useRef(null);
+  useKeyboardInset();
 
   const staffByName = useMemo(() => staff.filter((s) => s.id !== user?.id), [staff, user]);
 
@@ -60,7 +64,24 @@ export default function TeamChat() {
     return () => { alive = false; supabase.removeChannel(ch); };
   }, [room, orgId]); // eslint-disable-line
 
-  useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }); }, [messages?.length]);
+  // Jump to the newest message — but scroll the right box, and only when the
+  // reader is already at the bottom. scrollIntoView() was doing neither: it
+  // walks up and scrolls EVERY scrollable ancestor including the window, which
+  // on a phone fights Safari's own scrolling, and it yanked you back down mid-
+  // sentence if you were reading history when someone posted.
+  const scrollerOf = (el) => (el && el.scrollHeight > el.clientHeight + 4 ? el : el?.closest('.content'));
+  const nearBottom = () => {
+    const s = scrollerOf(streamRef.current);
+    if (!s) return true;
+    return s.scrollHeight - s.scrollTop - s.clientHeight < 140;
+  };
+  const scrollToEnd = () => {
+    const s = scrollerOf(streamRef.current);
+    if (s) s.scrollTop = s.scrollHeight;
+  };
+  // Runs after the new message is in the DOM, so "near the bottom" already
+  // includes its height — one message is well inside the 140px slack.
+  useEffect(() => { if (nearBottom()) scrollToEnd(); }, [messages?.length]); // eslint-disable-line
 
   // ---- composer: parse @mentions --------------------------------------------
   const onBodyChange = (e) => {
@@ -99,6 +120,7 @@ export default function TeamChat() {
       setBody('');
       setMessages((ms) => (ms && !ms.some((x) => x.id === data.id))
         ? [...ms, { ...data, author: { id: user.id, name: user.name } }] : ms);
+      requestAnimationFrame(scrollToEnd); // your own message always pulls you down
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
 
@@ -116,7 +138,7 @@ export default function TeamChat() {
       parts.push(rest.slice(0, idx));
       const after = rest.slice(idx);
       const hit = names.find((n) => after.toLowerCase().startsWith(`@${n.toLowerCase()}`));
-      if (hit) { parts.push(<strong key={i++} style={{ color: 'var(--brand)' }}>@{hit}</strong>); rest = after.slice(hit.length + 1); }
+      if (hit) { parts.push(<strong key={i++} className="chat-mention">@{hit}</strong>); rest = after.slice(hit.length + 1); }
       else { parts.push('@'); rest = after.slice(1); }
     }
     return parts;
@@ -125,22 +147,22 @@ export default function TeamChat() {
   let lastDay = '';
   return (
     <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Team chat' }]} title="Team chat">
-      <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', minHeight: 'min(62vh, 640px)' }}>
-        <div style={{ flex: '0 0 180px', borderRight: '1px solid var(--line)', paddingRight: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--text-3, #99a)', margin: '2px 0 8px' }}>Rooms</div>
+      <div className="chat">
+        <div className="chat-rooms">
+          <div className="chat-rooms-head">Rooms</div>
           {rooms.map((r) => (
             <button key={r.key} onClick={() => setRoom(r.key)}
-              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px', borderRadius: 8, border: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13.5, fontWeight: room === r.key ? 700 : 450, background: room === r.key ? 'var(--brand-100, rgba(255,91,31,0.1))' : 'transparent', color: room === r.key ? 'var(--brand-dark, var(--brand))' : 'var(--text)' }}>
+              className={`chat-room${room === r.key ? ' on' : ''}`}>
               # {r.label}
             </button>
           ))}
         </div>
 
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div style={{ flex: 1, overflowY: 'auto', paddingRight: 6 }}>
+        <div className="chat-main">
+          <div className="chat-stream" ref={streamRef}>
             {messages === null && <div className="suite-loading"><div className="boot-spinner" /></div>}
             {messages?.length === 0 && (
-              <p className="muted" style={{ fontSize: 13.5, padding: '30px 0', textAlign: 'center' }}>
+              <p className="muted chat-empty">
                 Nothing here yet — say something. Type @ to mention a teammate; they get notified.
               </p>
             )}
@@ -149,15 +171,15 @@ export default function TeamChat() {
               const showDay = day !== lastDay; lastDay = day;
               return (
                 <div key={m.id}>
-                  {showDay && <div style={{ textAlign: 'center', margin: '14px 0 8px' }}><span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-3, #99a)', background: 'var(--surface-2, #f4f2ec)', borderRadius: 100, padding: '3px 12px' }}>{day}</span></div>}
-                  <div style={{ display: 'flex', gap: 10, padding: '6px 0', alignItems: 'flex-start' }}>
+                  {showDay && <div className="chat-daysep"><span>{day}</span></div>}
+                  <div className="chat-msg">
                     <span className="avatar sm" style={{ flexShrink: 0 }}>{initials(m.author?.name || '?')}</span>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 12.5 }}>
+                    <div className="chat-msg-main">
+                      <div className="chat-msg-head">
                         <strong>{m.author?.name || 'Someone'}</strong>
-                        <span className="muted" style={{ marginLeft: 8, fontSize: 11.5 }}>{timeOf(m.created_at)}</span>
+                        <span className="muted chat-msg-time">{timeOf(m.created_at)}</span>
                       </div>
-                      <div style={{ fontSize: 14, lineHeight: 1.55, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{renderBody(m.body)}</div>
+                      <div className="chat-msg-body">{renderBody(m.body)}</div>
                     </div>
                   </div>
                 </div>
@@ -166,23 +188,21 @@ export default function TeamChat() {
             <div ref={endRef} />
           </div>
 
-          {err && <p style={{ color: 'var(--danger, #a4262c)', fontSize: 12.5, margin: '6px 0 0' }}>{err}</p>}
-          <div style={{ position: 'relative', marginTop: 10 }}>
+          {err && <p className="chat-err">{err}</p>}
+          <div className="chat-composer">
             {mentionQ !== null && mentionMatches.length > 0 && (
-              <div style={{ position: 'absolute', bottom: '100%', left: 0, marginBottom: 6, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, boxShadow: 'var(--shadow-16, 0 8px 30px rgba(0,0,0,0.12))', padding: 6, zIndex: 5, minWidth: 220 }}>
+              <div className="chat-mentions">
                 {mentionMatches.map((s) => (
-                  <button key={s.id} onClick={() => pickMention(s)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 10px', border: 'none', background: 'none', cursor: 'pointer', font: 'inherit', fontSize: 13.5, borderRadius: 8, textAlign: 'left' }}>
+                  <button key={s.id} onClick={() => pickMention(s)} className="chat-mention-item">
                     <span className="avatar sm">{initials(s.name)}</span>{s.name}
                   </button>
                 ))}
               </div>
             )}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input ref={inputRef} value={body} onChange={onBodyChange}
+            <div className="chat-composer-row">
+              <input ref={inputRef} value={body} onChange={onBodyChange} className="chat-input"
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && mentionMatches.length === 0) { e.preventDefault(); send(); } if (e.key === 'Escape') setMentionQ(null); }}
-                placeholder={`Message #${rooms.find((r) => r.key === room)?.label || 'General'} — @ to mention`}
-                style={{ flex: 1, padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line)', font: 'inherit', fontSize: 14, background: 'var(--surface)', color: 'var(--text)' }} />
+                placeholder={`Message #${rooms.find((r) => r.key === room)?.label || 'General'} — @ to mention`} />
               <button className="btn btn-primary" disabled={busy || !body.trim()} onClick={send}>
                 {busy ? <span className="spinner" /> : 'Send'}
               </button>

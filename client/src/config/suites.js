@@ -26,6 +26,26 @@ export const SUITES = [
   { key: 'compliance',  name: 'Compliance Calendar', tier: 'extended', status: 'live', desc: 'Nigerian government deadlines — PAYE, VAT, pension, NHF, CAC — tracked per month, never missed.' },
 ];
 
+// Tools every workspace gets for free, deliberately OUTSIDE the SUITES catalog.
+//
+// This separation is load-bearing, not cosmetic: the renewal engine prices an
+// org off how many SUITES it holds (best_plan_kobo() / the Landing estimator),
+// so anything that lands in SUITES becomes billable and can push a customer
+// into a higher tier. A pinned tool must therefore NEVER be added to SUITES,
+// never appear in a suite grant, and never reach the price math — it is simply
+// included. `test/pinned_tools_not_priced.mjs` fails the build if that ever
+// stops being true. `path` is a real route, not `/suite/<key>`.
+export const PINNED_TOOLS = [
+  {
+    key: 'chat',
+    name: 'Team Chat',
+    path: '/chat',
+    desc: 'Talk to your team where the work is — one General room, one per department, and @mentions that notify.',
+    icon: 'chat',
+    tint: '#1b3a6b',
+  },
+];
+
 // Mirrors server/src/config/suites.js for presentation. The SERVER is authoritative
 // for access; this only adds per-tile visuals (icon key + accent tint).
 export const SUITE_META = {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet, apiPost } from '../api/client.js';
-import { SUITE_META } from '../config/suites.js';
+import { SUITE_META, PINNED_TOOLS } from '../config/suites.js';
 import SuiteIcon from './SuiteIcon.jsx';
 import NotificationBell from './NotificationBell.jsx';
 import logoMark from '../assets/collarone-mark.svg';
@@ -264,8 +264,11 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
         </div>
 
         <div className="sb-right">
-          <button className="iconbtn" aria-label="Team chat" title="Team chat" onClick={() => go('/chat')}>
+          {/* Labelled on purpose: as a bare glyph this was the least
+              discoverable thing in the product — nobody knew chat existed. */}
+          <button className="iconbtn iconbtn-labelled" aria-label="Team chat" title="Team chat" onClick={() => go('/chat')}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.9 8.9 0 0 1-4-.9L3 20l1-4.5A8.4 8.4 0 0 1 12.5 3a8.4 8.4 0 0 1 8.5 8.5Z" /></svg>
+            <span className="iconbtn-label">Chat</span>
           </button>
           <NotificationBell />
           <div className="waffle-wrap" ref={waffleRef}>
@@ -283,6 +286,14 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
                         <SuiteIcon name={SUITE_META[s.key]?.icon || 'grid'} size={18} color="#fff" />
                       </span>
                       <span className="waffle-name">{s.name}</span>
+                    </button>
+                  ))}
+                  {PINNED_TOOLS.map((t) => (
+                    <button key={t.key} className="waffle-item" onClick={() => { setWaffle(false); go(t.path); }}>
+                      <span className="waffle-icon" style={{ background: t.tint || 'var(--brand)' }}>
+                        <SuiteIcon name={t.icon || 'grid'} size={18} color="#fff" />
+                      </span>
+                      <span className="waffle-name">{t.name}</span>
                     </button>
                   ))}
                 </div>
