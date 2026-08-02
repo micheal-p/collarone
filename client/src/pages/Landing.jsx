@@ -400,7 +400,6 @@ export default function Landing() {
             <a className="cl-nl cl-hide-sm" href="#platform">Platform</a>
             <a className="cl-nl cl-hide-sm" href="#pricing">Pricing</a>
             <a className="cl-nl cl-hide-sm" href="#themes">Themes</a>
-            <a className="cl-nl cl-hide-sm" href="#about">About</a>
             <a className="cl-nl cl-hide-sm" href="#faq">FAQ</a>
             <Link className="cl-nl cl-hide-sm" to="/jobs">Jobs</Link>
             <Link className="cl-btn cl-btn-sm cl-btn-trydemo cl-hide-sm" to="/try">Try demo</Link>
@@ -418,7 +417,7 @@ export default function Landing() {
               initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.18 }}
             >
-              {[['#platform', 'Platform'], ['/try', 'Try demo'], ['#pricing', 'Pricing'], ['#themes', 'Themes'], ['#about', 'About'], ['#faq', 'FAQ'], ['/jobs', 'Jobs board']].map(([href, label]) => (
+              {[['#platform', 'Platform'], ['/try', 'Try demo'], ['#pricing', 'Pricing'], ['#themes', 'Themes'], ['#faq', 'FAQ'], ['/jobs', 'Jobs board']].map(([href, label]) => (
                 <a key={href} className="cl-mm-link" href={href} onClick={() => setNavOpen(false)}>{label}</a>
               ))}
               <div className="cl-mm-actions">
@@ -682,32 +681,6 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec" id="about">
-        <div className="cl-wrap">
-          <Reveal className="cl-sec-head">
-            <p className="cl-eyebrow">How we started</p>
-            <h2 className="cl-sec-h">Built in Nigeria, for businesses across Nigeria</h2>
-          </Reveal>
-          <div className="cl-about-grid">
-            <Reveal className="cl-about-copy">
-              <p>Collarone didn't start as a plan for a "business platform." It started as a tool built to solve one real problem for one real Nigerian business: watching what actually broke, what actually got used, and what a Nigerian back office genuinely needed on an ordinary working day.</p>
-              <blockquote className="cl-about-pullquote">Why should only one company have this?</blockquote>
-              <p>That's what Collarone is now, built for the Nigerian businesses quietly outgrowing spreadsheets and WhatsApp groups, tired of paying for software that was never built with a single Nigerian working day in mind. Whether you're a startup finding your feet, a growing company standardising how you run, or an established business scaling across states, we're building this for how Nigerian companies actually operate: remote, hybrid and on-site teams alike. Real business software, priced and built like it belongs here. Because it does.</p>
-            </Reveal>
-            <Reveal className="cl-founder-card" delay={0.1}>
-              <div className="cl-founder-avatar">AP</div>
-              <div className="cl-founder-name">Aniebiet Pius</div>
-              <div className="cl-founder-role">Founder, Collarone</div>
-              <div className="cl-founder-stats">
-                <div><strong>2026</strong><small>Founded</small></div>
-                <div><strong>15</strong><small>Suites live</small></div>
-              </div>
-              <div className="cl-founder-loc">{I.pin}Nigeria</div>
-            </Reveal>
-          </div>
-        </div>
-      </section>
-
       <section className="cl-sec cl-tint" id="faq">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
@@ -770,7 +743,6 @@ export default function Landing() {
             </div>
             <div className="cl-footer-col">
               <div className="cl-footer-h">Company</div>
-              <a href="#about">About</a>
               <a href="/jobs">Jobs board</a>
               <Link to="/contact">Contact us</Link>
             </div>
