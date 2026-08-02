@@ -52,7 +52,7 @@ const INTENTS = [
     id: 'team-chat',
     phrases: ['team chat', 'internal chat', 'chat with staff', 'message my team', 'like slack', 'slack alternative', 'group chat', 'mention someone'],
     keys: ['chat', 'message', 'messaging', 'slack', 'mention', 'room', 'talk'],
-    answer: 'Team Chat is built in and free — it doesn\'t count as one of your suites, so it never changes your price. Every workspace gets a General room plus one room per department, and you can @mention a colleague to pull them in. Mentions reach people in the app straight away. It\'s deliberately simple — one place for work talk, not a replacement for WhatsApp.',
+    answer: 'Team Chat is built in and free — it doesn\'t count as one of your suites, so it never changes your price. Everyone in your business is in the General room automatically. Each department gets its own room, private to that department, and your System Admin can create named groups — "Lagos branch", "Night shift" — choosing exactly who is in each one, seeing the full member list and removing people at any time. @mention a colleague and they get notified. It\'s deliberately simple — one place for work talk, not a replacement for WhatsApp.',
     chips: ['What suites are included?', 'What does Collarone cost?', 'How do I add my staff?'],
   },
   {

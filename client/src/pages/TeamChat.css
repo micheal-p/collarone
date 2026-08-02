@@ -15,6 +15,31 @@
 .chat-room:hover { background: rgba(10,14,26,0.05); }
 .chat-room.on { font-weight: 700; background: var(--brand-100); color: var(--brand-ink); }
 
+.chat-room-new { color: var(--brand-dark, var(--brand)); font-weight: 650; }
+
+/* ---- Room bar: which room you're in, and who's in it ---- */
+.chat-roombar { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.chat-roombar-name { font-weight: 700; font-size: 14.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-roombar-actions { margin-left: auto; display: flex; gap: 4px; flex: none; }
+
+.chat-members { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; background: var(--surface); }
+.chat-members-head { font-size: 12.5px; color: var(--text-2); margin-bottom: 8px; }
+.chat-members-list { display: flex; flex-direction: column; gap: 2px; max-height: 240px; overflow-y: auto; }
+.chat-member { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13.5px; }
+.chat-member-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-member-remove { margin-left: auto; flex: none; }
+
+/* Member picker in the group modal */
+.chat-picker { display: flex; flex-wrap: wrap; gap: 6px; max-height: 260px; overflow-y: auto; padding: 2px; }
+.chat-pick {
+  display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px 5px 5px;
+  border: 1px solid var(--line); border-radius: 100px; background: var(--surface);
+  font: inherit; font-size: 13px; cursor: pointer; color: var(--text);
+}
+.chat-pick:hover:not(:disabled) { border-color: var(--text-3); }
+.chat-pick.on { border-color: var(--brand); background: var(--brand-100); color: var(--brand-ink); font-weight: 600; }
+.chat-pick:disabled { opacity: .55; cursor: default; }
+
 /* ---- Stream ---- */
 .chat-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .chat-stream { flex: 1; overflow-y: auto; padding-right: 6px; overscroll-behavior: contain; }
@@ -79,4 +104,7 @@
      smaller, and that zoom is the "shaking" — it never zooms back out. */
   .chat-input { font-size: 16px; padding: 12px 14px; }
   .chat-mentions { right: 0; min-width: 0; }
+  .chat-roombar { position: sticky; top: 0; z-index: 2; background: var(--bg); padding-top: 4px; }
+  .chat-members-list { max-height: none; }
+  .chat-picker { max-height: 46dvh; }
 }
