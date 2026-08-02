@@ -49,11 +49,17 @@ export default function TeamChat() {
 
   // RLS decides what comes back here: a member sees their own groups, a system
   // admin sees all of them. The client never filters for security, only for tidiness.
-  const loadGroups = async () => {
-    const { data, error } = await supabase.from('chat_groups').select('id, name').order('name');
-    // Surfaced, not swallowed: if the migration hasn't been applied this is the
-    // only thing that would tell you, instead of a silently empty room list.
-    if (error) setErr(error.message); else setGroups(data || []);
+  // `quiet` for the background poll: a transient blip mid-typing must not throw
+  // a red line under the composer, or overwrite an error the user is reading.
+  // The archived filter duplicates the RLS policy on purpose — these migrations
+  // are applied by hand, and if the client ships before the policy is re-run
+  // the query still SUCCEEDS against the old schema and quietly resurrects
+  // every closed group. Defence in depth; the policy is still the enforcement.
+  const loadGroups = async ({ quiet = false } = {}) => {
+    const { data, error } = await supabase.from('chat_groups')
+      .select('id, name').eq('archived', false).order('name');
+    if (error) { if (!quiet) setErr(error.message); return; }
+    setGroups(data || []);
   };
 
   const loadUnread = async () => {
@@ -69,7 +75,7 @@ export default function TeamChat() {
     // Being added to a group is somebody else's action, so nothing tells this
     // tab about it. A slow poll keeps the room list and the counts honest
     // without another realtime channel.
-    const t = setInterval(() => { loadGroups(); loadUnread(); }, 60000);
+    const t = setInterval(() => { loadGroups({ quiet: true }); loadUnread(); }, 60000);
     return () => clearInterval(t);
   }, []); // eslint-disable-line
 
@@ -117,24 +123,40 @@ export default function TeamChat() {
   // again as messages land while you sit here, same as a phone messenger. The
   // window event is what tells the topbar badge to drop without waiting for its
   // own poll; the local zero keeps the sidebar pill honest in the meantime.
-  // Throttled: this effect keys off message count, so a busy room would
-  // otherwise fire one write per arriving message. Entering a room always
-  // marks; sitting in it re-marks at most every few seconds.
+  // Throttled, with a trailing pass: keying off message count alone would fire
+  // one write per arriving message, but a leading-edge-only throttle is worse —
+  // a burst of five messages marks the first and silently leaves four unread on
+  // the server, so ~45s later the topbar lights up with a count for the room
+  // you are sitting in and staring at. Lead, then follow up.
+  //
+  // The watermark is the newest message we actually rendered, not now(): see
+  // mark_chat_room_read's comment on the fetch/subscribe gap.
   const lastMark = useRef({ room: null, at: 0 });
+  const markTimer = useRef(null);
   useEffect(() => {
     if (messages === null) return undefined;
-    const now = Date.now();
-    const fresh = lastMark.current.room !== room || now - lastMark.current.at > 4000;
-    if (!fresh) return undefined;
-    lastMark.current = { room, at: now };
     let alive = true;
-    supabase.rpc('mark_chat_room_read', { p_room: room }).then(() => {
+    const seenAt = messages.length ? messages[messages.length - 1].created_at : null;
+    const mark = () => supabase.rpc('mark_chat_room_read', { p_room: room, p_at: seenAt }).then(() => {
       if (!alive) return;
       setUnread((u) => (u[room] ? { ...u, [room]: 0 } : u));
       window.dispatchEvent(new CustomEvent('collarone:chat-read'));
     });
+
+    const now = Date.now();
+    if (lastMark.current.room !== room || now - lastMark.current.at > 4000) {
+      lastMark.current = { room, at: now };
+      mark();
+    } else {
+      clearTimeout(markTimer.current);
+      markTimer.current = setTimeout(() => {
+        lastMark.current = { room, at: Date.now() };
+        mark();
+      }, 4000);
+    }
     return () => { alive = false; };
   }, [room, messages?.length]); // eslint-disable-line
+  useEffect(() => () => clearTimeout(markTimer.current), []);
 
   // ---- composer: parse @mentions --------------------------------------------
   const onBodyChange = (e) => {
@@ -181,9 +203,15 @@ export default function TeamChat() {
   // of them, since they manage them). This mirrors can_read_chat_room() in
   // team_chat_groups.sql — the database is the enforcement, this is just so
   // nobody is shown a door that won't open.
+  // Mirrors the SQL exactly: department_id first, name only as the fallback for
+  // people who never got an id. Filtering on the name alone here would undo the
+  // rename fix on the client side — the database would grant the room while the
+  // sidebar stopped listing it, leaving unread counts for a room with no door.
+  const myDeptId = user?.departmentId ?? null;
   const myDept = (user?.department || '').trim().toLowerCase();
-  const visibleDepts = isAdmin ? departments
-    : departments.filter((d) => String(d.name).trim().toLowerCase() === myDept);
+  const visibleDepts = isAdmin ? departments : departments.filter((d) => (
+    myDeptId != null ? d.id === myDeptId : String(d.name).trim().toLowerCase() === myDept
+  ));
 
   const rooms = [
     { key: 'general', label: 'General', kind: 'general' },
@@ -370,7 +398,9 @@ export default function TeamChat() {
 function GroupModal({ group, staff, me, onClose, onSaved }) {
   const isNew = !group;
   const [name, setName] = useState(group?.name || '');
-  const [picked, setPicked] = useState([]);      // new groups only
+  // Pre-picked and locked below: create_chat_group always inserts the creator,
+  // so an unticked chip would be the UI telling a different story from the RPC.
+  const [picked, setPicked] = useState(me ? [me] : []);
   const [current, setCurrent] = useState(null);  // existing membership
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -424,14 +454,15 @@ function GroupModal({ group, staff, me, onClose, onSaved }) {
         <div className="chat-picker">
           {staff.map((s) => {
             const on = isNew ? picked.includes(s.id) : inGroup(s.id);
-            // You can't take yourself out from here. Removing the admin who is
-            // managing the group mid-edit leaves them looking at a group they
-            // just locked themselves out of.
+            // You can't take yourself out from here — on a new group because
+            // the RPC adds you regardless, on an existing one because removing
+            // the admin mid-edit leaves them locked out of what they're editing.
             const isMe = s.id === me;
+            const locked = isMe && (isNew || on);
             return (
               <button key={s.id} type="button" className={`chat-pick${on ? ' on' : ''}`}
-                disabled={busy || (!isNew && current === null) || (isMe && on)}
-                title={isMe && on ? 'You manage this group — you stay in it' : undefined}
+                disabled={busy || (!isNew && current === null) || locked}
+                title={locked ? 'You manage this group — you stay in it' : undefined}
                 onClick={() => (isNew
                   ? setPicked((p) => (p.includes(s.id) ? p.filter((x) => x !== s.id) : [...p, s.id]))
                   : toggleMember(s.id, on))}>

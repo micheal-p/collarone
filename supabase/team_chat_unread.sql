@@ -28,18 +28,38 @@ drop policy if exists chat_reads_own on public.chat_reads;
 create policy chat_reads_own on public.chat_reads for all
   using (user_id = auth.uid()) with check (user_id = auth.uid());
 
-create or replace function public.mark_chat_room_read(p_room text)
+-- p_at is the timestamp of the newest message the reader actually SAW. The
+-- client passes it because now() would stamp past anything that slipped
+-- through the gap between the initial fetch and the realtime subscription
+-- going live — that message would then be invisible on screen AND uncounted,
+-- which is worse than merely unread. greatest() so a late reply can't drag a
+-- watermark backwards.
+drop function if exists public.mark_chat_room_read(text);
+create or replace function public.mark_chat_room_read(p_room text, p_at timestamptz default null)
 returns void
 language plpgsql security definer set search_path = public as $$
+declare v_at timestamptz := least(coalesce(p_at, now()), now());
 begin
   if auth.uid() is null then raise exception 'Not signed in'; end if;
   if not public.can_read_chat_room(p_room) then raise exception 'You are not in that room'; end if;
   insert into public.chat_reads (user_id, room, last_read_at)
-  values (auth.uid(), p_room, now())
-  on conflict (user_id, room) do update set last_read_at = now();
+  values (auth.uid(), p_room, v_at)
+  on conflict (user_id, room)
+  do update set last_read_at = greatest(chat_reads.last_read_at, excluded.last_read_at);
 end;
 $$;
-grant execute on function public.mark_chat_room_read(text) to authenticated;
+grant execute on function public.mark_chat_room_read(text, timestamptz) to authenticated;
+
+-- Counting only needs to look at the recent past, and there are two reasons to
+-- say so out loud rather than let it scan everything:
+--   • a new hire with no watermark would otherwise open the app to "99+" on
+--     every room, which is noise, not news;
+--   • this runs every 45s from the topbar on EVERY page plus again from the
+--     chat page, and RLS re-evaluates the room check per row — unbounded, it
+--     becomes the heaviest recurring query in the product.
+-- Anything older than the window is history, not unread.
+create index if not exists org_chat_room_recent_idx
+  on public.org_chat_messages (room, created_at desc);
 
 -- INVOKER on purpose — see the header. Never add `security definer` here.
 create or replace function public.chat_unread_counts()
@@ -50,6 +70,7 @@ language sql stable set search_path = public as $$
   left join public.chat_reads r
     on r.user_id = auth.uid() and r.room = m.room
   where m.author_id <> auth.uid()
+    and m.created_at > now() - interval '30 days'
     and m.created_at > coalesce(r.last_read_at, '-infinity'::timestamptz)
   group by m.room;
 $$;
