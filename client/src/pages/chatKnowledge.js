@@ -46,6 +46,16 @@ const INTENTS = [
     chips: ['What does Collarone cost?', 'What suites are included?', 'How do I get started?'],
   },
   {
+    // Team Chat is free and NOT a suite — it never counts toward the suite
+    // total a plan is priced on. If that ever changes, this answer and
+    // config/suites.js PINNED_TOOLS must change together.
+    id: 'team-chat',
+    phrases: ['team chat', 'internal chat', 'chat with staff', 'message my team', 'like slack', 'slack alternative', 'group chat', 'mention someone'],
+    keys: ['chat', 'message', 'messaging', 'slack', 'mention', 'room', 'talk'],
+    answer: 'Team Chat is built in and free — it doesn\'t count as one of your suites, so it never changes your price. Every workspace gets a General room plus one room per department, and you can @mention a colleague to pull them in. Mentions reach people in the app straight away. It\'s deliberately simple — one place for work talk, not a replacement for WhatsApp.',
+    chips: ['What suites are included?', 'What does Collarone cost?', 'How do I add my staff?'],
+  },
+  {
     id: 'greeting',
     // single-word greetings are phrases (weight 3): a bare "hi" must clear
     // the confidence threshold — matching is word-boundary-safe, see norm()

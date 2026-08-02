@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet } from '../api/client.js';
-import { SUITE_META, tierLabel } from '../config/suites.js';
+import { SUITE_META, tierLabel, PINNED_TOOLS } from '../config/suites.js';
 import { FOUNDING_ORG_ID } from '../config/org.js';
 import AppLayout from '../components/AppLayout.jsx';
 import SuiteIcon from '../components/SuiteIcon.jsx';
@@ -194,6 +194,30 @@ const greeting = () => {
   return 'Good evening';
 };
 
+// A pinned tool tile. Same visual language as a suite tile, but it is never
+// locked and never carries an access badge — every workspace has it, free.
+function PinnedTile({ t, onOpen, index, reduce }) {
+  return (
+    <motion.button
+      className="tile"
+      initial={reduce ? false : { opacity: 0, y: 18 }}
+      animate={reduce ? {} : { opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay: index * 0.04, ease: [0.2, 0.7, 0.3, 1] }}
+      whileHover={reduce ? undefined : { y: -5, transition: { duration: 0.2 } }}
+      whileTap={{ scale: 0.97 }}
+      onClick={() => onOpen(t)} title={`Open ${t.name}`}>
+      <span className="tile-icon" style={{ background: t.tint || 'var(--brand)' }}>
+        <SuiteIcon name={t.icon || 'grid'} size={26} color="#fff" />
+      </span>
+      <span className="tile-body">
+        <span className="tile-name">{t.name}</span>
+        <span className="tile-desc">{t.desc}</span>
+      </span>
+      <span className="tile-foot"><span className="badge badge-core">Included</span></span>
+    </motion.button>
+  );
+}
+
 function SuiteTile({ s, onOpen, index, reduce }) {
   const meta = SUITE_META[s.key] || {};
   // A coming-soon suite reads "Coming soon" for everyone — access hasn't
@@ -303,6 +327,10 @@ export default function Launcher() {
           <div className="suite-group">
             <div className="group-head"><h2>{tierLabel.extended}</h2><span className="group-line" /></div>
             <div className="tile-grid">{extended.map((s, i) => <SuiteTile key={s.key} s={s} index={core.length + i} reduce={reduce} onOpen={(x) => nav(`/suite/${x.key}`)} />)}</div>
+          </div>
+          <div className="suite-group">
+            <div className="group-head"><h2>Included with every workspace</h2><span className="group-line" /></div>
+            <div className="tile-grid">{PINNED_TOOLS.map((t, i) => <PinnedTile key={t.key} t={t} index={i} reduce={reduce} onOpen={(x) => nav(x.path)} />)}</div>
           </div>
         </>
       )}

@@ -44,6 +44,9 @@ jobs:
         run: npm install --no-save pg
       - name: Pricing golden (estimator layer; + live SQL matrix when DB secret set)
         run: node test/pricing_besttier_golden.mjs
+
+      - name: Pinned tools stay free (never enter the suite-count price math)
+        run: node test/pinned_tools_not_priced.mjs
       - name: Cross-tenant RLS probe + payroll golden (live DB)
         if: env.DATABASE_URL != ''
         run: |

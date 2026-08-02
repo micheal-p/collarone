@@ -1,5 +1,10 @@
 /* ============ Collarone shell: ink topbar over a paper canvas ============ */
-.m365 { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+/* 100dvh, not 100vh: on a phone 100vh measures the viewport as if the browser's
+   URL bar were hidden, so a full-height shell always runs taller than what you
+   can actually see — the bottom of every page sits under the chrome and the
+   layout lurches as the bar slides away. The vh line stays first as the
+   fallback for browsers without dynamic viewport units. */
+.m365 { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 
 /* ---- Suite bar: dark ink, same language as the marketing hero. The paper
    logo mark is drawn for this background. ---- */
@@ -13,6 +18,11 @@
   border-radius: 8px; cursor: pointer; color: var(--text-2); flex: none;
 }
 .iconbtn:hover { background: var(--surface-2); }
+/* A labelled icon button — the label rides beside the glyph, and drops off on
+   narrow screens where the topbar has no room for words. */
+.iconbtn-labelled { width: auto; grid-auto-flow: column; align-items: center; gap: 7px; padding: 0 11px; }
+.iconbtn-label { font-size: 13px; font-weight: 600; letter-spacing: 0.01em; }
+@media (max-width: 700px) { .iconbtn-labelled { width: 40px; padding: 0; } .iconbtn-label { display: none; } }
 .suitebar .iconbtn { color: rgba(244,241,234,0.72); }
 .suitebar .iconbtn:hover { background: rgba(244,241,234,0.1); color: var(--paper); }
 .sb-brand { display: flex; align-items: center; gap: 9px; padding: 0 6px; }
