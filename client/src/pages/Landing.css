@@ -784,4 +784,229 @@
 .cl-hero-dark .cl-nav:not(.cl-nav-scrolled) .cl-btn-trydemo,
 .cl-nav-ondark .cl-btn-trydemo { color: #F4F1EA; border-color: rgba(244,241,234,0.5); }
 
+/* ========================================================================
+   FULL LANDING-PAGE REVAMP
+   Each chapter has its own energy, held together by the same type, radius,
+   spacing and orange signal language introduced in the hero.
+   ======================================================================== */
+
+.cl-sec[data-section] { position: relative; isolation: isolate; overflow: clip; padding: 124px 0; }
+.cl-sec[data-section]::before { content: attr(data-section); position: absolute; z-index: 2; top: 28px; left: max(28px, calc((100vw - 1160px) / 2 + 28px));
+  font-size: 10px; font-weight: 800; letter-spacing: .18em; color: var(--text-faint); }
+.cl-sec[data-section]::after { content: ''; position: absolute; z-index: -1; top: 34px; left: max(28px, calc((100vw - 1160px) / 2 + 250px));
+  right: max(28px, calc((100vw - 1160px) / 2 + 28px)); height: 1px; background: currentColor; opacity: .1; }
+.cl-sec[data-section] .cl-sec-head { max-width: none; display: grid; grid-template-columns: minmax(0, .9fr) minmax(300px, .65fr); gap: 56px; align-items: end;
+  margin: 0 0 64px; text-align: left; }
+.cl-sec[data-section] .cl-sec-head .cl-eyebrow { grid-column: 1 / -1; margin-bottom: -34px; text-transform: uppercase; letter-spacing: .13em; font-size: 11px; }
+.cl-sec[data-section] .cl-sec-head .cl-sec-h { font-size: clamp(42px, 5.5vw, 68px); line-height: .99; letter-spacing: -.052em; margin: 0; }
+.cl-sec[data-section] .cl-sec-head .cl-sec-lede { margin: 0; font-size: 16px; line-height: 1.7; }
+
+/* Proof strip — make the transition out of the hero feel intentional. */
+.cl-trust-modern { position: relative; z-index: 2; background: #ff642a; border: 0; color: #fff; }
+.cl-trust-modern .cl-trust-row { min-height: 64px; justify-content: space-between; padding-block: 14px; }
+.cl-trust-modern .cl-trust-cell { color: rgba(255,255,255,.78); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.cl-trust-modern .cl-trust-cell strong { color: #fff; font-size: 18px; margin-right: 4px; }
+.cl-trust-modern .cl-trust-dot { background: rgba(255,255,255,.6); }
+
+/* 01 — four principles become a tactile editorial card set. */
+.cl-capabilities-section { background: #f1ede4; }
+.cl-capabilities-section::before { color: #9b4b2f !important; }
+.cl-capabilities-section .cl-sec-lede { color: rgba(10,14,26,.6); }
+.cl-capabilities-section .cl-process { gap: 14px; }
+.cl-capabilities-section .cl-process::before { display: none; }
+.cl-capabilities-section .cl-process-card { min-height: 300px; padding: 28px 26px; border: 1px solid rgba(10,14,26,.1); border-radius: 26px;
+  background: #fff; display: flex; flex-direction: column; align-items: flex-start; overflow: hidden; box-shadow: 0 18px 40px rgba(10,14,26,.06); }
+.cl-capabilities-section .cl-process-card:nth-child(1) { background: #0a0e1a; border-color: #0a0e1a; color: #f4f1ea; transform: rotate(-1.2deg); }
+.cl-capabilities-section .cl-process-card:nth-child(3) { background: #ff642a; border-color: #ff642a; color: #fff; transform: rotate(1.2deg); }
+.cl-capabilities-section .cl-process-card:nth-child(4) { background: #e8dcc9; }
+.cl-capabilities-section .cl-process-card .cl-icon-wrap { width: 48px; height: 48px; margin: 0 0 auto; border-radius: 14px; border: 0; box-shadow: none; background: rgba(255,91,31,.12); }
+.cl-capabilities-section .cl-process-card:nth-child(1) .cl-icon-wrap,
+.cl-capabilities-section .cl-process-card:nth-child(3) .cl-icon-wrap { background: rgba(255,255,255,.12); }
+.cl-capabilities-section .cl-process-card:nth-child(1) .cl-icon-wrap svg,
+.cl-capabilities-section .cl-process-card:nth-child(3) .cl-icon-wrap svg { stroke: currentColor; }
+.cl-capabilities-section .cl-process-num { top: 20px; right: 22px; color: currentColor; opacity: .24; font-family: inherit; font-style: normal; font-size: 34px; }
+.cl-capabilities-section .cl-process-card h3 { margin: 44px 0 10px; font-size: 20px; letter-spacing: -.03em; }
+.cl-capabilities-section .cl-process-card p { color: rgba(10,14,26,.58); font-size: 13.5px; line-height: 1.65; }
+.cl-capabilities-section .cl-process-card:nth-child(1) p,
+.cl-capabilities-section .cl-process-card:nth-child(3) p { color: rgba(255,255,255,.64); }
+
+/* 02 — the product suite chapter is immersive and confidently dark. */
+.cl-platform-section { background:
+  radial-gradient(900px 500px at 95% 5%, rgba(73,99,255,.2), transparent 65%),
+  radial-gradient(700px 480px at 4% 94%, rgba(255,91,31,.17), transparent 65%), #0a0e1a !important; color: #f4f1ea; }
+.cl-platform-section::before { color: #ff8a55 !important; }.cl-platform-section::after { opacity: .14 !important; }
+.cl-platform-section .cl-sec-h { color: #f4f1ea; }
+.cl-platform-section .cl-sec-lede { color: rgba(244,241,234,.56); }
+.cl-platform-section .cl-eyebrow { color: #ff8a55; }
+.cl-platform-section .cl-try-label { color: rgba(244,241,234,.48); }
+.cl-platform-section .cl-try-chip { color: rgba(244,241,234,.84); background: rgba(244,241,234,.055); border-color: rgba(244,241,234,.13); box-shadow: none; }
+.cl-platform-section .cl-bento { gap: 14px; }
+.cl-platform-section .cl-bento-feat { min-height: 345px; display: flex; flex-direction: column; justify-content: flex-end; padding: 44px;
+  background: radial-gradient(650px 350px at 92% 0%, rgba(255,91,31,.34), transparent 65%), linear-gradient(145deg,#171f37,#101626); border-radius: 32px; }
+.cl-platform-section .cl-bento-feat h3 { font-size: clamp(30px, 4vw, 48px); }
+.cl-platform-section .cl-bento-feat p { max-width: 58ch; }
+.cl-platform-section .cl-bento-side { min-height: 330px; padding: 32px; color: #f4f1ea; border-radius: 28px; background: rgba(244,241,234,.055); border-color: rgba(244,241,234,.12); box-shadow: none; }
+.cl-platform-section .cl-bento-side:nth-child(3) { background: #f4f1ea; color: #0a0e1a; }
+.cl-platform-section .cl-bento-side p { color: rgba(244,241,234,.52); }
+.cl-platform-section .cl-bento-side:nth-child(3) p { color: rgba(10,14,26,.58); }
+.cl-platform-section .cl-bento-side .cl-module-suite { background: rgba(244,241,234,.07); border-color: rgba(244,241,234,.13); color: rgba(244,241,234,.75); }
+.cl-platform-section .cl-bento-side:nth-child(3) .cl-module-suite { background: #fff; border-color: rgba(10,14,26,.09); color: rgba(10,14,26,.65); }
+
+/* 03 — the gallery breathes, with a magazine-like 2 + 3 composition. */
+.cl-themes-section { background: #fff !important; }
+.cl-themes-section::before { color: #c24614 !important; }
+.cl-themes-section .ptg-grid { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 18px; }
+.cl-themes-section .ptg-card { grid-column: span 4; border-radius: 24px; border-color: rgba(10,14,26,.1); box-shadow: 0 14px 35px rgba(10,14,26,.06); }
+.cl-themes-section .ptg-card:nth-child(-n+2) { grid-column: span 6; }
+.cl-themes-section .ptg-card:nth-child(1) { transform: rotate(-.6deg); }.cl-themes-section .ptg-card:nth-child(2) { transform: rotate(.6deg); }
+.cl-themes-section .ptg-card:hover { transform: translateY(-7px) rotate(0); box-shadow: 0 28px 58px rgba(10,14,26,.14); }
+.cl-themes-section .ptg-mock { padding: 12px 12px 0; background: #ece7de; }
+.cl-themes-section .ptg-meta { padding: 20px 22px 22px; }
+.cl-themes-section .ptg-name { font-size: 18px; }
+.cl-themes-section .ptg-preview { background: #0a0e1a; color: #fff; border-radius: 100px; }
+.cl-themes-section .ptg-more { padding: 15px 28px; background: #ff5b1f; box-shadow: 0 10px 28px rgba(255,91,31,.28); }
+
+/* 04 — local relevance gets a bold, unmistakably Nigerian chapter. */
+.cl-nigeria-section { background:
+  radial-gradient(650px 480px at 100% 0%, rgba(255,255,255,.09), transparent 65%),
+  linear-gradient(135deg, #00683e, #008751 58%, #047344); color: #fff; }
+.cl-nigeria-section::before { color: rgba(255,255,255,.8) !important; }.cl-nigeria-section::after { opacity: .22 !important; }
+.cl-nigeria-section .cl-sec-h { color: #fff; max-width: 12ch; }
+.cl-nigeria-section .cl-eyebrow { color: #baf8d5; }
+.cl-nigeria-section .cl-sec-lede { color: rgba(255,255,255,.66); font-size: 18px; }
+.cl-nigeria-section .cl-stat-band { gap: 12px; background: transparent; border: 0; overflow: visible; }
+.cl-nigeria-section .cl-stat-cell { position: relative; min-height: 220px; display: flex; flex-direction: column; justify-content: space-between; padding: 26px;
+  border-radius: 24px; border: 1px solid rgba(255,255,255,.17); background: rgba(255,255,255,.09); backdrop-filter: blur(10px); }
+.cl-nigeria-section .cl-stat-cell:nth-child(2) { transform: translateY(20px); background: #f4f1ea; }
+.cl-nigeria-section .cl-stat-cell:nth-child(4) { transform: translateY(20px); background: #0a0e1a; }
+.cl-nigeria-section .cl-stat-cell .cl-val { font-family: inherit; font-size: 45px; font-weight: 780; color: #fff; letter-spacing: -.06em; }
+.cl-nigeria-section .cl-stat-cell:nth-child(2) .cl-val { color: #008751; }
+.cl-nigeria-section .cl-stat-cell .cl-lbl { color: rgba(255,255,255,.67); font-size: 13px; }
+.cl-nigeria-section .cl-stat-cell:nth-child(2) .cl-lbl { color: rgba(10,14,26,.62); }
+
+/* 05 — the pricing calculator becomes the clear centrepiece. */
+.cl-pricing-section { background: #f4ede3 !important; }
+.cl-pricing-section::before { color: #a44827 !important; }
+.cl-pricing-section .cl-sec-head { margin-bottom: 40px; }
+.cl-pricing-section .cl-calc { border: 0; border-radius: 32px; padding: 38px; box-shadow: 0 32px 80px rgba(87,45,27,.12); }
+.cl-pricing-section .cl-calc-h { font-size: 20px; letter-spacing: -.03em; }
+.cl-pricing-section .cl-calc-summary { top: 86px; padding: 26px; border: 0; border-radius: 24px; color: #fff;
+  background: radial-gradient(400px 240px at 100% 0%, rgba(255,91,31,.35), transparent 65%), #0a0e1a; box-shadow: 0 22px 48px rgba(10,14,26,.2); }
+.cl-pricing-section .cl-calc-total,.cl-pricing-section .cl-calc-lines b { color: #fff; }
+.cl-pricing-section .cl-calc-sub,.cl-pricing-section .cl-calc-lines > div { color: rgba(255,255,255,.53); }
+.cl-pricing-section .cl-calc-lines { border-color: rgba(255,255,255,.13); }
+.cl-pricing-section .cl-calc-lines .save,.cl-pricing-section .cl-calc-lines .save b { color: #ff9b70; }
+.cl-pricing-section .cl-calc-suite { border-radius: 14px; padding: 10px 12px; }
+.cl-pricing-section .cl-calc-suite.on { box-shadow: 0 6px 14px rgba(255,91,31,.08); }
+.cl-pricing-section .cl-plans-glance { max-width: 900px; gap: 14px; }
+.cl-pricing-section .cl-plan-chip { padding: 22px; border: 0; border-radius: 20px; box-shadow: 0 10px 26px rgba(87,45,27,.06); }
+.cl-pricing-section .cl-plan-chip.feat { color: #fff; background: #ff5b1f; box-shadow: 0 18px 38px rgba(255,91,31,.24); }
+.cl-pricing-section .cl-plan-chip.feat .cl-plan-chip-name,.cl-pricing-section .cl-plan-chip.feat .cl-plan-chip-price,
+.cl-pricing-section .cl-plan-chip.feat .cl-plan-chip-price small,.cl-pricing-section .cl-plan-chip.feat .cl-plan-chip-sub { color: #fff; }
+.cl-pricing-section .cl-plan-chip-tag { background: #0a0e1a; }
+
+/* 06 — a bright recruiting break in the long-form page. */
+.cl-jobs-section { background: #ff5b1f !important; color: #fff; }
+.cl-jobs-section::before { color: rgba(255,255,255,.78) !important; }.cl-jobs-section::after { opacity: .2 !important; }
+.cl-jobs-section .cl-jobs-grid { gap: 80px; }
+.cl-jobs-section .cl-eyebrow { color: #fff; opacity: .7; text-transform: uppercase; letter-spacing: .14em; font-size: 11px; }
+.cl-jobs-section .cl-jobs-h { font-size: clamp(42px, 5vw, 67px); letter-spacing: -.052em; line-height: .98; color: #fff; }
+.cl-jobs-section .cl-jobs-lede { color: rgba(255,255,255,.72); }
+.cl-jobs-section .cl-jobs-steps span { color: rgba(255,255,255,.82); }
+.cl-jobs-section .cl-jobs-steps b { background: #0a0e1a; }
+.cl-jobs-section .cl-jobs-ctas .cl-btn-primary { background: #0a0e1a; box-shadow: 0 12px 30px rgba(10,14,26,.22); }
+.cl-jobs-section .cl-jobs-ctas .cl-btn-ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.5); }
+.cl-jobs-section .cl-jobcard { border: 0; border-radius: 26px; transform: rotate(2.5deg); box-shadow: 0 38px 80px rgba(105,32,5,.28); color: #0a0e1a; }
+.cl-jobs-section .cl-jobcard-bar { padding: 13px 17px; }
+.cl-jobs-section .cl-jobcard-body { padding: 30px; }
+.cl-jobs-section .cl-jobcard-title { font-size: 29px; }
+
+/* 07 — FAQ becomes the calm dark close before conversion. */
+.cl-faq-section { background:
+  radial-gradient(700px 500px at 10% 10%, rgba(255,91,31,.13), transparent 62%), #0a0e1a !important; color: #f4f1ea; }
+.cl-faq-section::before { color: #ff8a55 !important; }.cl-faq-section::after { opacity: .16 !important; }
+.cl-faq-section .cl-sec-head { grid-template-columns: 1fr; gap: 0; text-align: center; max-width: 800px; margin-inline: auto; }
+.cl-faq-section .cl-sec-head .cl-eyebrow { grid-column: auto; margin: 0 0 16px; color: #ff8a55; }
+.cl-faq-section .cl-sec-h { color: #f4f1ea; }
+.cl-faq-section .cl-faq-tabs { margin-bottom: 44px; }
+.cl-faq-section .cl-faq-tab { background: rgba(244,241,234,.055); border-color: rgba(244,241,234,.13); color: rgba(244,241,234,.58); }
+.cl-faq-section .cl-faq-tab.on { background: #ff5b1f; border-color: #ff5b1f; color: #fff; }
+.cl-faq-section .cl-faq-tab-count { background: rgba(255,255,255,.1); color: inherit; }
+.cl-faq-section .cl-faq-list { max-width: 930px; gap: 0; border-top: 1px solid rgba(244,241,234,.13); }
+.cl-faq-section .cl-faq-item { border: 0; border-bottom: 1px solid rgba(244,241,234,.13); border-radius: 0; background: transparent; color: #f4f1ea; padding-left: 68px; }
+.cl-faq-section .cl-faq-item[open] { background: rgba(244,241,234,.04); box-shadow: none; }
+.cl-faq-section .cl-faq-num { left: 20px; top: 23px; color: rgba(244,241,234,.34); }
+.cl-faq-section .cl-faq-item summary { padding: 24px 24px 24px 8px; font-size: 17px; }
+.cl-faq-section .cl-faq-item summary .cl-chev { color: rgba(244,241,234,.42); }
+.cl-faq-section .cl-faq-item .cl-faq-a { padding: 0 60px 26px 8px; color: rgba(244,241,234,.56); }
+
+/* 08 — a full-width, high-conviction final action and dark footer. */
+.cl-contact-section { padding-block: 92px !important; background: #fff; }
+.cl-contact-section::before { color: #c24614 !important; }
+.cl-contact-section .cl-contact-card { position: relative; overflow: hidden; min-height: 470px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+  padding: 70px 30px; border: 0; border-radius: 38px; background:
+  radial-gradient(650px 340px at 5% 0%, rgba(255,255,255,.22), transparent 62%),
+  radial-gradient(500px 300px at 100% 100%, rgba(10,14,26,.16), transparent 65%), #ff5b1f; box-shadow: 0 38px 90px rgba(255,91,31,.25); }
+.cl-contact-section .cl-contact-card::before { content: 'ONE'; position: absolute; right: -22px; bottom: -95px; color: rgba(255,255,255,.08);
+  font-size: 270px; line-height: 1; font-weight: 900; letter-spacing: -.1em; pointer-events: none; }
+.cl-contact-section .cl-contact-card h2 { position: relative; max-width: 12ch; font-size: clamp(46px, 6vw, 78px); line-height: .95; letter-spacing: -.055em; color: #fff; }
+.cl-contact-section .cl-contact-card p { position: relative; max-width: 50ch; font-size: 17px; color: rgba(255,255,255,.72); }
+.cl-contact-section .cl-contact-row { position: relative; }
+.cl-contact-section .cl-dark-card .cl-btn-primary { background: #0a0e1a; box-shadow: 0 12px 30px rgba(10,14,26,.22); }
+.cl-contact-section .cl-dark-card .cl-btn-ghost { color: #fff; border-color: rgba(255,255,255,.55); }
+
+.cl-footer-revamped { padding-top: 78px; background: #080b14; border: 0; color: #f4f1ea; }
+.cl-footer-revamped .cl-footer-top { padding-bottom: 58px; }
+.cl-footer-revamped .cl-footer-brand span { color: #f4f1ea; font-size: 22px; }
+.cl-footer-revamped .cl-footer-brand svg { color: #f4f1ea !important; }
+.cl-footer-revamped .cl-footer-about p { color: rgba(244,241,234,.46); font-size: 14px; }
+.cl-footer-revamped .cl-footer-h { color: rgba(244,241,234,.36); }
+.cl-footer-revamped .cl-footer-col a { color: rgba(244,241,234,.62); }.cl-footer-revamped .cl-footer-col a:hover { color: #ff8a55; }
+.cl-footer-revamped .cl-footer-contact a { color: #ff8a55; }
+.cl-footer-revamped .cl-footer-bottom { border-color: rgba(244,241,234,.1); }
+.cl-footer-revamped .cl-fnote,.cl-footer-revamped .cl-footer-loc { color: rgba(244,241,234,.34); }
+
+@media (max-width: 900px) {
+  .cl-sec[data-section] { padding: 102px 0; }
+  .cl-sec[data-section] .cl-sec-head { grid-template-columns: 1fr; gap: 20px; }
+  .cl-sec[data-section] .cl-sec-head .cl-eyebrow { grid-column: auto; margin-bottom: 0; }
+  .cl-capabilities-section .cl-process-card { min-height: 270px; }
+  .cl-platform-section .cl-bento-feat { min-height: 310px; }
+  .cl-themes-section .ptg-card,.cl-themes-section .ptg-card:nth-child(-n+2) { grid-column: span 6; transform: none; }
+  .cl-nigeria-section .cl-stat-band { grid-template-columns: 1fr 1fr; }
+  .cl-jobs-section .cl-jobs-grid { gap: 48px; }
+}
+
+@media (max-width: 640px) {
+  .cl-sec[data-section] { padding: 88px 0; }
+  .cl-sec[data-section]::before { top: 22px; left: 20px; font-size: 8.5px; }.cl-sec[data-section]::after { top: 28px; left: 210px; right: 20px; }
+  .cl-sec[data-section] .cl-sec-head { margin-bottom: 40px; }
+  .cl-sec[data-section] .cl-sec-head .cl-sec-h { font-size: clamp(38px, 11vw, 52px); }
+  .cl-sec[data-section] .cl-sec-head .cl-sec-lede { font-size: 15px; }
+  .cl-trust-modern .cl-trust-row { display: grid; grid-template-columns: 1fr 1fr; }
+  .cl-trust-modern .cl-trust-cell { font-size: 9px; text-align: left; }.cl-trust-modern .cl-trust-cell strong { font-size: 14px; }
+  .cl-capabilities-section .cl-carousel .cl-carousel-track > * { flex-basis: 88%; }
+  .cl-capabilities-section .cl-process-card { min-height: 300px; transform: none !important; }
+  .cl-platform-section .cl-bento-feat,.cl-platform-section .cl-bento-side { min-height: auto; padding: 28px 24px; border-radius: 24px; }
+  .cl-platform-section .cl-bento-feat h3 { font-size: 30px; }
+  .cl-themes-section .ptg-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cl-themes-section .ptg-card,.cl-themes-section .ptg-card:nth-child(-n+2) { grid-column: auto; border-radius: 16px; }
+  .cl-themes-section .ptg-meta { padding: 12px; }.cl-themes-section .ptg-name { font-size: 13px; }
+  .cl-nigeria-section .cl-stat-band { gap: 8px; }.cl-nigeria-section .cl-stat-cell { min-height: 185px; padding: 20px; border-radius: 18px; }
+  .cl-nigeria-section .cl-stat-cell:nth-child(2),.cl-nigeria-section .cl-stat-cell:nth-child(4) { transform: none; }
+  .cl-nigeria-section .cl-stat-cell .cl-val { font-size: 34px; }
+  .cl-pricing-section .cl-calc { padding: 20px 14px; border-radius: 24px; }
+  .cl-pricing-section .cl-calc-summary { top: 60px; padding: 15px; border-radius: 18px; }
+  .cl-pricing-section .cl-plans-glance { gap: 10px; }
+  .cl-jobs-section .cl-jobs-h { font-size: 44px; }.cl-jobs-section .cl-jobcard { transform: rotate(1deg); }
+  .cl-faq-section .cl-faq-tabs { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; padding: 2px 0 8px; }
+  .cl-faq-section .cl-faq-item { padding-left: 48px; }.cl-faq-section .cl-faq-num { left: 10px; font-size: 18px; }
+  .cl-faq-section .cl-faq-item summary { font-size: 15px; padding-right: 8px; }.cl-faq-section .cl-faq-item .cl-faq-a { padding-right: 12px; }
+  .cl-contact-section { padding-block: 72px !important; }
+  .cl-contact-section .cl-contact-card { min-height: 500px; padding: 54px 22px; border-radius: 28px; }
+  .cl-contact-section .cl-contact-card h2 { font-size: 48px; }
+  .cl-contact-section .cl-contact-row { display: grid; width: 100%; max-width: 330px; }.cl-contact-section .cl-contact-row .cl-btn { width: 100%; }
+  .cl-contact-section .cl-contact-card::before { font-size: 160px; bottom: -50px; }
+}
+
 /* ---- "Try it live" embed in the walkthrough (desktop only) ---- */
