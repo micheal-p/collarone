@@ -320,88 +320,166 @@ function ShareModal({ doc, orgName, onClose, flash }) {
 }
 
 const TEMPLATE_CSS = `
-  .tdt-doc { --accent: #0A0E1A; font-family: Georgia, serif; position: relative; }
-  .tdt-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .tdt-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin-bottom: 4px; }
+/* ===== Trade document templates =========================================
+   One skeleton, six looks. The skeleton is what makes a document READABLE
+   (a metadata strip you can scan, columns that line up, signature blocks
+   that say who signs); the template only changes how it feels.
+   ======================================================================== */
+.tdt-doc { --accent: #0A0E1A; position: relative; color: #14171f;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 13px; line-height: 1.5; }
+.tdt-doc .table { min-width: 0; }
+.tdt-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-  /* Bill-to beside the amount due, which is what the reader came for. */
-  .tdt-partyrow { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 18px; }
-  .tdt-duebox { flex: 0 0 auto; min-width: 190px; text-align: right; border: 1.5px solid var(--accent); border-radius: 8px; padding: 10px 14px; }
-  .tdt-dueamount { font-size: 23px; font-weight: 700; line-height: 1.15; color: var(--accent); font-variant-numeric: tabular-nums; }
-  .tdt-duemeta { font-size: 11.5px; color: #6b7280; margin-top: 3px; }
-  .tdt-duebox-overdue { border-color: #a4262c; }
-  .tdt-duebox-overdue .tdt-dueamount { color: #a4262c; }
-  .tdt-duebox-paid { border-color: #1a7f42; }
-  .tdt-duebox-paid .tdt-dueamount { color: #1a7f42; }
+.tdt-label { display: block; font-size: 9px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: #8b8578; margin-bottom: 3px; }
 
-  /* Figures line up only if they share a width, hence tabular-nums. */
-  .tdt-items td, .tdt-items th { font-variant-numeric: tabular-nums; }
-  .tdt-num { text-align: right; }
-  .tdt-items caption { caption-side: top; }
+/* ---- header ---- */
+.tdt-band { display: none; }
+.tdt-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.tdt-logo { max-height: 54px; max-width: 190px; object-fit: contain; margin-bottom: 8px; display: block; }
+.tdt-company { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
+.tdt-tagline { font-size: 11.5px; color: #6b7280; margin-top: 2px; }
+.tdt-contactline { font-size: 10.5px; color: #8b8578; margin-top: 6px; line-height: 1.6; max-width: 46ch; }
+.tdt-headright { text-align: right; flex: none; }
+.tdt-doctitle { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: .16em; }
+.tdt-docno { font-size: 12.5px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.tdt-docdate { font-size: 11px; color: #8b8578; margin-top: 1px; }
+.tdt-rule { border: none; border-top: 1.5px solid #14171f; margin: 14px 0 16px; }
 
-  .tdt-totals { display: flex; justify-content: flex-end; margin-top: 10px; }
-  .tdt-totals table { border-collapse: collapse; min-width: 260px; }
-  .tdt-totals th { text-align: left; font-weight: 400; padding: 3px 18px 3px 0; font-size: 13.5px; color: #444; }
-  .tdt-totals td { text-align: right; padding: 3px 0; font-size: 13.5px; font-variant-numeric: tabular-nums; }
-  .tdt-totals-due th, .tdt-totals-due td { font-weight: 700; font-size: 15.5px; border-top: 1.5px solid #14171f; padding-top: 7px; color: #14171f; }
+/* ---- metadata strip: the facts you scan for, in one row ---- */
+.tdt-metastrip { display: flex; gap: 0; border: 1px solid #e3ded2; border-radius: 8px;
+  overflow: hidden; margin-bottom: 16px; }
+.tdt-meta { flex: 1; padding: 9px 14px; border-right: 1px solid #e3ded2; min-width: 0; }
+.tdt-meta:last-child { border-right: none; }
+.tdt-meta strong { font-size: 12.5px; font-weight: 600; display: block; overflow: hidden; text-overflow: ellipsis; }
 
-  .tdt-words { margin-top: 8px; font-size: 12px; font-style: italic; color: #444; max-width: 62%; }
-  .tdt-notes { margin-top: 16px; font-size: 13px; color: #6b7280; white-space: pre-wrap; }
+/* ---- party + amount due (money documents) ---- */
+.tdt-partyrow { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 18px; }
+.tdt-partyname { font-size: 15px; font-weight: 700; }
+.tdt-partyline { font-size: 12px; color: #6b7280; }
+.tdt-duebox { flex: none; min-width: 200px; text-align: right; border: 1.5px solid var(--accent);
+  border-radius: 10px; padding: 11px 15px; }
+.tdt-dueamount { font-size: 23px; font-weight: 700; line-height: 1.15; color: var(--accent); font-variant-numeric: tabular-nums; }
+.tdt-duemeta { font-size: 11px; color: #6b7280; margin-top: 3px; }
+.tdt-duebox-overdue { border-color: #a4262c; } .tdt-duebox-overdue .tdt-dueamount { color: #a4262c; }
+.tdt-duebox-paid { border-color: #1a7f42; } .tdt-duebox-paid .tdt-dueamount { color: #1a7f42; }
 
-  .tdt-paybox { margin-top: 18px; border: 1px solid #d9d5c9; border-left: 3px solid var(--accent); border-radius: 6px; padding: 10px 14px; background: #fbfaf7; }
-  .tdt-payline { font-size: 14px; font-weight: 600; }
-  .tdt-paynote { font-size: 12px; color: #6b7280; margin-top: 3px; }
+/* ---- items ---- */
+.tdt-items { width: 100%; border-collapse: collapse; }
+.tdt-items th { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: #8b8578; text-align: left; padding: 0 10px 7px; border-bottom: 1.5px solid #14171f; }
+.tdt-items td { padding: 9px 10px; border-bottom: 1px solid #efece3; vertical-align: top;
+  font-variant-numeric: tabular-nums; }
+.tdt-items tr:last-child td { border-bottom: none; }
+.tdt-num { text-align: right; }
+.tdt-idx { width: 26px; color: #b9b3a6; font-size: 11px; text-align: right; padding-right: 4px; }
+.tdt-remarks { width: 30%; }
+/* A goods-received note is completed BY HAND at the gate. Ruled space is the
+   point of the document, not an empty cell. */
+.tdt-checklist .tdt-blank { border-bottom: 1px solid #cfc9ba; }
+/* The generic "no rule under the last row" tidy-up removes the writing line
+   from the final item, leaving nowhere to record it. On a checklist the rule
+   IS the field, so it wins. */
+.tdt-checklist tr:last-child .tdt-blank { border-bottom: 1px solid #cfc9ba; }
+.tdt-checklist td { height: 26px; }
 
-  /* Diagonal stamp. aria-hidden in the markup: the same fact is already in the
-     amount-due box as text, and a screen reader shouldn't read "PAID" twice. */
-  .tdt-stamp { position: absolute; top: 96px; right: 34px; transform: rotate(-14deg);
-    font-size: 40px; font-weight: 800; letter-spacing: 0.1em; color: rgba(26,127,66,0.16);
-    border: 5px solid rgba(26,127,66,0.16); border-radius: 10px; padding: 4px 18px; pointer-events: none; }
-  .tdt-stamp-overdue { color: rgba(164,38,44,0.16); border-color: rgba(164,38,44,0.16); }
+/* ---- totals ---- */
+.tdt-totals { display: flex; justify-content: flex-end; margin-top: 12px; }
+.tdt-totals table { border-collapse: collapse; min-width: 280px; }
+.tdt-totals th { text-align: left; font-weight: 400; padding: 3px 22px 3px 0; font-size: 12.5px; color: #55504a; }
+.tdt-totals td { text-align: right; padding: 3px 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.tdt-totals-due th, .tdt-totals-due td { font-weight: 700; font-size: 15px; color: #14171f;
+  border-top: 1.5px solid #14171f; padding-top: 8px; }
+.tdt-words { margin-top: 8px; font-size: 11px; color: #6b7280; max-width: 62%; font-style: italic; }
+.tdt-notes { margin-top: 14px; font-size: 12px; color: #6b7280; white-space: pre-wrap; }
 
-  /* the letterhead preview renders inside a ~718px overflow-hidden box — the
-     global .table min-width (760px) would clip the Amount column */
-  .tdt-doc .table { min-width: 0; }
-  .tdt-band { display: none; }
-  .tdt-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 4px; }
-  .tdt-logo { max-height: 56px; max-width: 180px; object-fit: contain; margin-bottom: 6px; }
-  .tdt-company { font-size: 18px; font-weight: 700; }
-  .tdt-tagline { font-size: 12px; font-style: italic; color: #6b7280; margin-top: 2px; }
-  .tdt-contactline { font-size: 12px; color: #6b7280; margin: 4px 0 10px; }
-  .tdt-doctitle { text-align: right; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
-  .tdt-docno { font-size: 12px; color: #6b7280; font-family: monospace; margin-top: 2px; }
-  .tdt-rule { border: none; border-top: 2px solid #14171f; margin: 10px 0 14px; }
-  .tdt-sigblock { display: flex; justify-content: space-between; gap: 24px; margin-top: 32px; }
-  .tdt-sig { flex: 1; border-top: 1px solid #14171f; padding-top: 6px; font-size: 12px; }
-  .tdt-sig img { height: 40px; display: block; margin-bottom: 4px; mix-blend-mode: multiply; }
-  .tdt-signame { font-weight: 600; }
-  .tdt-sigtitle { color: #6b7280; font-style: italic; }
-  .tdt-sig-blank { color: #6b7280; }
+/* ---- pay to ---- */
+.tdt-paybox { margin-top: 18px; border: 1px solid #e3ded2; border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 11px 15px; background: #fbfaf7; }
+.tdt-payline { font-size: 13.5px; font-weight: 600; }
+.tdt-paynote { font-size: 11.5px; color: #6b7280; margin-top: 3px; }
 
-  .tdt-modern { font-family: -apple-system, Segoe UI, Roboto, sans-serif; }
-  .tdt-modern .tdt-header { border-left: 4px solid var(--accent); padding-left: 12px; }
-  .tdt-modern .tdt-rule { border-top: 1px solid #e2e2e2; }
-  .tdt-modern .tdt-doctitle { color: var(--accent); }
+/* ---- signatures: who signs, and space to do it ---- */
+.tdt-sigblock { display: flex; gap: 26px; margin-top: 34px; }
+.tdt-sigblock-3 .tdt-sig { flex: 1; }
+.tdt-sig { flex: 0 1 240px; }
+.tdt-sig img { height: 38px; display: block; margin-bottom: 4px; mix-blend-mode: multiply; }
+.tdt-sigline { border-top: 1px solid #14171f; margin-top: 30px; }
+.tdt-signame { font-size: 12.5px; font-weight: 600; margin-top: 5px; }
+.tdt-sigtitle { font-size: 11px; color: #6b7280; }
+.tdt-sigrole { font-size: 11.5px; font-weight: 700; margin-top: 5px; }
+.tdt-sigmeta { font-size: 10.5px; color: #8b8578; margin-top: 1px; }
 
-  .tdt-bold { font-family: -apple-system, Segoe UI, Roboto, sans-serif; }
-  .tdt-bold .tdt-band { display: block; height: 10px; background: var(--accent); margin: -16px -16px 18px; border-radius: 3px 3px 0 0; }
-  .tdt-bold .tdt-doctitle { color: var(--accent); font-size: 20px; }
-  .tdt-bold .tdt-rule { border-top: 3px solid var(--accent); }
+.tdt-stamp { position: absolute; top: 104px; right: 40px; transform: rotate(-13deg);
+  font-size: 38px; font-weight: 800; letter-spacing: .1em; color: rgba(26,127,66,.15);
+  border: 5px solid rgba(26,127,66,.15); border-radius: 10px; padding: 3px 16px; pointer-events: none; }
+.tdt-stamp-overdue { color: rgba(164,38,44,.15); border-color: rgba(164,38,44,.15); }
 
-  .tdt-minimal { font-family: -apple-system, Segoe UI, Roboto, sans-serif; }
-  .tdt-minimal .tdt-rule { border: none; margin: 6px 0 12px; }
-  .tdt-minimal .tdt-doctitle { font-weight: 400; letter-spacing: 0.02em; }
-  .tdt-minimal .tdt-docno, .tdt-minimal .table td { font-family: monospace; }
+/* ===== CLASSIC, formal, serif, double rule =============================== */
+.tdt-classic { font-family: Georgia, "Times New Roman", serif; }
+.tdt-classic .tdt-doctitle { letter-spacing: .2em; }
+.tdt-classic .tdt-rule { border-top: 3px double #14171f; }
+.tdt-classic .tdt-metastrip, .tdt-classic .tdt-duebox, .tdt-classic .tdt-paybox { border-radius: 0; }
+.tdt-classic .tdt-items th { border-bottom-width: 2px; }
 
-  .tdt-corporate { font-family: -apple-system, Segoe UI, Roboto, sans-serif; }
-  .tdt-corporate .table th { background: #f3f4f6; }
-  .tdt-corporate .tdt-rule { border-top: 3px double #14171f; }
+/* ===== MODERN, accent rail, tight type =================================== */
+.tdt-modern .tdt-header { border-left: 3px solid var(--accent); padding-left: 16px; }
+.tdt-modern .tdt-doctitle { color: var(--accent); }
+.tdt-modern .tdt-rule { border-top: 1px solid #e3ded2; }
+.tdt-modern .tdt-metastrip { border: none; background: #f7f5f0; }
+.tdt-modern .tdt-meta { border-right-color: #e8e4da; }
 
-  .tdt-elegant { font-family: Georgia, serif; }
-  .tdt-elegant .tdt-doctitle { font-style: italic; text-transform: none; letter-spacing: 0.02em; }
-  .tdt-elegant .tdt-rule { border-top: 1px solid var(--accent); }
-  .tdt-elegant .tdt-company { font-style: italic; }
+/* ===== BOLD, full-width colour band, reversed header ===================== */
+.tdt-bold .tdt-band { display: none; }
+/* The header carries the colour itself instead of a fixed-height bar sitting
+   behind it. A bleeding band has to know the container's padding, which is
+   different in the letterhead preview and the print view, and any header
+   taller than the bar (a long address, a tagline) hangs out of the bottom of
+   it — the email was being cut in half. This grows with its content. */
+.tdt-bold .tdt-header { background: var(--accent); color: #fff;
+  padding: 20px 22px; border-radius: 10px; margin-bottom: 18px; }
+.tdt-bold .tdt-company, .tdt-bold .tdt-doctitle, .tdt-bold .tdt-docno { color: #fff; }
+.tdt-bold .tdt-tagline, .tdt-bold .tdt-contactline, .tdt-bold .tdt-docdate { color: rgba(255,255,255,.78); }
+.tdt-bold .tdt-rule { display: none; }
+.tdt-bold .tdt-metastrip { border: none; background: #f7f5f0; }
+.tdt-bold .tdt-items th { border-bottom-color: var(--accent); }
+
+/* ===== MINIMAL, hairlines, air, mono figures ============================= */
+.tdt-minimal { font-size: 12.5px; }
+.tdt-minimal .tdt-doctitle { font-weight: 400; letter-spacing: .28em; font-size: 13px; }
+.tdt-minimal .tdt-company { font-weight: 600; }
+.tdt-minimal .tdt-rule { border-top: 1px solid #ded9cd; margin: 18px 0 22px; }
+.tdt-minimal .tdt-metastrip { border: none; border-top: 1px solid #ede9df; border-bottom: 1px solid #ede9df; border-radius: 0; }
+.tdt-minimal .tdt-meta { border-right: none; padding-left: 0; }
+.tdt-minimal .tdt-items th { border-bottom: 1px solid #ded9cd; }
+.tdt-minimal .tdt-items td, .tdt-minimal .tdt-docno, .tdt-minimal .tdt-totals td, .tdt-minimal .tdt-dueamount {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.tdt-minimal .tdt-duebox { border-width: 1px; border-radius: 2px; }
+.tdt-minimal .tdt-paybox { background: none; border: none; border-top: 1px solid #ede9df; border-radius: 0; padding-left: 0; }
+
+/* ===== CORPORATE, shaded header row, boxed feel ========================== */
+.tdt-corporate .tdt-header { background: #f4f2ec; padding: 16px 18px; border-radius: 8px; }
+.tdt-corporate .tdt-rule { display: none; }
+.tdt-corporate .tdt-metastrip { margin-top: 16px; background: #fff; }
+.tdt-corporate .tdt-items thead th { background: #f4f2ec; padding-top: 8px; padding-bottom: 8px;
+  border-bottom: 1px solid #ded9cd; }
+.tdt-corporate .tdt-items tbody tr:nth-child(even) td { background: #faf9f5; }
+.tdt-corporate .tdt-duebox { background: #f4f2ec; border-width: 1px; }
+
+/* ===== ELEGANT, serif italic accents, thin gold rule ===================== */
+.tdt-elegant { font-family: "Iowan Old Style", Georgia, serif; }
+.tdt-elegant .tdt-doctitle { font-weight: 400; font-style: italic; text-transform: none;
+  letter-spacing: .04em; font-size: 22px; }
+.tdt-elegant .tdt-rule { border-top: 1px solid #c3a14e; }
+.tdt-elegant .tdt-label { color: #a08a5c; letter-spacing: .16em; }
+.tdt-elegant .tdt-metastrip { border-color: #ecdfc4; border-radius: 0; }
+.tdt-elegant .tdt-meta { border-right-color: #ecdfc4; }
+.tdt-elegant .tdt-items th { border-bottom-color: #c3a14e; }
+.tdt-elegant .tdt-duebox { border-color: #c3a14e; border-radius: 0; }
+.tdt-elegant .tdt-dueamount { color: #14171f; }
+.tdt-elegant .tdt-paybox { border-color: #ecdfc4; border-left-color: #c3a14e; background: #fdfbf6; }
 `;
+
 
 function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
   const [f, setF] = useState({
@@ -542,7 +620,7 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
 
 // Shared by the real print view and the live letterhead preview — same
 // markup, same template CSS, just a different doc/settings source.
-function DocPreviewBody({ doc, settings }) {
+function DocPreviewBody({ doc, settings, warehouseName = '' }) {
   const meta = TD.DOC_TYPES[doc.doc_type];
   const s = settings || {};
   const paid = Number(doc.amount_paid) || 0;
@@ -553,6 +631,8 @@ function DocPreviewBody({ doc, settings }) {
   const mny = TD.moneyState(doc, meta);
   const settled = mny.settled;
   const overdue = mny.overdue;
+  // paperwork that gets checked and signed on delivery
+  const isCheck = !!(meta.isStock || meta.isCustody);
   return (
     <div id="td-print-area" className={`tdt-doc tdt-${s.template_key || 'classic'}`} style={{ '--accent': s.accent_color || '#0A0E1A' }}>
       <div className="tdt-band" />
@@ -562,33 +642,49 @@ function DocPreviewBody({ doc, settings }) {
         </div>
       )}
       <div className="tdt-header">
-        <div>
+        <div className="tdt-headleft">
           {s.logo_url && <img className="tdt-logo" src={s.logo_url} alt="" />}
           <div className="tdt-company">{s.company_name || 'Your company'}</div>
           {s.tagline && <div className="tdt-tagline">{s.tagline}</div>}
+          {(s.address || s.phone || s.email) && (
+            <div className="tdt-contactline">{[s.address, s.phone, s.email].filter(Boolean).join(' · ')}</div>
+          )}
         </div>
-        <div>
+        <div className="tdt-headright">
           <div className="tdt-doctitle">{meta.label}</div>
-          <div className="tdt-docno">{doc.doc_no} · {TD.fmtDate(doc.created_at)}</div>
-          {doc.status && <div style={{ marginTop: 6, textAlign: 'right' }}><span className="badge">{TD.STATUS_LABELS[doc.status]}</span></div>}
+          <div className="tdt-docno">{doc.doc_no}</div>
+          <div className="tdt-docdate">{TD.fmtDate(doc.created_at)}</div>
         </div>
       </div>
-      {(s.address || s.phone || s.email) && (
-        <div className="tdt-contactline">{[s.address, s.phone, s.email].filter(Boolean).join(' · ')}</div>
-      )}
       <hr className="tdt-rule" />
 
       {/* Bill-to on the left, what's owed on the right. The amount due is the
           thing the customer is looking for, so it gets the loudest treatment on
           the page rather than being the last line of a totals stack. */}
+      {/* Delivery paperwork is scanned for facts, not read: who it came from,
+          against which order, into which store, on what date. A strip beats a
+          paragraph, and it's the same shape on every one of these notes. */}
+      {(meta.isStock || meta.isCustody) && (
+        <div className="tdt-metastrip">
+          <div className="tdt-meta">
+            <span className="tdt-label">{meta.stockDirection === 'in' ? 'Received from' : meta.custodyDirection === 'out' ? 'Issued to' : 'Returned by'}</span>
+            <strong>{doc.party_name || '—'}</strong>
+          </div>
+          {doc.reference && <div className="tdt-meta"><span className="tdt-label">Reference</span><strong>{doc.reference}</strong></div>}
+          {warehouseName && <div className="tdt-meta"><span className="tdt-label">Warehouse</span><strong>{warehouseName}</strong></div>}
+          <div className="tdt-meta"><span className="tdt-label">Date</span><strong>{TD.fmtDate(doc.created_at)}</strong></div>
+        </div>
+      )}
+
+      {!(meta.isStock || meta.isCustody) && (
       <div className="tdt-partyrow">
         <div>
-          <div className="tdt-label">{meta.isStock || meta.isCustody ? 'Issued to' : 'Bill to'}</div>
-          <div style={{ fontWeight: 600 }}>{doc.party_name}</div>
-          {doc.party_address && <div className="muted" style={{ fontSize: 13 }}>{doc.party_address}</div>}
-          {doc.party_phone && <div className="muted" style={{ fontSize: 13 }}>{doc.party_phone}</div>}
-          {doc.party_email && <div className="muted" style={{ fontSize: 13 }}>{doc.party_email}</div>}
-          {doc.reference && <div className="muted" style={{ fontSize: 13 }}>Ref: {doc.reference}</div>}
+          <div className="tdt-label">Bill to</div>
+          <div className="tdt-partyname">{doc.party_name}</div>
+          {doc.party_address && <div className="tdt-partyline">{doc.party_address}</div>}
+          {doc.party_phone && <div className="tdt-partyline">{doc.party_phone}</div>}
+          {doc.party_email && <div className="tdt-partyline">{doc.party_email}</div>}
+          {doc.reference && <div className="tdt-partyline">Ref: {doc.reference}</div>}
         </div>
         {mny.show && (
           <div className={`tdt-duebox${mny.overdue ? ' tdt-duebox-overdue' : ''}${mny.settled ? ' tdt-duebox-paid' : ''}`}>
@@ -602,21 +698,30 @@ function DocPreviewBody({ doc, settings }) {
           </div>
         )}
       </div>
+      )}
 
-      <table className="table tdt-items">
+      {/* A goods note is completed at the gate with a pen: the expected count is
+          printed, the received count and any remark are ruled blank space. That
+          IS the document — printing only what we already know makes it a
+          packing list, not a check. */}
+      <table className={`table tdt-items${isCheck ? ' tdt-checklist' : ''}`}>
         <caption className="tdt-visually-hidden">{meta.label} {doc.doc_no} line items</caption>
         <thead>
           <tr>
+            <th scope="col" className="tdt-idx">#</th>
             <th scope="col">Description</th>
-            <th scope="col" style={{ width: 70 }} className="tdt-num">Qty</th>
+            <th scope="col" style={{ width: 78 }} className="tdt-num">{isCheck ? 'Expected' : 'Qty'}</th>
+            {isCheck && <><th scope="col" style={{ width: 78 }} className="tdt-num">Received</th><th scope="col" className="tdt-remarks">Remarks</th></>}
             {meta.hasVat && <><th scope="col" style={{ width: 110 }} className="tdt-num">Unit price</th><th scope="col" style={{ width: 120 }} className="tdt-num">Amount</th></>}
           </tr>
         </thead>
         <tbody>
           {(doc.items || []).map((l, i) => (
             <tr key={i}>
+              <td className="tdt-idx">{i + 1}</td>
               <td>{l.description}</td>
               <td className="tdt-num">{l.qty}</td>
+              {isCheck && <><td className="tdt-num tdt-blank" /><td className="tdt-blank" /></>}
               {meta.hasVat && <><td className="tdt-num">{TD.money(l.unit_price)}</td><td className="tdt-num">{TD.money((Number(l.qty) || 0) * (Number(l.unit_price) || 0))}</td></>}
             </tr>
           ))}
@@ -685,29 +790,40 @@ function DocPreviewBody({ doc, settings }) {
         </div>
       )}
 
-      <div className="tdt-sigblock">
-        <div className="tdt-sig">
-          {s.signature_url && <img src={s.signature_url} alt="" />}
-          <div className="tdt-signame">{s.signature_name || '_________________________'}</div>
-          {s.signature_title && <div className="tdt-sigtitle">{s.signature_title}</div>}
-        </div>
-        {meta.isStock && (
-          <div className="tdt-sig tdt-sig-blank">
-            <div style={{ height: 40 }} />
-            <div>{meta.stockDirection === 'in' ? 'Received by' : 'Released by'} (name &amp; signature)</div>
+      {/* Who signs, and room to actually sign. A delivery note with one
+          company signature proves nothing — the value is the counter-signature
+          from whoever received or checked the goods. */}
+      {isCheck ? (
+        <div className="tdt-sigblock tdt-sigblock-3">
+          <div className="tdt-sig">
+            <div className="tdt-sigline" />
+            <div className="tdt-sigrole">{meta.stockDirection === 'in' ? 'Delivered by' : 'Released by'}</div>
+            <div className="tdt-sigmeta">Name, signature &amp; date</div>
           </div>
-        )}
-        {meta.isCustody && (
-          <div className="tdt-sig tdt-sig-blank">
-            <div style={{ height: 40 }} />
-            <div>
-              {meta.custodyDirection === 'out'
-                ? <>Collected by, <strong>{doc.party_name}</strong> (signature &amp; date)</>
-                : <>Received back by store (name, signature &amp; condition)</>}
+          <div className="tdt-sig">
+            <div className="tdt-sigline" />
+            <div className="tdt-sigrole">
+              {meta.custodyDirection === 'out' ? 'Collected by' : meta.custodyDirection === 'in' ? 'Returned by' : 'Received by'}
             </div>
+            <div className="tdt-sigmeta">{doc.party_name ? `${doc.party_name}, signature & date` : 'Name, signature & date'}</div>
           </div>
-        )}
-      </div>
+          <div className="tdt-sig">
+            <div className="tdt-sigline" />
+            <div className="tdt-sigrole">Checked by</div>
+            <div className="tdt-sigmeta">{meta.isCustody ? 'Condition on return' : 'Store officer'}</div>
+          </div>
+        </div>
+      ) : (
+        <div className="tdt-sigblock">
+          <div className="tdt-sig">
+            {s.signature_url
+              ? <img src={s.signature_url} alt="" />
+              : <div className="tdt-sigline" />}
+            <div className="tdt-signame">{s.signature_name || ''}</div>
+            {s.signature_title && <div className="tdt-sigtitle">{s.signature_title}</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

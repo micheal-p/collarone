@@ -111,7 +111,7 @@ function RoadmapCard({ item }) {
     <div className="card" style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 10, borderStyle: 'dashed', opacity: 0.92 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <span style={{ width: 36, height: 36, borderRadius: 10, display: 'grid', placeItems: 'center', flexShrink: 0, background: 'var(--text-2)', color: '#fff' }}>{item.icon}</span>
-        <span className="badge" style={{ fontSize: 10.5, background: 'var(--surface-2)' }}>Roadmap</span>
+        <span className="badge" style={{ fontSize: 10.5, background: 'var(--surface-2)' }}>Coming soon</span>
       </div>
       <div style={{ fontWeight: 650, fontSize: 14.5 }}>{item.name}</div>
       <p className="muted" style={{ fontSize: 13, margin: 0, lineHeight: 1.5 }}>{item.desc}</p>
