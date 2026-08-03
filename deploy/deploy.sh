@@ -84,9 +84,16 @@ NGINX
 # server block in that file — landing in a port-80 redirect block as well is
 # harmless (a location that never matches), whereas guessing "the first block"
 # would silently wire it into the redirect and do nothing at all.
-# Search widely: the site config is not always in sites-enabled, and it may be
-# named anything. Anything that mentions the app's directory or hostname counts.
-CONF=\$(grep -rl -e 'collarone' -e 'server_name' /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ /etc/nginx/nginx.conf 2>/dev/null | head -1)
+# Ask nginx which file actually declares the site, instead of guessing from
+# filenames. `nginx -T` dumps the effective config with a "# configuration file
+# <path>:" header before each one, so the last such header before the
+# server_name line is the file that really serves collarone.app. Guessing gave
+# nginx.conf, which passed nginx -t and changed nothing observable.
+CONF=\$(nginx -T 2>/dev/null | awk '
+  /^# configuration file /{ f=\$4; sub(/:$/,"",f) }
+  /server_name[^;]*collarone/ { print f; exit }
+')
+[ -z "\$CONF" ] && CONF=\$(grep -rl 'server_name[^;]*collarone' /etc/nginx/ 2>/dev/null | grep -v 'collarone-cache' | head -1)
 NGINX_STATUS="conf-not-found"
 if [ -n "\$CONF" ]; then
   if grep -q 'collarone-cache.conf' "\$CONF"; then
@@ -102,6 +109,12 @@ if [ -n "\$CONF" ]; then
       NGINX_STATUS="nginx-t-failed:\$CONF"
     fi
   fi
+fi
+# Did it actually reach the running config? "wired" only means a file changed.
+if nginx -T 2>/dev/null | grep -q 'collarone-cache.conf'; then
+  NGINX_STATUS="\${NGINX_STATUS} effective=yes"
+else
+  NGINX_STATUS="\${NGINX_STATUS} effective=no"
 fi
 # Readable over /api/health, because the deploy log needs GitHub auth to read
 # and this is the one thing that has silently done nothing twice.
