@@ -52,6 +52,12 @@ try {
   assert('someone in another department cannot open it', await can(P, `dept:${D}`), false);
 
   await c.query("update profiles set department_id=$1 where id=$2", [D, P]);
+  await c.query('update departments set active=false where id=$1', [D]);
+  assert('DEACTIVATING the department closes its room', await can(P, `dept:${D}`), false);
+  await c.query("update profiles set role='super_admin' where id=$1", [P]);
+  assert('closed to admins too, so no badge for a room with no door', await can(P, `dept:${D}`), false);
+  await c.query("update profiles set role='staff' where id=$1", [P]);
+  await c.query('update departments set active=true where id=$1', [D]);
 
   // ---- groups --------------------------------------------------------------
   const { rows: g } = await c.query(
@@ -84,6 +90,20 @@ try {
   } else {
     console.log('  · only one org — skipped the cross-tenant checks');
   }
+
+  // ---- member lists drop people who have left ------------------------------
+  // chat_room_members reads auth.uid(), which a direct connection doesn't have.
+  // Supabase resolves it from request.jwt.claims, so set that for the
+  // transaction and the RPC runs exactly as it would for a signed-in caller.
+  await c.query('insert into chat_group_members (group_id, user_id) values ($1,$2) on conflict do nothing', [G, P]);
+  await c.query("select set_config('request.jwt.claims', json_build_object('sub',$1::text)::text, true)", [P]);
+  const listed = async () => (await c.query(
+    'select count(*)::int n from public.chat_room_members($1)', [`group:${G}`])).rows[0].n;
+  const before = await listed();
+  await c.query("update profiles set status='disabled' where id=$1", [P]);
+  assert('a disabled employee drops out of the group member list', await listed(), before - 1);
+  await c.query("update profiles set status='active' where id=$1", [P]);
+  assert('and comes back if they are reactivated', await listed(), before);
 
   // ---- shape ---------------------------------------------------------------
   assert('an unknown room key is refused', await can(P, 'group:not-a-uuid'), false);
