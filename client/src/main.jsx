@@ -5,7 +5,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider } from './auth/AuthContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { installCrashReporter } from './lib/crashReporter.js';
-import { installStaleBuildRecovery, clearStaleBuildFlag } from './lib/staleBuild.js';
+import { installStaleBuildRecovery, cleanRecoveryUrl } from './lib/staleBuild.js';
 import App from './App.jsx';
 import './styles/global.css';
 import './styles/app.css';
@@ -14,8 +14,10 @@ import './styles/app.css';
 // them into noise. They aren't bugs — they're a tab outliving its deploy.
 installStaleBuildRecovery();
 installCrashReporter();
-// We got here, so this build's entry chunk loaded fine.
-clearStaleBuildFlag();
+// We got here, so this build's entry chunk loaded fine. This only tidies the
+// cache-busting query out of the URL — it deliberately does NOT clear the
+// one-reload guard, which is what turned this into a reload loop.
+cleanRecoveryUrl();
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>

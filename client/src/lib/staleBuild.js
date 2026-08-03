@@ -31,11 +31,28 @@ export const looksLikeStaleChunk = (msg = '') => {
   );
 };
 
+// ONE reload per tab, ever. The first version of this cleared the flag on every
+// successful boot so a long-lived tab could recover twice — which defeated the
+// guard completely and shipped an infinite reload loop: boot clears the flag →
+// a lazy chunk 404s → reload → boot clears the flag → same chunk → reload.
+// A second reload has never fixed anything the first one didn't; if it comes
+// back, the page is broken for some other reason and must be allowed to say so.
 function recover(reason) {
   if (sessionStorage.getItem(KEY)) return false;   // already tried; let it surface
-  sessionStorage.setItem(KEY, reason.slice(0, 80));
-  // replace() so the broken state doesn't sit in history behind a back button
-  window.location.replace(window.location.href);
+  sessionStorage.setItem(KEY, String(reason).slice(0, 80));
+
+  // Bust the cache on the way out. index.html is served with no Cache-Control
+  // (see ops/nginx/README.md), so a plain reload can be answered from the
+  // browser's own copy — the same stale HTML naming the same missing chunk,
+  // which is what makes this look like a loop rather than a fix. A query the
+  // server ignores forces a fresh fetch; boot() strips it back out.
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set('_b', String(Date.now()).slice(-6));
+    window.location.replace(url.toString());   // replace(): no broken entry in history
+  } catch {
+    window.location.replace(window.location.href);
+  }
   return true;
 }
 
@@ -57,8 +74,14 @@ export function installStaleBuildRecovery() {
   });
 }
 
-// A tab that reloaded once and is still fine should forget it happened, so a
-// genuinely stale tab weeks later can still recover itself.
-export function clearStaleBuildFlag() {
-  if (sessionStorage.getItem(KEY)) sessionStorage.removeItem(KEY);
+// Called once the app has actually booted. It does NOT clear the guard — that
+// is what caused the loop — it only tidies the cache-busting query out of the
+// address bar so the user isn't left looking at ?_b=123456.
+export function cleanRecoveryUrl() {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('_b')) return;
+    url.searchParams.delete('_b');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+  } catch { /* cosmetic only — never let this break boot */ }
 }
