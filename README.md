@@ -66,6 +66,19 @@ dependencies at the top).
 
 ## Deployment
 
+> **Open task, needs SSH: [`ops/nginx/README.md`](ops/nginx/README.md)** — `index.html`
+> is served with no `Cache-Control`, which is what makes a deploy break tabs that are
+> already open (`Unexpected token '<'`). The cause is fully diagnosed in that file,
+> including the exact config path and why the automated attempt is rejected. It needs
+> someone with shell access to the VPS to finish.
+
+**Note: production is the VPS, not Vercel.** `collarone.app` resolves to
+72.61.156.142 and is served by nginx; `deploy/deploy.sh` rsyncs and rebuilds there,
+triggered by `.github/workflows/deploy.yml` on push to `main`. Vercel still builds
+this repo, so `collarone.vercel.app` is a second live front-end against the same
+database — `client/vercel.json` now redirects it to the real site. The paragraph
+below predates that move.
+
 Vercel only — the React SPA and the serverless functions in `client/api/` deploy together
 from this repo. Supabase (cloud or self-hosted) is configured entirely through environment
 variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_URL`,
