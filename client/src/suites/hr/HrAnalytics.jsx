@@ -82,7 +82,7 @@ export default function HrAnalytics({ staff, flash }) {
         setExits(ex.status === 'fulfilled' ? (ex.value.exits || []) : null);
         setEnrollments(en.status === 'fulfilled' ? (en.value.enrollments || []) : null);
         if (ex.status !== 'fulfilled' && en.status !== 'fulfilled') {
-          flash?.('Exit and benefits sources are offline — showing directory-based metrics only.');
+          flash?.('Exit and benefits sources are offline, showing directory-based metrics only.');
         }
       })
       .finally(() => setExtrasLoading(false));
@@ -232,7 +232,7 @@ export default function HrAnalytics({ staff, flash }) {
         .ha-callout { background:#FBF0D3; border:1px solid #e6c96a; border-radius:8px; padding:10px 14px; font-size:13px; color:#7a5b00; margin-top:12px; }
       `}</style>
 
-      {/* 1 — KPI strip */}
+      {/* 1, KPI strip */}
       <div className="ha-kpis">
         <div className="ha-kpi"><div className="ha-kpi-val">{staff.length}</div><div className="ha-kpi-label">Active staff</div></div>
         <div className="ha-kpi"><div className="ha-kpi-val">{kpi.hiresThisYear}</div><div className="ha-kpi-label">Joined in {thisYear}</div></div>
@@ -242,7 +242,7 @@ export default function HrAnalytics({ staff, flash }) {
       </div>
 
       <div className="ha-grid">
-        {/* 2 — Headcount by department */}
+        {/* 2, Headcount by department */}
         <div className="card ha-card">
           <h3 className="ha-card-title">Headcount by department</h3>
           {deptRows.length === 0
@@ -252,7 +252,7 @@ export default function HrAnalytics({ staff, flash }) {
               ))}
         </div>
 
-        {/* 3 — Employment type mix */}
+        {/* 3, Employment type mix */}
         <div className="card ha-card">
           <h3 className="ha-card-title">Employment type mix</h3>
           {typeRows.length === 0
@@ -269,14 +269,14 @@ export default function HrAnalytics({ staff, flash }) {
         </div>
       </div>
 
-      {/* 4 — Hiring trend */}
+      {/* 4, Hiring trend */}
       <div className="card ha-card" style={{ marginBottom: 14 }}>
-        <h3 className="ha-card-title">Hiring trend — starts per month, last 12 months</h3>
+        <h3 className="ha-card-title">Hiring trend, starts per month, last 12 months</h3>
         <HiringTrendChart months={trendMonths} />
       </div>
 
       <div className="ha-grid">
-        {/* 5 — Tenure distribution */}
+        {/* 5, Tenure distribution */}
         <div className="card ha-card">
           <h3 className="ha-card-title">Tenure distribution</h3>
           {tenureBuckets.map((b) => (
@@ -284,9 +284,9 @@ export default function HrAnalytics({ staff, flash }) {
           ))}
         </div>
 
-        {/* 6 — Work anniversaries this month */}
+        {/* 6, Work anniversaries this month */}
         <div className="card ha-card">
-          <h3 className="ha-card-title">Work anniversaries — {now().toLocaleDateString('en-GB', { month: 'long' })}</h3>
+          <h3 className="ha-card-title">Work anniversaries, {now().toLocaleDateString('en-GB', { month: 'long' })}</h3>
           {anniversaries.length === 0
             ? <SourceNote>No work anniversaries this month.</SourceNote>
             : anniversaries.map((a) => (
@@ -301,11 +301,11 @@ export default function HrAnalytics({ staff, flash }) {
               ))}
         </div>
 
-        {/* 6b — Birthdays this month */}
+        {/* 6b, Birthdays this month */}
         <div className="card ha-card">
-          <h3 className="ha-card-title">Birthdays — {now().toLocaleDateString('en-GB', { month: 'long' })}</h3>
+          <h3 className="ha-card-title">Birthdays, {now().toLocaleDateString('en-GB', { month: 'long' })}</h3>
           {birthdays.length === 0
-            ? <SourceNote>No birthdays on record this month — staff add their date of birth on their own Profile page.</SourceNote>
+            ? <SourceNote>No birthdays on record this month, staff add their date of birth on their own Profile page.</SourceNote>
             : birthdays.map((b) => (
                 <div className="ha-anniv-row" key={b.id}>
                   {b.avatarUrl
@@ -318,13 +318,13 @@ export default function HrAnalytics({ staff, flash }) {
         </div>
       </div>
 
-      {/* 7 — Statutory completeness */}
+      {/* 7, Statutory completeness */}
       <div className="card ha-card">
         <h3 className="ha-card-title">Statutory completeness</h3>
         {extrasLoading ? (
           <SourceNote>Loading benefits data…</SourceNote>
         ) : !statutory ? (
-          <SourceNote>Needs the Benefits suite — enrollment data could not be loaded.</SourceNote>
+          <SourceNote>Needs the Benefits suite, enrollment data could not be loaded.</SourceNote>
         ) : (
           <>
             <div className="ha-stat-counts">
@@ -334,7 +334,7 @@ export default function HrAnalytics({ staff, flash }) {
             </div>
             {staff.length >= 5 && !statutory.hasGroupLife && (
               <div className="ha-callout">
-                At 5+ employees, Group Life cover is a legal requirement under the Pension Reform Act — no group life plan is on record.
+                At 5+ employees, Group Life cover is a legal requirement under the Pension Reform Act, no group life plan is on record.
               </div>
             )}
             <div className="ha-stat-grid">

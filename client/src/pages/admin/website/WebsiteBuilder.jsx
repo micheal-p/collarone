@@ -11,9 +11,9 @@ import { BLOCK_FIELDS, emptyRepeaterItem } from './blockFields.js';
 
 const CATEGORY_LABEL = { ecommerce: 'Online store', landing: 'Landing page', company: 'Company profile' };
 const CATEGORY_BLURB = {
-  ecommerce: 'Sell products — homepage, shop grid and contact page, pre-styled with sample products you just swap out.',
-  landing: 'Pitch one product or idea on a single scrolling page — hero, features, FAQ and contact, already written for you to edit.',
-  company: 'A traditional multi-page company site — home, about, services, team and contact, filled in so you see exactly where everything goes.',
+  ecommerce: 'Sell products, homepage, shop grid and contact page, pre-styled with sample products you just swap out.',
+  landing: 'Pitch one product or idea on a single scrolling page, hero, features, FAQ and contact, already written for you to edit.',
+  company: 'A traditional multi-page company site, home, about, services, team and contact, filled in so you see exactly where everything goes.',
 };
 const CATEGORY_COVER = {
   ecommerce: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=70',
@@ -62,7 +62,7 @@ function SetupWizard({ themes, defaultName, onSetup, onExisting, flash }) {
   return (
     <div style={{ maxWidth: 640 }}>
       <h2 style={{ fontSize: 18, margin: '0 0 6px' }}>Set up your public website</h2>
-      <p className="muted" style={{ fontSize: 13.5, margin: '0 0 20px' }}>Pick what kind of site you need — each type starts with the right pages already filled in.</p>
+      <p className="muted" style={{ fontSize: 13.5, margin: '0 0 20px' }}>Pick what kind of site you need, each type starts with the right pages already filled in.</p>
 
       {step === 'category' && (
         <>
@@ -90,7 +90,7 @@ function SetupWizard({ themes, defaultName, onSetup, onExisting, flash }) {
             <span>
               <span style={{ fontWeight: 600, display: 'block' }}>I already have a website</span>
               <span style={{ fontSize: 12.5, color: 'var(--text-2)', display: 'block', marginTop: 2 }}>
-                Keep your site exactly where it is — Collarone plugs into it instead: a careers page link for your menu, and a contact form you paste in so leads land in your CRM.
+                Keep your site exactly where it is, Collarone plugs into it instead: a careers page link for your menu, and a contact form you paste in so leads land in your CRM.
               </span>
             </span>
           </button>
@@ -103,7 +103,7 @@ function SetupWizard({ themes, defaultName, onSetup, onExisting, flash }) {
           <Field label="Your website URL *">
             <input className="input" type="url" value={existingUrl} onChange={(e) => setExistingUrl(e.target.value)} placeholder="https://yourcompany.com" required autoFocus />
           </Field>
-          <p className="muted" style={{ fontSize: 12.5, margin: '0 0 14px' }}>This just links out to your real site from Collarone — nothing is imported or migrated. You can switch to the builder later without losing this.</p>
+          <p className="muted" style={{ fontSize: 12.5, margin: '0 0 14px' }}>This just links out to your real site from Collarone, nothing is imported or migrated. You can switch to the builder later without losing this.</p>
           <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save my website link'}</button>
         </form>
       )}
@@ -170,7 +170,7 @@ function BlockEditModal({ block, orgId, onClose, onSaved, flash }) {
       <div className="modal modal-wide" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head"><h2>Edit {W.BLOCK_TYPES[block.type] || block.type}</h2></div>
         <form className="modal-body" onSubmit={submit}>
-          {config.simple.length === 0 && !config.repeater && <p className="muted" style={{ fontSize: 13 }}>This block has no editable fields — it renders your Settings tab's contact details automatically.</p>}
+          {config.simple.length === 0 && !config.repeater && <p className="muted" style={{ fontSize: 13 }}>This block has no editable fields, it renders your Settings tab's contact details automatically.</p>}
           {config.simple.map(([key, label, kind]) => (
             <Field key={key} label={label}>
               {kind === 'textarea' && <textarea className="input" rows={3} value={content[key] || ''} onChange={(e) => set(key, e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} />}
@@ -420,7 +420,7 @@ function ProductsTab({ orgId, flash }) {
         <table className="table">
           <thead><tr><th></th><th>Name</th><th>Price</th><th></th></tr></thead>
           <tbody>
-            {products.length === 0 && <tr><td colSpan={4} className="td-empty">No products yet — add your catalog here, it renders on your Shop page automatically.</td></tr>}
+            {products.length === 0 && <tr><td colSpan={4} className="td-empty">No products yet, add your catalog here, it renders on your Shop page automatically.</td></tr>}
             {products.map((p) => (
               <tr key={p.id}>
                 <td>{p.image_url ? <img src={p.image_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover' }} /> : '—'}</td>
@@ -441,7 +441,7 @@ function ProductsTab({ orgId, flash }) {
 
 /* ---- "Works with the website you already have" -------------------------------
    Plain-language integration story. The old version showed a raw iframe
-   snippet in a tiny textarea with zero explanation — reported as confusing.
+   snippet in a tiny textarea with zero explanation, reported as confusing.
    Now: what each thing is, what happens when you use it, one Copy button. */
 function ShareEmbedPanel({ orgSlug }) {
   const [copied, setCopied] = useState('');
@@ -461,7 +461,7 @@ function ShareEmbedPanel({ orgSlug }) {
     <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--line)', maxWidth: 620 }}>
       <h3 style={{ fontSize: 15, margin: '0 0 4px' }}>Using Collarone with the website you already have</h3>
       <p className="muted" style={{ fontSize: 13, margin: '0 0 16px', lineHeight: 1.6 }}>
-        You don't need to move or rebuild your website. Your site stays where it is — these two pieces connect it to your Collarone workspace.
+        You don't need to move or rebuild your website. Your site stays where it is, these two pieces connect it to your Collarone workspace.
       </p>
 
       <div style={card}>
@@ -569,7 +569,7 @@ function OrdersTab({ orgId, orgSlug, flash }) {
         Transfer orders show the customer your account details from Settings → Getting paid; confirm once the money lands.
       </p>
       {orders.length === 0 && (
-        <p className="muted" style={{ fontSize: 13.5 }}>No orders yet — they'll appear here the moment a customer checks out on your store.</p>
+        <p className="muted" style={{ fontSize: 13.5 }}>No orders yet, they'll appear here the moment a customer checks out on your store.</p>
       )}
       {orders.map((o) => (
         <div key={o.id} style={{ border: '1px solid var(--line)', borderRadius: 12, padding: 16, marginBottom: 12, background: 'var(--surface)' }}>
@@ -599,7 +599,7 @@ function OrdersTab({ orgId, orgSlug, flash }) {
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
             <a className="btn btn-ghost" style={{ fontSize: 12.5, padding: '6px 14px' }} target="_blank" rel="noreferrer"
-              href={`https://wa.me/${waDigits(o.phone)}?text=${encodeURIComponent(`Hello ${o.customer_name.split(' ')[0]}, about your order ${o.order_no} — `)}`}>
+              href={`https://wa.me/${waDigits(o.phone)}?text=${encodeURIComponent(`Hello ${o.customer_name.split(' ')[0]}, about your order ${o.order_no}, `)}`}>
               WhatsApp customer
             </a>
             {o.payment_method === 'card' && !o.paid_at && o.status !== 'cancelled' && (
@@ -609,7 +609,7 @@ function OrdersTab({ orgId, orgSlug, flash }) {
             )}
             {o.status === 'new' && (
               o.payment_method === 'card' && !o.paid_at
-                ? <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '6px 14px' }} onClick={() => confirmCardManually(o)}>I've sighted this payment — confirm</button>
+                ? <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '6px 14px' }} onClick={() => confirmCardManually(o)}>I've sighted this payment, confirm</button>
                 : <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '6px 14px' }} onClick={() => setStatus(o, 'confirmed')}>Confirm payment/order</button>
             )}
             {o.status === 'confirmed' && <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '6px 14px' }} onClick={() => setStatus(o, 'fulfilled')}>Mark fulfilled</button>}
@@ -654,7 +654,7 @@ function InsightsTab({ orgId, flash }) {
         <div style={tile}><div style={tileLabel}>Orders</div><div style={{ ...tileVal, color: 'var(--brand, #FF5B1F)' }}>{data.orderCount}</div></div>
       </div>
       <p className="muted" style={{ fontSize: 12, margin: '0 0 24px' }}>
-        Anonymous visit counts from your public site — no cookies, no visitor IDs. Messages &amp; leads counts everything the site
+        Anonymous visit counts from your public site, no cookies, no visitor IDs. Messages &amp; leads counts everything the site
         has sent into your CRM: contact-form messages, product enquiries and mailing-list signups. Open the CRM suite's Messages tab to reply.
       </p>
 
@@ -679,7 +679,7 @@ function InsightsTab({ orgId, flash }) {
         </div>
       )}
       {data.v30 === 0 && (
-        <p className="muted" style={{ fontSize: 13 }}>No visits recorded yet — they start counting from the moment your site is published and someone opens it.</p>
+        <p className="muted" style={{ fontSize: 13 }}>No visits recorded yet, they start counting from the moment your site is published and someone opens it.</p>
       )}
     </div>
   );
@@ -771,7 +771,7 @@ function SettingsTab({ site, orgId, orgSlug, isStore, onSave, flash }) {
           <h3 style={{ fontSize: 14, margin: '0 0 4px' }}>Getting paid</h3>
           <p className="muted" style={{ fontSize: 12.5, margin: '0 0 14px', lineHeight: 1.6 }}>
             Checkout doesn't need a card gateway. Customers order, then pay by transfer straight into your account
-            (shown to them after ordering) or on delivery — you confirm each order from the Orders tab.
+            (shown to them after ordering) or on delivery, you confirm each order from the Orders tab.
           </p>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, marginBottom: 8, cursor: 'pointer' }}>
             <input type="checkbox" checked={f.enableTransfer} onChange={(e) => set('enableTransfer', e.target.checked)} /> Accept bank transfer
@@ -833,7 +833,7 @@ function SettingsTab({ site, orgId, orgSlug, isStore, onSave, flash }) {
             <span>
               <span style={{ fontWeight: 600, display: 'block', fontSize: 13.5 }}>Want card payments too?</span>
               <span className="muted" style={{ fontSize: 12.5, display: 'block', margin: '2px 0 8px', lineHeight: 1.55 }}>
-                Most businesses don't have a payment gateway account — and that's fine. When you're ready, we'll set one up
+                Most businesses don't have a payment gateway account, and that's fine. When you're ready, we'll set one up
                 with you in a one-on-one session and connect it to your store.
               </span>
               <a className="btn btn-ghost" style={{ fontSize: 12.5, padding: '6px 14px' }} target="_blank" rel="noreferrer"
@@ -876,12 +876,12 @@ export default function AdminWebsite() {
 
   const doSetup = async (themeKey, siteName, tagline) => {
     await W.setupSite(themeKey, siteName, tagline);
-    flash('Site created — add your content below.');
+    flash('Site created, add your content below.');
     await load();
   };
 
   const togglePublish = async () => {
-    try { const saved = await W.setPublished(!site.published); setSite(saved); flash(saved.published ? 'Site published — it’s live.' : 'Site unpublished.'); }
+    try { const saved = await W.setPublished(!site.published); setSite(saved); flash(saved.published ? 'Site published, it’s live.' : 'Site unpublished.'); }
     catch (e) { flash(e.message, true); }
   };
 
@@ -912,7 +912,7 @@ export default function AdminWebsite() {
           <h2 style={{ fontSize: 18, margin: '0 0 10px' }}>Your website is connected</h2>
           <p style={{ fontSize: 14, marginBottom: 4 }}>Your site: <a href={org.externalWebsiteUrl} target="_blank" rel="noreferrer">{org.externalWebsiteUrl}</a></p>
           <p className="muted" style={{ fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
-            Your website stays yours, hosted wherever it is today — Collarone doesn't touch it.
+            Your website stays yours, hosted wherever it is today, Collarone doesn't touch it.
             The two connectors below are how it works with your workspace: jobs you post here appear on
             your careers page, and messages from your site's contact form land in your CRM.
           </p>

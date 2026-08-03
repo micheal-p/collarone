@@ -45,7 +45,7 @@ export const aiDraftLetter = async (ctx) => {
     // little so the flow is demonstrable without any AI backend.
     await new Promise((r) => setTimeout(r, 900));
     const skeleton = (LETTER_TYPES[ctx.letterType] || LETTER_TYPES.custom).skeleton(ctx);
-    return `${skeleton}\n\n[Draft generated in demo mode — the live app uses Collarone AI.]`;
+    return `${skeleton}\n\n[Draft generated in demo mode, the live app uses Collarone AI.]`;
   }
   const { data: { session } } = await supabase.auth.getSession();
   const res = await fetch('/api/ai-letter', {
@@ -54,8 +54,8 @@ export const aiDraftLetter = async (ctx) => {
     body: JSON.stringify(ctx),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Collarone AI is not available right now — you can still write the letter manually.');
-  if (!data.body) throw new Error('Collarone AI returned an empty draft — try again or write manually.');
+  if (!res.ok) throw new Error(data.error || 'Collarone AI is not available right now, you can still write the letter manually.');
+  if (!data.body) throw new Error('Collarone AI returned an empty draft, try again or write manually.');
   return data.body;
 };
 

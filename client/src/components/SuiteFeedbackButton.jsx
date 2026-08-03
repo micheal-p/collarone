@@ -34,7 +34,7 @@ export default function SuiteFeedbackButton({ suiteKey, suiteName }) {
       rating, comment: comment.slice(0, 2000),
     });
     setBusy(false);
-    if (error) { setError('That didn\'t send — check your connection and try again.'); return; }
+    if (error) { setError('That didn\'t send, check your connection and try again.'); return; }
     setSent(true);
     setTimeout(() => { setOpen(false); setSent(false); setRating(0); setComment(''); }, 1500);
   };
@@ -52,12 +52,12 @@ export default function SuiteFeedbackButton({ suiteKey, suiteName }) {
           <div role="dialog" aria-modal="true" aria-label="Suite feedback" style={{ width: 'min(430px, 100%)', background: 'var(--surface, #fff)', borderRadius: 16, padding: '24px 26px', boxShadow: '0 30px 80px rgba(0,0,0,0.4)' }} onMouseDown={(e) => e.stopPropagation()}>
             {sent ? (
               <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                <div style={{ fontWeight: 750, fontSize: 16 }}>Thank you — this goes straight to the team.</div>
+                <div style={{ fontWeight: 750, fontSize: 16 }}>Thank you, this goes straight to the team.</div>
               </div>
             ) : (
               <form onSubmit={submit}>
                 <div style={{ fontWeight: 750, fontSize: 16.5, marginBottom: 4 }}>How is {suiteName || 'this suite'} working for you?</div>
-                <p style={{ fontSize: 12.5, color: 'var(--text-2, #667)', margin: '0 0 14px' }}>Your note goes to the people who build Collarone — with your name on it, so we can follow up.</p>
+                <p style={{ fontSize: 12.5, color: 'var(--text-2, #667)', margin: '0 0 14px' }}>Your note goes to the people who build Collarone, with your name on it, so we can follow up.</p>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button key={n} type="button" style={{ ...btn, width: 44, ...(rating === n ? on : {}) }} onClick={() => setRating(n)}>{n}</button>

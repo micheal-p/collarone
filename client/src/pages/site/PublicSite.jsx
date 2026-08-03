@@ -84,14 +84,14 @@ export default function PublicSite({ slugProp }) {
     <>
       {isPreview && (
         <div style={{ position: 'sticky', top: 0, zIndex: 50, background: '#111', color: '#fff', textAlign: 'center', padding: '6px 12px', fontSize: 12.5 }}>
-          Preview mode — {data.published ? 'this site is live.' : 'not published yet, only you can see this.'}
+          Preview mode, {data.published ? 'this site is live.' : 'not published yet, only you can see this.'}
         </div>
       )}
       {payResult && (
         <div style={{ position: 'sticky', top: 0, zIndex: 51, background: payResult.paid ? '#12833F' : '#B7791F', color: '#fff', textAlign: 'center', padding: '10px 14px', fontSize: 13.5 }}>
           {payResult.paid
-            ? <>Payment confirmed — order <strong>{payResult.orderNo}</strong> is paid. The store has your order.</>
-            : <>We couldn't confirm that payment yet. If you were debited, the store will still see it — or contact them directly.</>}
+            ? <>Payment confirmed, order <strong>{payResult.orderNo}</strong> is paid. The store has your order.</>
+            : <>We couldn't confirm that payment yet. If you were debited, the store will still see it, or contact them directly.</>}
           <button onClick={() => setPayResult(null)} aria-label="Dismiss" style={{ marginLeft: 12, background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 12 }}>Dismiss</button>
         </div>
       )}

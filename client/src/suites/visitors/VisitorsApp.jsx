@@ -96,8 +96,8 @@ function VisitorResultCard({ visit, canAct, onRefresh, flash }) {
   const isBanned = visit.visitor?.is_banned;
   return (
     <div className={`vs-card ${isBanned ? 'vs-card-banned' : ''}`}>
-      {isBanned && <div className="vs-banned-warning">BANNED — {visit.visitor.ban_reason || 'Entry not permitted by management'}</div>}
-      {visit.flagged && <div className="vs-banned-warning" style={{ background: '#ca5010' }}>FLAGGED — {visit.flag_reason || 'Flagged by security'}</div>}
+      {isBanned && <div className="vs-banned-warning">BANNED, {visit.visitor.ban_reason || 'Entry not permitted by management'}</div>}
+      {visit.flagged && <div className="vs-banned-warning" style={{ background: '#ca5010' }}>FLAGGED, {visit.flag_reason || 'Flagged by security'}</div>}
       <div className="vs-card-header">
         <div>
           <div className="vs-card-name">{visit.visitor?.name}</div>
@@ -234,7 +234,7 @@ function VisitModal({ onClose, onSaved, flash, showHostPicker = false, staff = [
       } else {
         setFoundVisitor(null);
         setV('phone', searchPhone.trim());
-        flash('No existing visitor found — fill in the details below.', false);
+        flash('No existing visitor found, fill in the details below.', false);
       }
     } catch (e) { flash(e.message, true); } finally { setSearching(false); }
   };
@@ -276,7 +276,7 @@ function VisitModal({ onClose, onSaved, flash, showHostPicker = false, staff = [
           </div>
           <div className="modal-body" style={{ textAlign:'center', padding:'24px 32px' }}>
             <div id="gate-pass">
-              <div style={{ fontSize:13, color:'var(--text-2)', marginBottom:4 }}>Gate pass — {vis.name}</div>
+              <div style={{ fontSize:13, color:'var(--text-2)', marginBottom:4 }}>Gate pass, {vis.name}</div>
               <div className="vs-code-display">{accessCode}</div>
               <QrCode text={accessCode} />
               <div style={{ fontSize:12, color:'var(--text-2)', marginTop:6 }}>

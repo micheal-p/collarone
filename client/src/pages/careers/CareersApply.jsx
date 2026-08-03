@@ -54,7 +54,7 @@ export default function CareersApply() {
               <h2 className="careers-about-h">About the role</h2>
               {posting.description
                 ? <p className="careers-apply-desc">{posting.description}</p>
-                : <p className="careers-apply-desc muted-desc">{posting.org_name} hasn't added a long description for this role — the essentials are above, and the team will share full details during the process.</p>}
+                : <p className="careers-apply-desc muted-desc">{posting.org_name} hasn't added a long description for this role, the essentials are above, and the team will share full details during the process.</p>}
               <div className="careers-company-card">
                 <div className="careers-company-head">
                   {org?.logoUrl && <img src={org.logoUrl} alt="" className="careers-company-logo" />}
@@ -63,7 +63,7 @@ export default function CareersApply() {
                     {org?.tagline && <div className="careers-company-tagline">{org.tagline}</div>}
                   </div>
                 </div>
-                <p>Hiring through Collarone — your application goes straight to {posting.org_name}'s recruiting pipeline and is visible only to their team. No account needed.</p>
+                <p>Hiring through Collarone, your application goes straight to {posting.org_name}'s recruiting pipeline and is visible only to their team. No account needed.</p>
                 <div className="careers-company-links">
                   {org?.website && (
                     org.website.startsWith('/')

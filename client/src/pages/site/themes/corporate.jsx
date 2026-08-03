@@ -4,7 +4,7 @@ import { Reveal, useFonts, rise, emph } from './_kit.jsx';
 
 // Corporate Clean — a structured, trustworthy business site. Navy-forward,
 // a crisp grid, a boxed split hero and a top contact bar. IBM Plex Sans.
-export const meta = { key: 'corporate-clean', name: 'Corporate Clean', category: 'company', description: 'Structured and trustworthy — a crisp grid, boxed split hero and a contact bar. Classic business.', accent: '#1B4B91', fonts: 'IBM Plex Sans' };
+export const meta = { key: 'corporate-clean', name: 'Corporate Clean', category: 'company', description: 'Structured and trustworthy, a crisp grid, boxed split hero and a contact bar. Classic business.', accent: '#1B4B91', fonts: 'IBM Plex Sans' };
 
 const V = { hero: 'boxed', card: 'bordered', btnRadius: 4, display: 0.9, headingWeight: 700, h2Mode: 'left-kicker', band: 'alt', secPad: 56, ctaMode: 'accent', footerMode: 'columns' };
 

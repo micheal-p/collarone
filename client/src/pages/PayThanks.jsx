@@ -32,14 +32,14 @@ export default function PayThanks() {
               : <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>}
           </div>
           <h1 style={{ fontSize: 22, margin: '0 0 8px' }}>
-            {state === 'paid' ? (activation ? 'Payment confirmed — your workspace is active' : 'Payment confirmed') : "We couldn't confirm that payment yet"}
+            {state === 'paid' ? (activation ? 'Payment confirmed, your workspace is active' : 'Payment confirmed') : "We couldn't confirm that payment yet"}
           </h1>
           <p style={{ color: 'var(--text-2)', fontSize: 14.5, lineHeight: 1.65 }}>
             {state === 'paid'
               ? (activation
                 ? 'Everything is set up. Sign in with the admin email and password you created to open your dashboard.'
-                : 'Your seat credits have been added — they’re ready to use right away.')
-              : `If you completed the payment, it may still be settling — refresh this page in a minute, or WhatsApp us your reference (${reference || '—'}) on 0814 812 8551 and we’ll confirm it personally.`}
+                : 'Your seat credits have been added, they’re ready to use right away.')
+              : `If you completed the payment, it may still be settling, refresh this page in a minute, or WhatsApp us your reference (${reference || '—'}) on 0814 812 8551 and we’ll confirm it personally.`}
           </p>
           <div style={{ marginTop: 18 }}>
             <Link to="/login" className="btn btn-primary" style={{ textDecoration: 'none', padding: '10px 26px' }}>Sign in</Link>

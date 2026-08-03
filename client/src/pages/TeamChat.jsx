@@ -345,7 +345,7 @@ export default function TeamChat() {
           {members && (
             <div className="chat-members">
               <div className="chat-members-head">
-                {currentRoom.kind === 'general' && 'Everyone in your organisation is in here — nobody can be removed from General.'}
+                {currentRoom.kind === 'general' && 'Everyone in your organisation is in here, nobody can be removed from General.'}
                 {currentRoom.kind === 'dept' && `Everyone in ${currentRoom.label}. Membership follows the department.`}
                 {currentRoom.kind === 'group' && `${members.length} ${members.length === 1 ? 'person' : 'people'} in this group.`}
               </div>
@@ -368,7 +368,7 @@ export default function TeamChat() {
             {messages === null && <div className="suite-loading"><div className="boot-spinner" /></div>}
             {messages?.length === 0 && (
               <p className="muted chat-empty">
-                Nothing here yet — say something. Type @ to mention a teammate; they get notified.
+                Nothing here yet, say something. Type @ to mention a teammate; they get notified.
               </p>
             )}
             {(messages || []).map((m) => {
@@ -407,7 +407,7 @@ export default function TeamChat() {
             <div className="chat-composer-row">
               <input ref={inputRef} value={body} onChange={onBodyChange} className="chat-input"
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && mentionMatches.length === 0) { e.preventDefault(); send(); } if (e.key === 'Escape') setMentionQ(null); }}
-                placeholder={`Message #${currentRoom.label} — @ to mention`} />
+                placeholder={`Message #${currentRoom.label}, @ to mention`} />
               <button className="btn btn-primary" disabled={busy || !body.trim()} onClick={send}>
                 {busy ? <span className="spinner" /> : 'Send'}
               </button>
@@ -435,7 +435,7 @@ export default function TeamChat() {
 }
 
 /* ---- Create / manage a group ---------------------------------------------
-   System admins only, and the database says so too — every RPC behind this
+   System admins only, and the database says so too, every RPC behind this
    re-checks is_super_admin() rather than trusting the UI to have hidden the
    button. Naming, membership and closing the group all live here. */
 function GroupModal({ group, staff, me, onClose, onSaved }) {
@@ -505,7 +505,7 @@ function GroupModal({ group, staff, me, onClose, onSaved }) {
             return (
               <button key={s.id} type="button" className={`chat-pick${on ? ' on' : ''}`}
                 disabled={busy || (!isNew && current === null) || locked}
-                title={locked ? 'You manage this group — you stay in it' : undefined}
+                title={locked ? 'You manage this group, you stay in it' : undefined}
                 onClick={() => (isNew
                   ? setPicked((p) => (p.includes(s.id) ? p.filter((x) => x !== s.id) : [...p, s.id]))
                   : toggleMember(s.id, on))}>

@@ -14,7 +14,7 @@ export const meta = {
   key: 'lumin-store',
   name: 'Atelier',
   category: 'ecommerce',
-  description: 'A high-contrast editorial storefront — oversized display type, parallax hero, gallery grid and motion throughout.',
+  description: 'A high-contrast editorial storefront, oversized display type, parallax hero, gallery grid and motion throughout.',
   accent: '#4F46E5',
   fonts: 'Syne + Inter',
 };

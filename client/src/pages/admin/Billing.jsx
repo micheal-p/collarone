@@ -86,7 +86,7 @@ export default function AdminBilling() {
     try {
       const { transaction } = await apiPost('/billing/renew', { months });
       setPending(transaction);
-      flash(`Renewal reference generated — ${naira(transaction.amount_kobo)} for ${months === 12 ? '12 months' : '1 month'}.`);
+      flash(`Renewal reference generated, ${naira(transaction.amount_kobo)} for ${months === 12 ? '12 months' : '1 month'}.`);
       load();
     } catch (e) { flash(e.message, true); } finally { setRenewBusy(0); }
   };
@@ -109,11 +109,11 @@ export default function AdminBilling() {
           <div style={{ fontSize: 20, fontWeight: 650, marginTop: 6, textTransform: 'capitalize' }}>{user?.org?.planTier || '—'}</div>
           <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '6px 0 12px' }}>
             {periodEnd ? <>Subscription runs until <strong>{fmtDate(periodEnd)}</strong>. </> : null}
-            Rate locked at sign-up — your base fee and per-seat cost don't change even as our plans grow.
+            Rate locked at sign-up, your base fee and per-seat cost don't change even as our plans grow.
           </p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn btn-primary" disabled={!!renewBusy} onClick={() => renew(1)}>{renewBusy === 1 ? 'Working…' : 'Renew 1 month'}</button>
-            <button className="btn btn-ghost" disabled={!!renewBusy} onClick={() => renew(12)}>{renewBusy === 12 ? 'Working…' : 'Renew 12 months — save 15%'}</button>
+            <button className="btn btn-ghost" disabled={!!renewBusy} onClick={() => renew(12)}>{renewBusy === 12 ? 'Working…' : 'Renew 12 months, save 15%'}</button>
           </div>
         </div>
       </div>
@@ -122,7 +122,7 @@ export default function AdminBilling() {
         <div style={{ padding: '16px 20px', marginBottom: 20, border: '1px solid var(--brand)', borderRadius: 'var(--radius-lg)', background: 'var(--brand-100)' }}>
           <div style={{ fontWeight: 650, marginBottom: 4 }}>Payment reference generated</div>
           <p style={{ fontSize: 13.5, margin: 0, color: 'var(--text)' }}>
-            Reference <strong style={{ fontFamily: 'ui-monospace, monospace' }}>{pending.reference}</strong> for {naira(pending.amount_kobo)} — WhatsApp us your reference at{' '}
+            Reference <strong style={{ fontFamily: 'ui-monospace, monospace' }}>{pending.reference}</strong> for {naira(pending.amount_kobo)}, WhatsApp us your reference at{' '}
             <a href="https://wa.me/2348148128551" target="_blank" rel="noreferrer">0814 812 8551</a> and we'll confirm the same day.
           </p>
           {payOnline && (
@@ -174,10 +174,10 @@ export default function AdminBilling() {
               <div className="field">
                 <label>How many credits?</label>
                 <select className="select" value={credits} onChange={(e) => setCredits(Number(e.target.value))}>
-                  {CREDIT_OPTIONS.map((n) => <option key={n} value={n}>{n} credit{n === 1 ? '' : 's'} — {naira(n * seatKobo)}</option>)}
+                  {CREDIT_OPTIONS.map((n) => <option key={n} value={n}>{n} credit{n === 1 ? '' : 's'}, {naira(n * seatKobo)}</option>)}
                 </select>
               </div>
-              <p style={{ fontSize: 13, color: 'var(--text-2)' }}>We'll generate a payment reference — send it to us on WhatsApp and your credits land the same day once confirmed.</p>
+              <p style={{ fontSize: 13, color: 'var(--text-2)' }}>We'll generate a payment reference, send it to us on WhatsApp and your credits land the same day once confirmed.</p>
               <div className="modal-actions">
                 <button type="button" className="btn btn-ghost" onClick={() => setBuyOpen(false)}>Cancel</button>
                 <button className="btn btn-primary" onClick={buy} disabled={busy}>{busy ? <span className="spinner" /> : 'Generate reference'}</button>
@@ -220,7 +220,7 @@ function ReceiptModal({ tx, orgName, onClose }) {
             <hr style={{ border: 'none', borderTop: '2px solid #14171f', margin: '10px 0 14px' }} />
             <div style={line}><span>Billed to</span><strong>{orgName || '—'}</strong></div>
             <div style={line}><span>Date</span><strong>{fmtDate(tx.confirmed_at || tx.created_at)}</strong></div>
-            <div style={line}><span>Item</span><strong>{TYPE_LABEL[tx.type] || tx.type}{tx.type === 'renewal' ? ` — ${tx.months === 12 ? '12 months' : '1 month'}` : ''}{tx.type === 'credit_purchase' ? ` — ${tx.credits_granted} credit${tx.credits_granted === 1 ? '' : 's'}` : ''}</strong></div>
+            <div style={line}><span>Item</span><strong>{TYPE_LABEL[tx.type] || tx.type}{tx.type === 'renewal' ? `, ${tx.months === 12 ? '12 months' : '1 month'}` : ''}{tx.type === 'credit_purchase' ? `, ${tx.credits_granted} credit${tx.credits_granted === 1 ? '' : 's'}` : ''}</strong></div>
             <div style={line}><span>Payment method</span><strong>{tx.method === 'paystack' ? 'Card (Paystack)' : 'Bank transfer'}</strong></div>
             <div style={{ ...line, borderBottom: 'none', fontSize: 17 }}><span style={{ fontWeight: 700 }}>Amount paid</span><strong>{naira(tx.amount_kobo)}</strong></div>
             <div style={{ marginTop: 10, display: 'inline-block', background: '#dff6dd', color: '#1a6a1a', fontWeight: 800, fontSize: 11, letterSpacing: '0.08em', borderRadius: 100, padding: '4px 12px' }}>PAID</div>

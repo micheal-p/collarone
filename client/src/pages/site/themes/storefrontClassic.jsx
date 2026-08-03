@@ -7,7 +7,7 @@ import { Reveal, useFonts, rise, emph } from './_kit.jsx';
 // product grid with price/CTA, a trust-badge strip and a familiar retail feel.
 // The versatile everyday option next to Atelier (editorial), Boutique (luxe)
 // and Market (playful). Manrope. Reuses the real cart.
-export const meta = { key: 'storefront-classic', name: 'Storefront Classic', category: 'ecommerce', description: 'A clean, trustworthy everyday shop — tidy product grid, trust badges and a familiar retail feel.', accent: '#2563EB', fonts: 'Manrope' };
+export const meta = { key: 'storefront-classic', name: 'Storefront Classic', category: 'ecommerce', description: 'A clean, trustworthy everyday shop, tidy product grid, trust badges and a familiar retail feel.', accent: '#2563EB', fonts: 'Manrope' };
 
 const money = (n) => `₦${Number(n || 0).toLocaleString('en-NG')}`;
 const V = { hero: 'split', card: 'bordered', btnRadius: 10, display: 1, headingWeight: 800, h2Mode: 'left-kicker', band: 'alt', secPad: 56, ctaMode: 'accent', footerMode: 'columns' };

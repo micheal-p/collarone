@@ -37,7 +37,7 @@ export function PublicFooter() {
               <img src={logoMark} alt="" width={20} height={20} style={{ display: 'block' }} />
               <span>Collar<em>One</em></span>
             </div>
-            <p>The business platform for Nigerian companies — team, leave, tasks and front desk today, customers and your website joining the same space. Built and supported in Nigeria.</p>
+            <p>The business platform for Nigerian companies, team, leave, tasks and front desk today, customers and your website joining the same space. Built and supported in Nigeria.</p>
             <div className="cl-footer-contact">
               <a href="https://wa.me/2348148128551" target="_blank" rel="noreferrer">WhatsApp</a>
               <a href="mailto:hello@collarone.app">hello@collarone.app</a>
@@ -53,7 +53,7 @@ export function PublicFooter() {
           <div className="cl-footer-col">
             <div className="cl-footer-h">Jobs</div>
             <Link to="/jobs">Jobs board</Link>
-            <Link to="/jobs/post">Post a job — free</Link>
+            <Link to="/jobs/post">Post a job, free</Link>
           </div>
           <div className="cl-footer-col">
             <div className="cl-footer-h">Legal</div>

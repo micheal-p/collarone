@@ -142,7 +142,7 @@ export default function App() {
         }
       />
 
-      {/* A platform admin has no organization workspace of their own — the
+      {/* A platform admin has no organization workspace of their own, the
           only way into a tenant view is the audited guest mode, where the
           session belongs to that org's admin (so isPlatformAdmin is false). */}
       <Route

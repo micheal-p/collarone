@@ -154,12 +154,12 @@ function ReportModal({ taskId, onClose, onSaved, onError }) {
               style={{ resize:'vertical', fontFamily:'inherit' }} />
           </div>
           <div className="field">
-            <label>Attach documents <span className="muted">(optional — max 10 MB each)</span></label>
+            <label>Attach documents <span className="muted">(optional, max 10 MB each)</span></label>
             <input type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files))}
               style={{ fontSize:13, marginTop:4 }} />
             {files.length > 0 && (
               <div style={{ marginTop:6, fontSize:12, color:'var(--text-2)' }}>
-                {files.map((f) => <div key={f.name}>{I.attach} {f.name} — {(f.size/1024).toFixed(0)} KB</div>)}
+                {files.map((f) => <div key={f.name}>{I.attach} {f.name}, {(f.size/1024).toFixed(0)} KB</div>)}
               </div>
             )}
           </div>
@@ -291,7 +291,7 @@ function TaskRow({ task, isSupervisor, myId, locked, onEdit, onDelete, onStatusC
           <td colSpan={6} style={{ padding:'0 16px 16px', background:'var(--surface)' }}>
             {task.recur_every && !task.recur_source_id && (
               <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
-                Repeats {task.recur_every === 'day' ? 'every day' : task.recur_every === 'week' ? 'weekly' : 'monthly'} — a fresh copy is raised each period.
+                Repeats {task.recur_every === 'day' ? 'every day' : task.recur_every === 'week' ? 'weekly' : 'monthly'}, a fresh copy is raised each period.
               </p>
             )}
             {task.recur_source_id && <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>Raised automatically from a repeating task.</p>}
@@ -545,14 +545,14 @@ export default function TasksApp({ access }) {
               style={!locked ? { background:'#fff0e8', color:'#8f3b00', borderColor:'#f0bea0' } : {}}
               title={locked ? 'Tasks not assigned to you are read-only. Click to unlock.' : 'Editing unlocked. Click to lock back.'}
             >
-              {locked ? <>{I.lock} Protected</> : <>{I.unlock} Editing — lock</>}
+              {locked ? <>{I.lock} Protected</> : <>{I.unlock} Editing, lock</>}
             </button>
           </>
         )}
       </div>
       {isSupervisor && !locked && tab === 'queue' && (
         <div style={{ background:'#fff4e0', border:'1px solid #f0bea0', borderRadius:6, padding:'7px 14px', fontSize:13, color:'#8f3b00', margin:'6px 0 2px', display:'flex', alignItems:'center', gap:8 }}>
-          {I.unlock} Edit mode is on — you can edit and delete any task. Lock when done.
+          {I.unlock} Edit mode is on, you can edit and delete any task. Lock when done.
         </div>
       )}
 
@@ -652,7 +652,7 @@ function TaskComments({ task, flash }) {
         <span style={{ fontSize: 13, fontWeight: 600 }}>Comments {comments ? `(${comments.length})` : ''}</span>
       </div>
       {comments === null && <div style={{ padding: '8px 0' }}><div className="boot-spinner" style={{ width: 16, height: 16 }} /></div>}
-      {comments?.length === 0 && <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>Quick back-and-forth about this task lives here — the assignee and creator get notified.</p>}
+      {comments?.length === 0 && <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>Quick back-and-forth about this task lives here, the assignee and creator get notified.</p>}
       {(comments || []).map((c) => (
         <div key={c.id} style={{ display: 'flex', gap: 8, padding: '7px 0', alignItems: 'flex-start' }}>
           <span className="avatar sm" style={{ flexShrink: 0 }}>{(c.author?.name || '?').split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}</span>

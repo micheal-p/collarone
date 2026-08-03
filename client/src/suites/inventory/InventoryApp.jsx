@@ -51,7 +51,7 @@ function ItemModal({ onClose, onSaved, flash }) {
       <form onSubmit={submit}>
           <div className="form-grid">
             <Field label="Item code *"><input className="input" value={f.sku} onChange={(e) => set('sku', e.target.value)} required autoFocus placeholder="e.g. RICE-50KG" /></Field>
-            <Field label="Item name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required placeholder="e.g. Rice — 50kg bag" /></Field>
+            <Field label="Item name *"><input className="input" value={f.name} onChange={(e) => set('name', e.target.value)} required placeholder="e.g. Rice, 50kg bag" /></Field>
             <Field label="Counted in"><input className="input" value={f.unit} onChange={(e) => set('unit', e.target.value)} placeholder="e.g. bags, cartons, litres, pieces" /></Field>
             <Field label="Category"><input className="input" value={f.category} onChange={(e) => set('category', e.target.value)} placeholder="e.g. Raw materials, Drinks" /></Field>
             <Field label="Low-stock alert at"><input className="input" type="number" value={f.reorderLevel} onChange={(e) => set('reorderLevel', e.target.value)} placeholder="e.g. 10" /></Field>
@@ -59,8 +59,8 @@ function ItemModal({ onClose, onSaved, flash }) {
           <Field label="What kind of stock is this? *">
             <div style={{ display: 'grid', gap: 8 }}>
               {[
-                ['sell', 'Sell stock', 'Products customers buy — store orders and invoices draw it down.', true, false],
-                ['staff', 'Staff equipment', 'Taken out by a staff member and returned — tools, gear, uniforms, loaners.', false, true],
+                ['sell', 'Sell stock', 'Products customers buy, store orders and invoices draw it down.', true, false],
+                ['staff', 'Staff equipment', 'Taken out by a staff member and returned, tools, gear, uniforms, loaners.', false, true],
                 ['both', 'Both', 'Sold to customers AND checked out by staff (e.g. demo units).', true, true],
               ].map(([key, title, hint, sale, staffUse]) => {
                 const active = f.forSale === sale && f.forStaffUse === staffUse;
@@ -205,13 +205,13 @@ function TakeoutModal({ items, warehouses, onClose, onSaved, flash }) {
           items: [{ description: `${item?.name || 'Item'} (${f.quantity} ${item?.unit || ''})`.trim(), qty: Number(f.quantity), unit_price: 0 }],
           reference: 'Staff takeout', notes: f.notes || 'Return expected.', vatRate: 0,
         });
-        flash(`Takeout recorded — handover note ${doc.doc_no} filed in Invoicing & Trade Docs.`);
+        flash(`Takeout recorded, handover note ${doc.doc_no} filed in Invoicing & Trade Docs.`);
       } catch {
         INV.generateTakeoutDoc({
           kind: 'Takeout Request', itemName: item?.name || '', quantity: f.quantity, unit: item?.unit || '',
           staffId: f.staffId, staffName: member?.name || '', approverId: saved.approved_by, approverName: saved.approver?.name || 'Approver', notes: f.notes,
         });
-        flash('Takeout recorded. Form downloaded — filing to Documents in the background.');
+        flash('Takeout recorded. Form downloaded, filing to Documents in the background.');
       }
       onSaved(saved);
       onClose();
@@ -222,7 +222,7 @@ function TakeoutModal({ items, warehouses, onClose, onSaved, flash }) {
     <Modal title="Tag a staff takeout" onClose={onClose} wide>
       <form onSubmit={submit}>
           {staffItems.length === 0 ? (
-            <p className="muted" style={{ fontSize: 13 }}>No items are marked "Staff can take out" yet — edit an item to enable this.</p>
+            <p className="muted" style={{ fontSize: 13 }}>No items are marked "Staff can take out" yet, edit an item to enable this.</p>
           ) : (
             <div className="form-grid">
               <Field label="Item *">
@@ -296,9 +296,9 @@ export default function InventoryApp({ access }) {
   const heldReservations = reservations.filter((r) => r.status === 'held');
 
   const fulfill = async (r) => {
-    const ok = await confirm({ title: 'Fulfil this reservation?', message: 'The reserved stock moves out of the warehouse — this cannot be undone.', confirmLabel: 'Fulfil' });
+    const ok = await confirm({ title: 'Fulfil this reservation?', message: 'The reserved stock moves out of the warehouse, this cannot be undone.', confirmLabel: 'Fulfil' });
     if (!ok) return;
-    try { const saved = await INV.fulfillReservation(r.id); flash('Reservation fulfilled — stock moved out.'); setReservations((rs) => rs.map((x) => (x.id === saved.id ? saved : x))); load(); }
+    try { const saved = await INV.fulfillReservation(r.id); flash('Reservation fulfilled, stock moved out.'); setReservations((rs) => rs.map((x) => (x.id === saved.id ? saved : x))); load(); }
     catch (e) { flash(e.message, true); }
   };
   const release = async (r) => {
@@ -322,13 +322,13 @@ export default function InventoryApp({ access }) {
         notes: `Condition: ${conditionLabel}.${issues ? ` Issues: ${issues}` : ''}`, vatRate: 0,
       });
       setDocMeta(doc.id, { condition, issues, photo_url: photoUrl || '' }).catch(() => {});
-      flash(`Returned — goods return note ${doc.doc_no} filed in Invoicing & Trade Docs.`);
+      flash(`Returned, goods return note ${doc.doc_no} filed in Invoicing & Trade Docs.`);
     } catch {
       INV.generateTakeoutDoc({
         kind: 'Return Form', itemName: t.item?.name || '', quantity: t.quantity, unit: t.item?.unit || '',
         staffId: t.staff_id, staffName: t.staff?.name || '', approverId: t.approved_by, approverName: t.approver?.name || 'Approver', notes: issues,
       });
-      flash('Returned. Form downloaded — filing to Documents in the background.');
+      flash('Returned. Form downloaded, filing to Documents in the background.');
     }
     setTakeouts((ts) => ts.map((x) => (x.id === saved.id ? saved : x)));
     load();
@@ -524,7 +524,7 @@ export default function InventoryApp({ access }) {
       {returnTarget && (
         <ReturnConditionModal
           title="Return inspection"
-          itemLabel={`${returnTarget.item?.name || 'Item'} — ${returnTarget.staff?.name || ''}`}
+          itemLabel={`${returnTarget.item?.name || 'Item'}, ${returnTarget.staff?.name || ''}`}
           orgId={orgId} flash={flash}
           onClose={() => setReturnTarget(null)}
           onSubmit={(data) => completeReturn(returnTarget, data)}
@@ -570,7 +570,7 @@ function StockTakeModal({ items, warehouses, onClose, onDone, flash }) {
         if (codes.length) { setFilter(codes[0].rawValue); break; }
         await new Promise((r) => setTimeout(r, 250));
       }
-    } catch { flash('Could not open the camera — type the SKU instead.', true); }
+    } catch { flash('Could not open the camera, type the SKU instead.', true); }
     finally { stream?.getTracks().forEach((t) => t.stop()); setScanning(false); }
   };
 
@@ -590,7 +590,7 @@ function StockTakeModal({ items, warehouses, onClose, onDone, flash }) {
       } catch { failed++; }
     }
     setBusy(false);
-    flash(failed ? `${ok} adjusted, ${failed} failed.` : `Stock take booked — ${ok} item${ok === 1 ? '' : 's'} adjusted.`, failed > 0);
+    flash(failed ? `${ok} adjusted, ${failed} failed.` : `Stock take booked, ${ok} item${ok === 1 ? '' : 's'} adjusted.`, failed > 0);
     onDone();
   };
 

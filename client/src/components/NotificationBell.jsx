@@ -22,22 +22,22 @@ const naira = (kobo) => `₦${(Number(kobo) / 100).toLocaleString('en-NG')}`;
 // Friendly one-liners per event type. Fallback renders the raw type so a new
 // emitter is visible immediately even before it gets copy here.
 const COPY = {
-  'payment.confirmed': (p) => `Payment received${p.amountKobo ? ` — ${naira(p.amountKobo)}` : ''}${p.reference ? ` (${p.reference})` : ''}`,
-  'payment.refunded': (p) => `Refund recorded${p.amountKobo ? ` — ${naira(p.amountKobo)}` : ''}`,
-  'billing.renewal_due': () => 'Subscription renewal coming up — see Billing',
-  'billing.past_due': () => 'Renewal is due — renew from Billing to keep full access',
-  'billing.read_only': () => 'Workspace is read-only — renew from Billing to make changes',
+  'payment.confirmed': (p) => `Payment received${p.amountKobo ? `, ${naira(p.amountKobo)}` : ''}${p.reference ? ` (${p.reference})` : ''}`,
+  'payment.refunded': (p) => `Refund recorded${p.amountKobo ? `, ${naira(p.amountKobo)}` : ''}`,
+  'billing.renewal_due': () => 'Subscription renewal coming up, see Billing',
+  'billing.past_due': () => 'Renewal is due, renew from Billing to keep full access',
+  'billing.read_only': () => 'Workspace is read-only, renew from Billing to make changes',
   'billing.suspended': () => 'Workspace suspended for an overdue payment',
-  'billing.trial_expired': () => 'Free trial ended — complete activation to continue',
+  'billing.trial_expired': () => 'Free trial ended, complete activation to continue',
   'hr.hired': (p) => `${p.name || 'A new teammate'} joined the team${p.jobTitle ? ` as ${p.jobTitle}` : ''}`,
   'hr.bulk_imported': (p) => `${p.count || 'New'} staff imported to the team`,
-  'invoice.recurring_generated': (p) => `Recurring invoice ${p.docNo || ''} ready for ${p.party || 'your customer'} — review & send`,
+  'invoice.recurring_generated': (p) => `Recurring invoice ${p.docNo || ''} ready for ${p.party || 'your customer'}, review & send`,
   'chat.mention': (p, uid) => `${p.by || 'Someone'} mentioned ${p.mentioned === uid ? 'you' : 'a teammate'} in chat: “${p.snippet || ''}”`,
   'automation.notice': (p) => p.message || 'Automation ran',
   'task.comment': (p, uid) => `${p.by || 'Someone'} commented on ${Array.isArray(p.for) && p.for.includes(uid) ? 'your task' : 'a task'} “${p.title || ''}”: ${p.snippet || ''}`,
   'document.sign_requested': (p, uid) => `${p.by || 'Someone'} asked ${Array.isArray(p.for) && p.for.includes(uid) ? 'YOU' : 'a teammate'} to sign “${p.name || 'a document'}”`,
   'document.signed': (p) => `${p.by || 'Someone'} signed “${p.name || 'a document'}”`,
-  'document.expiring': (p) => `Document “${p.name || ''}” expires ${p.expiresAt || 'soon'} — renew or replace it`,
+  'document.expiring': (p) => `Document “${p.name || ''}” expires ${p.expiresAt || 'soon'}, renew or replace it`,
 };
 const ICON = (type) => {
   if (type.startsWith('payment.')) return '₦'; // currency symbol, not decoration
@@ -83,7 +83,7 @@ export default function NotificationBell() {
 
   return (
     <div className="waffle-wrap" ref={wrapRef}>
-      <button className="iconbtn notif-btn" aria-label={`Notifications${unread ? ` — ${unread} unread` : ''}`}
+      <button className="iconbtn notif-btn" aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
         onClick={() => { setOpen((v) => !v); if (!open) markSeen(); }}>
         <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0" />
@@ -95,7 +95,7 @@ export default function NotificationBell() {
           <div className="flyout-head">Activity</div>
           <div className="notif-list">
             {events.length === 0 && (
-              <div className="notif-empty">Nothing yet — payments, approvals and team changes will show up here.</div>
+              <div className="notif-empty">Nothing yet, payments, approvals and team changes will show up here.</div>
             )}
             {events.map((e) => (
               <div key={e.id} className="notif-row">

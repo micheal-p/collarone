@@ -68,7 +68,7 @@ export default function Login() {
             <div className="login-actions">
               <button className="btn btn-primary" type="submit">Next</button>
             </div>
-            <p className="login-note">Staff accounts are created by your administrator — sign in with the email and password they gave you.</p>
+            <p className="login-note">Staff accounts are created by your administrator, sign in with the email and password they gave you.</p>
           </form>
         )}
 

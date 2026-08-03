@@ -77,9 +77,9 @@ function AssignModal({ asset, onClose, onSaved, flash }) {
       const member = staff.find((x) => x.id === employeeId);
       createTradeDoc({
         docType: 'handover', partyName: member?.name || '',
-        items: [{ description: `${asset.name}${asset.serial_number ? ` — SN ${asset.serial_number}` : ''}`, qty: 1, unit_price: 0 }],
+        items: [{ description: `${asset.name}${asset.serial_number ? `, SN ${asset.serial_number}` : ''}`, qty: 1, unit_price: 0 }],
         reference: 'IT asset assignment', notes: notes || 'Return on exit or reassignment.', vatRate: 0,
-      }).then((doc) => flash(`Asset assigned — handover note ${doc.doc_no} filed in Invoicing & Trade Docs.`))
+      }).then((doc) => flash(`Asset assigned, handover note ${doc.doc_no} filed in Invoicing & Trade Docs.`))
         .catch(() => flash('Asset assigned.'));
       onSaved(saved); onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
@@ -112,7 +112,7 @@ function HistoryModal({ asset, onClose, flash }) {
     IA.getHistory(asset.id).then(setRows).catch((e) => { flash(e.message, true); setRows([]); });
   }, [asset.id, flash]);
   return (
-    <Modal title={`History — ${asset.name}`} onClose={onClose}>
+    <Modal title={`History, ${asset.name}`} onClose={onClose}>
       {rows === null && <div className="suite-loading"><div className="boot-spinner" /></div>}
       {rows !== null && rows.length === 0 && (
         <EmptyState title="No history yet" hint="Assign, return, repair and retire actions are recorded here." />
@@ -178,12 +178,12 @@ export function ManagerView({ flash }) {
     try {
       const doc = await createTradeDoc({
         docType: 'return_note', partyName: holder,
-        items: [{ description: `${a.name}${a.serial_number ? ` — SN ${a.serial_number}` : ''}`, qty: 1, unit_price: 0 }],
+        items: [{ description: `${a.name}${a.serial_number ? `, SN ${a.serial_number}` : ''}`, qty: 1, unit_price: 0 }],
         reference: 'IT asset return',
         notes: `Condition: ${conditionLabel}.${issues ? ` Issues: ${issues}` : ''}`, vatRate: 0,
       });
       setDocMeta(doc.id, { condition, issues, photo_url: photoUrl || '' }).catch(() => {});
-      flash(`Asset returned — goods return note ${doc.doc_no} filed.`);
+      flash(`Asset returned, goods return note ${doc.doc_no} filed.`);
     } catch {
       flash('Asset returned.');
     }
@@ -206,7 +206,7 @@ export function ManagerView({ flash }) {
   const retireAsset = async (a) => {
     const ok = await confirm({
       title: `Retire ${a.name}?`,
-      message: 'The asset moves to Retired — there is no un-retire.',
+      message: 'The asset moves to Retired, there is no un-retire.',
       confirmLabel: 'Retire', danger: true,
     });
     if (!ok) return;
@@ -283,7 +283,7 @@ export function ManagerView({ flash }) {
       {returnTarget && (
         <ReturnConditionModal
           title="Return inspection"
-          itemLabel={`${returnTarget.name}${returnTarget.serial_number ? ` — SN ${returnTarget.serial_number}` : ''}`}
+          itemLabel={`${returnTarget.name}${returnTarget.serial_number ? `, SN ${returnTarget.serial_number}` : ''}`}
           orgId={orgId} flash={flash}
           onClose={() => setReturnTarget(null)}
           onSubmit={(data) => completeReturn(returnTarget, data)}

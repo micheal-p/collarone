@@ -30,7 +30,7 @@ export default function PostJob() {
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { setSeo({ title: 'Post a job free — Collarone', description: 'Post your job to the Collarone jobs board for free and share it straight to WhatsApp. Register once, get approved, then post.', canonical: 'https://collarone.app/jobs/post' }); }, []);
+  useEffect(() => { setSeo({ title: 'Post a job free, Collarone', description: 'Post your job to the Collarone jobs board for free and share it straight to WhatsApp. Register once, get approved, then post.', canonical: 'https://collarone.app/jobs/post' }); }, []);
 
   const refresh = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -76,7 +76,7 @@ export default function PostJob() {
         <div style={{ maxWidth: 560, margin: '22px auto 0', padding: '18px 20px', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 15 }}>Ready to run your whole business?</div>
-            <div style={{ fontSize: 13.5, color: 'var(--text-soft)', marginTop: 2 }}>Add HR, payroll, invoicing, CRM and more — pick just the suites you need, on the same account.</div>
+            <div style={{ fontSize: 13.5, color: 'var(--text-soft)', marginTop: 2 }}>Add HR, payroll, invoicing, CRM and more, pick just the suites you need, on the same account.</div>
           </div>
           <Link to="/signup" className="cl-btn cl-btn-primary" style={{ flexShrink: 0 }}>Pick your suites</Link>
         </div>
@@ -91,7 +91,7 @@ function Shell({ children }) {
       <PublicNav active="jobs" />
       <main style={{ maxWidth: 1160, margin: '0 auto', padding: '110px 20px 80px' }}>
         <div style={{ textAlign: 'center', marginBottom: 26 }}>
-          <p className="cl-eyebrow" style={{ color: 'var(--accent-ink)' }}>Post a job — free</p>
+          <p className="cl-eyebrow" style={{ color: 'var(--accent-ink)' }}>Post a job, free</p>
           <h1 style={{ fontSize: 30, margin: '6px 0 0' }}>Hire from the Collarone board</h1>
         </div>
         {children}
@@ -168,7 +168,7 @@ function PostForm({ onLogout }) {
     setErr(''); setBusy(true);
     try {
       const d = await post({ action: 'structure', raw }, await token());
-      if (d.notAJob) { setErr("That doesn't look like a job advert — check the text."); return; }
+      if (d.notAJob) { setErr("That doesn't look like a job advert, check the text."); return; }
       setF((s) => ({ ...s, ...d.fields })); setUsedPaste(true); setMode('form');
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
@@ -181,7 +181,7 @@ function PostForm({ onLogout }) {
   };
 
   if (done) {
-    const msg = encodeURIComponent(`${f.title}${f.company ? ' at ' + f.company : ''} — apply here: ${done.url}`);
+    const msg = encodeURIComponent(`${f.title}${f.company ? ' at ' + f.company : ''}, apply here: ${done.url}`);
     return (
       <div style={{ ...card, textAlign: 'center' }}>
         <h2 style={{ fontSize: 20, margin: '4px 0 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
@@ -212,7 +212,7 @@ function PostForm({ onLogout }) {
       {mode === 'paste' ? (
         <div>
           <label style={label}>Paste the job exactly as it is on WhatsApp</label>
-          <textarea style={{ ...input, minHeight: 160, resize: 'vertical' }} value={raw} onChange={(e) => setRaw(e.target.value)} placeholder="Paste the whole thing — we'll tidy it into a proper post you can review." />
+          <textarea style={{ ...input, minHeight: 160, resize: 'vertical' }} value={raw} onChange={(e) => setRaw(e.target.value)} placeholder="Paste the whole thing, we'll tidy it into a proper post you can review." />
           <button className="cl-btn cl-btn-primary" style={{ width: '100%', marginTop: 14 }} disabled={busy || raw.trim().length < 15} onClick={structure}>{busy ? 'Reading it…' : 'Tidy it up →'}</button>
         </div>
       ) : (

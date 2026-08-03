@@ -3,7 +3,7 @@ import { Reveal, Magnetic, useFonts, rise, emph } from './_kit.jsx';
 
 // Startup Gradient — a modern SaaS look: a soft gradient hero, glassy feature
 // cards, rounded everything and gradient buttons.
-export const meta = { key: 'startup-gradient', name: 'Startup Gradient', category: 'landing', description: 'Modern SaaS — a soft gradient hero, glassy cards and rounded gradient buttons.', accent: '#6D5CF5', fonts: 'Sora + Inter' };
+export const meta = { key: 'startup-gradient', name: 'Startup Gradient', category: 'landing', description: 'Modern SaaS, a soft gradient hero, glassy cards and rounded gradient buttons.', accent: '#6D5CF5', fonts: 'Sora + Inter' };
 
 function Style({ accent }) {
   return <style>{`

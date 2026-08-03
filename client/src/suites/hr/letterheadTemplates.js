@@ -5,7 +5,7 @@
 // ============================================================================
 
 export const LETTERHEAD_TEMPLATES = {
-  classic:   { label: 'Classic',   hint: 'Serif, centered — the traditional Nigerian business letterhead' },
+  classic:   { label: 'Classic',   hint: 'Serif, centered, the traditional Nigerian business letterhead' },
   executive: { label: 'Executive', hint: 'Ink band across the top, reversed company name' },
   modern:    { label: 'Modern',    hint: 'Accent bar on the left, clean sans-serif' },
   minimal:   { label: 'Minimal',   hint: 'Hairline rule, understated' },
@@ -29,17 +29,17 @@ export const LETTER_TYPES = {
   introduction: {
     label: 'Introduction letter',
     hint: 'Introduces the employee to a bank, embassy or third party',
-    skeleton: (c) => `TO WHOM IT MAY CONCERN\n\nDear Sir/Madam,\n\nRE: LETTER OF INTRODUCTION — ${(c.employeeName || '').toUpperCase()}\n\nThis is to confirm that ${c.employeeName} is a staff member of ${c.companyName}, currently serving as ${c.jobTitle || '[job title]'}${c.startDate ? ` since ${c.startDate}` : ''}.\n\nThis letter is issued at the employee's request for [purpose]. Kindly accord them the necessary assistance.\n\nYours faithfully,`,
+    skeleton: (c) => `TO WHOM IT MAY CONCERN\n\nDear Sir/Madam,\n\nRE: LETTER OF INTRODUCTION, ${(c.employeeName || '').toUpperCase()}\n\nThis is to confirm that ${c.employeeName} is a staff member of ${c.companyName}, currently serving as ${c.jobTitle || '[job title]'}${c.startDate ? ` since ${c.startDate}` : ''}.\n\nThis letter is issued at the employee's request for [purpose]. Kindly accord them the necessary assistance.\n\nYours faithfully,`,
   },
   employment_verification: {
     label: 'Employment verification',
     hint: 'Verifies employment status and role',
-    skeleton: (c) => `TO WHOM IT MAY CONCERN\n\nDear Sir/Madam,\n\nRE: EMPLOYMENT VERIFICATION — ${(c.employeeName || '').toUpperCase()}\n\nWe confirm that ${c.employeeName} is employed by ${c.companyName} as ${c.jobTitle || '[job title]'}${c.startDate ? `, having joined the company on ${c.startDate}` : ''}. They remain a staff member in good standing as at the date of this letter.\n\nThis letter is issued upon the employee's request and confers no liability on the company.\n\nYours faithfully,`,
+    skeleton: (c) => `TO WHOM IT MAY CONCERN\n\nDear Sir/Madam,\n\nRE: EMPLOYMENT VERIFICATION, ${(c.employeeName || '').toUpperCase()}\n\nWe confirm that ${c.employeeName} is employed by ${c.companyName} as ${c.jobTitle || '[job title]'}${c.startDate ? `, having joined the company on ${c.startDate}` : ''}. They remain a staff member in good standing as at the date of this letter.\n\nThis letter is issued upon the employee's request and confers no liability on the company.\n\nYours faithfully,`,
   },
   query: {
     label: 'Query letter',
-    hint: 'Formal query — first step of fair-hearing discipline',
-    skeleton: (c) => `Dear ${c.employeeName},\n\nRE: QUERY — [subject]\n\nIt has been observed that [describe the conduct/incident, with date and place].\n\nThis conduct, if established, contravenes the company's policies. You are hereby required to submit a written explanation to the undersigned within 48 hours of receipt of this letter, stating why disciplinary action should not be taken against you.\n\nYours faithfully,`,
+    hint: 'Formal query, first step of fair-hearing discipline',
+    skeleton: (c) => `Dear ${c.employeeName},\n\nRE: QUERY, [subject]\n\nIt has been observed that [describe the conduct/incident, with date and place].\n\nThis conduct, if established, contravenes the company's policies. You are hereby required to submit a written explanation to the undersigned within 48 hours of receipt of this letter, stating why disciplinary action should not be taken against you.\n\nYours faithfully,`,
   },
   warning: {
     label: 'Warning letter',
@@ -48,7 +48,7 @@ export const LETTER_TYPES = {
   },
   custom: {
     label: 'Custom letter',
-    hint: 'Free-form — write anything on the letterhead',
+    hint: 'Free-form, write anything on the letterhead',
     skeleton: (c) => `Dear ${c.employeeName},\n\n\n\nYours faithfully,`,
   },
 };
@@ -69,12 +69,12 @@ export function suggestReference(letterType, issuedLetters) {
 
 // Safe-filing suggestions — which Documents folder a letter belongs in.
 export const LETTER_FOLDER_SUGGESTION = {
-  confirmation: 'HR Letters — Employment',
-  promotion: 'HR Letters — Employment',
-  introduction: 'HR Letters — Verifications',
-  employment_verification: 'HR Letters — Verifications',
-  query: 'HR Letters — Disciplinary',
-  warning: 'HR Letters — Disciplinary',
+  confirmation: 'HR Letters, Employment',
+  promotion: 'HR Letters, Employment',
+  introduction: 'HR Letters, Verifications',
+  employment_verification: 'HR Letters, Verifications',
+  query: 'HR Letters, Disciplinary',
+  warning: 'HR Letters, Disciplinary',
   custom: 'HR Letters',
 };
 

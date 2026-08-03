@@ -3,7 +3,7 @@ import { Reveal, Magnetic, useFonts, rise, emph } from './_kit.jsx';
 
 // Feature Focus — benefit-led. A clean split hero, then each feature as its own
 // full alternating row (text against a tinted graphic panel). Archivo display.
-export const meta = { key: 'feature-focus', name: 'Feature Focus', category: 'landing', description: 'Benefit-led — a split hero and each feature as its own alternating row. Clean and persuasive.', accent: '#1F6FEB', fonts: 'Archivo + Inter' };
+export const meta = { key: 'feature-focus', name: 'Feature Focus', category: 'landing', description: 'Benefit-led, a split hero and each feature as its own alternating row. Clean and persuasive.', accent: '#1F6FEB', fonts: 'Archivo + Inter' };
 
 function Style({ accent }) {
   return <style>{`

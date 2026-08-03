@@ -8,7 +8,7 @@ const fmt = (d) => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { day: 
 const ADMIN_NOTE = 'Only the System Administrator can change leave types.';
 
 /* Admin surface for leave approvers: org holidays, leave types (super_admin
-   writes — RLS enforces it, we also pre-disable), and per-employee balance
+   writes, RLS enforces it, we also pre-disable), and per-employee balance
    overrides. onChange = parent reload so calendar/working-day preview and
    balance cards pick up edits immediately. */
 export default function LeaveSettings({ flash, onChange }) {
@@ -117,7 +117,7 @@ export default function LeaveSettings({ flash, onChange }) {
           </table>
         </div>
         {!isAdmin && <p className="muted" style={{ marginTop: 6 }}>{ADMIN_NOTE}</p>}
-        {isAdmin && <p className="muted" style={{ marginTop: 6 }}>Types cannot be deleted because leave requests reference them — deactivate instead.</p>}
+        {isAdmin && <p className="muted" style={{ marginTop: 6 }}>Types cannot be deleted because leave requests reference them, deactivate instead.</p>}
       </div>
 
       {/* ---- Balance adjustments ---- */}
@@ -303,7 +303,7 @@ function BalanceEditor({ staff, types, flash, onChange }) {
       </div>
       {ready && (
         <div className="lv-preview">
-          <span>{hasRow ? 'Current available balance' : 'Available (no override row yet — type defaults apply)'}</span>
+          <span>{hasRow ? 'Current available balance' : 'Available (no override row yet, type defaults apply)'}</span>
           <b>{available === null ? '—' : `${available} day(s)`}</b>
         </div>
       )}

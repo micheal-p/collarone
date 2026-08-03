@@ -52,7 +52,7 @@ function EditModal({ emp, staff, departments, onClose, onSaved, onError }) {
   };
 
   return (
-    <Modal title={`Edit employment — ${emp.name}`} onClose={onClose} wide>
+    <Modal title={`Edit employment, ${emp.name}`} onClose={onClose} wide>
       <form onSubmit={submit}>
           <div className="field"><label>Job title</label>
             <input className="input" value={f.jobTitle} onChange={(e) => set('jobTitle', e.target.value)} autoFocus />
@@ -183,18 +183,18 @@ export default function HRApp({ access }) {
   }, [loading]); // eslint-disable-line
 
   const HR_TOUR_STEPS = [
-    { title: 'Welcome to HR & Staff', body: 'This is the flagship suite — everything about your people lives here, from the day they apply to the day they leave. A one-minute walkthrough; skip anytime.' },
-    { target: '[data-tour="hr-tab-directory"]', title: 'The Directory', body: 'Every member of staff, filterable by department. Click any person to open their Employee 360 — pay, leave, attendance, documents, reviews and cases on one page.' },
+    { title: 'Welcome to HR & Staff', body: 'This is the flagship suite, everything about your people lives here, from the day they apply to the day they leave. A one-minute walkthrough; skip anytime.' },
+    { target: '[data-tour="hr-tab-directory"]', title: 'The Directory', body: 'Every member of staff, filterable by department. Click any person to open their Employee 360, pay, leave, attendance, documents, reviews and cases on one page.' },
     { target: '[data-tour="hr-tab-orgchart"]', title: 'Org chart', body: 'Your reporting lines, drawn automatically from each person\'s manager field.' },
     { target: '[data-tour="hr-tab-myinterviews"]', title: 'My interviews', body: 'If you\'re interviewing a candidate, your schedule and feedback forms are here.' },
-    { target: '[data-tour="hr-tab-recruiting"]', title: 'Recruiting', body: 'Post roles to your public careers page, move applicants through the pipeline with interview scorecards, email candidates, send offers as private accept/decline links — then hire in one click.' },
-    { target: '[data-tour="hr-tab-letters"]', title: 'Letters', body: 'Confirmation, promotion, query and warning letters — typed, from templates, or drafted by Collarone AI — on your own letterhead, auto-numbered, filed into Documents.' },
+    { target: '[data-tour="hr-tab-recruiting"]', title: 'Recruiting', body: 'Post roles to your public careers page, move applicants through the pipeline with interview scorecards, email candidates, send offers as private accept/decline links, then hire in one click.' },
+    { target: '[data-tour="hr-tab-letters"]', title: 'Letters', body: 'Confirmation, promotion, query and warning letters, typed, from templates, or drafted by Collarone AI, on your own letterhead, auto-numbered, filed into Documents.' },
     { target: '[data-tour="hr-tab-onboarding"]', title: 'New starters', body: 'New hires get a structured task list, and probation end dates trigger a proper decision: confirm with the letter, extend, or exit.' },
-    { target: '[data-tour="hr-tab-offboarding"]', title: 'Exits', body: 'Exits with their own task lists and records — the story ends as cleanly as it began.' },
+    { target: '[data-tour="hr-tab-offboarding"]', title: 'Exits', body: 'Exits with their own task lists and records, the story ends as cleanly as it began.' },
     { target: '[data-tour="hr-tab-performance"]', title: 'Performance', body: 'Goals and review cycles, with ratings that show up on the Employee 360.' },
-    { target: '[data-tour="hr-tab-compliance"]', title: 'Cases & files', body: 'Discipline done properly — query letter, written response, outcome — plus employee documents with expiry tracking.' },
+    { target: '[data-tour="hr-tab-compliance"]', title: 'Cases & files', body: 'Discipline done properly, query letter, written response, outcome, plus employee documents with expiry tracking.' },
     { target: '[data-tour="hr-tab-analytics"]', title: 'Analytics', body: 'Headcount, attrition, hiring trend, anniversaries, birthdays, and the statutory meter that flags the group-life requirement at 5+ staff.' },
-    { title: 'That\'s HR & Staff', body: 'Start with the Directory — add your people, and everything else builds on top. Replay this tour anytime by adding ?tour=1 to the address.' },
+    { title: 'That\'s HR & Staff', body: 'Start with the Directory, add your people, and everything else builds on top. Replay this tour anytime by adding ?tour=1 to the address.' },
   ];
   const [q, setQ] = useState('');
   const [deptFilter, setDeptFilter] = useState('');

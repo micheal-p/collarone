@@ -3,7 +3,7 @@ import { Reveal, useFonts, rise, emph } from './_kit.jsx';
 
 // Minimal Pitch — restraint as the design. A single narrow column, enormous
 // whitespace, a refined Fraunces display and hairline rules. Nothing shouts.
-export const meta = { key: 'minimal-pitch', name: 'Minimal Pitch', category: 'landing', description: 'Restraint as the design — one narrow column, huge whitespace, a refined serif and hairline rules.', accent: '#111014', fonts: 'Fraunces + Inter' };
+export const meta = { key: 'minimal-pitch', name: 'Minimal Pitch', category: 'landing', description: 'Restraint as the design, one narrow column, huge whitespace, a refined serif and hairline rules.', accent: '#111014', fonts: 'Fraunces + Inter' };
 
 function Style({ accent }) {
   return <style>{`

@@ -12,13 +12,13 @@ function DecisionModal({ emp, onClose, onConfirm, onExtend }) {
   const [extendTo, setExtendTo] = useState('');
   const over = daysPast(emp.probationEndDate);
   return (
-    <Modal title={`Probation decision — ${emp.name}`} onClose={onClose}>
+    <Modal title={`Probation decision, ${emp.name}`} onClose={onClose}>
       <p className="muted" style={{ fontSize: 13, margin: '0 0 14px' }}>
         {emp.name}&rsquo;s probation {over > 0 ? `ended ${over} day${over === 1 ? '' : 's'} ago` : `ends ${H.fmtDate(emp.probationEndDate)}`}.
         Choose how to proceed:
       </p>
       <div style={{ display: 'grid', gap: 10 }}>
-        <button className="btn btn-primary" onClick={() => onConfirm(true)}>Confirm — and compose the confirmation letter</button>
+        <button className="btn btn-primary" onClick={() => onConfirm(true)}>Confirm, and compose the confirmation letter</button>
         <button className="btn btn-ghost" onClick={() => onConfirm(false)}>Confirm without a letter</button>
         <div className="card" style={{ padding: '12px 14px' }}>
           <div style={{ fontSize: 13, fontWeight: 650, marginBottom: 8 }}>Extend probation</div>

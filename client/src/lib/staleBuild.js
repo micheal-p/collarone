@@ -83,5 +83,5 @@ export function cleanRecoveryUrl() {
     if (!url.searchParams.has('_b')) return;
     url.searchParams.delete('_b');
     window.history.replaceState({}, '', url.pathname + url.search + url.hash);
-  } catch { /* cosmetic only — never let this break boot */ }
+  } catch { /* cosmetic only, never let this break boot */ }
 }

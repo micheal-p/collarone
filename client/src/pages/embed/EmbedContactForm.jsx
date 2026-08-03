@@ -26,7 +26,7 @@ export default function EmbedContactForm() {
   if (done) {
     return (
       <div style={{ fontFamily: 'Inter, sans-serif', padding: 20, textAlign: 'center', color: '#14161a' }}>
-        <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Thanks — message received.</p>
+        <p style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>Thanks, message received.</p>
         <p style={{ fontSize: 13, color: '#5c5f66', margin: '6px 0 0' }}>We'll get back to you shortly.</p>
       </div>
     );

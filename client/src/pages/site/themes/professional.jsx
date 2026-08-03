@@ -4,7 +4,7 @@ import { Reveal, useFonts, rise, emph } from './_kit.jsx';
 
 // Professional Services — a refined advisory firm. Warm paper, an elegant
 // Newsreader serif, hairline rules, calm restrained motion. Trust over noise.
-export const meta = { key: 'professional-services', name: 'Professional Services', category: 'company', description: 'A refined advisory firm — warm paper, an elegant serif, hairline rules and calm restraint.', accent: '#7A5C2E', fonts: 'Newsreader + Inter' };
+export const meta = { key: 'professional-services', name: 'Professional Services', category: 'company', description: 'A refined advisory firm, warm paper, an elegant serif, hairline rules and calm restraint.', accent: '#7A5C2E', fonts: 'Newsreader + Inter' };
 
 const V = { hero: 'minimal', card: 'bordered', btnRadius: 6, display: 0.95, headingWeight: 500, h2Mode: 'center-rule', band: 'alt', secPad: 64, ctaMode: 'surface', footerMode: 'serif' };
 

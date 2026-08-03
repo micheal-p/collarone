@@ -168,7 +168,7 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
         }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
-            Guest mode — viewing {guestMode.orgName} as its admin, for testing. Nothing here is your own data.
+            Guest mode, viewing {guestMode.orgName} as its admin, for testing. Nothing here is your own data.
           </span>
           <button onClick={exitGuestMode} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', borderRadius: 100, padding: '3px 12px', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}>
             Exit guest mode
@@ -184,7 +184,7 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16h.01" /></svg>
             {user.org.status === 'read_only'
               ? 'Your subscription is overdue and your workspace is now read-only. Renew to make changes again.'
-              : `Your subscription renewal is due${user.org.graceUntil ? ` — you have until ${new Date(user.org.graceUntil).toLocaleDateString('en-NG', { day: 'numeric', month: 'long' })} before your workspace becomes read-only` : ''}.`}
+              : `Your subscription renewal is due${user.org.graceUntil ? `, you have until ${new Date(user.org.graceUntil).toLocaleDateString('en-NG', { day: 'numeric', month: 'long' })} before your workspace becomes read-only` : ''}.`}
           </span>
           <a href="/admin/billing" style={{ background: '#fff', color: '#7F1D1D', borderRadius: 100, padding: '4px 14px', fontSize: 12, fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>Renew now</a>
         </div>
@@ -284,7 +284,7 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
 
         <div className="sb-right">
           {/* Labelled on purpose: as a bare glyph this was the least
-              discoverable thing in the product — nobody knew chat existed. */}
+              discoverable thing in the product, nobody knew chat existed. */}
           <button className="iconbtn iconbtn-labelled" aria-label={chatUnread ? `Team chat, ${chatUnread} unread` : 'Team chat'} title="Team chat" onClick={() => go('/chat')}>
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-8.5 8.5 8.9 8.9 0 0 1-4-.9L3 20l1-4.5A8.4 8.4 0 0 1 12.5 3a8.4 8.4 0 0 1 8.5 8.5Z" /></svg>
             <span className="iconbtn-label">Chat</span>

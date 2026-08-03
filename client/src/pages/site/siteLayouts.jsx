@@ -108,13 +108,13 @@ function useThemeAssets(theme) {
 
 /* ---- the design decisions each theme owns ------------------------------- */
 /* Beyond buttons and fonts, each theme owns a COMPOSITION:
-   h2Mode  — how section headings are set (center / center-rule / left-kicker /
-             pill / index) — the single loudest "different site" signal
-   band    — section backgrounds: none (whitespace), alt (white/grey stripes),
+   h2Mode , how section headings are set (center / center-rule / left-kicker /
+             pill / index), the single loudest "different site" signal
+   band   , section backgrounds: none (whitespace), alt (white/grey stripes),
              tint (accent-washed stripes)
-   secPad  — vertical rhythm: airy boutiques vs compact markets
-   ctaMode — the call-to-action band: surface / accent / gradient / invert
-   footerMode — simple line / corporate columns / centered serif / agency caps */
+   secPad , vertical rhythm: airy boutiques vs compact markets
+   ctaMode, the call-to-action band: surface / accent / gradient / invert
+   footerMode, simple line / corporate columns / centered serif / agency caps */
 const DEFAULT_VARIANT = {
   hero: 'overlay', card: 'bordered', btnRadius: 8, navCaps: false, narrow: false, display: 1, headingWeight: 700,
   h2Mode: 'center', band: 'none', secPad: 56, ctaMode: 'surface', footerMode: 'simple',
@@ -455,8 +455,8 @@ function CartDrawer({ site, v }) {
   const methods = [
     // Demo builds have no /api/site-pay and their order stub has no orderId —
     // card checkout would dead-end, so it's not offered there.
-    pay.enableCard && !DEMO && ['card', 'Pay with card', 'Card, bank or USSD — secure checkout by Paystack, straight to the store.'],
-    pay.enableTransfer && ['transfer', 'Bank transfer', 'Pay into the store’s account — details shown after you order.'],
+    pay.enableCard && !DEMO && ['card', 'Pay with card', 'Card, bank or USSD, secure checkout by Paystack, straight to the store.'],
+    pay.enableTransfer && ['transfer', 'Bank transfer', 'Pay into the store’s account, details shown after you order.'],
     pay.enableCod && ['cod', 'Pay on delivery', 'Pay cash or transfer when your order arrives.'],
   ].filter(Boolean);
   const wa = waDigits(site.contactWhatsapp);
@@ -468,11 +468,11 @@ function CartDrawer({ site, v }) {
 
   const placeOrder = async (e) => {
     e.preventDefault();
-    if (site.isPreview) return setError('This is a preview — ordering switches on when the site is published.');
+    if (site.isPreview) return setError('This is a preview, ordering switches on when the site is published.');
     if (!f.name.trim()) return setError('Your name is required.');
-    if (!f.phone.trim()) return setError('Your phone number is required — it’s how the store reaches you.');
+    if (!f.phone.trim()) return setError('Your phone number is required, it’s how the store reaches you.');
     if (!f.method) return setError('Choose how you want to pay.');
-    if (f.method === 'card' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return setError('A valid email is required for card payment — your receipt goes there.');
+    if (f.method === 'card' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) return setError('A valid email is required for card payment, your receipt goes there.');
     setBusy(true); setError('');
     try {
       const d = await apiPost('/site/order', {
@@ -487,7 +487,7 @@ function CartDrawer({ site, v }) {
           body: JSON.stringify({ action: 'init', orgSlug: site.slug, orderId: d.orderId }),
         });
         const pd = await r.json().catch(() => ({}));
-        if (!r.ok || !pd.authorizationUrl) throw new Error(pd.message || `Could not start the card payment — your order ${d.orderNo} is saved, choose another payment method or contact the store.`);
+        if (!r.ok || !pd.authorizationUrl) throw new Error(pd.message || `Could not start the card payment, your order ${d.orderNo} is saved, choose another payment method or contact the store.`);
         // Cart is kept: an abandoned Paystack page returns to an intact cart.
         // PublicSite clears it once the payment verifies as paid.
         window.location.href = pd.authorizationUrl;
@@ -514,7 +514,7 @@ function CartDrawer({ site, v }) {
         <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
           {view === 'cart' && (
             cart.items.length === 0 ? (
-              <p style={{ fontSize: 14, color: '#5c5f66', textAlign: 'center', marginTop: 40 }}>Your cart is empty — add something you like.</p>
+              <p style={{ fontSize: 14, color: '#5c5f66', textAlign: 'center', marginTop: 40 }}>Your cart is empty, add something you like.</p>
             ) : cart.items.map((x) => (
               <div key={x.id} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #f0f0f2' }}>
                 {x.imageUrl
@@ -552,7 +552,7 @@ function CartDrawer({ site, v }) {
                   </span>
                 </label>
               ))}
-              {methods.length === 0 && <p style={{ fontSize: 13, color: '#5c5f66' }}>This store takes orders on WhatsApp — use the button below.</p>}
+              {methods.length === 0 && <p style={{ fontSize: 13, color: '#5c5f66' }}>This store takes orders on WhatsApp, use the button below.</p>}
               {error && <p style={{ color: '#c0392b', fontSize: 13, margin: '8px 0 0' }}>{error}</p>}
             </form>
           )}
@@ -592,7 +592,7 @@ function CartDrawer({ site, v }) {
               )}
               {wa && (
                 <a target="_blank" rel="noreferrer"
-                  href={`https://wa.me/${wa}?text=${encodeURIComponent(`Hello ${site.siteName || site.orgName}, I just placed order ${receipt.orderNo} for ${fmtN(receipt.total)}${receipt.method === 'transfer' ? ' — I will send my transfer proof here.' : ' (pay on delivery).'}`)}`}
+                  href={`https://wa.me/${wa}?text=${encodeURIComponent(`Hello ${site.siteName || site.orgName}, I just placed order ${receipt.orderNo} for ${fmtN(receipt.total)}${receipt.method === 'transfer' ? ', I will send my transfer proof here.' : ' (pay on delivery).'}`)}`}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, background: '#1FAF54', color: '#fff', borderRadius: 10, padding: '13px 0', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.2 14.2c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-3-.9-5-3.6-5.6-4.5-.5-.8-1-1.9-1-2.9 0-1 .5-1.5.7-1.7.3-.3.9-.3 1.1-.2.2 0 .5.1.7.6l.7 1.7c.1.2 0 .5-.1.6l-.5.6c-.1.2-.2.3 0 .6.5.8 1.6 2 3 2.6.3.1.5.1.7-.1l.7-.9c.2-.2.4-.2.6-.1l1.8.8c.3.2.5.3.5.5s0 .8-.2 1.3z"/></svg>
                   {receipt.method === 'transfer' ? 'Send payment proof on WhatsApp' : 'Confirm your order on WhatsApp'}
@@ -636,7 +636,7 @@ function CartDrawer({ site, v }) {
             ) : (
               site.isPreview ? (
                 <div style={{ fontSize: 13, color: '#5c5f66', textAlign: 'center', lineHeight: 1.6, padding: '4px 6px' }}>
-                  Preview mode — the cart works, and ordering switches on the moment this site is published.
+                  Preview mode, the cart works, and ordering switches on the moment this site is published.
                 </div>
               ) : (
               <div style={{ display: 'flex', gap: 10 }}>
@@ -746,7 +746,7 @@ function EnquiryModal({ product, site, v, onClose }) {
       const price = product.price != null ? ` (₦${Number(product.price).toLocaleString('en-NG')})` : '';
       await apiPost('/embed/lead', {
         orgSlug: site.slug, name: f.name, email: f.email, phone: f.phone,
-        message: `[Product enquiry] ${product.name}${price} — ${f.message}`, source: 'product_enquiry',
+        message: `[Product enquiry] ${product.name}${price}, ${f.message}`, source: 'product_enquiry',
       });
       setDone(true);
     } catch (e2) { setError(e2.message); } finally { setBusy(false); }
@@ -758,13 +758,13 @@ function EnquiryModal({ product, site, v, onClose }) {
         {done ? (
           <div style={{ textAlign: 'center', padding: '18px 4px' }}>
             <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>Enquiry sent</div>
-            <div style={{ fontSize: 13.5, color: '#5c5f66', lineHeight: 1.6 }}>Thanks {f.name.split(' ')[0]} — {site.siteName || site.orgName} has received your enquiry about {product.name} and will get back to you.</div>
+            <div style={{ fontSize: 13.5, color: '#5c5f66', lineHeight: 1.6 }}>Thanks {f.name.split(' ')[0]}, {site.siteName || site.orgName} has received your enquiry about {product.name} and will get back to you.</div>
             <button onClick={onClose} style={{ ...btnStyle(v), marginTop: 18 }}>Done</button>
           </div>
         ) : (
           <form onSubmit={submit}>
             <div style={{ fontWeight: 700, fontSize: 15.5, marginBottom: 2 }}>Enquire about {product.name}</div>
-            <p style={{ fontSize: 12.5, color: '#5c5f66', margin: '0 0 16px' }}>Send your details — the team replies on WhatsApp, call or email.</p>
+            <p style={{ fontSize: 12.5, color: '#5c5f66', margin: '0 0 16px' }}>Send your details, the team replies on WhatsApp, call or email.</p>
             <div style={{ marginBottom: 10 }}><span style={label}>Your name *</span><input style={input} value={f.name} onChange={(e) => set('name', e.target.value)} required autoFocus /></div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div><span style={label}>Phone / WhatsApp</span><input style={input} value={f.phone} onChange={(e) => set('phone', e.target.value)} /></div>
@@ -808,10 +808,10 @@ function SubscribeSection({ c, site, v, i: si }) {
       <div style={{ maxWidth: 560, margin: '0 auto', textAlign: 'center' }}>
         <H2 v={v} i={si} kicker="Newsletter">{c.heading || 'Stay in the loop'}</H2>
         <p style={{ fontSize: 14.5, color: 'var(--site-muted)', margin: '-10px 0 22px', lineHeight: 1.6 }}>
-          {c.blurb || 'New arrivals, offers and updates — straight to your inbox. No spam.'}
+          {c.blurb || 'New arrivals, offers and updates, straight to your inbox. No spam.'}
         </p>
         {done ? (
-          <div style={{ fontSize: 14.5, fontWeight: 650, color: 'var(--site-accent-ui)' }}>You're on the list — thank you.</div>
+          <div style={{ fontSize: 14.5, fontWeight: 650, color: 'var(--site-accent-ui)' }}>You're on the list, thank you.</div>
         ) : (
           <form onSubmit={submit} style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <input
@@ -856,7 +856,7 @@ function ContactFormSection({ site, v, i: si }) {
       {done ? (
         <div style={{ textAlign: 'center', padding: '26px 16px', background: 'var(--site-surface)', border: '1px solid var(--site-line)', borderRadius: 12 }}>
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Message sent</div>
-          <div style={{ fontSize: 13.5, color: 'var(--site-muted)' }}>Thanks {f.name.split(' ')[0]} — we've received it and will reply shortly.</div>
+          <div style={{ fontSize: 13.5, color: 'var(--site-muted)' }}>Thanks {f.name.split(' ')[0]}, we've received it and will reply shortly.</div>
         </div>
       ) : (
         <form onSubmit={submit} style={{ background: 'var(--site-surface)', border: '1px solid var(--site-line)', borderRadius: 12, padding: 20 }}>
@@ -1045,7 +1045,7 @@ function SiteFooter({ site, v = DEFAULT_VARIANT }) {
     return (
       <footer style={{ padding: '40px 24px', borderTop: '1px solid var(--site-line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ fontWeight: 800, letterSpacing: '.24em', textTransform: 'uppercase', fontSize: 13 }}>{name}</div>
-        <div style={{ fontSize: 11, color: 'var(--site-muted)', letterSpacing: '.14em', textTransform: 'uppercase' }}>&copy; {year} — Built with Collarone</div>
+        <div style={{ fontSize: 11, color: 'var(--site-muted)', letterSpacing: '.14em', textTransform: 'uppercase' }}>&copy; {year}, Built with Collarone</div>
       </footer>
     );
   }
@@ -1061,7 +1061,7 @@ function PageBody({ page, site, v }) {
 }
 
 /* ---- shells --------------------------------------------------------------------
-   Nav treatments follow the variant too — caps themes get spaced uppercase
+   Nav treatments follow the variant too, caps themes get spaced uppercase
    links, pill themes get pill CTAs, boxed themes keep the contact strip. */
 const navLink = (v, active) => ({
   fontSize: v.navCaps ? 12 : 14, textDecoration: 'none',

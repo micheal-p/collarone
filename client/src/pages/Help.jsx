@@ -72,25 +72,25 @@ const SECTIONS = [
   {
     id: 'launcher',
     title: '1. Signing in & the Suite Launcher',
-    body: "After you log in, you land on the Launcher — every suite you've been granted access to shows as a tile. Click one to open it. If a tile is greyed out, ask your System Administrator to grant you that suite from the Admin Center.",
+    body: "After you log in, you land on the Launcher, every suite you've been granted access to shows as a tile. Click one to open it. If a tile is greyed out, ask your System Administrator to grant you that suite from the Admin Center.",
     mockup: <DesktopLauncherMockup />,
   },
   {
     id: 'admin',
-    title: '2. Admin Center — Users, Departments, Billing',
-    body: "System Administrators manage everything from Administration in the left rail: create staff accounts (no self-signup — admins provision every account), assign departments, grant or revoke suite access per person, and manage billing/seats. Each suite can also have its own \"manager\" role for people who need to approve things (e.g. approving leave, running payroll) without being a full System Administrator.",
+    title: '2. Admin Center, Users, Departments, Billing',
+    body: "System Administrators manage everything from Administration in the left rail: create staff accounts (no self-signup, admins provision every account), assign departments, grant or revoke suite access per person, and manage billing/seats. Each suite can also have its own \"manager\" role for people who need to approve things (e.g. approving leave, running payroll) without being a full System Administrator.",
     mockup: <AdminCenterMockup />,
   },
   {
     id: 'suites',
     title: '3. Using a suite',
-    body: 'Every suite follows the same shape: tabs across the top for different views, a table of records in the middle, and a primary button (top right) to create something new. Click any row for more detail or to edit it. Most suites have both a "staff" view (your own stuff) and a "manager" view (everyone\'s, plus approvals) — which one you see depends on your role in that suite.',
+    body: 'Every suite follows the same shape: tabs across the top for different views, a table of records in the middle, and a primary button (top right) to create something new. Click any row for more detail or to edit it. Most suites have both a "staff" view (your own stuff) and a "manager" view (everyone\'s, plus approvals), which one you see depends on your role in that suite.',
     mockup: null,
   },
   {
     id: 'mobile',
     title: '4. On your phone',
-    body: 'The whole platform is responsive — suite tiles stack to a single column, the left rail collapses behind the menu button top-left, and tables scroll horizontally where needed. Everything you can do on desktop, you can do on mobile — this was built for teams who are out in the field as often as they\'re at a desk.',
+    body: 'The whole platform is responsive, suite tiles stack to a single column, the left rail collapses behind the menu button top-left, and tables scroll horizontally where needed. Everything you can do on desktop, you can do on mobile, this was built for teams who are out in the field as often as they\'re at a desk.',
     mockup: <MobileMockup />,
   },
 ];
@@ -101,7 +101,7 @@ export default function Help() {
     <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'How to use Collarone' }]} title="How to use Collarone">
       <div style={{ maxWidth: 640 }}>
         <p className="muted" style={{ fontSize: 13.5, marginBottom: 14 }}>
-          A quick walkthrough of how the platform is laid out — on desktop and on mobile. If you get stuck, reach out to your System Administrator.
+          A quick walkthrough of how the platform is laid out, on desktop and on mobile. If you get stuck, reach out to your System Administrator.
         </p>
         <a href="/?tour=1" className="btn btn-primary" style={{ textDecoration: 'none', marginBottom: 20, fontSize: 13 }}>
           Replay the guided tour

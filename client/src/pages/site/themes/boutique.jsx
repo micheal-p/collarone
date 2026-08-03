@@ -13,7 +13,7 @@ export const meta = {
   key: 'boutique-noir',
   name: 'Boutique Noir',
   category: 'ecommerce',
-  description: 'A dark luxury boutique — high-contrast serif, gold hairlines, generous space and slow, restrained motion.',
+  description: 'A dark luxury boutique, high-contrast serif, gold hairlines, generous space and slow, restrained motion.',
   accent: '#C9A24B',
   fonts: 'Cormorant + Inter',
 };

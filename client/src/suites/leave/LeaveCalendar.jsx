@@ -54,7 +54,7 @@ export default function LeaveCalendar({ year, holidays, myRequests }) {
               <div className="lv-cell-num">{d}</div>
               {hol && <div className="lv-chip hol" title={hol}>{hol}</div>}
               {myHere.map((r) => <div key={r.id} className={`lv-chip ${r.status === 'pending' ? 'mine-pending' : 'mine'}`} style={r.status === 'approved' ? { background: r.leave_types?.color } : undefined}>You{r.status === 'pending' ? ' (pending)' : ''}</div>)}
-              {teamHere.slice(0, 2).map((t) => <div key={t.id} className="lv-chip team" title={`${t.person} — away`}>{t.person.split(' ')[0]}</div>)}
+              {teamHere.slice(0, 2).map((t) => <div key={t.id} className="lv-chip team" title={`${t.person}, away`}>{t.person.split(' ')[0]}</div>)}
               {teamHere.length > 2 && <div className="lv-more">+{teamHere.length - 2} more</div>}
             </div>
           );

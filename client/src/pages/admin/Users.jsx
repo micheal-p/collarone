@@ -60,7 +60,7 @@ function SuiteGrantPicker({ catalog, value, onChange, disabled }) {
     <div className={`grant-grid ${disabled ? 'is-disabled' : ''}`}>
       {hasCompanionParent && (
         <p className="muted" style={{ gridColumn: '1 / -1', fontSize: 12, margin: '0 0 4px', lineHeight: 1.5 }}>
-          Companion suites added with HR count toward your plan's included-suite total like any other suite — untick any you don't want billed.
+          Companion suites added with HR count toward your plan's included-suite total like any other suite, untick any you don't want billed.
         </p>
       )}
       {catalog.map((s) => {
@@ -448,7 +448,7 @@ function HandoverModal({ user, password, onClose }) {
   return (
     <Modal title={`Send ${String(user.name || '').split(' ')[0] || 'them'} their sign-in details`} onClose={onClose}>
       <p className="muted" style={{ fontSize: 13.5, marginTop: 0 }}>
-        This password only works once — they set their own when they first sign in.
+        This password only works once, they set their own when they first sign in.
       </p>
       <pre style={{
         whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: 'var(--surface-2)',
@@ -672,13 +672,13 @@ function BulkImportModal({ catalog, departments, onClose, onDone, flash }) {
           <div className="field">
             <button className="btn btn-primary" onClick={downloadCredentials}>Download logins (CSV)</button>
             <p className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
-              Each person gets a temporary password and must change it at first sign-in. Share these privately — this is the only time they're shown.
+              Each person gets a temporary password and must change it at first sign-in. Share these privately, this is the only time they're shown.
             </p>
           </div>
         )}
         {bad.length > 0 && (
           <div className="field" style={{ maxHeight: 180, overflowY: 'auto' }}>
-            {bad.map((r, i) => <div key={i} style={{ fontSize: 12.5, padding: '3px 0' }}><strong>{r.email || r.name || `Row ${i + 1}`}</strong> — {r.error}</div>)}
+            {bad.map((r, i) => <div key={i} style={{ fontSize: 12.5, padding: '3px 0' }}><strong>{r.email || r.name || `Row ${i + 1}`}</strong>, {r.error}</div>)}
           </div>
         )}
         <div className="modal-actions"><button className="btn btn-primary" onClick={onClose}>Done</button></div>
@@ -739,15 +739,15 @@ function BulkImportModal({ catalog, departments, onClose, onDone, flash }) {
                   <div>Department templates will apply on top: {matched.map((d) => `${d} → ${tplByName.get(d.toLowerCase()).map((g) => nameOf(g.key)).join(', ')}`).join(' · ')}</div>
                 )}
                 {matched.length === 0 && inFile.length > 0 && (
-                  <div>No department templates set yet — add suite sets to departments (Admin → Departments) and imports apply them automatically.</div>
+                  <div>No department templates set yet, add suite sets to departments (Admin → Departments) and imports apply them automatically.</div>
                 )}
-                <div>Payroll, Finance, HR, Benefits, Documents, Buying and Invoicing are never granted in bulk — give those per person afterwards.</div>
+                <div>Payroll, Finance, HR, Benefits, Documents, Buying and Invoicing are never granted in bulk, give those per person afterwards.</div>
               </div>
             );
           })()}
           <div style={{ margin: '10px 0 4px', fontSize: 13 }}>
             <strong>{validCount}</strong> of {body.length} row{body.length === 1 ? '' : 's'} ready to import
-            {validCount < body.length && <span className="muted"> — rows with problems are skipped, shown below</span>}
+            {validCount < body.length && <span className="muted">, rows with problems are skipped, shown below</span>}
           </div>
           <div style={{ maxHeight: 240, overflow: 'auto', border: '1px solid var(--line)', borderRadius: 10 }}>
             <table className="table" style={{ fontSize: 12.5 }}>
@@ -781,7 +781,7 @@ function BulkGrantModal({ catalog, count, onClose, onApply }) {
   const [suites, setSuites] = useState([]);
   const [busy, setBusy] = useState(false);
   return (
-    <Modal title={`Grant suites — ${count} selected`} onClose={onClose}>
+    <Modal title={`Grant suites, ${count} selected`} onClose={onClose}>
       <p className="muted" style={{ fontSize: 13, margin: '2px 0 10px' }}>
         Replaces each selected person&apos;s suite access with the set below (everyday suites, base level).
         Payroll, Finance, HR, Benefits, Documents, Buying and Invoicing are granted per person, never in bulk. System Admins are never affected.

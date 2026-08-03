@@ -94,7 +94,7 @@ function ContactMessagesPanel({ flash }) {
       {loading && <p className="pc-dim" style={{ fontSize: 13 }}>Loading…</p>}
       {!loading && visible.length === 0 && (
         <div className="pc-panel" style={{ padding: '14px 16px', fontSize: 12.5, color: 'var(--faint)' }}>
-          {showReplied ? 'No messages yet.' : 'No new messages — you\'re all caught up.'}
+          {showReplied ? 'No messages yet.' : 'No new messages, you\'re all caught up.'}
         </div>
       )}
       {visible.length > 0 && (
@@ -353,7 +353,7 @@ function PricingPanel({ flash }) {
           annualDiscount: Number(settings.annual_pct ?? Math.round(Number(settings.annual_discount) * 100)) / 100,
         } : undefined,
       });
-      flash('Published prices updated — new signups lock these rates in. Existing customers are untouched.');
+      flash('Published prices updated, new signups lock these rates in. Existing customers are untouched.');
       load();
     } catch (e) { flash(e.message, true); } finally { setBusy(false); }
   };
@@ -367,7 +367,7 @@ function PricingPanel({ flash }) {
       </SectionHead>
       <p style={{ fontSize: 12.5, color: 'var(--pc-dim, #9aa0b0)', margin: '0 0 12px' }}>
         These are the prices the landing page, signup and chat quote from now on. Changing them only affects NEW
-        sign-ups — every existing company keeps the rate locked on its own account.
+        sign-ups, every existing company keeps the rate locked on its own account.
       </p>
       <div className="pc-panel pc-tablewrap">
         <table className="pc-table">
@@ -472,7 +472,7 @@ function PromoCodesPanel({ flash }) {
             <button className="pc-btn primary" disabled={busy}>{busy ? '…' : 'Create code'}</button>
           </div>
           <p style={{ fontSize: 11.5, color: 'var(--faint)', margin: '12px 0 0', maxWidth: 720 }}>
-            A 100% code activates the workspace instantly at signup. Trial days makes that access time-boxed — 3, 30, whatever you set — after
+            A 100% code activates the workspace instantly at signup. Trial days makes that access time-boxed, 3, 30, whatever you set, after
             which the org is suspended until they pay. Free credits are seat credits granted on signup so they can add staff without buying a pack.
           </p>
         </form>
@@ -480,7 +480,7 @@ function PromoCodesPanel({ flash }) {
 
       {codes.length === 0 && !open && (
         <div className="pc-panel" style={{ padding: '14px 16px', fontSize: 12.5, color: 'var(--faint)' }}>
-          No promo codes yet — create one to let new businesses try Collarone.
+          No promo codes yet, create one to let new businesses try Collarone.
         </div>
       )}
       {codes.length > 0 && (
@@ -516,7 +516,7 @@ function DeleteOrgModal({ org, onClose, onConfirm, busy }) {
       <div className="pc-modal" onMouseDown={(e) => e.stopPropagation()}>
         <h2 style={{ fontSize: 16, margin: '0 0 10px' }}>Delete {org.name}</h2>
         <p style={{ fontSize: 13, color: 'var(--dim)', lineHeight: 1.6, margin: 0 }}>
-          This permanently deletes {org.name} — every staff account, the organization record, and its billing history. This cannot be undone.
+          This permanently deletes {org.name}, every staff account, the organization record, and its billing history. This cannot be undone.
         </p>
         <label className="pc-field" style={{ margin: '16px 0 0' }}>
           <span>Type “{org.slug}” to confirm</span>
@@ -550,7 +550,7 @@ function BillingModal({ org, onClose, onSaved, flash }) {
   return (
     <div className="pc-scrim" onMouseDown={onClose}>
       <div className="pc-modal" onMouseDown={(e) => e.stopPropagation()}>
-        <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>Billing — {org.name}</h2>
+        <h2 style={{ fontSize: 16, margin: '0 0 4px' }}>Billing, {org.name}</h2>
         <p style={{ fontSize: 12.5, color: 'var(--dim)', lineHeight: 1.6, margin: '0 0 14px' }}>
           Current state: <strong>{STATUS_LABEL[org.status] || org.status}</strong>
           {org.current_period_end && <> · renews {fmtDate(org.current_period_end)}</>}
@@ -595,9 +595,9 @@ function GatewayModal({ org, onClose, flash }) {
   return (
     <div className="pc-scrim" onMouseDown={onClose}>
       <div className="pc-modal" onMouseDown={(e) => e.stopPropagation()}>
-        <h2 style={{ fontSize: 16, margin: '0 0 6px' }}>Card payments — {org.name}</h2>
+        <h2 style={{ fontSize: 16, margin: '0 0 6px' }}>Card payments, {org.name}</h2>
         <p style={{ fontSize: 12.5, color: 'var(--dim)', lineHeight: 1.6, margin: '0 0 14px' }}>
-          The merchant's OWN Paystack keys — payments settle to their bank, Collarone never holds funds.
+          The merchant's OWN Paystack keys, payments settle to their bank, Collarone never holds funds.
           {state && (state.hasKeys
             ? ` Keys on file (${state.publicKeyMasked || 'set'}), currently ${state.enabled ? 'ENABLED' : 'disabled'}. Paste new keys only to replace them.`
             : ' No keys on file yet.')}
@@ -626,12 +626,12 @@ function OrgSiteCell({ org, site, themes }) {
   const themeName = site && (themes.find((t) => t.key === site.theme_key)?.name || site.theme_key);
   if (site) {
     return site.published ? (
-      <a href={`/site/${org.slug}`} target="_blank" rel="noreferrer" title={`"${site.site_name}" — ${themeName} theme`}
+      <a href={`/site/${org.slug}`} target="_blank" rel="noreferrer" title={`"${site.site_name}", ${themeName} theme`}
         style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: 'var(--ok)', textDecoration: 'none', fontSize: 12.5 }}>
         <span className="pc-dot" style={{ background: 'var(--ok)' }} />Live
       </a>
     ) : (
-      <span title={`"${site.site_name}" — ${themeName} theme, not published yet`}
+      <span title={`"${site.site_name}", ${themeName} theme, not published yet`}
         style={{ display: 'inline-flex', alignItems: 'center', gap: 7, color: 'var(--dim)', fontSize: 12.5 }}>
         <span className="pc-dot" style={{ background: 'var(--faint)' }} />Draft
       </span>
@@ -673,7 +673,7 @@ function JobPostersPanel({ flash }) {
   const BADGE = { pending: '#7a5200', approved: '#1a6a1a', suspended: '#a4262c', rejected: '#5c5f66' };
   return (
     <section className="pc-section">
-      <SectionHead title="Job board — posters" count={pending}>
+      <SectionHead title="Job board, posters" count={pending}>
         <div className="pc-actions">
           {['pending', 'approved', 'all'].map((f) => (
             <button key={f} className={`pc-btn sm${filter === f ? ' primary' : ''}`} onClick={() => setFilter(f)}>{f[0].toUpperCase() + f.slice(1)}</button>
@@ -782,7 +782,7 @@ export default function PlatformAdmin() {
     setConfirming(txId);
     try {
       await apiPost('/platform/confirm-payment', { transactionId: txId });
-      flash('Payment confirmed — organization activated.');
+      flash('Payment confirmed, organization activated.');
       load();
     } catch (e) { flash(e.message, true); } finally { setConfirming(null); }
   };
@@ -848,7 +848,7 @@ export default function PlatformAdmin() {
       const kind = t.type === 'activation_fee' ? 'activation fee' : 'seat credits';
       await apiPost('/platform/remind-payment', {
         orgId: t.org_id,
-        message: `Reminder: your ${kind} payment of ${naira(t.amount_kobo)} (ref ${t.reference}) is still pending. Complete the transfer to keep your Collarone workspace active — WhatsApp us the reference on 0814 812 8551 once sent.`,
+        message: `Reminder: your ${kind} payment of ${naira(t.amount_kobo)} (ref ${t.reference}) is still pending. Complete the transfer to keep your Collarone workspace active, WhatsApp us the reference on 0814 812 8551 once sent.`,
       });
       // also email the org's account owner (best-effort; no-op if email is off)
       fetch('/api/notify', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAccessToken() || ''}` }, body: JSON.stringify({ action: 'billing-reminder', orgId: t.org_id }) }).catch(() => {});
@@ -1036,7 +1036,7 @@ export default function PlatformAdmin() {
                             <span className="pc-sec-spacer" />
                             <button className="pc-btn sm" onClick={() => setExpandedOrg(null)}>Close</button>
                           </div>
-                          <p style={{ fontSize: 11, color: 'var(--faint)', margin: '8px 0 0' }}>Row counts only — no customer data is ever shown here.</p>
+                          <p style={{ fontSize: 11, color: 'var(--faint)', margin: '8px 0 0' }}>Row counts only, no customer data is ever shown here.</p>
                         </td>
                       </tr>
                     )}

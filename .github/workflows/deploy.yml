@@ -47,6 +47,9 @@ jobs:
 
       - name: Pinned tools stay free (never enter the suite-count price math)
         run: node test/pinned_tools_not_priced.mjs
+
+      - name: FAQ structured data still matches the page
+        run: node test/faq_jsonld_matches.mjs
       - name: Cross-tenant RLS probe + payroll golden (live DB)
         if: env.DATABASE_URL != ''
         run: |

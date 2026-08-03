@@ -52,11 +52,11 @@ export function samplePayload(t) {
     base.products = NG_PRODUCTS.map(([name, price, id], i) => ({ id: i + 1, name, price, imageUrl: U(id) }));
     base.pages = [
       { slug: 'home', title: 'Home', is_home: true, blocks: [
-        { type: 'hero', content: { eyebrow: 'New season', heading: 'Everyday pieces, *made* in Nigeria.', subheading: 'Handcrafted bags, adire and leather from makers across Lagos, Kano and Abeokuta — delivered to your door.', button_text: 'Shop the collection', button_link: '#shop', image_url: heroImg } },
+        { type: 'hero', content: { eyebrow: 'New season', heading: 'Everyday pieces, *made* in Nigeria.', subheading: 'Handcrafted bags, adire and leather from makers across Lagos, Kano and Abeokuta, delivered to your door.', button_text: 'Shop the collection', button_link: '#shop', image_url: heroImg } },
         { type: 'products', content: { heading: 'Featured pieces', limit: 8 } },
         { type: 'features', content: { heading: 'Made with intention, built to last.', items: [
-          { title: 'Made by Nigerian hands', body: 'Every piece comes from a local maker we work with directly — no middlemen.' },
-          { title: 'Pay your way', body: 'Card, bank transfer, or pay on delivery — whatever suits you.' },
+          { title: 'Made by Nigerian hands', body: 'Every piece comes from a local maker we work with directly, no middlemen.' },
+          { title: 'Pay your way', body: 'Card, bank transfer, or pay on delivery, whatever suits you.' },
           { title: 'Nationwide delivery', body: 'Lagos in 48 hours, anywhere in Nigeria within the week.' },
         ] } },
         { type: 'cta', content: { heading: 'Find the one that lasts.', button_text: 'Start shopping', button_link: '#shop' } },
@@ -70,9 +70,9 @@ export function samplePayload(t) {
       { slug: 'home', title: 'Home', is_home: true, blocks: [
         { type: 'hero', content: { eyebrow: 'For Nigerian businesses', heading: 'Get paid *faster*, in naira.', subheading: 'Send an invoice on WhatsApp, get paid by card or transfer, and see the money land the same day. Built for how Nigerian business actually runs.', button_text: 'Start free', button_link: '#contact', image_url: heroImg } },
         { type: 'features', content: { heading: 'Why businesses switch', items: [
-          { title: 'Same-day settlement', body: 'Money hits your account the day your customer pays — no T+2 wait.' },
+          { title: 'Same-day settlement', body: 'Money hits your account the day your customer pays, no T+2 wait.' },
           { title: 'Built for Nigeria', body: 'Naira-first, WhatsApp invoices, and support that picks up in Lagos hours.' },
-          { title: 'No stress setup', body: 'Start collecting payments in minutes — no paperwork, no developer.' },
+          { title: 'No stress setup', body: 'Start collecting payments in minutes, no paperwork, no developer.' },
         ] } },
         { type: 'testimonials', content: { heading: 'Loved by Nigerian founders', items: [
           { quote: 'We went from chasing transfers on WhatsApp to getting paid the same afternoon. Game changer for our shop.', author: 'Chidinma O., Lagos' },
@@ -85,9 +85,9 @@ export function samplePayload(t) {
     base.pages = [
       { slug: 'home', title: 'Home', is_home: true, blocks: [
         { type: 'hero', content: { eyebrow: 'Advisory · Lagos', heading: 'We help Nigerian businesses *grow* with intent.', subheading: 'Strategy, operations and finance advisory for ambitious companies across West Africa.', button_text: 'Get in touch', button_link: '#contact', image_url: heroImg } },
-        { type: 'text', content: { heading: 'About us', body: 'Founded in Lagos in 2019, Sterling & Root partners with founders and boards to turn ambition into a plan that ships. We have advised businesses across retail, agriculture and fintech — from first hire to Series A.' } },
+        { type: 'text', content: { heading: 'About us', body: 'Founded in Lagos in 2019, Sterling & Root partners with founders and boards to turn ambition into a plan that ships. We have advised businesses across retail, agriculture and fintech, from first hire to Series A.' } },
         { type: 'features', content: { heading: 'What we do', items: [
-          { title: 'Strategy', body: 'Where to play and how to win — grounded in the Nigerian market.' },
+          { title: 'Strategy', body: 'Where to play and how to win, grounded in the Nigerian market.' },
           { title: 'Operations', body: 'Systems and hires that let you scale without breaking.' },
           { title: 'Finance', body: 'Modelling, fundraising and the numbers that win a boardroom.' },
         ] } },

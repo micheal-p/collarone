@@ -41,7 +41,7 @@ export default function TryChooser() {
           <Link to="/" className="tpg-back">← Back to home</Link>
           <h1 className="tpg-h1">Pick a suite. Play with it.</h1>
           <p className="tpg-lede">
-            Real screens, sample data, and a guided tour that explains everything — no sign-up, and you can&apos;t break anything.
+            Real screens, sample data, and a guided tour that explains everything, no sign-up, and you can&apos;t break anything.
           </p>
         </div>
       </section>
@@ -51,7 +51,7 @@ export default function TryChooser() {
           {keys === null && <p style={{ textAlign: 'center', color: 'var(--text-faint)' }}>Loading demos…</p>}
           {keys !== null && suites.length === 0 && (
             <p style={{ textAlign: 'center', color: 'var(--text-faint)' }}>
-              No demos are open right now — <Link to="/signup" style={{ color: 'var(--accent-ink)' }}>set up your own workspace</Link> instead.
+              No demos are open right now, <Link to="/signup" style={{ color: 'var(--accent-ink)' }}>set up your own workspace</Link> instead.
             </p>
           )}
 
@@ -75,7 +75,7 @@ export default function TryChooser() {
           </div>
 
           <p style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--text-faint)', marginTop: 30 }}>
-            Everything inside a demo is sample data — no real company, no real people.
+            Everything inside a demo is sample data, no real company, no real people.
           </p>
         </div>
       </section>

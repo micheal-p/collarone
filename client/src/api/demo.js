@@ -215,23 +215,23 @@ async function demoApiInner(path, opts = {}) {
 
     if (!db.invWarehouses) {
       db.invWarehouses = [
-        { id: 'wh1', name: 'Main store — Ikeja', location: 'Ikeja, Lagos' },
-        { id: 'wh2', name: 'Warehouse — Trade Fair', location: 'Ojo, Lagos' },
+        { id: 'wh1', name: 'Main store, Ikeja', location: 'Ikeja, Lagos' },
+        { id: 'wh2', name: 'Warehouse, Trade Fair', location: 'Ojo, Lagos' },
       ];
       db.invItems = [
-        { id: 'it1', sku: 'RICE-50KG', name: 'Rice — 50kg bag', unit: 'bags', category: 'Food', reorder_level: 10, for_sale: true, for_staff_use: false, notes: '', levels: [{ warehouse_id: 'wh1', quantity: 34 }, { warehouse_id: 'wh2', quantity: 12 }] },
-        { id: 'it2', sku: 'OIL-25L', name: 'Vegetable oil — 25L', unit: 'kegs', category: 'Food', reorder_level: 8, for_sale: true, for_staff_use: false, notes: '', levels: [{ warehouse_id: 'wh1', quantity: 6 }] },
+        { id: 'it1', sku: 'RICE-50KG', name: 'Rice, 50kg bag', unit: 'bags', category: 'Food', reorder_level: 10, for_sale: true, for_staff_use: false, notes: '', levels: [{ warehouse_id: 'wh1', quantity: 34 }, { warehouse_id: 'wh2', quantity: 12 }] },
+        { id: 'it2', sku: 'OIL-25L', name: 'Vegetable oil, 25L', unit: 'kegs', category: 'Food', reorder_level: 8, for_sale: true, for_staff_use: false, notes: '', levels: [{ warehouse_id: 'wh1', quantity: 6 }] },
         { id: 'it3', sku: 'HELMET', name: 'Safety helmet', unit: 'pieces', category: 'Equipment', reorder_level: 4, for_sale: false, for_staff_use: true, notes: '', levels: [{ warehouse_id: 'wh1', quantity: 10 }] },
         { id: 'it4', sku: 'DRILL-M', name: 'Makita drill', unit: 'pieces', category: 'Equipment', reorder_level: 1, for_sale: false, for_staff_use: true, notes: '', levels: [{ warehouse_id: 'wh1', quantity: 3 }] },
       ];
       db.invMovements = [
-        { id: 'mv1', item: { id: 'it1', name: 'Rice — 50kg bag' }, warehouse: { id: 'wh1', name: 'Main store — Ikeja' }, type: 'in', quantity: 40, reference: 'GRN-0004', notes: '', author: { name: activeStaff[0]?.name }, created_at: iNow() },
+        { id: 'mv1', item: { id: 'it1', name: 'Rice, 50kg bag' }, warehouse: { id: 'wh1', name: 'Main store, Ikeja' }, type: 'in', quantity: 40, reference: 'GRN-0004', notes: '', author: { name: activeStaff[0]?.name }, created_at: iNow() },
       ];
       db.invReservations = [
-        { id: 'rs1', item: { id: 'it1', name: 'Rice — 50kg bag' }, item_id: 'it1', warehouse: { id: 'wh1', name: 'Main store — Ikeja' }, warehouse_id: 'wh1', quantity: 5, reference: 'Order ORD-2201', notes: '', hold_until: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10), status: 'held', created_at: iNow() },
+        { id: 'rs1', item: { id: 'it1', name: 'Rice, 50kg bag' }, item_id: 'it1', warehouse: { id: 'wh1', name: 'Main store, Ikeja' }, warehouse_id: 'wh1', quantity: 5, reference: 'Order ORD-2201', notes: '', hold_until: new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10), status: 'held', created_at: iNow() },
       ];
       db.invTakeouts = [
-        { id: 'tk1', item: { id: 'it4', name: 'Makita drill', unit: 'pieces' }, item_id: 'it4', warehouse_id: 'wh1', quantity: 1, staff_id: activeStaff[1]?.id, staff: { id: activeStaff[1]?.id, name: activeStaff[1]?.name }, approved_by: me.id, approver: { id: me.id, name: me.name }, status: 'approved', notes: 'Site job — Lekki', created_at: new Date(Date.now() - 5 * 86400000).toISOString(), returned_at: null },
+        { id: 'tk1', item: { id: 'it4', name: 'Makita drill', unit: 'pieces' }, item_id: 'it4', warehouse_id: 'wh1', quantity: 1, staff_id: activeStaff[1]?.id, staff: { id: activeStaff[1]?.id, name: activeStaff[1]?.name }, approved_by: me.id, approver: { id: me.id, name: me.name }, status: 'approved', notes: 'Site job, Lekki', created_at: new Date(Date.now() - 5 * 86400000).toISOString(), returned_at: null },
       ];
       save();
     }
@@ -314,8 +314,8 @@ async function demoApiInner(path, opts = {}) {
     // 2026 Tax Act defaults — mirrors the real seed
     db.payrollRates = db.payrollRates || {
       deductionRates: [
-        { key: 'pension_employee', label: 'Pension — employee share', rate: 0.08, basis: 'pensionable' },
-        { key: 'pension_employer', label: 'Pension — employer share', rate: 0.10, basis: 'pensionable' },
+        { key: 'pension_employee', label: 'Pension, employee share', rate: 0.08, basis: 'pensionable' },
+        { key: 'pension_employer', label: 'Pension, employer share', rate: 0.10, basis: 'pensionable' },
         { key: 'nhf', label: 'National Housing Fund', rate: 0.025, basis: 'basic' },
         { key: 'nsitf', label: 'NSITF (employer cost)', rate: 0.01, basis: 'gross' },
       ],
@@ -507,7 +507,7 @@ async function demoApiInner(path, opts = {}) {
       if (!db.attShifts) { db.attShifts = []; save(); }
       const me = session.get();
       if (method === 'POST' && seg[1] === 'clockin') {
-        if (db.attShifts.some((r) => r.employee_id === me.id && !r.clock_out_at)) fail(400, 'You already have an open shift — clock out first.');
+        if (db.attShifts.some((r) => r.employee_id === me.id && !r.clock_out_at)) fail(400, 'You already have an open shift, clock out first.');
         const rec = { id: 'sh' + Math.random().toString(36).slice(2, 8), employee_id: me.id, employee: { id: me.id, name: me.name, email: me.email }, clock_in_at: new Date().toISOString(), clock_out_at: null, notes: '' };
         db.attShifts.unshift(rec); save(); return { record: rec };
       }
@@ -533,7 +533,7 @@ async function demoApiInner(path, opts = {}) {
     }
     if (route === 'GET /tasks') {
       return { tasks: staff.flatMap((s, i) => [
-        { id: `t${i}a`, title: ['Quarterly stock reconciliation', 'Onboard new vendor', 'Prepare payroll inputs', 'Site visit report — Ikeja'][i % 4], status: 'in_progress', due_date: daysAgo(-3).slice(0, 10), assigned_to: s.id, assignee: { id: s.id, name: s.name } },
+        { id: `t${i}a`, title: ['Quarterly stock reconciliation', 'Onboard new vendor', 'Prepare payroll inputs', 'Site visit report, Ikeja'][i % 4], status: 'in_progress', due_date: daysAgo(-3).slice(0, 10), assigned_to: s.id, assignee: { id: s.id, name: s.name } },
         { id: `t${i}b`, title: 'Weekly report', status: 'done', due_date: daysAgo(4).slice(0, 10), assigned_to: s.id, assignee: { id: s.id, name: s.name } },
       ]) };
     }
@@ -623,7 +623,7 @@ async function demoApiInner(path, opts = {}) {
     if (!db.letterRequests) {
       db.letterRequests = [{
         id: 'lr1', employee_id: staff[3]?.id, employee: { id: staff[3]?.id, name: staff[3]?.name, email: staff[3]?.email },
-        letter_type: 'employment_verification', purpose: 'Bank account opening — GTBank', status: 'pending',
+        letter_type: 'employment_verification', purpose: 'Bank account opening, GTBank', status: 'pending',
         requested_at: daysAgo(2), decided_at: null,
       }];
       db.letterheads = []; db.issuedLetters = []; save();
@@ -683,7 +683,7 @@ async function demoApiInner(path, opts = {}) {
       if (!db.benefitPlans) {
         db.benefitPlans = [
           { id: 'bp1', name: 'Stanbic IBTC Pension (RSA)', type: 'pension', provider: 'Stanbic IBTC', notes: '', active: true, created_at: daysAgo(400) },
-          { id: 'bp2', name: 'Axa Mansard HMO — Gold', type: 'hmo', provider: 'Axa Mansard', notes: '', active: true, created_at: daysAgo(400) },
+          { id: 'bp2', name: 'Axa Mansard HMO, Gold', type: 'hmo', provider: 'Axa Mansard', notes: '', active: true, created_at: daysAgo(400) },
         ];
         db.benefitEnrollments = active.map((u, i) => {
           const p = db.benefitPlans[i % 2];
@@ -735,7 +735,7 @@ async function demoApiInner(path, opts = {}) {
         const req = active[2] || active[0];
         db.purchaseRequests = [
           { id: 'pq1', requested_by: req.id, requester: uref(req), vendor_id: 'vx1', vendor: { id: 'vx1', name: 'TechDepot NG' }, department_id: 3, dept: { id: 3, name: 'Operations' }, item_description: 'Dell Latitude 5440 laptops', quantity: 2, unit_cost: 850000, vat_rate: 0.075, notes: 'Replacements for field team', status: 'pending', created_at: daysAgo(2), decided_at: null },
-          { id: 'pq2', requested_by: req.id, requester: uref(req), vendor_id: 'vx2', vendor: { id: 'vx2', name: 'Swift Office Supplies' }, department_id: null, dept: null, item_description: 'A4 paper — 20 reams', quantity: 20, unit_cost: 4500, vat_rate: 0.075, notes: '', status: 'approved', created_at: daysAgo(9), decided_at: daysAgo(8) },
+          { id: 'pq2', requested_by: req.id, requester: uref(req), vendor_id: 'vx2', vendor: { id: 'vx2', name: 'Swift Office Supplies' }, department_id: null, dept: null, item_description: 'A4 paper, 20 reams', quantity: 20, unit_cost: 4500, vat_rate: 0.075, notes: '', status: 'approved', created_at: daysAgo(9), decided_at: daysAgo(8) },
         ];
         save();
       }
@@ -829,11 +829,11 @@ async function demoApiInner(path, opts = {}) {
           { id: 'ct2', name: 'Halima Yusuf', company_id: null, company: null, job_title: 'Founder, Halyu Stores', email: 'halima@halyustores.ng', phone: '08094445566', whatsapp: '08094445566', notes: 'Met at Lagos SME fair', created_at: daysAgo(20) },
         ];
         db.crmActivities = [
-          { id: 'ac1', contact_id: 'ct1', contact: contactRef(db.crmContacts[0]), company_id: 'co1', company: { id: 'co1', name: 'Sunrise Foods Ltd' }, type: 'call', notes: 'Intro call — wants bulk pricing before month end.', occurred_at: daysAgo(1), replied_at: null, follow_up_at: daysAgo(-1), author: uref(db.users[0]), created_at: daysAgo(1) },
+          { id: 'ac1', contact_id: 'ct1', contact: contactRef(db.crmContacts[0]), company_id: 'co1', company: { id: 'co1', name: 'Sunrise Foods Ltd' }, type: 'call', notes: 'Intro call, wants bulk pricing before month end.', occurred_at: daysAgo(1), replied_at: null, follow_up_at: daysAgo(-1), author: uref(db.users[0]), created_at: daysAgo(1) },
           { id: 'ac2', contact_id: 'ct2', contact: contactRef(db.crmContacts[1]), company_id: null, company: null, type: 'whatsapp', notes: 'Sent price list and delivery terms.', occurred_at: daysAgo(5), replied_at: daysAgo(4), follow_up_at: null, author: uref(db.users[0]), created_at: daysAgo(5) },
         ];
         db.crmDeals = [
-          { id: 'dl1', title: 'Sunrise Foods — Q3 bulk supply', contact_id: 'ct1', contact: contactRef(db.crmContacts[0]), company_id: 'co1', company: { id: 'co1', name: 'Sunrise Foods Ltd' }, value_naira: 4500000, stage: 'proposal', expected_close: daysAgo(-21).slice(0, 10), notes: '', created_at: daysAgo(12), updated_at: daysAgo(3) },
+          { id: 'dl1', title: 'Sunrise Foods, Q3 bulk supply', contact_id: 'ct1', contact: contactRef(db.crmContacts[0]), company_id: 'co1', company: { id: 'co1', name: 'Sunrise Foods Ltd' }, value_naira: 4500000, stage: 'proposal', expected_close: daysAgo(-21).slice(0, 10), notes: '', created_at: daysAgo(12), updated_at: daysAgo(3) },
           { id: 'dl2', title: 'Halyu Stores starter order', contact_id: 'ct2', contact: contactRef(db.crmContacts[1]), company_id: null, company: null, value_naira: 850000, stage: 'lead', expected_close: null, notes: '', created_at: daysAgo(6), updated_at: daysAgo(6) },
           { id: 'dl3', title: 'Staff canteen supply contract', contact_id: 'ct1', contact: contactRef(db.crmContacts[0]), company_id: 'co1', company: { id: 'co1', name: 'Sunrise Foods Ltd' }, value_naira: 2200000, stage: 'won', expected_close: daysAgo(10).slice(0, 10), notes: '', created_at: daysAgo(40), updated_at: daysAgo(10) },
         ];
@@ -937,8 +937,8 @@ async function demoApiInner(path, opts = {}) {
         const sub = active[1] || active[0];
         db.expenses = [
           { id: 'exp1', category_id: 'fc1', category: { id: 'fc1', name: 'Office Supplies' }, department_id: null, dept: null, vendor: 'Swift Office Supplies', description: 'Printer toner and stationery', amount: 86500, vat_rate: 0.075, expense_date: daysAgo(3).slice(0, 10), notes: '', receipt_path: null, status: 'pending', submitted_by: sub.id, submitter: uref(sub), created_at: daysAgo(3) },
-          { id: 'exp2', category_id: 'fc2', category: { id: 'fc2', name: 'Travel & Transport' }, department_id: null, dept: null, vendor: 'Uber', description: 'Client visits — Ikeja to Victoria Island', amount: 24300, vat_rate: 0, expense_date: daysAgo(8).slice(0, 10), notes: '', receipt_path: null, status: 'approved', submitted_by: sub.id, submitter: uref(sub), created_at: daysAgo(8) },
-          { id: 'exp3', category_id: 'fc1', category: { id: 'fc1', name: 'Office Supplies' }, department_id: null, dept: null, vendor: 'Chicken Republic', description: 'Team lunch — Q2 close', amount: 65000, vat_rate: 0.075, expense_date: daysAgo(15).slice(0, 10), notes: '', receipt_path: null, status: 'paid', submitted_by: sub.id, submitter: uref(sub), created_at: daysAgo(15) },
+          { id: 'exp2', category_id: 'fc2', category: { id: 'fc2', name: 'Travel & Transport' }, department_id: null, dept: null, vendor: 'Uber', description: 'Client visits, Ikeja to Victoria Island', amount: 24300, vat_rate: 0, expense_date: daysAgo(8).slice(0, 10), notes: '', receipt_path: null, status: 'approved', submitted_by: sub.id, submitter: uref(sub), created_at: daysAgo(8) },
+          { id: 'exp3', category_id: 'fc1', category: { id: 'fc1', name: 'Office Supplies' }, department_id: null, dept: null, vendor: 'Chicken Republic', description: 'Team lunch, Q2 close', amount: 65000, vat_rate: 0.075, expense_date: daysAgo(15).slice(0, 10), notes: '', receipt_path: null, status: 'paid', submitted_by: sub.id, submitter: uref(sub), created_at: daysAgo(15) },
         ];
         db.budgets = [];
         save();
@@ -1180,13 +1180,13 @@ async function demoApiInner(path, opts = {}) {
       db.complianceMarks = db.complianceMarks || [];
       const RULES = [
         { key: 'paye', title: 'PAYE remittance', authority: 'State IRS (e.g. LIRS)', description: 'Remit PAYE deducted from staff salaries to the state tax authority. Due by the 10th of the month after payroll.', frequency: 'monthly', due_day: 10, default_month: null, info_url: '', sort_order: 10 },
-        { key: 'vat', title: 'VAT filing & remittance', authority: 'FIRS', description: 'File the VAT return and remit 7.5% VAT collected — due by the 21st of the following month, even for nil months.', frequency: 'monthly', due_day: 21, default_month: null, info_url: '', sort_order: 20 },
+        { key: 'vat', title: 'VAT filing & remittance', authority: 'FIRS', description: 'File the VAT return and remit 7.5% VAT collected, due by the 21st of the following month, even for nil months.', frequency: 'monthly', due_day: 21, default_month: null, info_url: '', sort_order: 20 },
         { key: 'wht', title: 'Withholding tax remittance', authority: 'FIRS / State IRS', description: 'Remit WHT deducted from vendor payments by the 21st of the following month.', frequency: 'monthly', due_day: 21, default_month: null, info_url: '', sort_order: 30 },
         { key: 'pension', title: 'Pension remittance', authority: 'PenCom / your PFAs', description: 'Remit 8% + 10% pension contributions within 7 working days of paying salaries.', frequency: 'monthly', due_day: 7, default_month: null, info_url: '', sort_order: 40 },
         { key: 'nhf', title: 'NHF remittance', authority: 'FMBN', description: 'Remit the 2.5% National Housing Fund deduction within one month.', frequency: 'monthly', due_day: 28, default_month: null, info_url: '', sort_order: 50 },
         { key: 'nsitf', title: 'NSITF ECS contribution', authority: 'NSITF', description: 'Remit the 1% Employee Compensation Scheme contribution monthly.', frequency: 'monthly', due_day: 15, default_month: null, info_url: '', sort_order: 60 },
         { key: 'paye_annual', title: 'PAYE annual returns', authority: 'State IRS', description: 'File employer annual PAYE returns by 31 January for the previous year.', frequency: 'annual', due_day: 31, default_month: 1, info_url: '', sort_order: 70 },
-        { key: 'cac_annual', title: 'CAC annual returns', authority: 'CAC', description: 'File the company annual return with the CAC — set the month that matches your incorporation anniversary.', frequency: 'annual', due_day: 30, default_month: null, info_url: '', sort_order: 80 },
+        { key: 'cac_annual', title: 'CAC annual returns', authority: 'CAC', description: 'File the company annual return with the CAC, set the month that matches your incorporation anniversary.', frequency: 'annual', due_day: 30, default_month: null, info_url: '', sort_order: 80 },
         { key: 'cit', title: 'Companies Income Tax', authority: 'FIRS', description: 'File CIT self-assessment within 6 months of your financial year end.', frequency: 'annual', due_day: 30, default_month: 6, info_url: '', sort_order: 90 },
       ];
       if (route === 'GET /compliance') return { rules: RULES, prefs: db.compliancePrefs, marks: db.complianceMarks };
@@ -1283,7 +1283,7 @@ async function demoApiInner(path, opts = {}) {
   // demo store gets believable behaviour instead of a 404
   if (route === 'POST /site/order') {
     return { orderNo: `ORD-DEMO${String(Math.floor(Math.random() * 900) + 100)}`, total: (body.items || []).length * 25000, method: body.method || 'transfer',
-      bank: (body.method || 'transfer') === 'transfer' ? { bankName: 'GTBank', accountName: 'Demo Store Ltd', accountNumber: '0123456789', note: 'Demo mode — no real order was placed.' } : null };
+      bank: (body.method || 'transfer') === 'transfer' ? { bankName: 'GTBank', accountName: 'Demo Store Ltd', accountNumber: '0123456789', note: 'Demo mode, no real order was placed.' } : null };
   }
   if (route === 'POST /embed/lead') return { ok: true };
   if (route === 'POST /contact') return { ok: true };

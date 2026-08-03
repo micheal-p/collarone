@@ -33,7 +33,7 @@ export default function PaystackConnect({ flash, isAdmin }) {
     setBusy(true);
     try {
       await call({ action: 'connect', publicKey: form.publicKey.trim(), secretKey: form.secretKey.trim() });
-      flash('Card payments are on — money settles straight to your bank.');
+      flash('Card payments are on, money settles straight to your bank.');
       setForm({ publicKey: '', secretKey: '' }); setOpen(false); load();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
@@ -55,7 +55,7 @@ export default function PaystackConnect({ flash, isAdmin }) {
       {enabled ? (
         <>
           <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px', lineHeight: 1.6 }}>
-            Customers can pay by card, bank or USSD — on your store checkout and on every invoice pay-link — through your own Paystack account{publicKey ? ` (${publicKey.slice(0, 12)}…)` : ''}. Money settles straight to your bank; paid orders and invoices confirm themselves.
+            Customers can pay by card, bank or USSD, on your store checkout and on every invoice pay-link, through your own Paystack account{publicKey ? ` (${publicKey.slice(0, 12)}…)` : ''}. Money settles straight to your bank; paid orders and invoices confirm themselves.
           </p>
           {isAdmin && <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={disconnect}>Turn off / change keys</button>}
         </>
@@ -64,7 +64,7 @@ export default function PaystackConnect({ flash, isAdmin }) {
       ) : !open ? (
         <>
           <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px', lineHeight: 1.6 }}>
-            Take card, bank and USSD payments — on your store and your invoices — through your <strong>own</strong> Paystack account, at no extra Collarone charge. Money goes straight to your bank; we never hold it.
+            Take card, bank and USSD payments, on your store and your invoices, through your <strong>own</strong> Paystack account, at no extra Collarone charge. Money goes straight to your bank; we never hold it.
           </p>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setOpen(true)}>Connect Paystack</button>
         </>

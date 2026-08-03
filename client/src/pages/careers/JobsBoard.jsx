@@ -7,7 +7,7 @@ import { setSeo } from '../../lib/seo.js';
 import { PublicNav, PublicFooter } from '../../components/PublicChrome.jsx';
 
 /* =========================================================================
-   The Collarone jobs board — the OPEN community wall (anyone posts free, shared
+   The Collarone jobs board, the OPEN community wall (anyone posts free, shared
    from WhatsApp) up top, plus roles from companies that run on Collarone below.
    A public, SEO-driven traffic surface: seekers find jobs, employers see the
    platform, and every shared link points back here.
@@ -20,7 +20,7 @@ export default function JobsBoard() {
 
   useEffect(() => {
     setSeo({
-      title: 'Jobs in Nigeria — Collarone jobs board',
+      title: 'Jobs in Nigeria, Collarone jobs board',
       description: 'Free job board for Nigerian businesses. Browse open roles, or post your own job in seconds and share it to WhatsApp. New jobs daily.',
       canonical: 'https://collarone.app/jobs',
       jsonLd: { '@context': 'https://schema.org', '@type': 'WebSite', name: 'Collarone Jobs', url: 'https://collarone.app/jobs' },
@@ -53,7 +53,7 @@ export default function JobsBoard() {
         <h1>Find a job. Or post one, free.</h1>
         <p className="careers-lede">Fresh roles from Nigerian businesses. Posting takes seconds and you get a link to share straight to your WhatsApp groups.</p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 6 }}>
-          <Link to="/jobs/post" className="cl-btn cl-btn-primary">Post a job — free</Link>
+          <Link to="/jobs/post" className="cl-btn cl-btn-primary">Post a job, free</Link>
         </div>
         <input className="careers-search" type="search" placeholder="Search roles, companies, locations…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search jobs" style={{ marginTop: 20 }} />
       </div>
@@ -109,7 +109,7 @@ export default function JobsBoard() {
         )}
 
         <div className="careers-hire-cta">
-          <div><b>Hiring for your own company?</b><p>Post roles, screen candidates and onboard hires — recruiting is one of Collarone&apos;s 15 suites.</p></div>
+          <div><b>Hiring for your own company?</b><p>Post roles, screen candidates and onboard hires, recruiting is one of Collarone&apos;s 15 suites.</p></div>
           <Link className="cl-btn cl-btn-primary" to="/signup">Start hiring on Collarone</Link>
         </div>
       </main>

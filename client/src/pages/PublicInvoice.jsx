@@ -37,7 +37,7 @@ export default function PublicInvoice() {
           body: JSON.stringify({ action: 'verify', token, reference: ref }),
         });
         const d = await r.json();
-        setPayMsg(d.paid ? 'Payment received — thank you!' : 'We could not confirm that payment. If you were debited, contact the business.');
+        setPayMsg(d.paid ? 'Payment received, thank you!' : 'We could not confirm that payment. If you were debited, contact the business.');
         if (d.paid) load();
       } catch { setPayMsg('We could not confirm that payment right now.'); }
       params.delete('payref'); params.delete('reference'); params.delete('trxref');

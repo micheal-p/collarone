@@ -210,7 +210,7 @@ function ProjectDetail({ project, onBack, onProjectUpdated, flash }) {
   const removeMember_ = async (m) => {
     const ok = await confirm({
       title: 'Remove member?',
-      message: `${m.user?.name || 'This member'} loses access to the project's board and tasks — this can include the project lead.`,
+      message: `${m.user?.name || 'This member'} loses access to the project's board and tasks, this can include the project lead.`,
       confirmLabel: 'Remove', danger: true,
     });
     if (!ok) return;
@@ -456,14 +456,14 @@ function ProjectTime({ project, flash }) {
       const byRate = {};
       for (const e of unbilled) (byRate[e.rate_naira] = byRate[e.rate_naira] || []).push(e);
       const items = Object.entries(byRate).map(([rate, es]) => ({
-        description: `${project.name} — professional services (${es.reduce((s, e) => s + Number(e.hours), 0)}h @ ${money(rate)}/h)`,
+        description: `${project.name}, professional services (${es.reduce((s, e) => s + Number(e.hours), 0)}h @ ${money(rate)}/h)`,
         qty: es.reduce((s, e) => s + Number(e.hours), 0),
         unit_price: Number(rate),
       }));
       const { createDocument } = await import('../tradeDocs/tradeDocsApi.js');
       const inv = await createDocument({ docType: 'invoice', partyName: '', items, vatRate: 0.075, reference: `Project: ${project.name}`, notes: `Time billed ${new Date().toISOString().slice(0, 10)}` });
       await PR.markTimeInvoiced(project.id, unbilled.map((e) => e.id), inv.id);
-      flash(`Draft ${inv.doc_no} created in Invoicing — add the customer and send.`);
+      flash(`Draft ${inv.doc_no} created in Invoicing, add the customer and send.`);
       load();
     } catch (e) { flash(e.message, true); } finally { setDrafting(false); }
   };
@@ -495,7 +495,7 @@ function ProjectTime({ project, flash }) {
       )}
 
       {entries === null && <div className="suite-loading"><div className="boot-spinner" /></div>}
-      {entries?.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No time logged yet — log hours above; billable time rolls up into an invoice with one click.</p>}
+      {entries?.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No time logged yet, log hours above; billable time rolls up into an invoice with one click.</p>}
       {entries?.length > 0 && (
         <div className="table-wrap">
           <table className="table" style={{ fontSize: 13 }}>

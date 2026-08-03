@@ -70,7 +70,7 @@ function DocEditModal({ doc, folders, onClose, onSaved, flash }) {
   };
 
   return (
-    <Modal title={`Edit — ${doc.name}`} onClose={onClose}>
+    <Modal title={`Edit, ${doc.name}`} onClose={onClose}>
       <form onSubmit={submit}>
         <Field label="Name *"><input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></Field>
         <Field label="Folder">
@@ -91,7 +91,7 @@ function DocEditModal({ doc, folders, onClose, onSaved, flash }) {
         <Field label="Expiry date (optional)">
           <input className="input" type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
         </Field>
-        <p className="muted" style={{ fontSize: 12, margin: '-6px 0 12px' }}>Contracts, licences, permits — you&apos;ll be reminded about two weeks before it expires.</p>
+        <p className="muted" style={{ fontSize: 12, margin: '-6px 0 12px' }}>Contracts, licences, permits, you&apos;ll be reminded about two weeks before it expires.</p>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save changes'}</button>
@@ -127,7 +127,7 @@ function VersionModal({ doc, onClose, flash }) {
   };
 
   return (
-    <Modal title={`Versions — ${doc.name}`} onClose={onClose} wide>
+    <Modal title={`Versions, ${doc.name}`} onClose={onClose} wide>
       <form onSubmit={upload} style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
         <input type="file" onChange={(e) => setFile(e.target.files[0])} />
         <input className="input" placeholder="Version notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} style={{ flex: 1, minWidth: 160 }} />
@@ -174,7 +174,7 @@ function PermissionsModal({ doc, onClose, flash }) {
   const available = staff.filter((s) => !perms.some((p) => p.user_id === s.id));
 
   return (
-    <Modal title={`Permissions — ${doc.name}`} onClose={onClose}>
+    <Modal title={`Permissions, ${doc.name}`} onClose={onClose}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <select className="select" value={userId} onChange={(e) => setUserId(e.target.value)} style={{ flex: 1 }}>
           <option value="">— Select person —</option>
@@ -291,7 +291,7 @@ export default function DocumentsApp({ access }) {
   const removeFolder = async (folder) => {
     const ok = await confirm({
       title: `Delete folder "${folder.name}"?`,
-      message: 'Documents inside move to "All documents" — no documents are deleted.',
+      message: 'Documents inside move to "All documents", no documents are deleted.',
       confirmLabel: 'Delete folder', danger: true,
     });
     if (!ok) return;
@@ -391,7 +391,7 @@ function SignaturesModal({ doc, onClose, flash }) {
   const request = async () => {
     if (!of) { flash('Pick who should sign.', true); return; }
     setBusy(true);
-    try { await D.requestSignature(doc.id, of, note); setOf(''); setNote(''); flash('Signature requested — they’ve been notified.'); load(); }
+    try { await D.requestSignature(doc.id, of, note); setOf(''); setNote(''); flash('Signature requested, they’ve been notified.'); load(); }
     catch (e) { flash(e.message, true); } finally { setBusy(false); }
   };
 
@@ -405,9 +405,9 @@ function SignaturesModal({ doc, onClose, flash }) {
   };
 
   return (
-    <Modal title={`Signatures — ${doc.name}`} onClose={onClose}>
+    <Modal title={`Signatures, ${doc.name}`} onClose={onClose}>
       {sigs === null && <div className="suite-loading"><div className="boot-spinner" /></div>}
-      {sigs?.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No signatures yet — request one below. Signed and unsigned copies are different documents; this is the record of who agreed.</p>}
+      {sigs?.length === 0 && <p className="muted" style={{ fontSize: 13 }}>No signatures yet, request one below. Signed and unsigned copies are different documents; this is the record of who agreed.</p>}
       {(sigs || []).map((s) => (
         <div key={s.id} style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>

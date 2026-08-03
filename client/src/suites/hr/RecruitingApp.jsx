@@ -205,7 +205,7 @@ function InterviewModal({ applicationId, staff, onClose, onSaved, onError }) {
    star rating stays the actual decision signal; this is triage-only. ---------- */
 function MatchScore({ score }) {
   const tier = score >= 70 ? 'lc-match-high' : score >= 40 ? 'lc-match-mid' : 'lc-match-low';
-  return <span className={`lc-badge ${tier}`} title="Rubric-based fit score from experience, salary and application completeness — not a hiring decision.">{Math.round(score)} match</span>;
+  return <span className={`lc-badge ${tier}`} title="Rubric-based fit score from experience, salary and application completeness, not a hiring decision.">{Math.round(score)} match</span>;
 }
 
 /* ---- ApplicationCard — kanban card: name, source, match, rating, stage move ---- */
@@ -248,11 +248,11 @@ function ApplicationCard({ app, isHrManager, selected, onOpen, onStage }) {
 function CandidateTimeline({ app, interviews }) {
   const events = [
     { t: app.created_at, label: 'Applied' },
-    ...(interviews || []).map((iv) => ({ t: iv.scheduled_at, label: `Interview — ${iv.interviewer?.name || ''}${iv.outcome !== 'pending' ? ` (${L.OUTCOME[iv.outcome]?.label || iv.outcome})` : ''}` })),
+    ...(interviews || []).map((iv) => ({ t: iv.scheduled_at, label: `Interview, ${iv.interviewer?.name || ''}${iv.outcome !== 'pending' ? ` (${L.OUTCOME[iv.outcome]?.label || iv.outcome})` : ''}` })),
     app.offer_sent_at && { t: app.offer_sent_at, label: 'Offer sent' },
     app.offer_decided_at && { t: app.offer_decided_at, label: app.offer_status === 'accepted' ? 'Offer accepted' : 'Offer declined' },
     app.stage === 'hired' && { t: app.updated_at, label: 'Hired' },
-    app.stage === 'rejected' && { t: app.updated_at, label: `Rejected${app.rejection_reason ? ` — ${app.rejection_reason}` : ''}` },
+    app.stage === 'rejected' && { t: app.updated_at, label: `Rejected${app.rejection_reason ? `, ${app.rejection_reason}` : ''}` },
   ].filter(Boolean).sort((a, b) => new Date(a.t) - new Date(b.t));
   if (events.length <= 1) return null;
   return (
@@ -307,13 +307,13 @@ function Scorecard({ iv, editable, onSave }) {
 const EMAIL_TEMPLATES = (app, reqTitle, orgName) => ({
   invite: {
     label: 'Interview invitation',
-    subject: `Interview invitation — ${reqTitle} at ${orgName}`,
+    subject: `Interview invitation, ${reqTitle} at ${orgName}`,
     body: `Dear ${app.candidate.name.split(' ')[0]},\n\nThank you for applying for the ${reqTitle} role at ${orgName}. We were impressed by your application and would like to invite you to an interview.\n\nWe will contact you shortly to agree a convenient date and time. If you have any questions before then, just reply to this email.\n\nBest regards,\n${orgName} hiring team`,
   },
   offer: {
     label: 'Offer link',
     subject: `Your offer from ${orgName}`,
-    body: `Dear ${app.candidate.name.split(' ')[0]},\n\nCongratulations — ${orgName} is pleased to offer you the position of ${reqTitle}.\n\nYou can review the full offer and respond here:\n${window.location.origin}/offer/${app.offer_token}\n\nThis link is private to you. We look forward to your decision.\n\nBest regards,\n${orgName} hiring team`,
+    body: `Dear ${app.candidate.name.split(' ')[0]},\n\nCongratulations, ${orgName} is pleased to offer you the position of ${reqTitle}.\n\nYou can review the full offer and respond here:\n${window.location.origin}/offer/${app.offer_token}\n\nThis link is private to you. We look forward to your decision.\n\nBest regards,\n${orgName} hiring team`,
   },
   reject: {
     label: 'Not moving forward',
@@ -350,7 +350,7 @@ function EmailCandidateModal({ app, reqTitle, orgName, flash, onClose }) {
   return (
     <Modal title={`Email ${app.candidate.name}`} onClose={onClose} wide>
       <p className="muted" style={{ fontSize: 12.5, margin: '0 0 12px' }}>
-        To <b>{app.candidate.email}</b> · sent as “{orgName} via Collarone” — replies go to your company email.
+        To <b>{app.candidate.email}</b> · sent as “{orgName} via Collarone”, replies go to your company email.
       </p>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
         {Object.entries(templates).map(([k, t]) => (
@@ -393,7 +393,7 @@ function HireModal({ app, reqTitle, flash, onClose, onHired }) {
   const copyCreds = async () => {
     try {
       await navigator.clipboard.writeText(`Welcome to the team!\nSign in at ${window.location.origin}/login\nEmail: ${f.email}\nTemporary password: ${f.password}\n(You will be asked to change it on first login.)`);
-      flash('Login details copied — send them to your new hire.');
+      flash('Login details copied, send them to your new hire.');
     } catch { flash('Could not copy.', true); }
   };
 
@@ -402,7 +402,7 @@ function HireModal({ app, reqTitle, flash, onClose, onHired }) {
       {created ? (
         <div>
           <p style={{ fontSize: 13.5, lineHeight: 1.65 }}>
-            <b>{created.name}</b> now has a staff account. Send them these login details — the temporary password is shown only here:
+            <b>{created.name}</b> now has a staff account. Send them these login details, the temporary password is shown only here:
           </p>
           <div style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 8, padding: '12px 14px', fontSize: 13.5, lineHeight: 2, margin: '10px 0 14px' }}>
             <div>Email: <b>{f.email}</b></div>
@@ -410,7 +410,7 @@ function HireModal({ app, reqTitle, flash, onClose, onHired }) {
           </div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button type="button" className="btn btn-ghost" onClick={copyCreds}>{I.copy} Copy login details</button>
-            <button type="button" className="btn btn-primary" onClick={() => onHired(created.id)}>Done — link & mark hired</button>
+            <button type="button" className="btn btn-primary" onClick={() => onHired(created.id)}>Done, link & mark hired</button>
           </div>
           <p className="muted" style={{ fontSize: 11.5, margin: '10px 0 0' }}>They'll be asked to change the password on first login. Grant suites from Admin Center → Users when ready.</p>
         </div>
@@ -557,7 +557,7 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
                 </div>
                 <div className="field" style={{ marginTop:8 }}><label>Note shown to the candidate (optional)</label>
                   <input className="input" defaultValue={app.offer_note || ''} placeholder="Benefits, conditions, who to contact…" onBlur={(e) => patch({ offerNote: e.target.value })} /></div>
-                {/* The private acceptance link — one click sends: stamps the offer
+                {/* The private acceptance link, one click sends: stamps the offer
                     'sent' and copies the URL the candidate opens to accept/decline. */}
                 <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap', marginTop:10 }}>
                   <button type="button" className="btn btn-primary" style={{ fontSize:12.5, padding:'6px 14px' }}
@@ -565,14 +565,14 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
                       if (app.offer_salary == null && !app.offer_note) { flash('Set the offer salary (or a note) first.', true); return; }
                       if (app.offer_status !== 'sent') await patch({ offerStatus: 'sent', offerSentAt: new Date().toISOString() });
                       const url = `${window.location.origin}/offer/${app.offer_token}`;
-                      try { await navigator.clipboard.writeText(url); flash('Offer link copied — send it to the candidate.'); }
+                      try { await navigator.clipboard.writeText(url); flash('Offer link copied, send it to the candidate.'); }
                       catch { window.prompt('Copy the offer link:', url); }
                     }}>
-                    {app.offer_status === 'sent' ? 'Copy offer link' : 'Send offer — copy link'}
+                    {app.offer_status === 'sent' ? 'Copy offer link' : 'Send offer, copy link'}
                   </button>
                   {app.offer_status === 'accepted' && <span className="pill" style={{ background:'#E8F6EC', color:'#1A7A3E', fontWeight:700, fontSize:11.5, padding:'3px 10px', borderRadius:100 }}>ACCEPTED{app.offer_decided_at ? ` · ${new Date(app.offer_decided_at).toLocaleDateString('en-GB', { day:'2-digit', month:'short' })}` : ''}</span>}
                   {app.offer_status === 'declined' && <span className="pill" style={{ background:'#F6ECEA', color:'#A03232', fontWeight:700, fontSize:11.5, padding:'3px 10px', borderRadius:100 }}>DECLINED</span>}
-                  {app.offer_status === 'sent' && <span className="muted" style={{ fontSize:12 }}>Awaiting the candidate's decision — refresh to see it.</span>}
+                  {app.offer_status === 'sent' && <span className="muted" style={{ fontSize:12 }}>Awaiting the candidate's decision, refresh to see it.</span>}
                 </div>
               </>
             )}
@@ -585,10 +585,10 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
             {app.stage === 'hired' && (
               <div className="callout-hint">
                 {app.hired_profile_id ? (
-                  <>Hired and linked — onboarding can be generated for them.</>
+                  <>Hired and linked, onboarding can be generated for them.</>
                 ) : (
                   <>
-                    Hired — create their staff account in one click (uses 1 seat credit), or link one that already exists.
+                    Hired, create their staff account in one click (uses 1 seat credit), or link one that already exists.
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
                       <button type="button" className="btn btn-primary" style={{ fontSize:12, padding:'4px 14px' }} onClick={() => setHireModal(true)}>
                         Create staff account
@@ -608,10 +608,10 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
             )}
             {app.stage === 'offer' && app.offer_status === 'accepted' && isHrManager && !app.hired_profile_id && (
               <div className="callout-hint" style={{ marginTop:10 }}>
-                Offer accepted — finish the hire in one click: moves them to Hired and creates their staff account (1 seat credit).
+                Offer accepted, finish the hire in one click: moves them to Hired and creates their staff account (1 seat credit).
                 <div style={{ marginTop:8 }}>
                   <button type="button" className="btn btn-primary" style={{ fontSize:12, padding:'4px 14px' }} onClick={() => setHireModal(true)}>
-                    Hire {app.candidate.name.split(' ')[0]} — create account
+                    Hire {app.candidate.name.split(' ')[0]}, create account
                   </button>
                 </div>
               </div>
@@ -635,7 +635,7 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
             ) : interviews.map((iv) => (
               <div key={iv.id} className="lc-interview-card">
                 <div style={{ display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:6 }}>
-                  <span style={{ fontSize:13, fontWeight:500 }}>{iv.interviewer?.name} — {L.fmtDt(iv.scheduled_at)} <span className="muted" style={{ textTransform:'capitalize' }}>({iv.mode})</span></span>
+                  <span style={{ fontSize:13, fontWeight:500 }}>{iv.interviewer?.name}, {L.fmtDt(iv.scheduled_at)} <span className="muted" style={{ textTransform:'capitalize' }}>({iv.mode})</span></span>
                   {canScoreInterview(iv) ? (
                     <select className="select" value={iv.outcome} onChange={(e) => scoreInterview(iv, { outcome: e.target.value })} style={{ fontSize:12, padding:'2px 6px', height:'auto' }}>
                       {Object.entries(L.OUTCOME).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}

@@ -167,7 +167,7 @@ export default function Profile() {
           <div className="field">
             <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               WhatsApp number
-              <span style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 400 }}>(optional — leave blank if same as phone)</span>
+              <span style={{ fontSize: 11, color: 'var(--text-2)', fontWeight: 400 }}>(optional, leave blank if same as phone)</span>
             </label>
             <input
               type="tel"
@@ -279,7 +279,7 @@ function PayslipPrint({ slip, user, onClose }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #14161a', paddingBottom: 14, marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 18, fontWeight: 800 }}>{user?.org?.name || 'Your company'}</div>
-              <div style={{ fontSize: 12, color: '#667' }}>Payslip — {period}</div>
+              <div style={{ fontSize: 12, color: '#667' }}>Payslip, {period}</div>
             </div>
             {user?.org?.logo_url && <img src={user.org.logo_url} alt="" style={{ height: 40, objectFit: 'contain' }} />}
           </div>
@@ -315,7 +315,7 @@ function MyGoals() {
 
   const markDone = async (g) => {
     try { const updated = await PF.updateGoal(g.id, { status: 'done' }); setGoals((gs) => gs.map((x) => (x.id === updated.id ? updated : x))); }
-    catch { /* silent — non-critical self-service action */ }
+    catch { /* silent, non-critical self-service action */ }
   };
 
   if (goals === null || goals.length === 0) return null;

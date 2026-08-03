@@ -7,7 +7,7 @@ import * as D from '../documents/documentsApi.js';
 import { LETTER_TYPES, LETTERHEAD_TEMPLATES, LETTERHEAD_CSS, letterHeadHtml, letterBodyHtml, buildLetterDocument, suggestReference, LETTER_FOLDER_SUGGESTION, compressLogo, compressSignature } from './letterheadTemplates.js';
 
 /* =========================================================================
-   HR Letters engine — compose company letters (manually or with Collarone
+   HR Letters engine, compose company letters (manually or with Collarone
    AI), on a saved letterhead: generated from company details across 8
    templates, or an uploaded .docx. Fulfils employee letter requests, files
    every issued letter into Documents, and keeps an issued-letters register.
@@ -100,7 +100,7 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
   }));
   const emp = staff.find((s) => s.id === f.employeeId);
   const type = LETTER_TYPES[f.letterType] || LETTER_TYPES.custom;
-  const title = emp ? `${type.label} — ${emp.name}` : type.label;
+  const title = emp ? `${type.label}, ${emp.name}` : type.label;
   const existingNames = useMemo(() => new Set((folders || []).map((x) => x.name)), [folders]);
   const folderOptions = useMemo(() => {
     const names = new Set([f.folderName, ...Object.values(LETTER_FOLDER_SUGGESTION), ...existingNames]);
@@ -113,7 +113,7 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
     const res = await confirm({
       title: 'New Documents folder', confirmLabel: 'Create folder',
       message: 'The folder is created in the Documents suite now and this letter will file into it.',
-      input: { label: 'Folder name', placeholder: 'e.g. HR Letters — Promotions', required: true },
+      input: { label: 'Folder name', placeholder: 'e.g. HR Letters, Promotions', required: true },
     });
     if (!res) return;
     const name = res.value.trim();
@@ -141,7 +141,7 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
   const aiDraft = async () => {
     if (!emp) return flash('Pick an employee first.', true);
     setAiBusy(true);
-    try { set('body', await L.aiDraftLetter(ctx())); flash('Draft ready — review and edit before issuing.'); }
+    try { set('body', await L.aiDraftLetter(ctx())); flash('Draft ready, review and edit before issuing.'); }
     catch (e) { flash(e.message, true); }
     finally { setAiBusy(false); }
   };
@@ -169,7 +169,7 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
       }
       downloadHtml(html, `${title.replace(/[^a-zA-Z0-9]+/g, '-')}.html`);
       fileToDocuments({ html, title: `${title} · ${f.reference}`, employeeId: emp.id, folderName: f.folderName }).catch(() => {});
-      flash(`Letter issued — filing to "${f.folderName}" in the background.`);
+      flash(`Letter issued, filing to "${f.folderName}" in the background.`);
       onIssued(saved);
       setF((s) => ({ ...s, body: '', instructions: '', requestId: null, caseId: null, caseField: null, refTouched: false, reference: suggestReference(s.letterType, [saved, ...(issued || [])]) }));
     } catch (e) { flash(e.message, true); }
@@ -181,7 +181,7 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
       <div className="lt-form">
         {f.requestId && (
           <div className="callout-hint" style={{ marginBottom: 12 }}>
-            Fulfilling {emp?.name || 'an employee'}&rsquo;s letter request — issuing will mark the request as issued.
+            Fulfilling {emp?.name || 'an employee'}&rsquo;s letter request, issuing will mark the request as issued.
           </div>
         )}
         <div className="form-grid">
@@ -205,11 +205,11 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
             <button type="button" className="btn btn-ghost btn-sm" onClick={useTemplate}>Use template</button>
           </div>
           {aiEnabled && (
-            <input className="input" style={{ margin: '8px 0' }} placeholder="Anything the AI should know? (optional — e.g. 'mention her transfer to the Abuja office')"
+            <input className="input" style={{ margin: '8px 0' }} placeholder="Anything the AI should know? (optional, e.g. 'mention her transfer to the Abuja office')"
               value={f.instructions} onChange={(e) => set('instructions', e.target.value)} />
           )}
           <textarea className="input" rows={12} value={f.body} onChange={(e) => set('body', e.target.value)}
-            placeholder={aiEnabled ? 'Write the letter here, use the template, or let Collarone AI draft it — you always review before issuing.' : 'Write the letter here, or start from a template — you always review before issuing.'} />
+            placeholder={aiEnabled ? 'Write the letter here, use the template, or let Collarone AI draft it, you always review before issuing.' : 'Write the letter here, or start from a template, you always review before issuing.'} />
         </div>
 
         <div className="form-grid">
@@ -257,7 +257,7 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
           )}
           <select className="select" style={{ width: 'auto', height: 30, fontSize: 12, padding: '0 8px' }}
             value={tplOverride} onChange={(e) => setTplOverride(e.target.value)} title="Template for this letter">
-            <option value="">Saved template — {LETTERHEAD_TEMPLATES[chosenLetterhead?.template_key]?.label || 'Classic'}</option>
+            <option value="">Saved template, {LETTERHEAD_TEMPLATES[chosenLetterhead?.template_key]?.label || 'Classic'}</option>
             {Object.entries(LETTERHEAD_TEMPLATES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
         </div>
@@ -401,7 +401,7 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved, onDeleted, confir
       const body = { name: lhName.trim() || d.companyName || 'Company letterhead', mode, templateKey: tpl, details: d, filePath, isDefault: true };
       const saved = (current?.id && !saveAsNew) ? await L.updateLetterhead(current.id, body) : await L.saveLetterhead(body);
       onSaved(saved);
-      flash(saveAsNew ? 'Saved as a new letterhead and set as default.' : 'Letterhead saved — it will be used for every letter you issue.');
+      flash(saveAsNew ? 'Saved as a new letterhead and set as default.' : 'Letterhead saved, it will be used for every letter you issue.');
     } catch (e) { flash(e.message, true); }
     finally { setBusy(false); }
   };
@@ -438,12 +438,12 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved, onDeleted, confir
             </div>
 
             <div className="form-grid">
-              <div className="field"><label>Company logo <span className="muted">(optional — compressed automatically)</span></label>
+              <div className="field"><label>Company logo <span className="muted">(optional, compressed automatically)</span></label>
                 <input type="file" accept="image/*" style={{ fontSize: 13 }}
                   onChange={async (e) => {
                     const file = e.target.files[0];
                     if (!file) return;
-                    try { set('logo', await compressLogo(file)); flash('Logo added — compressed for the letterhead.'); }
+                    try { set('logo', await compressLogo(file)); flash('Logo added, compressed for the letterhead.'); }
                     catch (err) { flash(err.message, true); }
                   }} />
                 {d.logo && (
@@ -463,7 +463,7 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved, onDeleted, confir
               </div>
             </div>
 
-            <div className="field"><label>Authorized signature <span className="muted">(optional — appears above the signer's name; compressed automatically)</span></label>
+            <div className="field"><label>Authorized signature <span className="muted">(optional, appears above the signer's name; compressed automatically)</span></label>
               <input type="file" accept="image/*" style={{ fontSize: 13 }}
                 onChange={async (e) => {
                   const file = e.target.files[0];
@@ -479,7 +479,7 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved, onDeleted, confir
               )}
             </div>
 
-            <div className="field"><label>Template — {LETTERHEAD_TEMPLATES[tpl].label}</label>
+            <div className="field"><label>Template, {LETTERHEAD_TEMPLATES[tpl].label}</label>
               <div className="lt-tpl-grid">
                 {Object.entries(LETTERHEAD_TEMPLATES).map(([k, v]) => (
                   <button key={k} type="button" className={`lt-tpl ${tpl === k ? 'on' : ''}`} onClick={() => setTpl(k)} title={v.hint}>
@@ -547,8 +547,8 @@ function LetterheadTab({ letterheads, orgName, flash, onSaved, onDeleted, confir
         <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: 700, marginBottom: 8 }}>Preview</div>
         {mode === 'generated'
           ? <LetterPreview letterhead={previewLh} scale={0.82}
-              letter={{ date: today(), reference: 'HR/SAMPLE/001', body: `Dear Adaeze,\n\nThis is how your letters will look on the ${LETTERHEAD_TEMPLATES[tpl].label} letterhead. Every detail above comes from the form on the left — edit anything and the preview updates instantly.\n\nYours faithfully,`, signerName: 'Human Resources', signerRole: d.companyName }} />
-          : <EmptyState title="Uploaded letterheads keep their original design" hint="Preview isn't available for .docx/.pdf files — download the file any time from this tab." />}
+              letter={{ date: today(), reference: 'HR/SAMPLE/001', body: `Dear Adaeze,\n\nThis is how your letters will look on the ${LETTERHEAD_TEMPLATES[tpl].label} letterhead. Every detail above comes from the form on the left, edit anything and the preview updates instantly.\n\nYours faithfully,`, signerName: 'Human Resources', signerRole: d.companyName }} />
+          : <EmptyState title="Uploaded letterheads keep their original design" hint="Preview isn't available for .docx/.pdf files, download the file any time from this tab." />}
       </div>
     </div>
   );

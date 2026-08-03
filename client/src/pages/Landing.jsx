@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import PublicThemeGallery from '../components/PublicThemeGallery.jsx';
 import CardCarousel from '../components/CardCarousel.jsx';
 import { motion, animate, AnimatePresence, useReducedMotion, useScroll, useTransform, useMotionValue, useSpring, useMotionValueEvent } from 'framer-motion';
+import { FAQS } from '../config/faqs.js';
 import { SUITES, SUITE_META, requiresOf, requiredFoundations, FAMILIES, SUITE_FAMILY, PRESETS } from '../config/suites.js';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 import { supabase } from '../lib/supabaseClient.js';
@@ -394,23 +395,8 @@ const modules = [
 const FAQ_CATS = ['All', 'General', 'Pricing', 'Product', 'Security'];
 // Fifteen open questions was a wall. Five is a section; the rest are one tap away.
 const FAQ_PREVIEW = 5;
-const faqs = [
-  { cat: 'General', q: 'What is Collarone?', a: 'Fifteen business suites behind one login, priced and billed in naira: HR, payroll and benefits, invoicing, CRM, inventory, compliance and more. Your company gets its own isolated workspace, and you switch on only the suites you need.' },
-  { cat: 'General', q: 'Can I try it before paying anything?', a: 'Yes. Open the demo from the menu, pick a suite, and you land inside it: real screens, sample data, and a guided tour that assumes you\'ve never seen it before. No sign-up, nothing to install, and you can\'t break anything.' },
-  { cat: 'General', q: 'How long does it take to get started?', a: 'Minutes. Sign up, pick your plan and suites, and your workspace is created straight away. During early access we also set things up with you personally on WhatsApp. Most businesses are live the same day.' },
-  { cat: 'Pricing', q: 'How much does Collarone cost?', a: 'Every tier is à la carte. You pick the suites. Startup is ₦15,000/month with any 3 suites included, Standard is ₦25,000 with 5, and extra suites cost ₦8,000 or ₦6,000 each by tier. Add ₦2,000 per staff member, save 15% by paying yearly, and your rate locks in at sign-up, with no dollar pricing or forex markup. Enterprise is quote-based: tell us what you want to run under Collarone and we scope it with dedicated onboarding.' },
-  { cat: 'Pricing', q: 'Is Collarone only for large companies?', a: 'No. It starts at a corner-shop size. Startup is ₦15,000 a month, and every suite ships complete, not as a stripped-down trial. A 5-person team gets the same payroll engine and the same CRM an enterprise gets.' },
-  { cat: 'Pricing', q: 'Is there a contract, or can I cancel anytime?', a: 'No long-term contract. Collarone is billed monthly, or yearly for 15% off. And the rate you sign up at is locked: it never changes for you, even when our published prices do.' },
-  { cat: 'Pricing', q: 'What happens if I miss a renewal?', a: 'Nothing dramatic. You get a grace window with full access and clear reminders; after that your workspace turns read-only (everything still visible, nothing deletable) until you renew. We never delete your data over a late payment.' },
-  { cat: 'Product', q: 'Does Collarone include a website builder?', a: 'Yes, on every tier. Pick from 11 designed themes across online store, landing page and company-profile categories, edit every word and picture in place, and sell with a real cart: transfer, pay on delivery, or card through your own Paystack account. Already have a site? Link it instead.' },
-  { cat: 'Product', q: 'Is there a CRM for managing customers?', a: 'Yes. Contacts, companies, a WhatsApp-first activity log, a deals pipeline valued in naira, a bookings day-sheet, and a Money Owed tracker that ages what customers owe you. Enquiries from your website land in it automatically, so nothing gets ignored.' },
-  { cat: 'Product', q: 'Can Collarone run my hiring end to end?', a: 'Yes. Post a role to your public careers page, move applicants through a pipeline with interview scorecards, send the offer as a private link they accept online, then hire in one click: their staff login is created instantly and onboarding starts.' },
-  { cat: 'Product', q: 'Can Collarone write my company letters?', a: 'Yes. The Letters engine drafts confirmation, promotion, verification, query and warning letters, from templates or with Collarone AI, rendered on your letterhead with your logo and authorised signature, auto-numbered, and filed into Documents automatically.' },
-  { cat: 'Product', q: 'What about payroll?', a: 'Payroll runs the 2026 Nigeria Tax Act rules (the new PAYE bands with the ₦800,000 exemption and rent relief) plus pension, NHF and NSITF, payslips, and staff loans that repay themselves by deduction. Benefits live in the same suite: HMO, pension and custom benefits, switchable per person. Collarone never touches your bank account. It prepares the disbursement, your bank executes it.' },
-  { cat: 'Product', q: 'Can I generate invoices and automate follow-ups?', a: 'Yes. Create a numbered invoice and share it as a link your customer can pay from, by transfer or by card straight into your own Paystack account. Receipts, GRNs, stock passes and signed handover notes come from the same engine, on your letterhead. Automation then does the chasing: overdue-invoice reminders, low-stock alerts and follow-up tasks, daily.' },
-  { cat: 'Product', q: 'Does it help with tax deadlines?', a: 'Yes. The Compliance Calendar tracks Nigeria\'s statutory dates: PAYE by the 10th, VAT by the 21st, pension, NHF, NSITF, and annual filings like CAC returns. Each month you mark them done with a reference, so “did we file?” always has an answer with a name on it.' },
-  { cat: 'Security', q: 'Is my company’s data secure?', a: 'Every screen checks who is allowed to see it before showing anything, and every company\'s data is isolated from every other company\'s at the database level, verified directly, not assumed. And Collarone never holds or moves your money; payments settle in your own accounts.' },
-];
+// single source of truth, shared with the FAQPage markup in index.html
+const faqs = FAQS;
 
 export default function Landing() {
   usePricing(); // re-renders the pricing cards once live prices load
@@ -522,7 +508,7 @@ export default function Landing() {
           <motion.div className="cl-hero-inner" {...heroTextProps}>
             <motion.span {...heroItemVariants} className="cl-kicker"><span className="cl-dot" />The business OS built for Nigeria</motion.span>
             <motion.h1 {...heroItemVariants}>Stop running your business <span className="cl-grad-word">from memory.</span></motion.h1>
-            <motion.p {...heroItemVariants} className="cl-hero-sub">People, payroll, customers, tasks and money—finally moving together in one calm command centre.</motion.p>
+            <motion.p {...heroItemVariants} className="cl-hero-sub">People, payroll, customers, tasks and money: finally moving together in one calm command centre.</motion.p>
             <motion.div {...heroItemVariants} className="cl-hero-ctas">
               <Link className="cl-btn cl-btn-primary cl-hero-primary" to="/signup">Build my workspace <span aria-hidden="true">↗</span></Link>
               <Link className="cl-btn cl-btn-ghost" to="/try">Explore the live demo <span aria-hidden="true">→</span></Link>
@@ -557,7 +543,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-capabilities-section" id="capabilities" data-section="01 — DIFFERENT BY DESIGN">
+      <section className="cl-sec cl-capabilities-section" id="capabilities" data-section="01 · DIFFERENT BY DESIGN">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">Why it feels different</p>
@@ -573,7 +559,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-tint cl-platform-section" id="platform" data-section="02 — THE OPERATING SYSTEM">
+      <section className="cl-sec cl-tint cl-platform-section" id="platform" data-section="02 · THE OPERATING SYSTEM">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">One platform</p>
@@ -625,7 +611,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-tint cl-themes-section" id="themes" data-section="03 — YOUR DIGITAL FRONT DOOR">
+      <section className="cl-sec cl-tint cl-themes-section" id="themes" data-section="03 · YOUR DIGITAL FRONT DOOR">
         <div className="cl-wrap">
           <motion.div className="cl-sec-head" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
             <p className="cl-eyebrow">A real website, included on every plan</p>
@@ -636,7 +622,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-nigeria-section" id="nigeria" data-section="04 — BUILT HERE, BUILT RIGHT">
+      <section className="cl-sec cl-nigeria-section" id="nigeria" data-section="04 · BUILT HERE, BUILT RIGHT">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">Not translated. Built here.</p>
@@ -662,7 +648,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-tint cl-pricing-section" id="pricing" data-section="05 — HONEST PRICING">
+      <section className="cl-sec cl-tint cl-pricing-section" id="pricing" data-section="05 · HONEST PRICING">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">Pricing</p>
@@ -692,7 +678,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-tint cl-jobs-section" id="jobs-board" data-section="06 — HIRE WITHOUT THE HASSLE">
+      <section className="cl-sec cl-tint cl-jobs-section" id="jobs-board" data-section="06 · HIRE WITHOUT THE HASSLE">
         <div className="cl-wrap">
           <div className="cl-jobs-grid">
             <Reveal className="cl-jobs-copy">
@@ -728,7 +714,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-tint cl-faq-section" id="faq" data-section="07 — THE DETAILS">
+      <section className="cl-sec cl-tint cl-faq-section" id="faq" data-section="07 · THE DETAILS">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">Questions</p>
@@ -765,7 +751,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-contact-section" id="contact" data-section="08 — YOUR MOVE">
+      <section className="cl-sec cl-contact-section" id="contact" data-section="08 · YOUR MOVE">
         <div className="cl-wrap">
           <Reveal className="cl-contact-card cl-dark-card">
             <h2>Let's get your business on Collarone.</h2>
@@ -819,7 +805,7 @@ export default function Landing() {
         </div>
       </footer>
 
-      {/* Collarone assistant — AI chat grounded in the business, with a
+      {/* Collarone assistant, AI chat grounded in the business, with a
           talk-to-a-human hand-off to WhatsApp, phone or the contact desk. */}
       <ChatWidget visible={pastHero} />
     </div>

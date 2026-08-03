@@ -13,7 +13,7 @@ export const meta = {
   key: 'market-fresh',
   name: 'Market Fresh',
   category: 'ecommerce',
-  description: 'Bright, warm and friendly — rounded cards, a chunky playful display face and bouncy motion. Great for food and everyday goods.',
+  description: 'Bright, warm and friendly, rounded cards, a chunky playful display face and bouncy motion. Great for food and everyday goods.',
   accent: '#2E9E5B',
   fonts: 'Fredoka + Inter',
 };

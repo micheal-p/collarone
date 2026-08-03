@@ -9,21 +9,21 @@ export const SUITES = [
   //    price estimator, signup, and server-side. See requiredFoundations().
   //  • companions: a soft "comes along when granted" convenience in the STAFF
   //    access picker (not about billing). HR files letters into Documents, etc.
-  { key: 'hr',          name: 'HR & Staff',         tier: 'core',     status: 'live', desc: 'Everything about each staff member in one place — files, letters, hiring and org chart.', companions: ['documents'] },
+  { key: 'hr',          name: 'HR & Staff',         tier: 'core',     status: 'live', desc: 'Everything about each staff member in one place, files, letters, hiring and org chart.', companions: ['documents'] },
   { key: 'leave',       name: 'Leave Management',   tier: 'core',     status: 'live', desc: 'Requests, approvals and balance tracking.', requires: ['hr'] },
   { key: 'tasks',       name: 'Task & Report',      tier: 'core',     status: 'live', desc: 'Give jobs to staff, mark what’s urgent, and see who’s done what.' },
   { key: 'visitors',    name: 'Visitor Management', tier: 'core',     status: 'live', desc: 'Front-desk check-in, host alerts, visitor logs.' },
-  { key: 'payroll',     name: 'Payroll & Benefits', tier: 'core',     status: 'live', desc: '2026 Tax Act payroll runs, payslips, staff loans — plus HMO, pension/PFA and custom benefits, set differently for each staff member.', requires: ['hr'] },
-  { key: 'crm',         name: 'Customers (CRM)',    tier: 'core',     status: 'live', desc: 'Contacts, deals, bookings and money owed — WhatsApp-first.' },
+  { key: 'payroll',     name: 'Payroll & Benefits', tier: 'core',     status: 'live', desc: '2026 Tax Act payroll runs, payslips, staff loans, plus HMO, pension/PFA and custom benefits, set differently for each staff member.', requires: ['hr'] },
+  { key: 'crm',         name: 'Customers (CRM)',    tier: 'core',     status: 'live', desc: 'Contacts, deals, bookings and money owed, WhatsApp-first.' },
   { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'live', desc: 'Clock in and out with location, track hours and overtime.', requires: ['hr'] },
   { key: 'procurement', name: 'Buying (Procurement)', tier: 'extended', status: 'live', desc: 'Ask to buy things, track suppliers, and get approvals.' },
-  { key: 'inventory',   name: 'Inventory & Assets', tier: 'extended', status: 'live', desc: 'Track what you sell and the equipment your staff use — stock counts, sign-outs and returns.' },
+  { key: 'inventory',   name: 'Inventory & Assets', tier: 'extended', status: 'live', desc: 'Track what you sell and the equipment your staff use, stock counts, sign-outs and returns.' },
   { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'live', desc: 'Expenses, budgets and financial reports.' },
   { key: 'projects',    name: 'Projects',           tier: 'extended', status: 'live', desc: 'Plan jobs in stages, track them on a board, work as a team.' },
   { key: 'documents',   name: 'Documents',          tier: 'extended', status: 'live', desc: 'Keep files safe, track changes, and control who sees what.' },
-  { key: 'trade-docs',  name: 'Invoicing & Trade Docs', tier: 'extended', status: 'live', desc: 'Invoices customers pay from a link — plus receipts, money owed, delivery notes and stock passes.' },
-  { key: 'automation',  name: 'Automation',         tier: 'extended', status: 'live', desc: 'Rules that run your busywork — auto-assign tasks, approvals, reminders and alerts.' },
-  { key: 'compliance',  name: 'Compliance Calendar', tier: 'extended', status: 'live', desc: 'Nigerian government deadlines — PAYE, VAT, pension, NHF, CAC — tracked per month, never missed.' },
+  { key: 'trade-docs',  name: 'Invoicing & Trade Docs', tier: 'extended', status: 'live', desc: 'Invoices customers pay from a link, plus receipts, money owed, delivery notes and stock passes.' },
+  { key: 'automation',  name: 'Automation',         tier: 'extended', status: 'live', desc: 'Rules that run your busywork, auto-assign tasks, approvals, reminders and alerts.' },
+  { key: 'compliance',  name: 'Compliance Calendar', tier: 'extended', status: 'live', desc: 'Nigerian government deadlines, PAYE, VAT, pension, NHF, CAC, tracked per month, never missed.' },
 ];
 
 // Tools every workspace gets for free, deliberately OUTSIDE the SUITES catalog.
@@ -40,7 +40,7 @@ export const PINNED_TOOLS = [
     key: 'chat',
     name: 'Team Chat',
     path: '/chat',
-    desc: 'Talk to your team where the work is — one General room, one per department, and @mentions that notify.',
+    desc: 'Talk to your team where the work is, one General room, one per department, and @mentions that notify.',
     icon: 'chat',
     tint: '#1b3a6b',
   },
@@ -95,12 +95,15 @@ export const addedByRequirement = (keys) =>
 // relationships are visible; each suite has one home family (functional links
 // still cross families). This is presentation, not pricing — the price is
 // always the plain à-la-carte total.
+// shortLabel is explicit rather than derived. Signup used to render
+// label.split(' — ')[0], which quietly made the punctuation in the copy load
+// bearing: change the dash and the heading breaks.
 export const FAMILIES = [
-  { key: 'people', label: 'People — run your staff' },
-  { key: 'sales',  label: 'Sales & money — sell and get paid' },
-  { key: 'stock',  label: 'Stock & buying — goods in and out' },
-  { key: 'work',   label: 'Work — get things done' },
-  { key: 'extra',  label: 'Front desk & extras' },
+  { key: 'people', shortLabel: 'People',        label: 'People, run your staff' },
+  { key: 'sales',  shortLabel: 'Sales & money', label: 'Sales & money, sell and get paid' },
+  { key: 'stock',  shortLabel: 'Stock & buying', label: 'Stock & buying, goods in and out' },
+  { key: 'work',   shortLabel: 'Work',          label: 'Work, get things done' },
+  { key: 'extra',  shortLabel: 'Front desk',    label: 'Front desk & extras' },
 ];
 export const SUITE_FAMILY = {
   hr: 'people', payroll: 'people', leave: 'people', attendance: 'people',

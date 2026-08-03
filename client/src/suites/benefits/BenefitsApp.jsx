@@ -69,7 +69,7 @@ function EnrollModal({ plans, enrollment = null, onClose, onSaved, flash }) {
   };
 
   return (
-    <Modal title={enrollment ? `Edit enrollment — ${enrollment.employee?.name || ''}` : 'Enroll employee'} onClose={onClose} wide>
+    <Modal title={enrollment ? `Edit enrollment, ${enrollment.employee?.name || ''}` : 'Enroll employee'} onClose={onClose} wide>
       <form onSubmit={submit}>
         <div className="form-grid">
           {!enrollment && (
@@ -165,7 +165,7 @@ export function ManagerView({ flash }) {
           <table className="table">
             <thead><tr><th>Plan</th><th>Type</th><th>Provider</th><th></th></tr></thead>
             <tbody>
-              {plans.length === 0 && <tr><td colSpan={4} className="td-empty">No benefit plans yet — add your HMO, pension or group life plan with “New plan” above. Reminder: group life cover is a legal requirement once you have 5+ staff.</td></tr>}
+              {plans.length === 0 && <tr><td colSpan={4} className="td-empty">No benefit plans yet, add your HMO, pension or group life plan with “New plan” above. Reminder: group life cover is a legal requirement once you have 5+ staff.</td></tr>}
               {plans.map((p) => (
                 <tr key={p.id}>
                   <td style={{ fontWeight: 500 }}>{p.name}</td>
@@ -189,7 +189,7 @@ export function ManagerView({ flash }) {
           <table className="table">
             <thead><tr><th>Employee</th><th>Plan</th><th>Member/Policy no.</th><th>PFA / RSA PIN</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {enrollments.length === 0 && <tr><td colSpan={6} className="td-empty">Nobody is enrolled yet — create a plan first, then enrol staff onto it from “New enrollment”.</td></tr>}
+              {enrollments.length === 0 && <tr><td colSpan={6} className="td-empty">Nobody is enrolled yet, create a plan first, then enrol staff onto it from “New enrollment”.</td></tr>}
               {enrollments.map((en) => (
                 <tr key={en.id}>
                   <td style={{ fontWeight: 500 }}>{en.employee?.name}</td>
@@ -199,7 +199,7 @@ export function ManagerView({ flash }) {
                   <td><span className={`st-pill ${en.status === 'active' ? 'st-success' : 'st-neutral'}`}>{en.status === 'active' ? 'On' : 'Off'}</span></td>
                   <td>
                     <div className="row-actions" style={{ display: 'inline-flex', gap: 6 }}>
-                      {/* one-click switch — a contractor or intern just gets this benefit turned off */}
+                      {/* one-click switch, a contractor or intern just gets this benefit turned off */}
                       <button className="btn btn-ghost btn-sm" onClick={async () => {
                         try {
                           await B.updateEnrollment(en.id, { status: en.status === 'active' ? 'inactive' : 'active' });
@@ -243,7 +243,7 @@ export function StaffView({ flash }) {
       <table className="table">
         <thead><tr><th>Plan</th><th>Type</th><th>Provider</th><th>Member/Policy no.</th><th>PFA / RSA PIN</th><th>Enrolled</th></tr></thead>
         <tbody>
-          {mine.length === 0 && <tr><td colSpan={6} className="td-empty">You are not enrolled in any benefits yet — your admin adds you to HMO, pension or other plans, and they appear here.</td></tr>}
+          {mine.length === 0 && <tr><td colSpan={6} className="td-empty">You are not enrolled in any benefits yet, your admin adds you to HMO, pension or other plans, and they appear here.</td></tr>}
           {mine.map((en) => (
             <tr key={en.id}>
               <td style={{ fontWeight: 500 }}>{en.plan?.name}</td>

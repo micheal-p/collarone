@@ -168,7 +168,7 @@ function CasesTab({ staff, flash, confirm, onComposeLetter }) {
   };
 
   const recordOutcome = async (c, outcome) => {
-    const labels = { cleared: 'Cleared — no sanction', warning: 'Formal warning', suspension: 'Suspension', termination: 'Termination' };
+    const labels = { cleared: 'Cleared, no sanction', warning: 'Formal warning', suspension: 'Suspension', termination: 'Termination' };
     const res = await confirm({
       title: `Outcome: ${labels[outcome]}`,
       message: outcome === 'cleared'
@@ -182,7 +182,7 @@ function CasesTab({ staff, flash, confirm, onComposeLetter }) {
     });
     if (!res) return;
     const done = await patchCase(c.id, { outcome, status: 'resolved', resolutionNotes: res.value || labels[outcome] });
-    if (done) flash(`Outcome recorded — ${labels[outcome]}.`);
+    if (done) flash(`Outcome recorded, ${labels[outcome]}.`);
     if (done && outcome === 'warning' && onComposeLetter) {
       onComposeLetter({ employeeId: c.employee?.id, letterType: 'warning', caseId: c.id, caseField: 'outcomeLetterId' });
     }
@@ -190,7 +190,7 @@ function CasesTab({ staff, flash, confirm, onComposeLetter }) {
 
   return (
     <>
-      <div className="callout-hint" style={{ marginTop:8 }}>Confidential — visible only to HR managers, never to the employee or other staff.</div>
+      <div className="callout-hint" style={{ marginTop:8 }}>Confidential, visible only to HR managers, never to the employee or other staff.</div>
       <div className="filterbar">
         <button className="btn btn-primary lv-apply" onClick={() => setModal(true)}>{I.add} Open case</button>
         <span className="count" style={{ marginLeft:'auto' }}>{cases.length}</span>

@@ -4,7 +4,7 @@ import { Reveal, Magnetic, useFonts, rise, emph } from './_kit.jsx';
 
 // Agency Modern — a bold dark creative studio. Near-black canvas, oversized
 // Anton display, numbered index sections and a big kinetic footer. Avant-garde.
-export const meta = { key: 'agency-modern', name: 'Agency Modern', category: 'company', description: 'A bold dark creative studio — oversized condensed display, numbered index sections and kinetic type.', accent: '#E8FF59', fonts: 'Anton + Inter' };
+export const meta = { key: 'agency-modern', name: 'Agency Modern', category: 'company', description: 'A bold dark creative studio, oversized condensed display, numbered index sections and kinetic type.', accent: '#E8FF59', fonts: 'Anton + Inter' };
 
 const V = { hero: 'editorial', card: 'minimal', btnRadius: 0, navCaps: true, display: 1.2, headingWeight: 800, h2Mode: 'index', band: 'none', secPad: 84, ctaMode: 'invert', footerMode: 'caps' };
 

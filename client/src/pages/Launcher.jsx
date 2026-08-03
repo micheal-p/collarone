@@ -11,7 +11,7 @@ import ProductTour, { tourSeen } from '../components/ProductTour.jsx';
 
 /* ---- First-run setup checklist --------------------------------------------
    A fresh workspace used to greet its owner with locked tiles and empty
-   tables — the weakest moment of the product. This walks the owner through
+   tables, the weakest moment of the product. This walks the owner through
    the three moves that make the workspace real, detects completion from the
    actual data (not hand-waving), auto-hides at 100%, and can be dismissed.
    Owners only; the founding org never sees it. */
@@ -61,7 +61,7 @@ function AiSetupPanel({ onApplied }) {
         <>
           <label className="setup-ai-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--brand)" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2zm7 13l.9 3.1L23 19l-3.1.9L19 23l-.9-3.1L15 19l3.1-.9L19 15z" /></svg>
-            Describe your business — we&apos;ll set it up
+            Describe your business, we&apos;ll set it up
           </label>
           <div className="setup-ai-row">
             <input className="setup-ai-input" value={prompt} onChange={(e) => setPrompt(e.target.value)}
@@ -74,7 +74,7 @@ function AiSetupPanel({ onApplied }) {
         </>
       ) : (
         <div>
-          <div className="setup-ai-label">{plan.summary || 'Here’s the setup — look it over:'}</div>
+          <div className="setup-ai-label">{plan.summary || 'Here’s the setup, look it over:'}</div>
           <div className="setup-ai-plan">
             {plan.departments.map((d) => (
               <div key={d.code} className="setup-ai-item">
@@ -126,19 +126,19 @@ function SetupChecklist({ orgId, nav }) {
     {
       key: 'templates', done: tplCount > 0,
       title: 'Give departments their access',
-      desc: tplCount > 0 ? `${tplCount} department template${tplCount === 1 ? '' : 's'} set` : 'Set which suites each department gets — imports then grant access automatically.',
+      desc: tplCount > 0 ? `${tplCount} department template${tplCount === 1 ? '' : 's'} set` : 'Set which suites each department gets, imports then grant access automatically.',
       cta: 'Set templates', to: '/admin/departments',
     },
     {
       key: 'open', done: openedSuite,
       title: 'Open your first suite',
-      desc: 'Everything is live with your name on it — pick any tile below and look around.',
+      desc: 'Everything is live with your name on it, pick any tile below and look around.',
       cta: 'Show me', to: null, // scrolls to tiles
     },
     {
       key: 'site', done: visitedSite,
       title: 'Set up your website',
-      desc: 'A real site is included on your plan — pick a theme and make it yours.',
+      desc: 'A real site is included on your plan, pick a theme and make it yours.',
       cta: 'Open website builder', to: '/admin/website',
     },
   ];
@@ -280,13 +280,13 @@ export default function Launcher() {
   }, [loading]); // eslint-disable-line
 
   const TOUR_STEPS = [
-    { title: 'Welcome to Collarone', body: `This is ${user?.org?.name || 'your company'}'s own workspace — every tool your team uses lives behind this one login. This quick tour shows you around; skip it anytime.` },
-    { target: '[data-tour="tiles"]', title: 'Your suites', body: 'Each tile is a full suite — open any of them. Locked tiles are suites your admin hasn\'t switched on for you yet.' },
-    { target: '[data-tour="search"]', title: 'Search everything', body: 'Find people, suites and admin pages from anywhere — start typing and jump straight there.' },
+    { title: 'Welcome to Collarone', body: `This is ${user?.org?.name || 'your company'}'s own workspace, every tool your team uses lives behind this one login. This quick tour shows you around; skip it anytime.` },
+    { target: '[data-tour="tiles"]', title: 'Your suites', body: 'Each tile is a full suite, open any of them. Locked tiles are suites your admin hasn\'t switched on for you yet.' },
+    { target: '[data-tour="search"]', title: 'Search everything', body: 'Find people, suites and admin pages from anywhere, start typing and jump straight there.' },
     { target: '[data-tour="waffle"]', title: 'Switch suites fast', body: 'The grid button hops between suites without going back home.' },
-    { target: '[data-tour="account"]', title: 'Your profile', body: 'Your photo, phone, date of birth, home address and emergency contact live here — keep them current, HR uses them.' },
+    { target: '[data-tour="account"]', title: 'Your profile', body: 'Your photo, phone, date of birth, home address and emergency contact live here, keep them current, HR uses them.' },
     { target: '[data-tour="org"]', title: 'You\'re in the right place', body: 'This chip always shows whose workspace you\'re in. Your company\'s data is completely isolated from every other company on Collarone.' },
-    { title: 'That\'s the basics', body: 'Explore any suite — everything is built to be self-explanatory from here. Replay this tour anytime from the Help page.' },
+    { title: 'That\'s the basics', body: 'Explore any suite, everything is built to be self-explanatory from here. Replay this tour anytime from the Help page.' },
   ];
 
   const core = suites.filter((s) => s.tier === 'core');

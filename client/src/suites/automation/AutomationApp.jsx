@@ -88,7 +88,7 @@ function AutomationCard({ def, setting, lastRun, isManager, onToggle, onConfigSa
       )}
 
       <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
-        {lastRun ? `Last ran ${AUTO.fmtDt(lastRun.ran_at)} — found ${lastRun.count}.` : 'Not run yet — checks run once daily.'}
+        {lastRun ? `Last ran ${AUTO.fmtDt(lastRun.ran_at)}, found ${lastRun.count}.` : 'Not run yet, checks run once daily.'}
       </div>
     </div>
   );
@@ -102,8 +102,8 @@ function AutomationCard({ def, setting, lastRun, isManager, onToggle, onConfigSa
 // phone ring into this app. Nothing here pretends otherwise.
 const ROADMAP = [
   { icon: RI.phone, name: 'AI call assistant', needs: 'Needs a business phone line + call provider', desc: 'Picks up customer calls, has a real conversation, and books what it agreed to as a task or CRM note.' },
-  { icon: RI.waveform, name: 'Call transcripts & logs', needs: 'Needs the call assistant above', desc: 'Every call recorded as a searchable transcript in one log — who called, what they needed, what happened next.' },
-  { icon: RI.mail, name: 'AI email replies', needs: 'Needs an OpenAI key (same as above)', desc: 'Drafts — and once you approve the pattern, sends — replies to routine customer emails in your own voice.' },
+  { icon: RI.waveform, name: 'Call transcripts & logs', needs: 'Needs the call assistant above', desc: 'Every call recorded as a searchable transcript in one log, who called, what they needed, what happened next.' },
+  { icon: RI.mail, name: 'AI email replies', needs: 'Needs an OpenAI key (same as above)', desc: 'Drafts, and once you approve the pattern, sends, replies to routine customer emails in your own voice.' },
 ];
 
 function RoadmapCard({ item }) {
@@ -166,7 +166,7 @@ export default function AutomationApp({ access }) {
         <>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 4 }}>
             <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-              Pre-built checks that run once a day across your other suites — no rules to configure, just switch on what's useful.
+              Pre-built checks that run once a day across your other suites, no rules to configure, just switch on what's useful.
             </p>
             <span className="badge" style={{ fontSize: 11.5 }}>{liveCount} of {AUTO.AUTOMATIONS.length} live</span>
           </div>
@@ -185,9 +185,9 @@ export default function AutomationApp({ access }) {
           <RulesSection isManager={isManager} flash={flash} />
 
           <div style={{ marginTop: 40, paddingTop: 24, borderTop: '1px solid var(--line)' }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>Smart business automation — what's next</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>Smart business automation, what's next</h3>
             <p className="muted" style={{ fontSize: 13, margin: '0 0 16px', maxWidth: '70ch' }}>
-              The bigger idea: automation that runs your busywork end to end — answering calls, logging every conversation, replying to routine emails. Not live yet — each card names exactly what it's waiting on.
+              The bigger idea: automation that runs your busywork end to end, answering calls, logging every conversation, replying to routine emails. Not live yet, each card names exactly what it's waiting on.
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
               {ROADMAP.map((item) => <RoadmapCard key={item.name} item={item} />)}
@@ -202,7 +202,7 @@ export default function AutomationApp({ access }) {
 
 /* ==== Custom rules — "when X happens (or every Monday), do Y" ==================
    The org builds its own automations on the event spine, from menus (or by
-   describing them — AI drafts into the SAME fenced structure, then the human
+   describing them, AI drafts into the SAME fenced structure, then the human
    reviews and saves). Actions are the safe set only; the server executor
    re-validates everything regardless of what the UI sent. */
 
@@ -243,7 +243,7 @@ function RuleModal({ staff, aiEnabled, onClose, onSaved, flash }) {
           assigneeId: rule.action_config?.assigneeId || '',
         },
       });
-      flash('Drafted — review below, adjust anything, then save.');
+      flash('Drafted, review below, adjust anything, then save.');
     } catch (e) { flash(e.message, true); } finally { setDrafting(false); }
   };
 
@@ -277,7 +277,7 @@ function RuleModal({ staff, aiEnabled, onClose, onSaved, flash }) {
         <div style={{ background: 'var(--brand-100, rgba(255,91,31,0.08))', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
           <label style={{ fontSize: 13, fontWeight: 650, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="var(--brand)" aria-hidden="true"><path d="M12 2l1.9 6.1L20 10l-6.1 1.9L12 18l-1.9-6.1L4 10l6.1-1.9L12 2zm7 13l.9 3.1L23 19l-3.1.9L19 23l-.9-3.1L15 19l3.1-.9L19 15z" /></svg>
-            Describe it — we&apos;ll set it up
+            Describe it, we&apos;ll set it up
           </label>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <input className="input" style={{ flex: 1, minWidth: 220 }} value={prompt} onChange={(e) => setPrompt(e.target.value)}
@@ -364,7 +364,7 @@ function RuleModal({ staff, aiEnabled, onClose, onSaved, flash }) {
       {(f.action_kind === 'banner' || f.action_kind === 'bell') && (
         <div className="field"><label>Message</label>
           <input className="input" value={f.action_config.message} onChange={(e) => setCfg('message', e.target.value)}
-            placeholder={f.action_kind === 'bell' ? 'We won {title} — {valueNaira}!' : 'Message shown across the workspace'} /></div>
+            placeholder={f.action_kind === 'bell' ? 'We won {title}, {valueNaira}!' : 'Message shown across the workspace'} /></div>
       )}
       {f.action_kind === 'email' && (
         <>
@@ -425,14 +425,14 @@ function RulesSection({ isManager, flash }) {
         <div>
           <h3 style={{ fontSize: 15, fontWeight: 700, margin: '0 0 4px' }}>Your rules</h3>
           <p className="muted" style={{ fontSize: 13, margin: 0, maxWidth: '70ch' }}>
-            Build your own: when something happens — or on a schedule — create a task, show a banner, ring the bell, or email your staff.{aiEnabled ? ' Or just describe it and AI drafts it for you.' : ''}
+            Build your own: when something happens, or on a schedule, create a task, show a banner, ring the bell, or email your staff.{aiEnabled ? ' Or just describe it and AI drafts it for you.' : ''}
           </p>
         </div>
         {isManager && <button className="btn btn-primary" onClick={() => setModal(true)}>New rule</button>}
       </div>
       {rules.length === 0 ? (
         <p className="muted" style={{ fontSize: 13, margin: '16px 0 0' }}>
-          No rules yet{isManager ? ' — try one: “when a new staff member joins → task for IT: prepare their laptop.”' : '.'}
+          No rules yet{isManager ? ', try one: “when a new staff member joins → task for IT: prepare their laptop.”' : '.'}
         </p>
       ) : (
         <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>

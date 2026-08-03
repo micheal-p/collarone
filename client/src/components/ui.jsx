@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /* =========================================================================
-   Shared UI primitives — one toast, one modal, one confirm dialog for every
+   Shared UI primitives, one toast, one modal, one confirm dialog for every
    suite, instead of per-suite copies of each (and native confirm/prompt).
    ========================================================================= */
 
 /* ---- crash-proof search matching ------------------------------------------
-   Replaces the `new RegExp(userInput, 'i')` pattern — a raw "(" or "[" in a
+   Replaces the `new RegExp(userInput, 'i')` pattern, a raw "(" or "[" in a
    search box throws inside useMemo and white-screens the suite. Returns a
    function that is true when ANY of its arguments contains the query. */
 export const searchMatcher = (q) => {
@@ -66,7 +66,7 @@ export function Modal({ title, onClose, wide = false, children }) {
      const res = await confirm({ title: 'Reject request', input: { label: 'Reason', required: false } });
      // res === null when cancelled; { value } when confirmed with an input.
 
-   Escape or overlay click cancels — cancelling NEVER proceeds. */
+   Escape or overlay click cancels, cancelling NEVER proceeds. */
 export function useConfirm() {
   const [req, setReq] = useState(null); // { opts, resolve }
   const confirm = useCallback((opts) => new Promise((resolve) => setReq({ opts, resolve })), []);

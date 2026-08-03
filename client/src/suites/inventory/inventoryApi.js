@@ -70,7 +70,7 @@ const downloadHtml = (html, filename) => {
   URL.revokeObjectURL(url);
 };
 
-const buildTakeoutHtml = ({ kind, companyName, itemName, quantity, unit, staffName, approverName, date, notes }) => `<!doctype html><html><head><meta charset="utf-8"><title>${esc(kind)} — ${esc(itemName)}</title>
+const buildTakeoutHtml = ({ kind, companyName, itemName, quantity, unit, staffName, approverName, date, notes }) => `<!doctype html><html><head><meta charset="utf-8"><title>${esc(kind)}, ${esc(itemName)}</title>
 <style>body{font-family:Georgia,serif;max-width:640px;margin:40px auto;line-height:1.6;color:#14161a;} h1{font-size:20px;} table{border-collapse:collapse;width:100%;margin:16px 0;} td{padding:6px 10px;border:1px solid #ccc;}</style>
 </head><body>
 <h1>${esc(kind)}</h1>
@@ -106,7 +106,7 @@ const fileTakeoutDoc = async ({ kind, itemName, quantity, unit, staffId, staffNa
   const filename = `${kind.replace(' ', '-')}-${safeName}-${stamp}.html`;
   const file = new File([html], filename, { type: 'text/html' });
   const { path, size } = await D.uploadFile(file, 'takeouts/');
-  const doc = await D.createDocument({ name: `${kind} — ${itemName} — ${stamp}`, folderId: folder.id, filePath: path, fileSize: size, visibility: 'restricted' });
+  const doc = await D.createDocument({ name: `${kind}, ${itemName}, ${stamp}`, folderId: folder.id, filePath: path, fileSize: size, visibility: 'restricted' });
   await Promise.allSettled([D.grantPermission(doc.id, staffId), D.grantPermission(doc.id, approverId)]);
   return doc;
 };

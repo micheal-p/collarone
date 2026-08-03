@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 
 /* =============================================================================
-   ProductTour — first-run walkthrough with a skip pattern.
+   ProductTour, first-run walkthrough with a skip pattern.
    Spotlights real elements (by [data-tour] target), one step at a time, with
    Next / Back / Skip and progress dots. Steps whose target isn't on screen
    are silently skipped (progressive disclosure: users only see what applies

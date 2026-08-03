@@ -87,7 +87,7 @@ export default function SuiteShell() {
                 <div className="suite-canvas-inner">
                   <SuiteIcon name={meta.icon || 'grid'} size={40} color={meta.tint || 'var(--brand)'} />
                   <h2>{suite.name} workspace</h2>
-                  <p>Access confirmed. This suite is wired into the platform shell — its screens (records, workflows and reports) plug in here next.</p>
+                  <p>Access confirmed. This suite is wired into the platform shell, its screens (records, workflows and reports) plug in here next.</p>
                   <span className="badge badge-core">Foundation ready</span>
                 </div>
               </section>

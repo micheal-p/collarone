@@ -73,7 +73,7 @@ async function findOrCreateContractsFolder() {
 const buildContractHtml = ({ employeeName, companyName, jobTitle, basic, housing, transport, otherAllowances, effectiveDate }) => {
   const gross = basic + housing + transport + otherAllowances;
   const fmt = (n) => `₦${Number(n).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Employment Agreement — ${employeeName}</title>
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Employment Agreement, ${employeeName}</title>
 <style>body{font-family:Georgia,serif;max-width:720px;margin:40px auto;line-height:1.6;color:#14161a;} h1{font-size:20px;} table{border-collapse:collapse;width:100%;margin:16px 0;} td{padding:6px 10px;border:1px solid #ccc;}</style>
 </head><body>
 <h1>Letter of Employment &amp; Salary Agreement</h1>
@@ -100,10 +100,10 @@ export const generateContractDocument = async ({ employeeId, employeeName, compa
   const file = new File([html], `Employment-Agreement-${safeName}-${effectiveDate}.html`, { type: 'text/html' });
   const { path, size } = await D.uploadFile(file, 'contracts/');
   const doc = await D.createDocument({
-    name: `Employment Agreement — ${employeeName} — ${effectiveDate}`,
+    name: `Employment Agreement, ${employeeName}, ${effectiveDate}`,
     folderId: folder.id, filePath: path, fileSize: size, visibility: 'restricted',
   });
-  try { await D.grantPermission(doc.id, employeeId); } catch { /* best-effort — payroll manager can grant manually if this fails */ }
+  try { await D.grantPermission(doc.id, employeeId); } catch { /* best-effort, payroll manager can grant manually if this fails */ }
   return doc;
 };
 
@@ -153,7 +153,7 @@ export const remittanceSummary = (run, lines) => {
   }
   return [
     ...Object.entries(payeByState).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).map(([state, amount]) => ({
-      body: `${state} Internal Revenue Service`, item: `PAYE — ${state}`, amount,
+      body: `${state} Internal Revenue Service`, item: `PAYE, ${state}`, amount,
       due: `by ${fmt(new Date(next.getFullYear(), next.getMonth(), 10))}`,
       note: 'Pay via the state IRS e-tax portal; keep the receipt for your annual returns.',
     })),
@@ -170,7 +170,7 @@ export const remittanceSummary = (run, lines) => {
     ...(nsitf > 0 ? [{
       body: 'NSITF', item: 'Employee Compensation Scheme (1%)', amount: nsitf,
       due: `during ${MONTHS[next.getMonth()]} ${next.getFullYear()}`,
-      note: 'Employer cost — not deducted from staff pay.',
+      note: 'Employer cost, not deducted from staff pay.',
     }] : []),
   ];
 };

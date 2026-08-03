@@ -11,7 +11,7 @@ import { DEMO } from '../api/client.ts';
 export const CONDITIONS = [
   ['optimal', 'Optimal', 'Came back in the same state it went out.'],
   ['minor', 'Minor wear', 'Usable, but showing wear worth noting.'],
-  ['damaged', 'Damaged', 'Faulty or broken — needs repair or write-off.'],
+  ['damaged', 'Damaged', 'Faulty or broken, needs repair or write-off.'],
 ];
 
 export default function ReturnConditionModal({ title, itemLabel, orgId, onClose, onSubmit, flash }) {
@@ -76,7 +76,7 @@ export default function ReturnConditionModal({ title, itemLabel, orgId, onClose,
             <input type="file" accept="image/*" capture="environment" onChange={pickPhoto} disabled={uploading} />
             {uploading && <span className="spinner" />}
           </div>
-          <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>Compressed to ~20KB automatically — fine on any data plan.</p>
+          <p className="muted" style={{ fontSize: 11.5, margin: '6px 0 0' }}>Compressed to ~20KB automatically, fine on any data plan.</p>
         </div>
 
         <div className="modal-actions">

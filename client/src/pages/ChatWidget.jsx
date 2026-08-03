@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { answerQuestion } from './chatKnowledge';
 
 /* =========================================================================
-   Collarone assistant — floating chat on the landing page. Fully in-house:
+   Collarone assistant, floating chat on the landing page. Fully in-house:
    answers come from the grounded knowledge base in chatKnowledge.js (no
    external AI, no API keys, works offline-of-backend). It computes real
    price quotes, and anything it can't answer confidently escalates to a
@@ -29,9 +29,9 @@ function HumanCard() {
   return (
     <div className="clw-human">
       <div className="clw-human-t">Talk to a person</div>
-      <a className="clw-human-btn wa" href={`${WA}?text=${encodeURIComponent('Hello Collarone — I was chatting on your website and I’d like to talk to someone.')}`} target="_blank" rel="noreferrer">
+      <a className="clw-human-btn wa" href={`${WA}?text=${encodeURIComponent('Hello Collarone, I was chatting on your website and I’d like to talk to someone.')}`} target="_blank" rel="noreferrer">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12.04 2c-5.46 0-9.9 4.44-9.9 9.9 0 1.75.46 3.45 1.32 4.95L2 22l5.3-1.39a9.87 9.87 0 0 0 4.74 1.21c5.46 0 9.9-4.44 9.9-9.9 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2z"/></svg>
-        WhatsApp us — fastest
+        WhatsApp us, fastest
       </a>
       <a className="clw-human-btn" href={TEL}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 2 .6 3a2 2 0 0 1-.5 2L8 10a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2-.5c1 .3 2 .5 3 .6a2 2 0 0 1 1.7 2z"/></svg>
@@ -39,7 +39,7 @@ function HumanCard() {
       </a>
       <a className="clw-human-btn" href="/contact">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><path d="M4 4h16v16H4z"/><path d="M4 6l8 7 8-7"/></svg>
-        Message the team — contact desk
+        Message the team, contact desk
       </a>
     </div>
   );
@@ -70,7 +70,7 @@ export default function ChatWidget({ visible = true }) {
     setInput('');
     setChips([]);
     if (isHumanAsk(content) && content.length < 60) {
-      setMsgs((m) => [...m, { role: 'user', content }, { role: 'assistant', content: 'Of course — here’s the team, pick whichever suits you:' }]);
+      setMsgs((m) => [...m, { role: 'user', content }, { role: 'assistant', content: 'Of course, here’s the team, pick whichever suits you:' }]);
       setShowHuman(true);
       return;
     }
@@ -123,7 +123,7 @@ export default function ChatWidget({ visible = true }) {
             <div className="clw-body" ref={bodyRef}>
               {msgs.length === 0 && (
                 <div className="clw-msg bot">
-                  Welcome! I can explain what Collarone does, what it costs, and how to get your company set up — or hand you straight to a human. What would you like to know?
+                  Welcome! I can explain what Collarone does, what it costs, and how to get your company set up, or hand you straight to a human. What would you like to know?
                 </div>
               )}
               {msgs.map((m, i) => (

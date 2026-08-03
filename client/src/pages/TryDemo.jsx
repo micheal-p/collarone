@@ -63,7 +63,7 @@ function FeedbackModal({ suiteKey, onDone }) {
         {sent ? (
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#1a6a1a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5" /><path d="M8 12.5l2.7 2.7L16.5 9" /></svg>
-            <div style={{ fontWeight: 750, fontSize: 17, marginTop: 8 }}>Thank you — that helps us build better.</div>
+            <div style={{ fontWeight: 750, fontSize: 17, marginTop: 8 }}>Thank you, that helps us build better.</div>
           </div>
         ) : (
           <form onSubmit={submit}>
@@ -188,14 +188,14 @@ export default function TryDemo() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg, #FAF9F6)', display: 'flex', flexDirection: 'column' }}>
-      {/* demo chrome — single row that stays put; the helper caption drops on
+      {/* demo chrome, single row that stays put; the helper caption drops on
           phones so the actions never wrap into a stack of stuck rows */}
       <div className="tryd-chrome" style={{ position: 'sticky', top: 0, zIndex: 50, background: '#0A0E1A', color: '#F4F1EA', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 13.5, whiteSpace: 'nowrap', minWidth: 0 }}>
           <span style={{ width: 8, height: 8, borderRadius: 99, background: '#FF5B1F', flex: 'none' }} />
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Live demo</span>
         </span>
-        <span className="tryd-hint" style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.6)', whiteSpace: 'nowrap' }}>Sample data — click anything, you can't break it.</span>
+        <span className="tryd-hint" style={{ fontSize: 12.5, color: 'rgba(244,241,234,0.6)', whiteSpace: 'nowrap' }}>Sample data, click anything, you can't break it.</span>
         <span style={{ flex: 1 }} />
         <button onClick={() => setTourOpen(true)} className="tryd-hint" style={{ background: 'rgba(244,241,234,0.12)', color: '#F4F1EA', border: 'none', borderRadius: 100, padding: '7px 14px', fontSize: 12.5, fontWeight: 650, cursor: 'pointer', flex: 'none' }}>Restart tour</button>
         <button onClick={() => leaveDemoTo('/signup')} style={{ background: '#FF5B1F', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: 100, padding: '7px 14px', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', flex: 'none' }}>Get started</button>
@@ -254,7 +254,7 @@ export default function TryDemo() {
       <footer style={{ borderTop: '1px solid var(--line, #e5e1d6)', background: '#0A0E1A', color: 'rgba(244,241,234,0.75)', padding: '26px 20px' }}>
         <div style={{ maxWidth: 1160, margin: '0 auto', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <span style={{ fontFamily: 'Georgia, serif', fontSize: 17, color: '#F4F1EA' }}>Collar<em style={{ color: '#FF5B1F' }}>One</em></span>
-          <span style={{ fontSize: 12.5 }}>You're exploring a live demo — sample data, nothing real. Like what you see?</span>
+          <span style={{ fontSize: 12.5 }}>You're exploring a live demo, sample data, nothing real. Like what you see?</span>
           <span style={{ flex: 1 }} />
           <button onClick={() => leaveDemoTo('/signup')} style={{ background: '#FF5B1F', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: 100, padding: '9px 18px', fontSize: 13, fontWeight: 700 }}>Create my workspace</button>
           <button onClick={() => leaveDemoTo('/')} style={{ background: 'none', color: 'rgba(244,241,234,0.75)', border: '1px solid rgba(244,241,234,0.25)', borderRadius: 100, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Back to site</button>

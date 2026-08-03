@@ -24,9 +24,9 @@ const SWATCHES = ['#FF5B1F', '#C2410C', '#0F766E', '#1D4ED8', '#7C3AED', '#BE185
 
 const WEBSITE_TYPES = [
   { key: 'ecommerce', name: 'Online store', desc: 'Sell products with a public storefront.' },
-  { key: 'hr_corporate', name: 'Company site', desc: 'About, services and contact — a home for your business online.' },
+  { key: 'hr_corporate', name: 'Company site', desc: 'About, services and contact, a home for your business online.' },
   { key: 'job_board', name: 'Careers / job board', desc: 'Public postings, candidates apply with no account.' },
-  { key: 'none', name: 'Skip for now', desc: 'Just the ERP dashboard — add a site later.' },
+  { key: 'none', name: 'Skip for now', desc: 'Just the ERP dashboard, add a site later.' },
 ];
 
 const STEPS = ['plan', 'company', 'brand', 'you', 'payment'];
@@ -144,7 +144,7 @@ export default function Signup() {
         if (!d.valid) { setPromoStatus({ state: 'bad', percentOff: 0, msg: d.reason }); return; }
         const parts = [];
         parts.push(d.percentOff === 100
-          ? (d.trialDays ? `Free access for ${d.trialDays} day${d.trialDays === 1 ? '' : 's'} — no payment to start.` : 'This code makes your activation free.')
+          ? (d.trialDays ? `Free access for ${d.trialDays} day${d.trialDays === 1 ? '' : 's'}, no payment to start.` : 'This code makes your activation free.')
           : `${d.percentOff}% off your activation fee.`);
         if (d.grantCredits > 0) parts.push(`Includes ${d.grantCredits} free staff seat${d.grantCredits === 1 ? '' : 's'}.`);
         setPromoStatus({ state: 'ok', percentOff: d.percentOff, msg: parts.join(' ') });
@@ -205,7 +205,7 @@ export default function Signup() {
       if (!orgName.trim()) return setErr('Company name is required.');
       if (slugStatus.state !== 'ok') return setErr('Choose an available company handle before continuing.');
     }
-    if (step === 'brand' && logoUploading) return setErr('Your logo is still uploading — one moment.');
+    if (step === 'brand' && logoUploading) return setErr('Your logo is still uploading, one moment.');
     setStepIdx((i) => Math.min(i + 1, STEPS.length - 1));
   };
   const back = () => { setErr(''); setStepIdx((i) => Math.max(i - 1, 0)); };
@@ -254,7 +254,7 @@ export default function Signup() {
           <>
             <p className="su-kicker">Step 1 of 4</p>
             <h1 className="su-h">Build your workspace</h1>
-            <p className="su-sub">Pick the suites you need — we automatically put you on the cheapest plan for them. Add more anytime; your rate locks in today and never goes up.</p>
+            <p className="su-sub">Pick the suites you need, we automatically put you on the cheapest plan for them. Add more anytime; your rate locks in today and never goes up.</p>
 
             <AiSuitePicker onPick={(keys) => setSuites(new Set(requiredFoundations(keys)))} />
 
@@ -334,11 +334,11 @@ export default function Signup() {
               <div className="su-web-types" style={{ gridTemplateColumns: '1fr 1fr' }}>
                 <button type="button" className={`su-web-card ${!hasWebsite ? 'on' : ''}`} onClick={() => setHasWebsite(false)}>
                   <div className="su-web-card-name">Not yet</div>
-                  <div className="su-web-card-desc">{orgSlug ? `${orgSlug}.collarone.app` : 'your-handle.collarone.app'} becomes your address — build your site inside Collarone.</div>
+                  <div className="su-web-card-desc">{orgSlug ? `${orgSlug}.collarone.app` : 'your-handle.collarone.app'} becomes your address, build your site inside Collarone.</div>
                 </button>
                 <button type="button" className={`su-web-card ${hasWebsite ? 'on' : ''}`} onClick={() => setHasWebsite(true)}>
                   <div className="su-web-card-name">Yes, we have one</div>
-                  <div className="su-web-card-desc">We'll link your existing site — your workspace still lives on the handle above.</div>
+                  <div className="su-web-card-desc">We'll link your existing site, your workspace still lives on the handle above.</div>
                 </button>
               </div>
               {hasWebsite && (
@@ -387,7 +387,7 @@ export default function Signup() {
             {hasWebsite ? (
               <div className="su-field">
                 <label>Your website</label>
-                <p className="su-sub" style={{ margin: 0 }}>We'll use {externalUrl || 'your existing site'} — and you can still build a Collarone site later if you ever want one.</p>
+                <p className="su-sub" style={{ margin: 0 }}>We'll use {externalUrl || 'your existing site'}, and you can still build a Collarone site later if you ever want one.</p>
               </div>
             ) : (
               <div className="su-field">
@@ -413,7 +413,7 @@ export default function Signup() {
           <form onSubmit={submit}>
             <p className="su-kicker">Step 4 of 4</p>
             <h1 className="su-h">Create your admin account</h1>
-            <p className="su-sub">You'll be the administrator for {orgName || 'your workspace'} — you can add staff once your space is active.</p>
+            <p className="su-sub">You'll be the administrator for {orgName || 'your workspace'}, you can add staff once your space is active.</p>
             <div className="su-field">
               <label>Your name</label>
               <input className="su-input" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} autoFocus />
@@ -421,7 +421,7 @@ export default function Signup() {
             <div className="su-field">
               <label>Email address</label>
               <input className="su-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
-              <p style={{ fontSize: 12, margin: '6px 0 0', opacity: 0.6, lineHeight: 1.5 }}>This is what you'll sign in with — any email works.</p>
+              <p style={{ fontSize: 12, margin: '6px 0 0', opacity: 0.6, lineHeight: 1.5 }}>This is what you'll sign in with, any email works.</p>
             </div>
             <div className="su-field">
               <label>Password</label>
@@ -455,11 +455,11 @@ export default function Signup() {
               <div className="su-pay-amt" style={{ color: '#1F6D45' }}>₦0</div>
               <div className="su-pay-ref-code">
                 Code {result.promoApplied?.code} applied
-                {result.promoApplied?.trialDays ? ` — free for ${result.promoApplied.trialDays} day${result.promoApplied.trialDays === 1 ? '' : 's'}` : ' — activation on us'}
+                {result.promoApplied?.trialDays ? `, free for ${result.promoApplied.trialDays} day${result.promoApplied.trialDays === 1 ? '' : 's'}` : ', activation on us'}
                 {result.promoApplied?.grantCredits > 0 && `, with ${result.promoApplied.grantCredits} free staff seat${result.promoApplied.grantCredits === 1 ? '' : 's'}`}.
               </div>
               <p className="su-pay-note">
-                Your workspace is active right now — nothing to pay to start. Sign in with {email} and start setting up your team.
+                Your workspace is active right now, nothing to pay to start. Sign in with {email} and start setting up your team.
                 {result.promoApplied?.trialDays ? ' When your trial ends, complete the activation payment to keep going.' : ''}
               </p>
             </div>
@@ -482,10 +482,10 @@ export default function Signup() {
               ) : (
                 <div className="su-pay-amt">₦{(result.amountKobo / 100).toLocaleString()}</div>
               )}
-              {result.promoApplied && <div style={{ fontSize: 13, color: '#1F6D45', fontWeight: 600, marginBottom: 6 }}>Code {result.promoApplied.code} — {result.promoApplied.percentOff}% off applied</div>}
+              {result.promoApplied && <div style={{ fontSize: 13, color: '#1F6D45', fontWeight: 600, marginBottom: 6 }}>Code {result.promoApplied.code}, {result.promoApplied.percentOff}% off applied</div>}
               <div className="su-pay-ref-code">Reference: {result.reference}</div>
               <p className="su-pay-note">
-                During early access, we confirm payments personally — WhatsApp us your reference and we'll send transfer details and activate your space the same day. Once active, sign in with {email} to reach your dashboard.
+                During early access, we confirm payments personally, WhatsApp us your reference and we'll send transfer details and activate your space the same day. Once active, sign in with {email} to reach your dashboard.
               </p>
             </div>
             <div className="su-actions" style={{ justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -534,8 +534,8 @@ function AiSuitePicker({ onPick }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.message || 'Suggestion failed.');
       const valid = d.suites.filter((k) => SUITES.some((s) => s.key === k && s.status === 'live'));
-      if (valid.length) { onPick(valid); setWhy(d.why || 'Done — your picks are ticked below. Adjust anything.'); }
-      else setErr('No matching suites — pick them yourself below.');
+      if (valid.length) { onPick(valid); setWhy(d.why || 'Done, your picks are ticked below. Adjust anything.'); }
+      else setErr('No matching suites, pick them yourself below.');
     } catch (e) { setErr(e.message); } finally { setBusy(false); }
   };
 

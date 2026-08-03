@@ -33,7 +33,7 @@ export default function JobShare() {
     if (!post) return;
     const url = `https://collarone.app/jobs/${post.slug}`;
     setSeo({
-      title: `${post.title}${post.company ? ' at ' + post.company : ''} — Collarone Jobs`,
+      title: `${post.title}${post.company ? ' at ' + post.company : ''}, Collarone Jobs`,
       description: (post.description || '').slice(0, 155),
       canonical: url,
       jsonLd: {
@@ -81,7 +81,7 @@ export default function JobShare() {
                 ? <a className="cl-btn cl-btn-primary" href={applyHref(post.apply_method, post.apply_contact)} target="_blank" rel="noreferrer">Apply now</a>
                 : <span style={{ color: 'var(--text-faint)', fontSize: 14 }}>See the post for how to apply.</span>}
               <a className="cl-btn cl-btn-ghost" target="_blank" rel="noreferrer"
-                href={`https://wa.me/?text=${encodeURIComponent(`${post.title}${post.company ? ' at ' + post.company : ''} — apply here: https://collarone.app/jobs/${post.slug}`)}`}>
+                href={`https://wa.me/?text=${encodeURIComponent(`${post.title}${post.company ? ' at ' + post.company : ''}, apply here: https://collarone.app/jobs/${post.slug}`)}`}>
                 Share to WhatsApp
               </a>
             </div>
@@ -89,7 +89,7 @@ export default function JobShare() {
             <div style={{ marginTop: 40, paddingTop: 16, borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>Posted on the free Collarone jobs board.</span>
               {reported
-                ? <span style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>Thanks — we&apos;ll review it.</span>
+                ? <span style={{ fontSize: 12.5, color: 'var(--text-faint)' }}>Thanks, we&apos;ll review it.</span>
                 : <button onClick={report} className="cl-nl" style={{ fontSize: 12.5, background: 'none', border: 0, cursor: 'pointer', color: 'var(--text-faint)' }}>Report this post</button>}
             </div>
           </article>

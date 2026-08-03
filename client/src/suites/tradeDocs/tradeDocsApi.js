@@ -35,7 +35,7 @@ export const isOverdue = (d) => !!d.due_date && balance(d) > 0 && d.status !== '
 export const publicInvoiceUrl = (d) => `${window.location.origin}/inv/${d.share_token}`;
 export const waDigits = (phone) => String(phone || '').replace(/[^\d+]/g, '').replace(/^\+/, '').replace(/^0/, '234');
 export const waShareUrl = (d, orgName) => {
-  const msg = `Hello ${d.party_name || ''},\n\nHere is your invoice ${d.doc_no} from ${orgName || 'us'} — total ₦${Number(d.total).toLocaleString('en-NG')}.\n\nView and pay it here: ${publicInvoiceUrl(d)}\n\nThank you.`;
+  const msg = `Hello ${d.party_name || ''},\n\nHere is your invoice ${d.doc_no} from ${orgName || 'us'}, total ₦${Number(d.total).toLocaleString('en-NG')}.\n\nView and pay it here: ${publicInvoiceUrl(d)}\n\nThank you.`;
   const digits = waDigits(d.party_phone);
   return digits ? `https://wa.me/${digits}?text=${encodeURIComponent(msg)}` : `https://wa.me/?text=${encodeURIComponent(msg)}`;
 };

@@ -16,7 +16,7 @@ const fail = (status, message) => { const e = new Error(message); e.status = sta
 const ORG_CAN_ACCESS = ['active', 'past_due', 'read_only'];
 const orgBlockMessage = (status) => (
   status === 'suspended'
-    ? 'Your workspace is suspended for an overdue payment. Renew to restore access — WhatsApp us on 0814 812 8551.'
+    ? 'Your workspace is suspended for an overdue payment. Renew to restore access, WhatsApp us on 0814 812 8551.'
     : status === 'cancelled'
       ? 'This workspace has been closed. Contact us on WhatsApp (0814 812 8551) if this is a mistake.'
       : "Your organization's account is pending activation. We'll email you once your payment is confirmed."
@@ -2269,7 +2269,7 @@ export async function supabaseApi(path, opts = {}) {
       org_id: orgId, import_batch: batch, line_date: r.date, description: (r.description || '').slice(0, 300),
       reference: (r.reference || '').slice(0, 120), amount: Number(r.amount) || 0, created_by: user.id,
     })).filter((r) => r.line_date && r.amount !== 0);
-    if (!rows.length) fail(400, 'No usable lines — check the column mapping.');
+    if (!rows.length) fail(400, 'No usable lines, check the column mapping.');
     const { data, error } = await supabase.from('bank_statement_lines').insert(rows).select();
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { lines: data, batch };

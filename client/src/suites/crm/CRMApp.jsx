@@ -153,7 +153,7 @@ function LogActivityModal({ contact, company, onClose, onSaved, flash }) {
   };
 
   return (
-    <Modal title={`Log activity — ${contact?.name || company?.name}`} onClose={onClose}>
+    <Modal title={`Log activity, ${contact?.name || company?.name}`} onClose={onClose}>
         <form onSubmit={submit}>
           <Field label="Type">
             <select className="select" value={type} onChange={(e) => setType(e.target.value)}>
@@ -465,7 +465,7 @@ function ContactsTab({ flash }) {
               {view.length === 0 && (
                 <tr><td colSpan={6}>
                   {contacts.length === 0
-                    ? <EmptyState title="No contacts yet" hint="Add the people you deal with — reachable by phone, email or WhatsApp from their row." />
+                    ? <EmptyState title="No contacts yet" hint="Add the people you deal with, reachable by phone, email or WhatsApp from their row." />
                     : <span className="td-empty" style={{ display: 'block' }}>No contacts match your search.</span>}
                 </td></tr>
               )}
@@ -522,7 +522,7 @@ function ContactsTab({ flash }) {
    widget lands here (type 'web_message'), newest first, with the sender's
    details and one-tap replies. WhatsApp replies work today; direct email
    replies will send over SMTP from the org's own collarone.app mailbox once
-   that's provisioned — shown as coming soon, not hidden. */
+   that's provisioned, shown as coming soon, not hidden. */
 const MsgIcons = {
   wa: <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm5.2 14.2c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-3-.9-5-3.6-5.6-4.5-.5-.8-1-1.9-1-2.9 0-1 .5-1.5.7-1.7.3-.3.9-.3 1.1-.2.2 0 .5.1.7.6l.7 1.7c.1.2 0 .5-.1.6l-.5.6c-.1.2-.2.3 0 .6.5.8 1.6 2 3 2.6.3.1.5.1.7-.1l.7-.9c.2-.2.4-.2.6-.1l1.8.8c.3.2.5.3.5.5s0 .8-.2 1.3z"/></svg>,
   mail: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>,
@@ -594,12 +594,12 @@ function MessagesTab({ flash }) {
           <div className="crm-msg-actions">
             {waDigits(m) && (
               <a className="crm-reply-btn wa" target="_blank" rel="noreferrer"
-                href={`https://wa.me/${waDigits(m)}?text=${encodeURIComponent(`Hi ${(m.contact?.name || '').split(' ')[0]}, thanks for reaching out through our website — `)}`}
+                href={`https://wa.me/${waDigits(m)}?text=${encodeURIComponent(`Hi ${(m.contact?.name || '').split(' ')[0]}, thanks for reaching out through our website, `)}`}
                 onClick={() => { if (!m.replied_at) toggleReplied(m); }}>
                 {MsgIcons.wa} Reply on WhatsApp
               </a>
             )}
-            <button className="crm-reply-btn soon" disabled title="Direct email replies will send from your own collarone.app mailbox — SMTP setup is on the way.">
+            <button className="crm-reply-btn soon" disabled title="Direct email replies will send from your own collarone.app mailbox, SMTP setup is on the way.">
               {MsgIcons.mail} Reply by email <span className="crm-soon-chip">Coming soon</span>
             </button>
             {m.contact?.phone && <a className="crm-reply-btn" href={`tel:${m.contact.phone}`}>{MsgIcons.phone} Call</a>}
@@ -643,7 +643,7 @@ function ActivityTab({ flash }) {
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
       {!loading && (
         <div style={{ maxWidth: 720 }}>
-          {activities.length === 0 && <div className="crm-activity-empty">No activity logged yet — log calls, WhatsApp messages, emails, meetings and notes from a contact or company's row.</div>}
+          {activities.length === 0 && <div className="crm-activity-empty">No activity logged yet, log calls, WhatsApp messages, emails, meetings and notes from a contact or company's row.</div>}
           {activities.map((a) => (
             <div className="crm-activity-item" key={a.id}>
               <ActivityBadge type={a.type} />
@@ -750,7 +750,7 @@ function DealCard({ deal, onEdit, onStage }) {
       <div className="crm-deal-meta">{who || '—'}</div>
       <div style={{ fontWeight: 600, fontSize: 13, margin: '4px 0 2px' }}>{C.fmtNaira(deal.value_naira)}</div>
       {deal.expected_close && <div className={`crm-deal-meta ${dealLate(deal) ? 'crm-overdue' : ''}`}>Close {C.fmtDay(deal.expected_close)}</div>}
-      {quiet > 0 && <span className="crm-quiet-pill" title={`Nothing has happened on this deal in ${quiet} days — reach out or close it.`}>quiet {quiet}d</span>}
+      {quiet > 0 && <span className="crm-quiet-pill" title={`Nothing has happened on this deal in ${quiet} days, reach out or close it.`}>quiet {quiet}d</span>}
       <select className="select" value={deal.stage} onClick={(e) => e.stopPropagation()} aria-label="Move stage"
         onChange={(e) => onStage(deal, e.target.value)} style={{ marginTop: 8, fontSize: 12, padding: '4px 8px', width: '100%' }}>
         {Object.entries(C.DEAL_STAGES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -832,7 +832,7 @@ function PipelineTab({ flash }) {
       )}
 
       {!loading && deals.length === 0 && (
-        <EmptyState title="No deals yet" hint="Track every opportunity from lead to won — value, stage and expected close in one board."
+        <EmptyState title="No deals yet" hint="Track every opportunity from lead to won, value, stage and expected close in one board."
           action={<button className="btn btn-primary" onClick={() => setModal('new')}>New deal</button>} />
       )}
 
@@ -882,7 +882,7 @@ function PipelineTab({ flash }) {
 }
 
 /* =========================================================================
-   Bookings — the day-sheet of a service business
+   Bookings, the day-sheet of a service business
    ========================================================================= */
 const fmtTime = (d) => new Date(d).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 const fmtDay = (d) => new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -934,7 +934,7 @@ function BookingsTab({ flash }) {
     <div style={{ maxWidth: 860 }}>
       {soon.length > 0 && (
         <div className="callout-hint" style={{ marginBottom: 16 }}>
-          <b>{soon.length} booking{soon.length === 1 ? '' : 's'} in the next 48 hours</b> — {soon.slice(0, 3).map((b) => `${b.customer_name} (${fmtDay(b.starts_at)} ${fmtTime(b.starts_at)})`).join(', ')}{soon.length > 3 ? '…' : ''}. Confirm them on WhatsApp from the row buttons.
+          <b>{soon.length} booking{soon.length === 1 ? '' : 's'} in the next 48 hours</b>, {soon.slice(0, 3).map((b) => `${b.customer_name} (${fmtDay(b.starts_at)} ${fmtTime(b.starts_at)})`).join(', ')}{soon.length > 3 ? '…' : ''}. Confirm them on WhatsApp from the row buttons.
         </div>
       )}
 
@@ -961,7 +961,7 @@ function BookingsTab({ flash }) {
         <button type="button" className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => setShowPast((v) => !v)}>{showPast ? 'Upcoming only' : 'Show all'}</button>
       </div>
 
-      {Object.keys(byDay).length === 0 && <EmptyState title="No bookings yet" hint="Add the first one above — the day-sheet builds itself." />}
+      {Object.keys(byDay).length === 0 && <EmptyState title="No bookings yet" hint="Add the first one above, the day-sheet builds itself." />}
       {Object.entries(byDay).map(([day, rows]) => (
         <div key={day} style={{ marginBottom: 16 }}>
           <p className="col-label" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--text-2)', margin: '0 0 6px' }}>{fmtDay(rows[0].starts_at)}</p>
@@ -997,7 +997,7 @@ function BookingsTab({ flash }) {
 }
 
 /* =========================================================================
-   Money owed — receivables aged by due date
+   Money owed, receivables aged by due date
    ========================================================================= */
 const REC_STATUS = { outstanding: ['Not paid', '#fff4ce', '#7a5200'], part_paid: ['Part paid', '#deecfd', '#194b8f'], paid: ['Paid', '#dff6dd', '#1a6a1a'], written_off: ['Given up on', '#f2f1ef', '#5c5f66'] };
 const fmtNaira = (n) => `₦${Number(n).toLocaleString('en-NG')}`;
@@ -1048,7 +1048,7 @@ function MoneyTab({ flash }) {
         <div className="card" style={{ padding: '12px 18px', flex: 1, minWidth: 180 }}>
           <div className="muted" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.05em' }}>Overdue</div>
           <div style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: totalOverdue > 0 ? '#a4262c' : 'inherit' }}>{fmtNaira(totalOverdue)}</div>
-          {overdue.length > 0 && <div className="muted" style={{ fontSize: 12 }}>{overdue.length} customer{overdue.length === 1 ? '' : 's'} — chase these first</div>}
+          {overdue.length > 0 && <div className="muted" style={{ fontSize: 12 }}>{overdue.length} customer{overdue.length === 1 ? '' : 's'}, chase these first</div>}
         </div>
       </div>
 
@@ -1058,7 +1058,7 @@ function MoneyTab({ flash }) {
           <div className="field"><label>Amount owed (₦) *</label><input className="input" type="number" min="1" value={f.amountNaira} onChange={(e) => set('amountNaira', e.target.value)} required /></div>
           <div className="field"><label>Due date</label><input className="input" type="date" value={f.dueDate} onChange={(e) => set('dueDate', e.target.value)} /></div>
         </div>
-        <div className="field" style={{ marginTop: 8 }}><label>Note</label><input className="input" value={f.note} onChange={(e) => set('note', e.target.value)} placeholder="What it's for — job, invoice ref…" /></div>
+        <div className="field" style={{ marginTop: 8 }}><label>Note</label><input className="input" value={f.note} onChange={(e) => set('note', e.target.value)} placeholder="What it's for, job, invoice ref…" /></div>
         <button className="btn btn-primary" disabled={busy} style={{ marginTop: 12 }}>{busy ? <span className="spinner" /> : 'Record money owed'}</button>
       </form>
 

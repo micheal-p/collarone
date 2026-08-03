@@ -88,7 +88,7 @@ export async function addHoliday({ name, day }) {
 export async function deleteHoliday(id) {
   const { data, error } = await supabase.from('holidays').delete().eq('id', id).select();
   if (error) throw new Error(error.message);
-  if (!data?.length) throw new Error('Holiday not deleted — statutory holidays cannot be removed.');
+  if (!data?.length) throw new Error('Holiday not deleted, statutory holidays cannot be removed.');
 }
 
 // All types (including inactive) for the settings screen; getTypes() stays active-only.

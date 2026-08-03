@@ -44,13 +44,13 @@ export default function CareersIndex() {
         {org?.logoUrl && <img src={org.logoUrl} alt={companyName} className="careers-org-logo" />}
         <p className="careers-kicker">Careers at {companyName}</p>
         <h1>Join {companyName}.</h1>
-        <p className="careers-lede">These are {companyName}'s open roles — apply directly, no account required.</p>
+        <p className="careers-lede">These are {companyName}'s open roles, apply directly, no account required.</p>
       </div>
 
       <main className="careers-list">
         {error && <p className="careers-empty">{error === 'This company page could not be found.' ? error : "Couldn't load open roles right now. Please try again shortly."}</p>}
         {postings === null && !error && <div className="boot-spinner" style={{ margin: '40px auto' }} />}
-        {postings && postings.length === 0 && <p className="careers-empty">No open roles right now — check back soon.</p>}
+        {postings && postings.length === 0 && <p className="careers-empty">No open roles right now, check back soon.</p>}
         {postings && postings.map((p) => (
           <Link key={p.id} to={`/careers/${orgSlug}/${p.id}`} className="careers-card">
             <div>

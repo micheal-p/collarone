@@ -50,7 +50,7 @@ function SalaryModal({ employee, structure = null, onClose, onSaved, onError }) 
   };
 
   return (
-    <Modal title={`${structure ? 'Edit' : 'New'} salary — ${employee.name}`} onClose={onClose}>
+    <Modal title={`${structure ? 'Edit' : 'New'} salary, ${employee.name}`} onClose={onClose}>
         <form onSubmit={submit}>
           <div className="form-grid">
             <div className="field"><label>Basic (₦/mo)</label>
@@ -65,7 +65,7 @@ function SalaryModal({ employee, structure = null, onClose, onSaved, onError }) 
               <input className="input" type="number" min="0" value={f.otherAllowances} onChange={(e) => set('otherAllowances', e.target.value)} /></div>
           </div>
           <div className="form-grid">
-            <div className="field"><label>Annual rent (₦/yr — rent relief)</label>
+            <div className="field"><label>Annual rent (₦/yr, rent relief)</label>
               <input className="input" type="number" min="0" value={f.annualRent} onChange={(e) => set('annualRent', e.target.value)} placeholder="0" /></div>
             <div className="field"><label>Effective date</label>
               <input className="input" type="date" value={f.effectiveDate} onChange={(e) => set('effectiveDate', e.target.value)} required /></div>
@@ -96,7 +96,7 @@ function BankModal({ employee, onClose, onSaved, onError }) {
   };
 
   return (
-    <Modal title={`Bank account — ${employee.name}`} onClose={onClose}>
+    <Modal title={`Bank account, ${employee.name}`} onClose={onClose}>
         <form onSubmit={submit}>
           <div className="field"><label>Account name</label>
             <input className="input" value={f.accountName} onChange={(e) => set('accountName', e.target.value)} required autoFocus /></div>
@@ -108,7 +108,7 @@ function BankModal({ employee, onClose, onSaved, onError }) {
           </div>
           <div className="field"><label>Account number</label>
             <input className="input" value={f.accountNumber} onChange={(e) => set('accountNumber', e.target.value)} required /></div>
-          <p className="muted" style={{ fontSize:12, margin:'4px 0 12px' }}>Set as the primary account — used for the next payroll run.</p>
+          <p className="muted" style={{ fontSize:12, margin:'4px 0 12px' }}>Set as the primary account, used for the next payroll run.</p>
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save account'}</button>
@@ -296,7 +296,7 @@ function RatesTab({ flash, isPayrollManager }) {
   return (
     <div style={{ marginTop: 8 }}>
       <div className="callout-hint">
-        These drive every payroll calculation. Editing a rate or band takes effect on the <b>next</b> run generated — it never rewrites a run already created. Verify against current Nigerian tax/statutory guidance before changing.
+        These drive every payroll calculation. Editing a rate or band takes effect on the <b>next</b> run generated, it never rewrites a run already created. Verify against current Nigerian tax/statutory guidance before changing.
       </div>
 
       <h3 style={{ fontSize: 14, margin: '18px 0 8px' }}>Statutory deduction rates</h3>
@@ -385,7 +385,7 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
   const approveRun = async () => {
     const ok = await confirm({
       title: 'Approve this run?',
-      message: `Approve the ${period} run? Figures are locked in for release — you can still reopen it before payslips go out.`,
+      message: `Approve the ${period} run? Figures are locked in for release, you can still reopen it before payslips go out.`,
       confirmLabel: 'Approve',
     });
     if (ok) act('approve');
@@ -476,7 +476,7 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
       </div>
 
       {isPayrollManager && missingBank.length > 0 && (
-        <div className="callout-hint">{missingBank.length} employee{missingBank.length>1?'s':''} on this run have no bank account on file — their CSV row will be blank. Add one from the Employees tab before disbursing.</div>
+        <div className="callout-hint">{missingBank.length} employee{missingBank.length>1?'s':''} on this run have no bank account on file, their CSV row will be blank. Add one from the Employees tab before disbursing.</div>
       )}
 
       {totals && (
@@ -495,7 +495,7 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
           <table className="table">
             <thead><tr><th>Employee</th><th>Gross</th><th>Pension</th><th>NHF</th><th>PAYE</th><th>Other ded.</th><th>Net</th>{payable && <th>Payment</th>}</tr></thead>
             <tbody>
-              {lines.length === 0 && <tr><td colSpan={payable ? 8 : 7} className="td-empty">No lines — every active employee is missing a salary structure.</td></tr>}
+              {lines.length === 0 && <tr><td colSpan={payable ? 8 : 7} className="td-empty">No lines, every active employee is missing a salary structure.</td></tr>}
               {lines.map((l) => (
                 <tr key={l.id}>
                   <td>{l.employee?.name}</td>
@@ -659,7 +659,7 @@ function LoanModal({ isPayrollManager, employees, meId, onClose, onSaved, flash 
     setBusy(true);
     try {
       const saved = await P.requestLoan({ ...f, employeeId: f.employeeId || meId, principal: Number(f.principal), monthlyInstallment: Number(f.monthlyInstallment) });
-      flash('Request submitted — it takes effect once approved.');
+      flash('Request submitted, it takes effect once approved.');
       onSaved(saved); onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
@@ -719,7 +719,7 @@ function LoansTab({ flash, isPayrollManager }) {
     }
     try {
       const saved = await P.decideLoan(loan.id, decision);
-      flash(decision === 'approve' ? 'Approved — deductions start with the next payroll run.' : `Loan ${decision === 'reject' ? 'rejected' : 'cancelled'}.`);
+      flash(decision === 'approve' ? 'Approved, deductions start with the next payroll run.' : `Loan ${decision === 'reject' ? 'rejected' : 'cancelled'}.`);
       setLoans((ls) => ls.map((x) => (x.id === saved.id ? { ...x, ...saved } : x)));
     } catch (e) { flash(e.message, true); }
   };
@@ -800,13 +800,13 @@ export default function PayrollApp({ access }) {
   const inTryDemo = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('co-try-demo') === '1';
   const tour = useCoachTour(isPayrollManager && !inTryDemo ? 'tour-payroll-v1' : null);
   const TOUR_STEPS = [
-    { title: 'Payroll, end to end', body: 'This suite runs Nigerian payroll on the 2026 Tax Act rules — new PAYE bands, the ₦800,000 exemption and rent relief. This one-minute tour shows how a month gets paid.' },
-    { selector: '[data-tour="pr-employees"]', title: '1 · Set people up', body: 'Give each employee a salary structure (basic, housing, transport, allowances — plus their declared annual rent for rent relief) and their bank account. Everything else is computed from this.' },
-    { selector: '[data-tour="pr-runs"]', title: '2 · Run the month', body: 'Generate a run and every active employee is computed in one go — gross, PAYE, pension, NHF, loan deductions, net. Review it, approve it, release payslips to staff, then mark it disbursed once the bank pays.' },
-    { selector: '[data-tour="pr-rates"]', title: 'Your rates, your rules', body: "These are your organization's own PAYE bands and deduction rates — already on the 2026 Tax Act schedule. If a regulator circular changes a number, edit it here and the next run uses it." },
-    { selector: '[data-tour="pr-loans"]', title: 'Loans & advances', body: 'Approve a staff loan or salary advance and it repays itself — deducted from net pay on every run until cleared, with the balance visible the whole way.' },
-    { selector: '[data-tour="pr-benefits"]', title: 'Benefits, per person', body: 'HMO, group life, pension/PFA — or define your own custom benefit. Every benefit is switchable per person: a contractor or intern simply has it turned off, full staff have it on.' },
-    { selector: '[data-tour="pr-bankwall"]', title: 'Bank payments', body: "Collarone never touches your bank account. This queue is for whoever liaises with the bank: new staff accounts, CHANGED accounts, and approved runs with a downloadable payment schedule. Mark each item actioned once the bank has it — nothing slips." },
+    { title: 'Payroll, end to end', body: 'This suite runs Nigerian payroll on the 2026 Tax Act rules, new PAYE bands, the ₦800,000 exemption and rent relief. This one-minute tour shows how a month gets paid.' },
+    { selector: '[data-tour="pr-employees"]', title: '1 · Set people up', body: 'Give each employee a salary structure (basic, housing, transport, allowances, plus their declared annual rent for rent relief) and their bank account. Everything else is computed from this.' },
+    { selector: '[data-tour="pr-runs"]', title: '2 · Run the month', body: 'Generate a run and every active employee is computed in one go, gross, PAYE, pension, NHF, loan deductions, net. Review it, approve it, release payslips to staff, then mark it disbursed once the bank pays.' },
+    { selector: '[data-tour="pr-rates"]', title: 'Your rates, your rules', body: "These are your organization's own PAYE bands and deduction rates, already on the 2026 Tax Act schedule. If a regulator circular changes a number, edit it here and the next run uses it." },
+    { selector: '[data-tour="pr-loans"]', title: 'Loans & advances', body: 'Approve a staff loan or salary advance and it repays itself, deducted from net pay on every run until cleared, with the balance visible the whole way.' },
+    { selector: '[data-tour="pr-benefits"]', title: 'Benefits, per person', body: 'HMO, group life, pension/PFA, or define your own custom benefit. Every benefit is switchable per person: a contractor or intern simply has it turned off, full staff have it on.' },
+    { selector: '[data-tour="pr-bankwall"]', title: 'Bank payments', body: "Collarone never touches your bank account. This queue is for whoever liaises with the bank: new staff accounts, CHANGED accounts, and approved runs with a downloadable payment schedule. Mark each item actioned once the bank has it, nothing slips." },
   ];
 
   const upsertRun = (r) => { setRuns((l) => { const i = l.findIndex((x) => x.id === r.id); return i >= 0 ? l.map((x) => (x.id === r.id ? r : x)) : [r, ...l]; }); setOpenRun(r); };
@@ -911,7 +911,7 @@ function RemittancePanel({ run, lines }) {
     <div className="lv-card" style={{ margin: '0 0 16px', padding: '16px 18px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
         <h3 style={{ margin: 0, fontSize: 15 }}>Statutory remittances</h3>
-        <span className="muted" style={{ fontSize: 12.5 }}>what leaves your account besides salaries — {P.money(total)} total</span>
+        <span className="muted" style={{ fontSize: 12.5 }}>what leaves your account besides salaries, {P.money(total)} total</span>
         <button className="btn btn-ghost" style={{ marginLeft: 'auto', fontSize: 12.5, padding: '4px 12px' }}
           onClick={() => P.exportRemittanceCsv(run, lines)}>Download schedule (CSV)</button>
       </div>
@@ -931,7 +931,7 @@ function RemittancePanel({ run, lines }) {
         </table>
       </div>
       <p className="muted" style={{ fontSize: 11.5, margin: '10px 2px 0' }}>
-        Collarone calculates and reminds — the payments themselves are made through each body's own portal. Hover a row for how.
+        Collarone calculates and reminds, the payments themselves are made through each body's own portal. Hover a row for how.
       </p>
     </div>
   );

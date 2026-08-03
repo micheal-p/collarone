@@ -8,10 +8,10 @@ import './Landing.css';
 const rise = { initial: { opacity: 0, y: 22 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: '-40px' }, transition: { duration: 0.55 } };
 
 const STEPS = [
-  { t: 'Pick a theme', d: 'Choose a look below — an online store, a landing page or a company profile. Every Collarone plan includes one.' },
-  { t: 'Make it yours', d: 'Edit every heading, image, price and colour right on the page. No code and no designer — if you can fill a form, you can build it.' },
+  { t: 'Pick a theme', d: 'Choose a look below, an online store, a landing page or a company profile. Every Collarone plan includes one.' },
+  { t: 'Make it yours', d: 'Edit every heading, image, price and colour right on the page. No code and no designer, if you can fill a form, you can build it.' },
   { t: 'Add your content', d: 'Upload products with photos and prices, add pages like About or Contact, drop in your logo and phone number.' },
-  { t: 'Go live', d: 'Publish and share the link, or point your own domain at it. Already have a site? Link it instead — no migration.' },
+  { t: 'Go live', d: 'Publish and share the link, or point your own domain at it. Already have a site? Link it instead, no migration.' },
 ];
 
 const IC = {
@@ -42,11 +42,11 @@ export default function PublicThemes() {
         <div className="cl-wrap">
           <Link to="/" className="tpg-back">← Back to home</Link>
           <motion.h1 className="tpg-h1" {...rise}>A real website, included on every plan</motion.h1>
-          <motion.p className="tpg-lede" {...rise}>Sell online, pitch your service, or introduce your company — pick a theme, make it yours in minutes, and let customers pay you the way that suits your business. Preview any one live below.</motion.p>
+          <motion.p className="tpg-lede" {...rise}>Sell online, pitch your service, or introduce your company, pick a theme, make it yours in minutes, and let customers pay you the way that suits your business. Preview any one live below.</motion.p>
         </div>
       </section>
 
-      {/* The themes ARE the page — they come first. Everything explanatory
+      {/* The themes ARE the page, they come first. Everything explanatory
           (how it works, payments) reads better after you've seen the goods. */}
       <section className="cl-sec" id="themes-list">
         <div className="cl-wrap">
@@ -87,7 +87,7 @@ export default function PublicThemes() {
             <motion.div className="tpg-pcard" {...rise} transition={{ duration: 0.5, delay: 0.06 }}>
               <span className="ic" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{IC.bank}</svg></span>
               <h3>Transfer or pay on delivery</h3>
-              <p>Add your bank details and customers pay by transfer, or let them pay cash on delivery. Every order lands in your dashboard — you mark it paid when the money arrives.</p>
+              <p>Add your bank details and customers pay by transfer, or let them pay cash on delivery. Every order lands in your dashboard, you mark it paid when the money arrives.</p>
               <span className="tag" style={{ color: 'var(--text-soft)' }}>No setup needed</span>
             </motion.div>
             <motion.div className="tpg-pcard" {...rise} transition={{ duration: 0.5, delay: 0.12 }}>
@@ -97,14 +97,14 @@ export default function PublicThemes() {
               <span className="tag" style={{ color: 'var(--accent-ink)' }}>Connect your Paystack</span>
             </motion.div>
           </div>
-          <p className="tpg-note">Whichever you choose, <strong>Collarone never holds or moves your money.</strong> For card payments it flows directly through <strong>your own</strong> Paystack account into <strong>your own</strong> bank — we only show you what's been paid.</p>
+          <p className="tpg-note">Whichever you choose, <strong>Collarone never holds or moves your money.</strong> For card payments it flows directly through <strong>your own</strong> Paystack account into <strong>your own</strong> bank, we only show you what's been paid.</p>
         </div>
       </section>
 
       <section className="cl-sec cl-tint" style={{ textAlign: 'center' }}>
         <div className="cl-wrap">
           <motion.h2 className="cl-sec-h" {...rise}>Ready to build yours?</motion.h2>
-          <motion.p className="cl-sec-lede" {...rise} style={{ margin: '0 auto 26px' }}>Your website is included on every plan — one less bill, one less thing to outsource.</motion.p>
+          <motion.p className="cl-sec-lede" {...rise} style={{ margin: '0 auto 26px' }}>Your website is included on every plan, one less bill, one less thing to outsource.</motion.p>
           <motion.div {...rise}><Link to="/signup" className="cl-btn cl-btn-primary">Get started</Link></motion.div>
         </div>
       </section>

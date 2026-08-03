@@ -30,7 +30,7 @@ const SAMPLE_DOCS = {
   quote: {
     doc_type: 'quote', doc_no: 'QUO-000018', created_at: new Date().toISOString(), status: 'issued',
     party_name: 'Adaeze Okonkwo', party_phone: '0803 555 1234', party_email: 'adaeze@example.com', party_address: 'Lekki Phase 1, Lagos',
-    reference: 'Enquiry — March', items: [{ description: 'Office fit-out (per floor)', qty: 2, unit_price: 450000 }],
+    reference: 'Enquiry, March', items: [{ description: 'Office fit-out (per floor)', qty: 2, unit_price: 450000 }],
     subtotal: 900000, vat_rate: 0.075, vat_amount: 67500, total: 967500, notes: 'Valid for 14 days.',
   },
   receipt: {
@@ -46,19 +46,19 @@ const SAMPLE_DOCS = {
   },
   srp: {
     doc_type: 'srp', doc_no: 'SRP-000031', created_at: new Date().toISOString(),
-    party_name: 'Warehouse — Ikeja', reference: 'Internal transfer',
+    party_name: 'Warehouse, Ikeja', reference: 'Internal transfer',
     items: [{ description: 'Office chairs', qty: 6 }],
   },
   handover: {
     doc_type: 'handover', doc_no: 'HOV-000007', created_at: new Date().toISOString(),
-    party_name: 'Emeka Obi — Field Technician', reference: 'Takeout',
-    items: [{ description: 'Dell Latitude laptop — SN 4432', qty: 1 }, { description: 'Site toolkit', qty: 1 }],
+    party_name: 'Emeka Obi, Field Technician', reference: 'Takeout',
+    items: [{ description: 'Dell Latitude laptop, SN 4432', qty: 1 }, { description: 'Site toolkit', qty: 1 }],
     notes: 'Return expected on project completion.',
   },
   return_note: {
     doc_type: 'return_note', doc_no: 'RTN-000003', created_at: new Date().toISOString(),
-    party_name: 'Emeka Obi — Field Technician', reference: 'HOV-000007',
-    items: [{ description: 'Dell Latitude laptop — SN 4432', qty: 1 }],
+    party_name: 'Emeka Obi, Field Technician', reference: 'HOV-000007',
+    items: [{ description: 'Dell Latitude laptop, SN 4432', qty: 1 }],
     notes: 'Returned in good condition.',
   },
 };
@@ -241,12 +241,12 @@ function PaymentModal({ doc, onClose, onSaved, flash }) {
     setBusy(true);
     try {
       const saved = await TD.recordPayment(doc.id, f);
-      flash(amt >= bal ? `${doc.doc_no} fully paid.` : `Payment recorded — ${TD.money(TD.balance(saved))} still outstanding.`);
+      flash(amt >= bal ? `${doc.doc_no} fully paid.` : `Payment recorded, ${TD.money(TD.balance(saved))} still outstanding.`);
       onSaved(saved); onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
   return (
-    <Modal title={`Record payment — ${doc.doc_no}`} onClose={onClose}>
+    <Modal title={`Record payment, ${doc.doc_no}`} onClose={onClose}>
       <form onSubmit={submit}>
         <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
           Total {TD.money(doc.total)} · paid {TD.money(doc.amount_paid || 0)} · <strong>outstanding {TD.money(bal)}</strong>
@@ -280,7 +280,7 @@ function ShareModal({ doc, orgName, onClose, flash }) {
   useEffect(() => { TD.emailStatus().then(setEmailOn).catch(() => {}); }, []);
   const copy = async () => {
     try { await navigator.clipboard.writeText(url); flash('Link copied.'); }
-    catch { flash('Could not copy — long-press the link to copy it.', true); }
+    catch { flash('Could not copy, long-press the link to copy it.', true); }
   };
   const email = async () => {
     setEmailing(true);
@@ -290,7 +290,7 @@ function ShareModal({ doc, orgName, onClose, flash }) {
   return (
     <Modal title={`Share ${doc.doc_no}`} onClose={onClose}>
       <p className="muted" style={{ fontSize: 13.5, marginTop: 0 }}>
-        Anyone with this link can view the invoice and pay it — by transfer using your instructions, or by card if your Paystack is connected. No account needed.
+        Anyone with this link can view the invoice and pay it, by transfer using your instructions, or by card if your Paystack is connected. No account needed.
       </p>
       <div className="field"><label>Invoice link</label>
         <input className="input" readOnly value={url} onFocus={(e) => e.target.select()} style={{ fontFamily: 'monospace', fontSize: 12.5 }} />
@@ -447,7 +447,7 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
                   <button key={k} type="button" className={`btn ${previewType === k ? 'btn-primary' : 'btn-ghost'}`} style={{ padding: '6px 14px', fontSize: 13 }} onClick={() => setPreviewType(k)}>{m.label}</button>
                 ))}
               </div>
-              <p className="muted" style={{ fontSize: 12.5, marginTop: 0 }}>Sample data — updates live as you edit, nothing here is saved or sent.</p>
+              <p className="muted" style={{ fontSize: 12.5, marginTop: 0 }}>Sample data, updates live as you edit, nothing here is saved or sent.</p>
               <style>{TEMPLATE_CSS}</style>
               <div style={{ border: '1px solid var(--line, #e4e0d6)', borderRadius: 10, overflow: 'hidden' }}>
                 <DocPreviewBody doc={SAMPLE_DOCS[previewType]} settings={liveSettings} />
@@ -548,7 +548,7 @@ function DocPreviewBody({ doc, settings }) {
             <div style={{ height: 40 }} />
             <div>
               {meta.custodyDirection === 'out'
-                ? <>Collected by — <strong>{doc.party_name}</strong> (signature &amp; date)</>
+                ? <>Collected by, <strong>{doc.party_name}</strong> (signature &amp; date)</>
                 : <>Received back by store (name, signature &amp; condition)</>}
             </div>
           </div>
@@ -630,7 +630,7 @@ export default function TradeDocsApp({ access }) {
   const setRepeat = async (doc, every) => {
     try {
       const saved = await TD.setRecurring(doc.id, every);
-      flash(every ? `${doc.doc_no} now repeats ${every} — a ready-to-send draft is raised each period.` : `${doc.doc_no} no longer repeats.`);
+      flash(every ? `${doc.doc_no} now repeats ${every}, a ready-to-send draft is raised each period.` : `${doc.doc_no} no longer repeats.`);
       setDocs((ds) => ds.map((d) => (d.id === saved.id ? saved : d)));
     } catch (e) { flash(e.message, true); setDocs((ds) => [...ds]); }
   };
@@ -693,7 +693,7 @@ export default function TradeDocsApp({ access }) {
               {rows.length === 0 && (
                 <tr><td colSpan={colCount + 2} style={{ padding: 0 }}>
                   {tab === 'receivables'
-                    ? <EmptyState title="Nobody owes you right now" hint="Outstanding invoices — issued but not fully paid — will show here, most overdue first." />
+                    ? <EmptyState title="Nobody owes you right now" hint="Outstanding invoices, issued but not fully paid, will show here, most overdue first." />
                     : <EmptyState title={`No ${meta.label.toLowerCase()}s yet`} hint={`Create one with the "New ${meta.label}" button above.`} />}
                 </td></tr>
               )}
@@ -706,7 +706,7 @@ export default function TradeDocsApp({ access }) {
                     <td style={{ fontFamily: 'monospace', fontSize: 13 }}>
                       {d.doc_no}
                       {d.recur_every && (
-                        <span title={`Repeats ${d.recur_every} — re-raises itself as a draft each period`} style={{ marginLeft: 5, color: 'var(--brand)', cursor: 'default', display: 'inline-flex', verticalAlign: 'middle' }}>
+                        <span title={`Repeats ${d.recur_every}, re-raises itself as a draft each period`} style={{ marginLeft: 5, color: 'var(--brand)', cursor: 'default', display: 'inline-flex', verticalAlign: 'middle' }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 2l4 4-4 4" /><path d="M3 11v-1a4 4 0 0 1 4-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v1a4 4 0 0 1-4 4H3" /></svg>
                         </span>
                       )}
@@ -787,12 +787,12 @@ function StatementModal({ party, docs, orgName, onClose }) {
   const totals = rows.reduce((t, d) => ({ inv: t.inv + Number(d.total), paid: t.paid + paidOf(d), bal: t.bal + balOf(d) }), { inv: 0, paid: 0, bal: 0 });
   const line = { display: 'flex', justifyContent: 'space-between', gap: 12, padding: '7px 0', borderBottom: '1px solid #eee', fontSize: 13 };
   return (
-    <Modal title={`Statement — ${party}`} onClose={onClose} wide>
+    <Modal title={`Statement, ${party}`} onClose={onClose} wide>
       <style>{`@media print { body * { visibility: hidden; } #stmt-print, #stmt-print * { visibility: visible; } #stmt-print { position: absolute; top: 0; left: 0; width: 100%; } .no-print { display: none !important; } }`}</style>
       <div id="stmt-print" style={{ background: '#fff', color: '#14161a', padding: '6px 4px' }}>
         <div style={{ borderBottom: '2px solid #14161a', paddingBottom: 10, marginBottom: 12 }}>
           <div style={{ fontSize: 17, fontWeight: 800 }}>{orgName || 'Statement of account'}</div>
-          <div style={{ fontSize: 12.5, color: '#667' }}>Statement of account — {party} · as at {new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+          <div style={{ fontSize: 12.5, color: '#667' }}>Statement of account, {party} · as at {new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
         </div>
         {rows.map((d) => (
           <div key={d.id} style={line}>

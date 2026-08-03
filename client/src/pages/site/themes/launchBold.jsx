@@ -3,7 +3,7 @@ import { Reveal, Magnetic, useFonts, rise, emph } from './_kit.jsx';
 
 // Launch Bold — a high-energy product launch. Huge Space Grotesk headline,
 // a bold color-block hero, chunky feature cards and punchy CTAs.
-export const meta = { key: 'launch-bold', name: 'Launch Bold', category: 'landing', description: 'High-energy product launch — oversized bold type, a color-block hero and punchy CTAs.', accent: '#F0430A', fonts: 'Space Grotesk + Inter' };
+export const meta = { key: 'launch-bold', name: 'Launch Bold', category: 'landing', description: 'High-energy product launch, oversized bold type, a color-block hero and punchy CTAs.', accent: '#F0430A', fonts: 'Space Grotesk + Inter' };
 
 function Style({ accent }) {
   return <style>{`

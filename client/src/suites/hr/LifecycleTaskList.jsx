@@ -34,7 +34,7 @@ export default function LifecycleTaskList({ employeeId, exitId, phase, canGenera
   return (
     <div className="lc-checklist">
       <div className="lc-checklist-head">
-        <span style={{ fontSize:13, fontWeight:600 }}>Checklist — {done}/{scoped.length} done</span>
+        <span style={{ fontSize:13, fontWeight:600 }}>Checklist, {done}/{scoped.length} done</span>
         {scoped.length === 0 && canGenerate && (
           <button className="btn btn-primary" style={{ fontSize:12, padding:'3px 12px' }} onClick={generate}>Generate checklist</button>
         )}

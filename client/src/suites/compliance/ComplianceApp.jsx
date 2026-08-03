@@ -43,7 +43,7 @@ function MarkModal({ item, onClose, onSaved, flash }) {
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
   return (
-    <Modal title={`Mark done — ${item.rule.title}`} onClose={onClose}>
+    <Modal title={`Mark done, ${item.rule.title}`} onClose={onClose}>
       <form onSubmit={submit}>
         <p style={{ fontSize: 13.5, color: 'var(--text-2)', marginTop: 0 }}>
           Period: <strong>{item.periodLabel}</strong>{item.due ? <> · due {C.fmtDue(item.due)}</> : null}

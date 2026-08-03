@@ -70,7 +70,7 @@ function ExitRow({ exit: ex, isHrManager, onUpdated, flash, confirm }) {
     });
     if (!ok) return;
     setBusy(true);
-    try { onUpdated(await L.finalizeExit(ex.id)); flash('Offboarding finalized — account disabled.'); }
+    try { onUpdated(await L.finalizeExit(ex.id)); flash('Offboarding finalized, account disabled.'); }
     catch (e) { flash(e.message, true); } finally { setBusy(false); }
   };
 
@@ -171,7 +171,7 @@ export default function OffboardingApp({ access, staff }) {
       )}
       {modal && (
         <InitiateModal staff={staff} onClose={() => setModal(false)}
-          onSaved={(ex) => { upsert(ex); setModal(false); flash('Offboarding started — checklist generated.'); }}
+          onSaved={(ex) => { upsert(ex); setModal(false); flash('Offboarding started, checklist generated.'); }}
           onError={(m) => flash(m, true)} />
       )}
       {confirmNode}

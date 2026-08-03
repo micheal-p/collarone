@@ -47,7 +47,7 @@ export default function ResetPassword() {
       const { supabase } = await import('../lib/supabaseClient.js');
       const { error } = await supabase.auth.updateUser({ password: pw1 });
       if (error) throw new Error(error.message);
-      try { await supabase.rpc('mark_password_changed'); } catch { /* non-fatal — never blocks the reset */ }
+      try { await supabase.rpc('mark_password_changed'); } catch { /* non-fatal, never blocks the reset */ }
       await supabase.auth.signOut();
       setPhase('done');
     } catch (e2) {
@@ -90,7 +90,7 @@ export default function ResetPassword() {
         {phase === 'ready' && (
           <form onSubmit={submit} className="login-form">
             <h1 className="login-h">Set a new password</h1>
-            <p className="login-p">Choose a password you'll remember — at least 8 characters.</p>
+            <p className="login-p">Choose a password you'll remember, at least 8 characters.</p>
             <div className="field">
               <label>New password</label>
               <input className="input" type="password" autoFocus value={pw1} onChange={(e) => setPw1(e.target.value)} autoComplete="new-password" />

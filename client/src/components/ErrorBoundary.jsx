@@ -21,7 +21,7 @@ export default class ErrorBoundary extends Component {
           </div>
           <h1 style={{ fontSize: 18, margin: '0 0 8px', color: '#14161C' }}>Something went wrong</h1>
           <p style={{ fontSize: 13.5, lineHeight: 1.6, color: '#454852', margin: '0 0 18px' }}>
-            This page hit an unexpected error. It has been reported to our team automatically — your data is safe on the server.
+            This page hit an unexpected error. It has been reported to our team automatically, your data is safe on the server.
           </p>
           <button type="button" onClick={() => window.location.reload()}
             style={{ background: '#FF5B1F', border: 'none', borderRadius: 9, color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', padding: '10px 22px', fontFamily: 'inherit' }}>

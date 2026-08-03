@@ -103,7 +103,7 @@ function MyShiftsTable({ records, onEdit }) {
             </tr>
           </thead>
           <tbody>
-            {records.length === 0 && <tr><td colSpan={onEdit ? 7 : 6} className="td-empty">No attendance yet — records appear the moment someone clocks in from their phone, or a wall device punches in. Set up clock-in rules in Settings.</td></tr>}
+            {records.length === 0 && <tr><td colSpan={onEdit ? 7 : 6} className="td-empty">No attendance yet, records appear the moment someone clocks in from their phone, or a wall device punches in. Set up clock-in rules in Settings.</td></tr>}
             {records.map((r) => {
               const hours = A.hoursBetween(r.clock_in_at, r.clock_out_at);
               const ot = A.overtimeHours(hours);
@@ -172,7 +172,7 @@ function TodayView({ all, onEdit }) {
             <tr><th>Employee</th><th>Clock in</th><th>Status</th><th>Clock out</th><th>Location</th><th style={{ width: 40 }} /></tr>
           </thead>
           <tbody>
-            {open.length === 0 && completed.length === 0 && <tr><td colSpan={6} className="td-empty">Nobody has clocked in today yet — the live board fills in as your team arrives.</td></tr>}
+            {open.length === 0 && completed.length === 0 && <tr><td colSpan={6} className="td-empty">Nobody has clocked in today yet, the live board fills in as your team arrives.</td></tr>}
             {open.map((r) => <Row key={r.id} r={r} done={false} />)}
             {completed.map((r) => <Row key={r.id} r={r} done />)}
           </tbody>
@@ -248,7 +248,7 @@ function TimesheetView({ all, onEdit }) {
             <tr><th style={{ width: 36 }} /><th>Employee</th><th>Days</th><th>Total hours</th><th>Open shifts</th></tr>
           </thead>
           <tbody>
-            {groups.length === 0 && <tr><td colSpan={5} className="td-empty">No hours recorded this week yet — timesheets build themselves from clock-ins and feed straight into Payroll.</td></tr>}
+            {groups.length === 0 && <tr><td colSpan={5} className="td-empty">No hours recorded this week yet, timesheets build themselves from clock-ins and feed straight into Payroll.</td></tr>}
             {groups.map((g) => (
               <GroupRows key={g.id} g={g} open={expanded.has(g.id)} onToggle={() => toggle(g.id)} onEdit={onEdit} />
             ))}
@@ -256,7 +256,7 @@ function TimesheetView({ all, onEdit }) {
         </table>
       </div>
       <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-        Totals count completed shifts only — fix open shifts with the pencil. {OT_NOTE}
+        Totals count completed shifts only, fix open shifts with the pencil. {OT_NOTE}
       </p>
     </>
   );
@@ -323,7 +323,7 @@ function EditShiftModal({ rec, onClose, onSaved, flash }) {
   };
 
   return (
-    <Modal title={`Edit shift${rec.employee?.name ? ` — ${rec.employee.name}` : ''}`} onClose={onClose}>
+    <Modal title={`Edit shift${rec.employee?.name ? `, ${rec.employee.name}` : ''}`} onClose={onClose}>
       <form onSubmit={save}>
         <div className="field"><label>Clock in</label>
           <input className="input" type="datetime-local" value={inAt} onChange={(e) => setInAt(e.target.value)} required autoFocus />
@@ -333,7 +333,7 @@ function EditShiftModal({ rec, onClose, onSaved, flash }) {
           <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>Leave empty to reopen the shift.</p>
         </div>
         <div className="field"><label>Notes</label>
-          <textarea className="input" rows={3} placeholder="e.g. forgot to clock out — actual 5pm"
+          <textarea className="input" rows={3} placeholder="e.g. forgot to clock out, actual 5pm"
             value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
         {badOrder && <p style={{ color: 'var(--danger, #B42318)', fontSize: 13, margin: '4px 0 0' }}>Clock-out must be after clock-in.</p>}
@@ -429,7 +429,7 @@ function ShiftsTab({ flash }) {
         <button className="btn btn-primary lv-apply" onClick={() => setModal(true)}>New shift</button>
       </div>
       <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 12px', lineHeight: 1.5 }}>
-        Lateness is judged against each person&apos;s own shift (plus the grace window) — anyone without a shift follows the company-wide schedule in Settings. Lateness still flows into payroll exactly as configured.
+        Lateness is judged against each person&apos;s own shift (plus the grace window), anyone without a shift follows the company-wide schedule in Settings. Lateness still flows into payroll exactly as configured.
       </p>
 
       {data && data.shifts.length === 0 && (
@@ -524,8 +524,8 @@ function AssignModal({ shift, staff, current, onClose, onSaved, flash }) {
     } catch (e) { flash(e.message, true); } finally { setBusy(false); }
   };
   return (
-    <Modal title={`Assign staff — ${shift.name}`} onClose={onClose}>
-      <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>A person can be on one shift at a time — assigning here moves them off any other shift.</p>
+    <Modal title={`Assign staff, ${shift.name}`} onClose={onClose}>
+      <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>A person can be on one shift at a time, assigning here moves them off any other shift.</p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, maxHeight: 300, overflowY: 'auto' }}>
         {staff.map((s) => (
           <button key={s.id} type="button" className={`pill ${sel.has(s.id) ? 'active' : ''}`} onClick={() => toggle(s.id)}>{s.name}</button>

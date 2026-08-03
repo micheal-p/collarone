@@ -6,7 +6,7 @@ import * as C from './complianceApi.js';
 import * as L from '../leave/leaveApi.js';
 
 /* =========================================================================
-   Employee 360 record — one page aggregating everything the platform knows
+   Employee 360 record, one page aggregating everything the platform knows
    about an employee across suites. Each section fetches independently and
    degrades gracefully: RLS decides what this viewer may see, so a section
    the viewer can't access shows a quiet note instead of breaking the page.
@@ -51,7 +51,7 @@ function Card({ title, count, children }) {
 
 function CardBody({ state, emptyText, render }) {
   if (state.loading) return <div className="er-note"><span className="sk" style={{ display:'block', height: 12, width: '70%' }} /></div>;
-  if (state.error) return <div className="er-note">Not available — this section needs its suite's access. </div>;
+  if (state.error) return <div className="er-note">Not available, this section needs its suite's access. </div>;
   const empty = !state.data || (Array.isArray(state.data) && state.data.length === 0);
   if (empty) return <div className="er-note">{emptyText}</div>;
   return render(state.data);
@@ -165,7 +165,7 @@ export default function EmployeeRecord({ emp, isHrManager, onBack, onEdit }) {
             )} />
         </Card>
 
-        <Card title={`Leave — ${year}`} count={leave.data ? thisYearLeave.length : null}>
+        <Card title={`Leave, ${year}`} count={leave.data ? thisYearLeave.length : null}>
           <CardBody state={leave} emptyText="No leave requests yet."
             render={(rs) => (
               <>
@@ -180,7 +180,7 @@ export default function EmployeeRecord({ emp, isHrManager, onBack, onEdit }) {
             )} />
         </Card>
 
-        <Card title="Attendance — last 30 days" count={attend.data ? last30.length : null}>
+        <Card title="Attendance, last 30 days" count={attend.data ? last30.length : null}>
           <CardBody state={attend} emptyText="No attendance records."
             render={() => (
               <>

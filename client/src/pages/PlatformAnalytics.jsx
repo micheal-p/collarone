@@ -61,7 +61,7 @@ function GrowthChart({ orgs }) {
   if (points.length === 0) {
     return (
       <div className="pc-panel" style={{ padding: 24, textAlign: 'center', color: 'var(--faint)', fontSize: 13 }}>
-        Not enough signups yet to chart growth — check back once a few more organizations join.
+        Not enough signups yet to chart growth, check back once a few more organizations join.
       </div>
     );
   }
@@ -271,7 +271,7 @@ export default function PlatformAnalytics() {
       </div>
 
       <p style={{ fontSize: 11.5, color: 'var(--faint)', margin: '0 0 24px' }}>
-        Visitor analytics are anonymous — no cookies or visitor IDs, just a path, country and timestamp per page load.
+        Visitor analytics are anonymous, no cookies or visitor IDs, just a path, country and timestamp per page load.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 24 }}>

@@ -172,7 +172,7 @@ export default function FinanceApp({ access }) {
   const removeBudget = async (b) => {
     const ok = await confirm({
       title: 'Delete budget line?',
-      message: `${b.category?.name || 'All categories'} — ${F.money(b.amount)} will be removed.`,
+      message: `${b.category?.name || 'All categories'}, ${F.money(b.amount)} will be removed.`,
       confirmLabel: 'Delete', danger: true,
     });
     if (!ok) return;
@@ -336,7 +336,7 @@ export default function FinanceApp({ access }) {
 
 /* ==== Bank reconciliation ======================================================
    Import the bank's own CSV, match each line against what the workspace
-   already knows — customer payments in, approved expenses out — and see
+   already knows, customer payments in, approved expenses out, and see
    what's explained, what isn't, and what the books are missing. Suggestions
    are exact-amount within ±5 days; a human always confirms. */
 
@@ -396,7 +396,7 @@ function ReconTab({ flash }) {
           amount,
         };
       }).filter((r) => r.date && r.amount !== 0);
-      if (!rows.length) { flash('No usable lines — check the column mapping.', true); return; }
+      if (!rows.length) { flash('No usable lines, check the column mapping.', true); return; }
       await F.importBankLines(rows);
       flash(`${rows.length} statement line${rows.length === 1 ? '' : 's'} imported.`);
       setMapOpen(false); setCsv(null); load();
@@ -438,7 +438,7 @@ function ReconTab({ flash }) {
       <div className="filterbar" style={{ marginTop: 8, gap: 10, flexWrap: 'wrap' }}>
         <span className="count">
           {lines === null ? 'Loading…' : `${open.length} unexplained line${open.length === 1 ? '' : 's'}`}
-          {open.length > 0 && ` — in ${money(inSum)} · out ${money(outSum)}`}
+          {open.length > 0 && `, in ${money(inSum)} · out ${money(outSum)}`}
         </span>
         <label className="btn btn-primary lv-apply" style={{ cursor: 'pointer' }}>
           Import bank CSV
@@ -446,11 +446,11 @@ function ReconTab({ flash }) {
         </label>
       </div>
       <p className="muted" style={{ fontSize: 12.5, margin: '2px 0 12px', lineHeight: 1.5 }}>
-        Export the statement from your bank app as CSV and import it — we suggest matches against customer payments and approved expenses; you confirm each one. Payroll and bank charges match manually with a note.
+        Export the statement from your bank app as CSV and import it, we suggest matches against customer payments and approved expenses; you confirm each one. Payroll and bank charges match manually with a note.
       </p>
 
       {lines !== null && lines.length === 0 && (
-        <EmptyState title="No statement imported yet" hint="Import your bank statement CSV — matching your bank against your books is how the numbers become trustworthy." />
+        <EmptyState title="No statement imported yet" hint="Import your bank statement CSV, matching your bank against your books is how the numbers become trustworthy." />
       )}
 
       {lines !== null && lines.length > 0 && (
