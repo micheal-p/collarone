@@ -105,8 +105,11 @@ if [ -n "\$CONF" ]; then
     if nginx -t 2>/dev/null; then
       NGINX_STATUS="wired:\$CONF"
     else
+      # Keep the reason. "it failed" sent me round three deploys; the actual
+      # nginx message says which directive it objected to.
+      WHY=\$(nginx -t 2>&1 | grep -iE 'emerg|error' | head -1 | cut -c1-160)
       cp "\$BACKUP" "\$CONF"
-      NGINX_STATUS="nginx-t-failed:\$CONF"
+      NGINX_STATUS="nginx-t-failed:\$CONF :: \$WHY"
     fi
   fi
 fi
