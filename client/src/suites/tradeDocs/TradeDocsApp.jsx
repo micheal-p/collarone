@@ -6,6 +6,7 @@ import { getWarehouses, getItems } from '../inventory/inventoryApi.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
 import { amountInWords } from '../../lib/amountInWords.js';
+import ProductTour, { tourSeen } from '../../components/ProductTour.jsx';
 
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 
@@ -749,6 +750,31 @@ function PrintView({ doc, settings, onClose }) {
   );
 }
 
+/* Trade Documents tour. Steps whose target isn't on screen are skipped by
+   ProductTour, so a member who can't see the Letterhead button simply never
+   hears about it. Copy describes what the suite really does today: no card
+   payments until Paystack is connected, no emailing until the mail key is set. */
+const TOUR_STEPS = [
+  { title: 'Invoicing & Trade Documents',
+    body: 'Everything you hand a customer or a supplier, on your own letterhead, numbered automatically so nothing is ever raised twice. A one-minute walkthrough; skip anytime.' },
+  { target: '[data-tour="td-tab-invoice"]', title: 'Invoices',
+    body: 'Raise an invoice, then share it as a link on WhatsApp. The customer opens it without an account, sees what they owe and how to pay you. Record part-payments against it and the balance follows.' },
+  { target: '[data-tour="td-tab-quote"]', title: 'Quotations',
+    body: 'Price the job before the work. A quotation shows the total but never asks to be paid, and when the customer says yes you convert it to an invoice in one click, with the items carried over.' },
+  { target: '[data-tour="td-tab-receipt"]', title: 'Receipts',
+    body: 'Proof that money arrived. Numbered like everything else, so your records and your customer\'s agree.' },
+  { target: '[data-tour="td-tab-receivables"]', title: 'Money owed',
+    body: 'Everyone who owes you, oldest first, with the total across the top. Open a customer here for a full statement of account you can print or send.' },
+  { target: '[data-tour="td-tab-grn"]', title: 'Goods received notes',
+    body: 'What arrived from a supplier, signed for. Linked to Inventory when you have it, so stock moves as the paperwork does.' },
+  { target: '[data-tour="td-tab-handover"]', title: 'Handover and return notes',
+    body: 'Company property changing hands, signed both ways. Raised automatically when Inventory or IT Assets gives something out, and again with a condition check when it comes back.' },
+  { target: '[data-tour="td-letterhead"]', title: 'Your letterhead, and your bank details',
+    body: 'Logo, address, signature and a choice of six templates. Fill in your bank details here once and they print on every unpaid invoice and on the payment page your customer opens, so nobody has to ring and ask where to send the money.' },
+  { target: '[data-tour="td-new"]', title: 'Raise your first one',
+    body: 'Pick the customer, add your lines, and the total including VAT updates as you type. Set it to repeat monthly and it re-raises itself as a draft for you to check and send.' },
+];
+
 export default function TradeDocsApp({ access }) {
   const { user } = useAuth();
   const orgId = user?.org?.id;
@@ -760,6 +786,7 @@ export default function TradeDocsApp({ access }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [viewDoc, setViewDoc] = useState(null);
+  const [tour, setTour] = useState(false);
   const [payDoc, setPayDoc] = useState(null);
   const [shareDoc, setShareDoc] = useState(null);
   const { flash, toastNode } = useToast();
@@ -773,6 +800,18 @@ export default function TradeDocsApp({ access }) {
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // First visit per user, replayable from Help via /suite/trade-docs?tour=1.
+  // Waits for load so the tabs it points at are actually mounted.
+  useEffect(() => {
+    if (loading) return undefined;
+    const wantsReplay = new URLSearchParams(window.location.search).get('tour') === '1';
+    if (wantsReplay || !tourSeen(user?.id, 'tradedocs_v1')) {
+      const t = setTimeout(() => setTour(true), 700);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [loading]); // eslint-disable-line
 
   const rows = tab === 'receivables'
     ? docs.filter((d) => d.doc_type === 'invoice' && d.status !== 'void' && d.status !== 'draft' && TD.balance(d) > 0)
@@ -832,19 +871,21 @@ export default function TradeDocsApp({ access }) {
 
   return (
     <div className="lv">
+      {tour && <ProductTour steps={TOUR_STEPS} userId={user?.id} tourId="tradedocs_v1" onClose={() => setTour(false)} />}
+
       {/* A real tablist: these look like tabs and behave like tabs, so a screen
           reader should be told that rather than hearing eight unrelated
           buttons. aria-selected is also what makes the current one announce as
           selected, which colour alone never does. */}
       <div className="lv-tabs" role="tablist" aria-label="Document types">
         {Object.entries(TD.DOC_TYPES).map(([k, m]) => (
-          <button key={k} role="tab" aria-selected={tab === k} className={`lv-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{m.label}</button>
+          <button key={k} role="tab" aria-selected={tab === k} data-tour={`td-tab-${k}`} className={`lv-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{m.label}</button>
         ))}
-        <button role="tab" aria-selected={tab === 'receivables'} className={`lv-tab ${tab === 'receivables' ? 'active' : ''}`} onClick={() => setTab('receivables')}>
+        <button role="tab" aria-selected={tab === 'receivables'} data-tour="td-tab-receivables" className={`lv-tab ${tab === 'receivables' ? 'active' : ''}`} onClick={() => setTab('receivables')}>
           Money owed{outstandingTotal > 0 ? ` (${TD.money(outstandingTotal)})` : ''}
         </button>
-        {isManager && <button className="btn btn-ghost" onClick={() => setSettingsOpen(true)}>Letterhead</button>}
-        {tab !== 'receivables' && <button className="btn btn-primary lv-apply" onClick={() => setCreateOpen(true)}>New {meta.label}</button>}
+        {isManager && <button data-tour="td-letterhead" className="btn btn-ghost" onClick={() => setSettingsOpen(true)}>Letterhead</button>}
+        {tab !== 'receivables' && <button data-tour="td-new" className="btn btn-primary lv-apply" onClick={() => setCreateOpen(true)}>New {meta.label}</button>}
       </div>
 
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}

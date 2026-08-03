@@ -57,6 +57,9 @@ jobs:
       - name: Trade documents say the right thing about money
         run: node test/invoice_document_rules.mjs
 
+      - name: Every product-tour step points at a real element
+        run: node test/tour_targets.mjs
+
       - name: Cross-tenant RLS probe + payroll golden (live DB)
         if: env.DATABASE_URL != ''
         run: |
