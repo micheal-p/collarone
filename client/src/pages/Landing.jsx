@@ -392,6 +392,8 @@ const modules = [
 ];
 
 const FAQ_CATS = ['All', 'General', 'Pricing', 'Product', 'Security'];
+// Fifteen open questions was a wall. Five is a section; the rest are one tap away.
+const FAQ_PREVIEW = 5;
 const faqs = [
   { cat: 'General', q: 'What is Collarone?', a: 'Fifteen business suites behind one login, priced and billed in naira: HR, payroll and benefits, invoicing, CRM, inventory, compliance and more. Your company gets its own isolated workspace, and you switch on only the suites you need.' },
   { cat: 'General', q: 'Can I try it before paying anything?', a: 'Yes. Open the demo from the menu, pick a suite, and you land inside it: real screens, sample data, and a guided tour that assumes you\'ve never seen it before. No sign-up, nothing to install, and you can\'t break anything.' },
@@ -420,6 +422,7 @@ export default function Landing() {
   const [pastHero, setPastHero] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [faqCat, setFaqCat] = useState('All');
+  const [faqAll, setFaqAll] = useState(false);
   const visibleFaqs = faqCat === 'All' ? faqs : faqs.filter((f) => f.cat === faqCat);
   const { scrollY } = useScroll();
   useMotionValueEvent(scrollY, 'change', (v) => { setPastHero(v > 520); });
@@ -733,20 +736,32 @@ export default function Landing() {
           </Reveal>
           <div className="cl-faq-tabs">
             {FAQ_CATS.map((c) => (
-              <button key={c} type="button" className={`cl-faq-tab${faqCat === c ? ' on' : ''}`} onClick={() => setFaqCat(c)}>
+              <button key={c} type="button" className={`cl-faq-tab${faqCat === c ? ' on' : ''}`} onClick={() => { setFaqCat(c); setFaqAll(false); }}>
                 {c}{c !== 'All' && <span className="cl-faq-tab-count">{faqs.filter((f) => f.cat === c).length}</span>}
               </button>
             ))}
           </div>
+          {/* Only the first five are shown; the rest stay in the DOM and are
+              hidden with CSS rather than sliced out, so the FAQPage JSON-LD
+              still describes questions that are genuinely on the page. */}
           <Reveal className="cl-faq-list" key={faqCat}>
             {visibleFaqs.map((f, i) => (
-              <details className="cl-faq-item" key={f.q}>
+              <details className={`cl-faq-item${!faqAll && i >= FAQ_PREVIEW ? ' cl-faq-extra' : ''}`} key={f.q}>
                 <span className="cl-faq-num">{String(i + 1).padStart(2, '0')}</span>
                 <summary>{f.q}<span className="cl-chev">{I.chev}</span></summary>
                 <div className="cl-faq-a">{f.a}</div>
               </details>
             ))}
           </Reveal>
+          {visibleFaqs.length > FAQ_PREVIEW && (
+            <div className="cl-faq-more">
+              <button type="button" className="cl-btn cl-btn-ghost" onClick={() => setFaqAll((v) => !v)}>
+                {faqAll
+                  ? 'Show fewer questions'
+                  : `See ${visibleFaqs.length - FAQ_PREVIEW} more question${visibleFaqs.length - FAQ_PREVIEW === 1 ? '' : 's'}`}
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

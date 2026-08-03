@@ -652,6 +652,11 @@
 .cl-faq-item { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
   padding-left: 54px; transition: border-color .3s ease, box-shadow .3s ease; }
 .cl-faq-item[open] { border-color: rgba(255,122,61,0.4); box-shadow: 0 10px 28px rgba(255,91,31,0.08); }
+/* Beyond the fifth question. Hidden with CSS rather than removed from the
+   markup so the FAQPage structured data still describes questions that are
+   really on the page — and one tap brings them back. */
+.cl-faq-item.cl-faq-extra { display: none; }
+.cl-faq-more { display: flex; justify-content: center; margin-top: 18px; }
 .cl-faq-num { position: absolute; left: 18px; top: 17px; font-family: Georgia, serif; font-style: italic; font-size: 22px; font-weight: 700;
   color: var(--line-strong); transition: color .3s ease; line-height: 1; }
 .cl-faq-item[open] .cl-faq-num { color: var(--accent); }
