@@ -165,8 +165,14 @@ export default async function handler(req, res) {
       // departments (owner-edited only — departments_admin_write is
       // super_admin-gated) and add that department's template suites.
       const { data: deptRows } = await admin.from('departments')
-        .select('name, access_suites').eq('org_id', caller.org_id);
+        .select('id, name, access_suites').eq('org_id', caller.org_id);
       const templateByName = new Map((deptRows || []).map((d) => [String(d.name).trim().toLowerCase(), sanitizeBulk(d.access_suites)]));
+      // Resolve the CSV's department text to a real department_id. Without this
+      // every imported staff member carries a name string and no id, which is
+      // the fragile path: renaming a department then silently cuts them out of
+      // their own chat room and access templates.
+      const deptIdByName = new Map((deptRows || []).map((d) => [String(d.name).trim().toLowerCase(), d.id]));
+      const deptIdForRow = (r) => deptIdByName.get(String(r.department || '').trim().toLowerCase()) ?? null;
       const suitesForRow = (r) => {
         const tpl = templateByName.get(String(r.department || '').trim().toLowerCase()) || [];
         const merged = [...baseline];
@@ -193,7 +199,7 @@ export default async function handler(req, res) {
         }
         const { data: profile, error: pErr } = await admin.from('profiles').upsert({
           id: created.user.id, email, name, job_title: String(r.jobTitle || '').trim(),
-          department: String(r.department || '').trim(), org_id: caller.org_id,
+          department: String(r.department || '').trim(), department_id: deptIdForRow(r), org_id: caller.org_id,
           role: batchRole, suites: suitesForRow(r), status: 'active', must_change_password: true,
         }, { onConflict: 'id' }).select().single();
         if (pErr) {

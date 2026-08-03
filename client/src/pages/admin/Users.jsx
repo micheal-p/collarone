@@ -5,6 +5,7 @@ import { apiGet, apiPost, apiPatch, apiPut } from '../../api/client.js';
 import { SUITE_META, SUITE_ROLES, MULTI_TENANT_SAFE_SUITES, BULK_SAFE_SUITES, suiteAllowedForCountry } from '../../config/suites.js';
 import { FOUNDING_ORG_ID } from '../../config/org.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
+import { waLink } from '../../lib/whatsapp.js';
 import AppLayout from '../../components/AppLayout.jsx';
 import SuiteIcon from '../../components/SuiteIcon.jsx';
 import { useToast, useConfirm } from '../../components/ui.jsx';
@@ -123,6 +124,7 @@ export default function AdminUsers() {
   const [selected, setSelected] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [handover, setHandover] = useState(null);   // { user, password }
   const [importOpen, setImportOpen] = useState(false);
   const [bulkGrantOpen, setBulkGrantOpen] = useState(false);
   const [manage,  setManage]  = useState(null);
@@ -295,7 +297,15 @@ export default function AdminUsers() {
       {bulkGrantOpen && <BulkGrantModal catalog={grantableCatalog} count={selected.size} onClose={() => setBulkGrantOpen(false)}
         onApply={applyBulkGrant} />}
       {createOpen && <CreateUserModal catalog={grantableCatalog} departments={departments} onClose={() => setCreateOpen(false)}
-        onCreated={(u, warning) => { setUsers((l) => [u, ...l]); setCreateOpen(false); flash(warning || `${u.name} created.`, Boolean(warning)); }} onError={(m) => flash(m, true)} />}
+        onCreated={(u, warning, tempPassword) => {
+          setUsers((l) => [u, ...l]); setCreateOpen(false);
+          flash(warning || `${u.name} created.`, Boolean(warning));
+          // Hand-over step: until invite emails are switched on, the admin IS
+          // the delivery mechanism. Give them something to send rather than
+          // leaving them to retype a password into WhatsApp from memory.
+          if (tempPassword) setHandover({ user: u, password: tempPassword });
+        }} onError={(m) => flash(m, true)} />}
+      {handover && <HandoverModal {...handover} onClose={() => setHandover(null)} />}
       {manage && <EditUserModal user={manage} catalog={grantableCatalog} departments={departments} onClose={() => setManage(null)}
         onSaved={(u, warning) => { replace(u); setManage(null); flash(warning || 'Access updated.', Boolean(warning)); }} onError={(m) => flash(m, true)} />}
       {viewUser && <ProfileModal user={viewUser} catalog={catalog} departments={departments} onClose={() => setViewUser(null)}
@@ -410,6 +420,56 @@ function DeptSelect({ departments, value, onChange }) {
   );
 }
 
+/* ---- Hand the new person their sign-in details -----------------------------
+   There are no invite emails yet (no mail key on the box), so the admin is the
+   delivery mechanism. Rather than leave them retyping a password into WhatsApp,
+   compose the message once and give them one tap to send it or copy it.
+   The password is a TEMPORARY one they just chose and the account is created
+   with must_change_password, so it stops working the moment it's first used. */
+function HandoverModal({ user, password, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const signInUrl = `${window.location.origin}/login`;
+  const message = [
+    `Hi ${String(user.name || '').split(' ')[0] || 'there'},`,
+    '',
+    `Your Collarone account is ready.`,
+    `Sign in: ${signInUrl}`,
+    `Email: ${user.email}`,
+    `Temporary password: ${password}`,
+    '',
+    `You'll be asked to set your own password the first time you sign in.`,
+  ].join('\n');
+
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(message); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+    catch { setCopied(false); }
+  };
+
+  return (
+    <Modal title={`Send ${String(user.name || '').split(' ')[0] || 'them'} their sign-in details`} onClose={onClose}>
+      <p className="muted" style={{ fontSize: 13.5, marginTop: 0 }}>
+        This password only works once — they set their own when they first sign in.
+      </p>
+      <pre style={{
+        whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: 'var(--surface-2)',
+        border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px',
+        fontSize: 13, lineHeight: 1.6, fontFamily: 'inherit', margin: '0 0 4px',
+      }}>{message}</pre>
+      <div className="modal-actions">
+        <button className="btn btn-ghost" onClick={copy}>{copied ? 'Copied' : 'Copy message'}</button>
+        {user.phone
+          ? <a className="btn btn-primary" href={waLink(user.phone, message)} target="_blank" rel="noreferrer" onClick={onClose}>Send on WhatsApp</a>
+          : <button className="btn btn-primary" onClick={onClose}>Done</button>}
+      </div>
+      {!user.phone && (
+        <p className="muted" style={{ fontSize: 12.5 }}>
+          Add a phone number to their profile to send this straight to WhatsApp.
+        </p>
+      )}
+    </Modal>
+  );
+}
+
 function CreateUserModal({ catalog, departments, onClose, onCreated, onError }) {
   const [f, setF] = useState(EMPTY); const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
@@ -422,7 +482,7 @@ function CreateUserModal({ catalog, departments, onClose, onCreated, onError }) 
     e.preventDefault(); setBusy(true);
     try {
       const d = await apiPost('/users', { ...f, departmentId: f.departmentId || null, suites: isAdmin ? [] : f.suites });
-      onCreated(d.user, d.warning);
+      onCreated(d.user, d.warning, f.password);
     }
     catch (e2) { onError(e2.message); } finally { setBusy(false); }
   };

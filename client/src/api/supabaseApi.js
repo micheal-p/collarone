@@ -60,14 +60,14 @@ async function myProfile() {
 
 async function myOrg(orgId) {
   const { data, error } = await supabase.from('organizations')
-    .select('id, name, slug, plan_tier, theme_color, logo_url, status, suites_enabled, website_type, external_website_url, country, base_fee_kobo, per_seat_kobo, included_suites, extra_suite_fee_kobo, current_period_end, grace_until').eq('id', orgId).single();
+    .select('id, name, slug, plan_tier, theme_color, logo_url, status, suites, suites_enabled, website_type, external_website_url, country, base_fee_kobo, per_seat_kobo, included_suites, extra_suite_fee_kobo, current_period_end, grace_until').eq('id', orgId).single();
   if (error || !data) fail(401, 'No organization found for this account.');
   return data;
 }
 
 const toPublicOrg = (o) => ({
   id: o.id, name: o.name, slug: o.slug, planTier: o.plan_tier, themeColor: o.theme_color, logoUrl: o.logo_url,
-  status: o.status, suitesEnabled: o.suites_enabled, websiteType: o.website_type, externalWebsiteUrl: o.external_website_url || '',
+  status: o.status, suites: Array.isArray(o.suites) ? o.suites : null, suitesEnabled: o.suites_enabled, websiteType: o.website_type, externalWebsiteUrl: o.external_website_url || '',
   country: o.country || 'NG',
   baseFeeKobo: o.base_fee_kobo ?? null, perSeatKobo: o.per_seat_kobo ?? null,
   includedSuites: o.included_suites ?? null, extraSuiteFeeKobo: o.extra_suite_fee_kobo ?? null,
@@ -99,10 +99,18 @@ async function myOrgId() {
 // about what's actually usable — it is not itself a security boundary.
 function tiles(profile, org) {
   const isFoundingOrg = org?.id === '00000000-0000-0000-0000-000000000001';
+  // What the org actually bought. null = signed up before organizations.suites
+  // existed, so they keep unrestricted access (see org_suites.sql — we don't
+  // retroactively cut off a live customer). An array means the tier they pay
+  // for is real: a super_admin can open everything they BOUGHT, not everything
+  // that exists, which is what made à-la-carte pricing decorative.
+  const bought = Array.isArray(org?.suites) ? org.suites : null;
+  const inPlan = (key) => isFoundingOrg || bought === null || bought.includes(key);
   return SUITES.map((s) => {
     const grant = (profile.suites || []).find((g) => g.key === s.key);
-    const safeForOrg = (isFoundingOrg || MULTI_TENANT_SAFE_SUITES.includes(s.key)) && suiteAllowedForCountry(s.key, org?.country);
-    const granted = (profile.role === 'super_admin' ? safeForOrg : Boolean(grant) && suiteAllowedForCountry(s.key, org?.country));
+    const safeForOrg = (isFoundingOrg || MULTI_TENANT_SAFE_SUITES.includes(s.key))
+      && suiteAllowedForCountry(s.key, org?.country) && inPlan(s.key);
+    const granted = (profile.role === 'super_admin' ? safeForOrg : Boolean(grant) && safeForOrg);
     return { ...s, granted, suiteRole: profile.role === 'super_admin' ? 'manager' : grant?.role || null, openable: granted && s.status === 'live' };
   });
 }
@@ -508,6 +516,14 @@ export async function supabaseApi(path, opts = {}) {
     if (!meta) fail(404, 'Unknown suite.');
     const org = await myOrg(p.org_id);
     if (!suiteAllowedForCountry(seg[1], org.country)) fail(403, 'Payroll is only available to organizations registered in Nigeria.');
+    // Opening a suite by URL has to answer to the plan too, or the tile gate is
+    // decoration — /suite/payroll would still work for a plan that never
+    // bought it. null = legacy org, unrestricted (see org_suites.sql).
+    const bought = Array.isArray(org.suites) ? org.suites : null;
+    const isFoundingOrg = org.id === '00000000-0000-0000-0000-000000000001';
+    if (!isFoundingOrg && bought !== null && !bought.includes(seg[1])) {
+      fail(403, 'That suite is not part of your plan. Talk to us to add it.');
+    }
     const grant = (p.suites || []).find((g) => g.key === seg[1]);
     if (p.role !== 'super_admin' && !grant) fail(403, 'You have not been granted access to this suite.');
     return { suite: meta, access: { role: p.role === 'super_admin' ? 'manager' : grant?.role || 'member', enteredBy: p.email } };
