@@ -651,8 +651,10 @@ function DocPreviewBody({ doc, settings }) {
               </tbody>
             </table>
           </div>
-          {/* Approvers and banks read the words against the figures. */}
-          <div className="tdt-words">{amountInWords(doc.total)}</div>
+          {/* Approvers and banks read the words against the figures, so the
+              words must state the figure the document is emphasising, not the
+              total. See moneyState(). */}
+          <div className="tdt-words">{mny.wordsLabel}: {amountInWords(mny.wordsAmount)}</div>
         </>
       )}
 
@@ -710,7 +712,17 @@ function DocPreviewBody({ doc, settings }) {
   );
 }
 
-function PrintView({ doc, settings, onClose }) {
+function PrintView({ doc, settings, onClose, flash }) {
+  const [pdfBusy, setPdfBusy] = useState(false);
+  // A real file, named after the document, and filed into Documents on the way
+  // past. window.print() only ever offered the browser's own Save-as-PDF, which
+  // names the file after the page and can't be attached to anything.
+  const downloadPdf = async () => {
+    setPdfBusy(true);
+    try { await TD.downloadPdf(doc); flash?.('Downloaded, and filed in Documents.'); }
+    catch (e) { flash?.(e.message, true); }
+    finally { setPdfBusy(false); }
+  };
   const meta = TD.DOC_TYPES[doc.doc_type];
   return (
     <Modal title={`${meta.label} ${doc.doc_no}`} onClose={onClose} wide>
@@ -744,7 +756,10 @@ function PrintView({ doc, settings, onClose }) {
       <DocPreviewBody doc={doc} settings={settings} />
       <div className="modal-actions no-print">
         <button type="button" className="btn btn-ghost" onClick={onClose}>Close</button>
-        <button type="button" className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
+        <button type="button" className="btn btn-ghost" onClick={() => window.print()}>Print</button>
+        <button type="button" className="btn btn-primary" disabled={pdfBusy} onClick={downloadPdf}>
+          {pdfBusy ? 'Preparing…' : 'Download PDF'}
+        </button>
       </div>
     </Modal>
   );
@@ -980,7 +995,7 @@ export default function TradeDocsApp({ access }) {
 
       {createOpen && <CreateModal docType={tab === 'receivables' ? 'invoice' : tab} onClose={() => setCreateOpen(false)} onSaved={(d) => setDocs((ds) => [d, ...ds])} flash={flash} />}
       {settingsOpen && <SettingsModal orgId={orgId} settings={settings} onClose={() => setSettingsOpen(false)} onSaved={setSettings} flash={flash} />}
-      {viewDoc && <PrintView doc={viewDoc} settings={settings} onClose={() => setViewDoc(null)} />}
+      {viewDoc && <PrintView doc={viewDoc} settings={settings} flash={flash} onClose={() => setViewDoc(null)} />}
       {statementParty && <StatementModal party={statementParty} docs={docs} orgName={settings?.company_name || user?.org?.name} onClose={() => setStatementParty(null)} />}
       {payDoc && <PaymentModal doc={payDoc} onClose={() => setPayDoc(null)} onSaved={updateDoc} flash={flash} />}
       {shareDoc && <ShareModal doc={shareDoc} orgName={settings?.company_name || user?.org?.name} onClose={() => setShareDoc(null)} flash={flash} />}

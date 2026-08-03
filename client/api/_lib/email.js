@@ -19,11 +19,27 @@ export const wrap = (heading, inner) => `<div style="font-family:-apple-system,S
   <p style="font-size:11px;color:#99a;margin-top:22px">Sent via Collarone — the business platform for Nigerian companies.</p>
 </div>`;
 
-export async function sendResend({ to, from, replyTo, subject, html }) {
+// attachments: [{ filename, content }] where content is a Buffer or base64
+// string. A Nigerian customer forwards the invoice to whoever pays it, and a
+// link doesn't survive that trip — the PDF has to be in the message itself.
+export async function sendResend({ to, from, replyTo, subject, html, attachments }) {
+  const body = {
+    from: from || `Collarone <${FROM_ADDR}>`,
+    to: [to],
+    reply_to: replyTo || undefined,
+    subject,
+    html,
+  };
+  if (attachments?.length) {
+    body.attachments = attachments.map((a) => ({
+      filename: a.filename,
+      content: Buffer.isBuffer(a.content) ? a.content.toString('base64') : a.content,
+    }));
+  }
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: from || `Collarone <${FROM_ADDR}>`, to: [to], reply_to: replyTo || undefined, subject, html }),
+    body: JSON.stringify(body),
   });
   if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.message || 'Email failed to send.'); }
 }

@@ -16,6 +16,8 @@ import { createClient } from '@supabase/supabase-js';
 // One shared sender/template for every email the platform sends — the
 // automated billing notices (_lib/billingNotify.js) use the same path.
 import { emailEnabled, sendResend, wrap, esc, naira, nairaN, FROM_ADDR } from './_lib/email.js';
+import { buildInvoicePdf, fileIntoDocuments } from './invoice-pdf.js';
+import { invoiceFilename } from './_lib/invoicePdf.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -41,7 +43,7 @@ export default async function handler(req, res) {
   try {
     if (body.action === 'invoice') {
       const { data: doc } = await admin.from('trade_documents')
-        .select('id, org_id, doc_no, doc_type, party_name, party_email, total, amount_paid, share_token, status')
+        .select('*')
         .eq('id', String(body.docId || '')).maybeSingle();
       if (!doc || doc.doc_type !== 'invoice') return json(res, 404, { message: 'Invoice not found.' });
       if (doc.org_id !== caller.org_id) return json(res, 403, { message: 'Not your organization.' });
@@ -57,8 +59,20 @@ export default async function handler(req, res) {
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       const link = `${proto}://${host}/inv/${doc.share_token}`;
 
+      // Attach the PDF. Customers forward the invoice to whoever actually
+      // pays it, and a link doesn't survive that forward — the file does.
+      // Best-effort: a PDF that fails to build must not stop the email.
+      let attachments;
+      try {
+        const pdf = await buildInvoicePdf(admin, doc);
+        attachments = [{ filename: invoiceFilename(doc), content: pdf }];
+        // File the same bytes into Documents while we have them.
+        await fileIntoDocuments({ admin, doc, pdf, callerId: caller.id ?? user.id }).catch(() => {});
+      } catch { attachments = undefined; }
+
       await sendResend({
         to: doc.party_email,
+        attachments,
         from: `${orgName} via Collarone <${FROM_ADDR}>`,
         replyTo: s?.email || undefined,
         subject: `Invoice ${doc.doc_no} from ${orgName} — ${nairaN(outstanding)} due`,
@@ -66,7 +80,8 @@ export default async function handler(req, res) {
           <p style="font-size:14px;line-height:1.6">Hello ${esc(doc.party_name || 'there')},</p>
           <p style="font-size:14px;line-height:1.6">${esc(orgName)} has sent you an invoice for <strong>${nairaN(outstanding)}</strong>. You can view it and pay online — by transfer or card — from the link below.</p>
           <p style="margin:18px 0"><a href="${link}" style="background:#FF5B1F;color:#fff;text-decoration:none;padding:12px 22px;border-radius:100px;font-weight:700;font-size:14px">View &amp; pay invoice</a></p>
-          <p style="font-size:12px;color:#889">Or paste this link: ${link}</p>`),
+          <p style="font-size:12px;color:#889">Or paste this link: ${link}</p>
+          ${attachments ? '<p style="font-size:12px;color:#889">A PDF copy is attached.</p>' : ''}`),
       });
       return json(res, 200, { ok: true });
     }

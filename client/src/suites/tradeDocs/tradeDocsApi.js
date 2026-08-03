@@ -89,3 +89,28 @@ export const fmtDt = (d) => d
 export const fmtDate = (d) => d
   ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
   : '—';
+
+// Download the document as a real PDF file, and file a copy into Documents at
+// the same time (the server has the bytes anyway). Returns nothing; it triggers
+// the browser download.
+export async function downloadPdf(doc) {
+  const r = await fetch('/api/invoice-pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAccessToken() || ''}` },
+    body: JSON.stringify({ docId: doc.id, file: true }),
+  });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new Error(d.message || 'Could not build the PDF.');
+  }
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${String(doc.doc_no || 'document')}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Revoke on the next tick; revoking immediately can cancel the download in Safari.
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}

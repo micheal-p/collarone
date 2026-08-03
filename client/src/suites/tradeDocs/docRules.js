@@ -24,10 +24,12 @@ export function moneyState(doc, meta) {
   const settled = total > 0 && bal <= 0;
 
   if (m.isReceipt) {
-    return { show: true, showPayTo: false, stamp: 'paid', label: 'Amount paid', amount: total, settled: true, showTotals: true };
+    return { show: true, showPayTo: false, stamp: 'paid', label: 'Amount paid', amount: total, settled: true, showTotals: true,
+      wordsLabel: 'Total paid in words', wordsAmount: total };
   }
   if (!m.demandsPayment) {           // quotation
-    return { show: true, showPayTo: false, stamp: null, label: 'Quoted total', amount: total, settled: false, showTotals: true };
+    return { show: true, showPayTo: false, stamp: null, label: 'Quoted total', amount: total, settled: false, showTotals: true,
+      wordsLabel: 'Quoted total in words', wordsAmount: total };
   }
   const overdue = isOverdue(doc);
   return {
@@ -39,5 +41,12 @@ export function moneyState(doc, meta) {
     settled,
     overdue,
     showTotals: true,
+    // The words must state the SAME figure as the emphasised amount. Spelling
+    // out the TOTAL directly beneath "Balance due 233,250" put two different
+    // numbers under each other, which is the exact ambiguity the words are
+    // there to remove — and on a part-paid invoice it reads as a demand for
+    // the full amount again.
+    wordsLabel: settled ? 'Total in words' : 'Balance due in words',
+    wordsAmount: settled ? total : bal,
   };
 }
