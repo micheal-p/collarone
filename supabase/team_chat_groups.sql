@@ -93,19 +93,24 @@ returns boolean language sql security definer stable set search_path = public as
     when p_user is null then false
     when p_room = 'general'
       then exists (select 1 from public.profiles p where p.id = p_user)
+    -- d.active matters: GET /departments only returns active ones, so a
+    -- deactivated department disappears from the sidebar. If its room stayed
+    -- readable, chat_unread_counts would keep returning it and the topbar
+    -- would carry a permanent badge for a room with no door to open.
     when p_room ~ '^dept:[0-9]+$' then exists (
       select 1
       from public.profiles p
-      left join public.departments d
-        on d.id = substr(p_room, 6)::int and d.org_id = p.org_id
+      join public.departments d
+        on d.id = substr(p_room, 6)::int and d.org_id = p.org_id and d.active
       where p.id = p_user
         and (
-          -- d is joined on the caller's OWN org, so requiring it to exist is
-          -- what stops an admin's blanket access reaching another tenant's
-          -- department id
-          (p.role = 'super_admin' and d.id is not null)
-          or p.department_id = substr(p_room, 6)::int
-          or (p.department_id is null and d.id is not null
+          -- an inner join on the caller's OWN active departments: that single
+          -- join is what stops an admin's blanket access reaching another
+          -- tenant's department id, and what closes a deactivated room for
+          -- everyone including the people whose department_id still points at it
+          p.role = 'super_admin'
+          or p.department_id = d.id
+          or (p.department_id is null
               and lower(trim(d.name)) = lower(trim(p.department)))
         )
     )
@@ -287,21 +292,26 @@ begin
     return query
       select p.id, p.name, p.department, false
       from public.profiles p
-      left join public.departments d
-        on d.id = substr(p_room, 6)::int and d.org_id = p.org_id
+      join public.departments d
+        on d.id = substr(p_room, 6)::int and d.org_id = p.org_id and d.active
       where p.org_id = v_org and p.status = 'active'
         and (
-          p.department_id = substr(p_room, 6)::int
-          or (p.department_id is null and d.id is not null
+          p.department_id = d.id
+          or (p.department_id is null
               and lower(trim(d.name)) = lower(trim(p.department)))
         )
       order by p.name;
   elsif p_room ~ '^group:[0-9a-fA-F-]{36}$' then
+    -- status='active' like the other two branches: a member who has left the
+    -- company keeps their membership row, and without this they'd still be
+    -- listed — and counted in "N people in this group" — long after being
+    -- disabled, while General and their department room correctly drop them.
     return query
       select p.id, p.name, p.department, true
       from public.chat_group_members m
       join public.profiles p on p.id = m.user_id
       where m.group_id = substr(p_room, 7)::uuid and p.org_id = v_org
+        and p.status = 'active'
       order by p.name;
   else
     raise exception 'Unknown room';

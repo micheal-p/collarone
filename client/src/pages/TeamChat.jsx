@@ -38,7 +38,26 @@ export default function TeamChat() {
   const streamRef = useRef(null);
   useKeyboardInset();
 
-  const staffByName = useMemo(() => staff.filter((s) => s.id !== user?.id), [staff, user]);
+  // Who can be @mentioned HERE. Not "everyone I can see": the write path drops
+  // a mention for anyone who can't read the room, silently — so offering Ada
+  // from Sales in #Finance means the sender picks her from the list, watches
+  // her name go bold in the sent message, and she is never told. The picker has
+  // to be the same set the server will accept. Falls back to the full staff
+  // list only if the lookup fails, which is the pre-group behaviour.
+  const [roomPeople, setRoomPeople] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    setRoomPeople(null);
+    supabase.rpc('chat_room_members', { p_room: room }).then(({ data, error }) => {
+      if (alive) setRoomPeople(error ? null : (data || []));
+    });
+    return () => { alive = false; };
+  }, [room]);
+
+  const mentionable = useMemo(
+    () => (roomPeople ?? staff).filter((s) => s.id !== user?.id),
+    [roomPeople, staff, user],
+  );
 
   // the realtime callback resolves message authors from staff; keep a ref so it
   // reads the current list without resubscribing every time staff loads/changes.
@@ -134,6 +153,12 @@ export default function TeamChat() {
   const lastMark = useRef({ room: null, at: 0 });
   const markTimer = useRef(null);
   useEffect(() => {
+    // Cancel FIRST, above the guard. Switching rooms sets messages to null, so
+    // clearing only after the guard meant a pending trailing timer outlived the
+    // switch: it fired with the old room's closure, committed the read
+    // server-side, but its own cleanup had already set alive = false — so the
+    // pill and the topbar never heard about it and sat stale for 45 seconds.
+    clearTimeout(markTimer.current);
     if (messages === null) return undefined;
     let alive = true;
     const seenAt = messages.length ? messages[messages.length - 1].created_at : null;
@@ -148,7 +173,6 @@ export default function TeamChat() {
       lastMark.current = { room, at: now };
       mark();
     } else {
-      clearTimeout(markTimer.current);
       markTimer.current = setTimeout(() => {
         lastMark.current = { room, at: Date.now() };
         mark();
@@ -168,7 +192,7 @@ export default function TeamChat() {
     setMentionQ(at ? at[1] : null);
   };
   const mentionMatches = mentionQ === null ? [] :
-    staffByName.filter((s) => s.name.toLowerCase().includes(mentionQ.toLowerCase())).slice(0, 6);
+    mentionable.filter((s) => s.name.toLowerCase().includes(mentionQ.toLowerCase())).slice(0, 6);
   const pickMention = (s) => {
     const el = inputRef.current;
     const caret = el?.selectionStart ?? body.length;
@@ -184,7 +208,7 @@ export default function TeamChat() {
     // resolve @Full Name tokens to profile ids (longest names first so
     // "@Ada Obi" wins over "@Ada")
     const mentions = [];
-    const sorted = [...staffByName].sort((a, b) => b.name.length - a.name.length);
+    const sorted = [...mentionable].sort((a, b) => b.name.length - a.name.length);
     for (const s of sorted) {
       if (text.toLowerCase().includes(`@${s.name.toLowerCase()}`)) mentions.push(s.id);
     }
@@ -220,6 +244,25 @@ export default function TeamChat() {
   ];
   const currentRoom = rooms.find((r) => r.key === room) || rooms[0];
 
+  // If the room you're standing in disappears — an admin archives the group, or
+  // takes you out of it, and the 60s poll notices — fall all the way back to
+  // General, don't just relabel. Leaving `room` pointing at the dead key while
+  // the header and placeholder read "General" is the worst of both: the stream
+  // and the realtime subscription stay on the old room, Send posts into it, and
+  // People errors with "You are not in that room" under a General heading.
+  // Guarded on the first load having happened, or this would bounce you out of
+  // a room before `groups` has arrived.
+  const listsReady = useRef(false);
+  useEffect(() => { if (groups.length || departments.length) listsReady.current = true; }, [groups, departments]);
+  useEffect(() => {
+    if (room === 'general' || !listsReady.current) return;
+    if (!rooms.some((r) => r.key === room)) {
+      setRoom('general');
+      setMembers(null);
+      setErr('That room is no longer available to you.');
+    }
+  }, [room, rooms.length]); // eslint-disable-line
+
   // ---- who's in this room ----------------------------------------------------
   // One RPC for all three room kinds, so the list can never disagree with the
   // read policy: General answers "everyone", a department room answers "that
@@ -253,7 +296,7 @@ export default function TeamChat() {
     // bold the @mentions for readability
     const parts = [];
     let rest = text; let i = 0;
-    const names = staffByName.map((s) => s.name).sort((a, b) => b.length - a.length);
+    const names = mentionable.map((s) => s.name).sort((a, b) => b.length - a.length);
     while (rest.length) {
       const idx = rest.indexOf('@');
       if (idx === -1) { parts.push(rest); break; }

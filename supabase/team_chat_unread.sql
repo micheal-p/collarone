@@ -58,8 +58,16 @@ grant execute on function public.mark_chat_room_read(text, timestamptz) to authe
 --     chat page, and RLS re-evaluates the room check per row — unbounded, it
 --     becomes the heaviest recurring query in the product.
 -- Anything older than the window is history, not unread.
-create index if not exists org_chat_room_recent_idx
-  on public.org_chat_messages (room, created_at desc);
+--
+-- The index leads with created_at because that is the query's ONLY indexable
+-- predicate — it has no room filter at all (it groups BY room, which is not the
+-- same thing). A composite leading on room, as this first was, cannot drive a
+-- range scan on created_at, so it would have sat there being useless while the
+-- query kept seq-scanning. team_chat.sql already covers room-leading access
+-- via org_chat_room_idx (org_id, room, created_at desc).
+drop index if exists public.org_chat_room_recent_idx;
+create index if not exists org_chat_recent_idx
+  on public.org_chat_messages (created_at desc);
 
 -- INVOKER on purpose — see the header. Never add `security definer` here.
 create or replace function public.chat_unread_counts()
