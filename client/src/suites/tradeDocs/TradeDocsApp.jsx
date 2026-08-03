@@ -5,6 +5,7 @@ import { getVendors } from '../procurement/procurementApi.js';
 import { getWarehouses, getItems } from '../inventory/inventoryApi.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
+import { amountInWords } from '../../lib/amountInWords.js';
 
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 
@@ -25,7 +26,7 @@ const SAMPLE_DOCS = {
     party_name: 'Adaeze Okonkwo', party_phone: '0803 555 1234', party_email: 'adaeze@example.com', party_address: 'Lekki Phase 1, Lagos',
     due_date: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10), reference: 'PO-2201',
     items: [{ description: 'Web design services', qty: 1, unit_price: 250000 }, { description: 'Hosting (1 year)', qty: 1, unit_price: 60000 }],
-    subtotal: 310000, vat_rate: 0.075, vat_amount: 23250, total: 333250, notes: 'Thank you for your business.',
+    subtotal: 310000, vat_rate: 0.075, vat_amount: 23250, total: 333250, amount_paid: 100000, notes: 'Thank you for your business.',
   },
   quote: {
     doc_type: 'quote', doc_no: 'QUO-000018', created_at: new Date().toISOString(), status: 'issued',
@@ -37,7 +38,7 @@ const SAMPLE_DOCS = {
     doc_type: 'receipt', doc_no: 'RCT-000045', created_at: new Date().toISOString(), status: 'issued',
     party_name: 'Adaeze Okonkwo', party_phone: '0803 555 1234', party_email: 'adaeze@example.com',
     items: [{ description: 'Consulting session', qty: 2, unit_price: 50000 }],
-    subtotal: 100000, vat_rate: 0.075, vat_amount: 7500, total: 107500,
+    subtotal: 100000, vat_rate: 0.075, vat_amount: 7500, total: 107500, amount_paid: 107500,
   },
   grn: {
     doc_type: 'grn', doc_no: 'GRN-000012', created_at: new Date().toISOString(),
@@ -63,8 +64,9 @@ const SAMPLE_DOCS = {
   },
 };
 
-function LineItems({ type, items, setItems, stockItems }) {
+function LineItems({ type, items, setItems, stockItems, vatRate = 0 }) {
   const isStock = TD.DOC_TYPES[type]?.isStock;
+  const hasVat = TD.DOC_TYPES[type]?.hasVat;
   const addRow = () => setItems((rows) => [...rows, isStock ? { item_id: '', description: '', qty: 1, unit_price: 0 } : { description: '', qty: 1, unit_price: 0 }]);
   const setRow = (i, patch) => setItems((rows) => rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   const removeRow = (i) => setItems((rows) => rows.filter((_, idx) => idx !== i));
@@ -113,7 +115,17 @@ function LineItems({ type, items, setItems, stockItems }) {
         </table>
       </div>
       <button type="button" className="btn btn-ghost" onClick={addRow}>+ Add line</button>
-      {!isStock && <div style={{ marginTop: 8, fontSize: 13, textAlign: 'right' }}>Subtotal: <strong>{TD.money(subtotal)}</strong></div>}
+      {/* The number people actually check before sending is the TOTAL, not the
+          subtotal. Showing only the subtotal meant doing the VAT in your head,
+          or sending it and finding out. aria-live so it's announced as it
+          changes rather than being a silent visual update. */}
+      {!isStock && (
+        <div className="td-livetotals" aria-live="polite">
+          <span>Subtotal <strong>{TD.money(subtotal)}</strong></span>
+          {hasVat && vatRate > 0 && <span>VAT {(vatRate * 100).toFixed(1)}% <strong>{TD.money(subtotal * vatRate)}</strong></span>}
+          <span className="td-livetotal">Total <strong>{TD.money(subtotal * (1 + (hasVat ? Number(vatRate) || 0 : 0)))}</strong></span>
+        </div>
+      )}
     </div>
   );
 }
@@ -195,7 +207,7 @@ function CreateModal({ docType, onClose, onSaved, flash }) {
             <Field label="Reference"><input className="input" value={f.reference} onChange={(e) => set('reference', e.target.value)} placeholder="PO / order number…" /></Field>
           </div>
 
-          <LineItems type={docType} items={items} setItems={setItems} stockItems={stockItems} />
+          <LineItems type={docType} items={items} setItems={setItems} stockItems={stockItems} vatRate={Number(f.vatRate) || 0} />
 
           {meta.hasVat && (
             <div className="form-grid">
@@ -307,7 +319,45 @@ function ShareModal({ doc, orgName, onClose, flash }) {
 }
 
 const TEMPLATE_CSS = `
-  .tdt-doc { --accent: #0A0E1A; font-family: Georgia, serif; }
+  .tdt-doc { --accent: #0A0E1A; font-family: Georgia, serif; position: relative; }
+  .tdt-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .tdt-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin-bottom: 4px; }
+
+  /* Bill-to beside the amount due, which is what the reader came for. */
+  .tdt-partyrow { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 18px; }
+  .tdt-duebox { flex: 0 0 auto; min-width: 190px; text-align: right; border: 1.5px solid var(--accent); border-radius: 8px; padding: 10px 14px; }
+  .tdt-dueamount { font-size: 23px; font-weight: 700; line-height: 1.15; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .tdt-duemeta { font-size: 11.5px; color: #6b7280; margin-top: 3px; }
+  .tdt-duebox-overdue { border-color: #a4262c; }
+  .tdt-duebox-overdue .tdt-dueamount { color: #a4262c; }
+  .tdt-duebox-paid { border-color: #1a7f42; }
+  .tdt-duebox-paid .tdt-dueamount { color: #1a7f42; }
+
+  /* Figures line up only if they share a width, hence tabular-nums. */
+  .tdt-items td, .tdt-items th { font-variant-numeric: tabular-nums; }
+  .tdt-num { text-align: right; }
+  .tdt-items caption { caption-side: top; }
+
+  .tdt-totals { display: flex; justify-content: flex-end; margin-top: 10px; }
+  .tdt-totals table { border-collapse: collapse; min-width: 260px; }
+  .tdt-totals th { text-align: left; font-weight: 400; padding: 3px 18px 3px 0; font-size: 13.5px; color: #444; }
+  .tdt-totals td { text-align: right; padding: 3px 0; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  .tdt-totals-due th, .tdt-totals-due td { font-weight: 700; font-size: 15.5px; border-top: 1.5px solid #14171f; padding-top: 7px; color: #14171f; }
+
+  .tdt-words { margin-top: 8px; font-size: 12px; font-style: italic; color: #444; max-width: 62%; }
+  .tdt-notes { margin-top: 16px; font-size: 13px; color: #6b7280; white-space: pre-wrap; }
+
+  .tdt-paybox { margin-top: 18px; border: 1px solid #d9d5c9; border-left: 3px solid var(--accent); border-radius: 6px; padding: 10px 14px; background: #fbfaf7; }
+  .tdt-payline { font-size: 14px; font-weight: 600; }
+  .tdt-paynote { font-size: 12px; color: #6b7280; margin-top: 3px; }
+
+  /* Diagonal stamp. aria-hidden in the markup: the same fact is already in the
+     amount-due box as text, and a screen reader shouldn't read "PAID" twice. */
+  .tdt-stamp { position: absolute; top: 96px; right: 34px; transform: rotate(-14deg);
+    font-size: 40px; font-weight: 800; letter-spacing: 0.1em; color: rgba(26,127,66,0.16);
+    border: 5px solid rgba(26,127,66,0.16); border-radius: 10px; padding: 4px 18px; pointer-events: none; }
+  .tdt-stamp-overdue { color: rgba(164,38,44,0.16); border-color: rgba(164,38,44,0.16); }
+
   /* the letterhead preview renders inside a ~718px overflow-hidden box — the
      global .table min-width (760px) would clip the Amount column */
   .tdt-doc .table { min-width: 0; }
@@ -359,6 +409,10 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
     accentColor: settings?.accent_color || '#0A0E1A', signatureName: settings?.signature_name || '',
     signatureTitle: settings?.signature_title || '', signatureUrl: settings?.signature_url || '',
     templateKey: settings?.template_key || 'classic',
+    bankName: settings?.bank_name || '',
+    accountName: settings?.account_name || '',
+    accountNumber: settings?.account_number || '',
+    paymentNote: settings?.payment_note || '',
   });
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState('');
@@ -371,6 +425,7 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
     company_name: f.companyName, address: f.address, tagline: f.tagline, phone: f.phone, email: f.email,
     logo_url: f.logoUrl, accent_color: f.accentColor, signature_name: f.signatureName,
     signature_title: f.signatureTitle, signature_url: f.signatureUrl, template_key: f.templateKey,
+    bank_name: f.bankName, account_name: f.accountName, account_number: f.accountNumber, payment_note: f.paymentNote,
   };
 
   const uploadLogo = async (file) => {
@@ -406,6 +461,26 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
                 <Field label="Email"><input className="input" value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
                 <Field label="Accent colour"><input className="input" type="color" value={f.accentColor} onChange={(e) => set('accentColor', e.target.value)} style={{ height: 38, padding: 2 }} /></Field>
               </div>
+
+              {/* Without this an invoice never says where to send the money. */}
+              <fieldset style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', margin: '4px 0 14px' }}>
+                <legend style={{ fontSize: 12.5, fontWeight: 700, padding: '0 6px' }}>How customers pay you</legend>
+                <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
+                  Printed on every unpaid invoice. Leave blank if you only take card payments through the pay link.
+                </p>
+                <div className="form-grid">
+                  <Field label="Bank"><input className="input" value={f.bankName} onChange={(e) => set('bankName', e.target.value)} placeholder="GTBank" /></Field>
+                  <Field label="Account name"><input className="input" value={f.accountName} onChange={(e) => set('accountName', e.target.value)} placeholder="Defaults to your company name" /></Field>
+                  <Field label="Account number">
+                    <input className="input" value={f.accountNumber} inputMode="numeric"
+                      onChange={(e) => set('accountNumber', e.target.value.replace(/[^\d\s-]/g, ''))} placeholder="0123456789" />
+                  </Field>
+                </div>
+                <Field label="Payment note">
+                  <input className="input" value={f.paymentNote} onChange={(e) => set('paymentNote', e.target.value)}
+                    placeholder="e.g. Transfers only, no cash. Or a second account." />
+                </Field>
+              </fieldset>
 
               <Field label="Logo">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -469,9 +544,20 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
 function DocPreviewBody({ doc, settings }) {
   const meta = TD.DOC_TYPES[doc.doc_type];
   const s = settings || {};
+  const paid = Number(doc.amount_paid) || 0;
+  const balance = TD.balance(doc);
+  // "Settled" only means something for a document that carries money at all —
+  // a delivery note has no balance and must not be stamped PAID.
+  const settled = meta.hasVat && Number(doc.total) > 0 && balance <= 0;
+  const overdue = meta.hasVat && TD.isOverdue(doc);
   return (
     <div id="td-print-area" className={`tdt-doc tdt-${s.template_key || 'classic'}`} style={{ '--accent': s.accent_color || '#0A0E1A' }}>
       <div className="tdt-band" />
+      {(settled || overdue) && (
+        <div className={`tdt-stamp${overdue ? ' tdt-stamp-overdue' : ''}`} aria-hidden="true">
+          {settled ? 'PAID' : 'OVERDUE'}
+        </div>
+      )}
       <div className="tdt-header">
         <div>
           {s.logo_url && <img className="tdt-logo" src={s.logo_url} alt="" />}
@@ -489,34 +575,83 @@ function DocPreviewBody({ doc, settings }) {
       )}
       <hr className="tdt-rule" />
 
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontWeight: 600 }}>{doc.party_name}</div>
-        {doc.party_phone && <div className="muted" style={{ fontSize: 13 }}>{doc.party_phone}</div>}
-        {doc.party_email && <div className="muted" style={{ fontSize: 13 }}>{doc.party_email}</div>}
-        {doc.party_address && <div className="muted" style={{ fontSize: 13 }}>{doc.party_address}</div>}
-        {doc.due_date && <div className="muted" style={{ fontSize: 13 }}>Due {TD.fmtDate(doc.due_date)}</div>}
-        {doc.reference && <div className="muted" style={{ fontSize: 13 }}>Ref: {doc.reference}</div>}
+      {/* Bill-to on the left, what's owed on the right. The amount due is the
+          thing the customer is looking for, so it gets the loudest treatment on
+          the page rather than being the last line of a totals stack. */}
+      <div className="tdt-partyrow">
+        <div>
+          <div className="tdt-label">{meta.isStock || meta.isCustody ? 'Issued to' : 'Bill to'}</div>
+          <div style={{ fontWeight: 600 }}>{doc.party_name}</div>
+          {doc.party_address && <div className="muted" style={{ fontSize: 13 }}>{doc.party_address}</div>}
+          {doc.party_phone && <div className="muted" style={{ fontSize: 13 }}>{doc.party_phone}</div>}
+          {doc.party_email && <div className="muted" style={{ fontSize: 13 }}>{doc.party_email}</div>}
+          {doc.reference && <div className="muted" style={{ fontSize: 13 }}>Ref: {doc.reference}</div>}
+        </div>
+        {meta.hasVat && (
+          <div className={`tdt-duebox${overdue ? ' tdt-duebox-overdue' : ''}${settled ? ' tdt-duebox-paid' : ''}`}>
+            <div className="tdt-label">{settled ? 'Amount paid' : 'Amount due'}</div>
+            <div className="tdt-dueamount">{TD.money(settled ? doc.total : balance)}</div>
+            {settled
+              ? <div className="tdt-duemeta">Paid in full, thank you</div>
+              : doc.due_date && <div className="tdt-duemeta">{overdue ? 'Overdue since' : 'Due'} {TD.fmtDate(doc.due_date)}</div>}
+          </div>
+        )}
       </div>
-      <table className="table" style={{ marginBottom: 12 }}>
-        <thead><tr><th>Description</th><th style={{ width: 70 }}>Qty</th>{meta.hasVat && <><th style={{ width: 110 }}>Unit price</th><th style={{ width: 110 }}>Amount</th></>}</tr></thead>
+
+      <table className="table tdt-items">
+        <caption className="tdt-visually-hidden">{meta.label} {doc.doc_no} line items</caption>
+        <thead>
+          <tr>
+            <th scope="col">Description</th>
+            <th scope="col" style={{ width: 70 }} className="tdt-num">Qty</th>
+            {meta.hasVat && <><th scope="col" style={{ width: 110 }} className="tdt-num">Unit price</th><th scope="col" style={{ width: 120 }} className="tdt-num">Amount</th></>}
+          </tr>
+        </thead>
         <tbody>
           {(doc.items || []).map((l, i) => (
             <tr key={i}>
               <td>{l.description}</td>
-              <td>{l.qty}</td>
-              {meta.hasVat && <><td>{TD.money(l.unit_price)}</td><td>{TD.money((Number(l.qty) || 0) * (Number(l.unit_price) || 0))}</td></>}
+              <td className="tdt-num">{l.qty}</td>
+              {meta.hasVat && <><td className="tdt-num">{TD.money(l.unit_price)}</td><td className="tdt-num">{TD.money((Number(l.qty) || 0) * (Number(l.unit_price) || 0))}</td></>}
             </tr>
           ))}
         </tbody>
       </table>
+
       {meta.hasVat && (
-        <div style={{ textAlign: 'right', fontSize: 14 }}>
-          <div>Subtotal: {TD.money(doc.subtotal)}</div>
-          <div>VAT ({(doc.vat_rate * 100).toFixed(1)}%): {TD.money(doc.vat_amount)}</div>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>Total: {TD.money(doc.total)}</div>
+        <>
+          <div className="tdt-totals">
+            <table>
+              <tbody>
+                <tr><th scope="row">Subtotal</th><td>{TD.money(doc.subtotal)}</td></tr>
+                <tr><th scope="row">VAT ({(doc.vat_rate * 100).toFixed(1)}%)</th><td>{TD.money(doc.vat_amount)}</td></tr>
+                <tr><th scope="row">Total</th><td>{TD.money(doc.total)}</td></tr>
+                {paid > 0 && <tr><th scope="row">Paid</th><td>&minus;{TD.money(paid)}</td></tr>}
+                <tr className="tdt-totals-due">
+                  <th scope="row">{settled ? 'Balance' : 'Balance due'}</th>
+                  <td>{TD.money(balance)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          {/* Approvers and banks read the words against the figures. */}
+          <div className="tdt-words">{amountInWords(doc.total)}</div>
+        </>
+      )}
+
+      {doc.notes && <div className="tdt-notes">{doc.notes}</div>}
+
+      {/* An invoice that doesn't say where to pay isn't actionable. */}
+      {meta.hasVat && !settled && (s.account_number || s.bank_name || s.payment_note) && (
+        <div className="tdt-paybox">
+          <div className="tdt-label">Pay to</div>
+          <div className="tdt-payline">
+            {[s.account_name || s.company_name, s.bank_name, s.account_number].filter(Boolean).join(' · ')}
+          </div>
+          {s.payment_note && <div className="tdt-paynote">{s.payment_note}</div>}
+          {doc.doc_no && <div className="tdt-paynote">Quote <strong>{doc.doc_no}</strong> as your payment reference.</div>}
         </div>
       )}
-      {doc.notes && <div className="muted" style={{ fontSize: 13, marginTop: 16 }}>{doc.notes}</div>}
 
       {meta.isCustody && doc.meta && (doc.meta.condition || doc.meta.photo_url) && (
         <div style={{ marginTop: 14, border: '1px solid #e5e2d9', borderRadius: 8, padding: '10px 14px', fontSize: 13 }}>
@@ -565,10 +700,28 @@ function PrintView({ doc, settings, onClose }) {
       <style>{`
         ${TEMPLATE_CSS}
         @media print {
+          /* A4 with real margins. Without @page the browser picks its own and
+             the document floats in the middle of the sheet. */
+          @page { size: A4; margin: 14mm 12mm; }
           body * { visibility: hidden; }
           #td-print-area, #td-print-area * { visibility: visible; }
           #td-print-area { position: absolute; top: 0; left: 0; width: 100%; }
           .no-print { display: none !important; }
+
+          /* A long invoice spans pages. Repeat the column headers on each one,
+             never split a line item across the fold, and keep the totals, the
+             amount in words and the payment details together — a page break
+             between "Balance due" and where to pay is a page break in the
+             middle of the only two facts that matter. */
+          #td-print-area thead { display: table-header-group; }
+          #td-print-area tr { page-break-inside: avoid; break-inside: avoid; }
+          #td-print-area .tdt-totals,
+          #td-print-area .tdt-words,
+          #td-print-area .tdt-paybox,
+          #td-print-area .tdt-sigblock { page-break-inside: avoid; break-inside: avoid; }
+          #td-print-area .tdt-totals { page-break-before: avoid; }
+          /* Backgrounds and the stamp are meaningful here, not decoration. */
+          #td-print-area { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
       `}</style>
       <DocPreviewBody doc={doc} settings={settings} />
@@ -663,11 +816,15 @@ export default function TradeDocsApp({ access }) {
 
   return (
     <div className="lv">
-      <div className="lv-tabs">
+      {/* A real tablist: these look like tabs and behave like tabs, so a screen
+          reader should be told that rather than hearing eight unrelated
+          buttons. aria-selected is also what makes the current one announce as
+          selected, which colour alone never does. */}
+      <div className="lv-tabs" role="tablist" aria-label="Document types">
         {Object.entries(TD.DOC_TYPES).map(([k, m]) => (
-          <button key={k} className={`lv-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{m.label}</button>
+          <button key={k} role="tab" aria-selected={tab === k} className={`lv-tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}>{m.label}</button>
         ))}
-        <button className={`lv-tab ${tab === 'receivables' ? 'active' : ''}`} onClick={() => setTab('receivables')}>
+        <button role="tab" aria-selected={tab === 'receivables'} className={`lv-tab ${tab === 'receivables' ? 'active' : ''}`} onClick={() => setTab('receivables')}>
           Money owed{outstandingTotal > 0 ? ` (${TD.money(outstandingTotal)})` : ''}
         </button>
         {isManager && <button className="btn btn-ghost" onClick={() => setSettingsOpen(true)}>Letterhead</button>}

@@ -509,3 +509,11 @@
 .setup-ai-plan { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .setup-ai-item { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; }
 .setup-ai-item span { color: var(--text-2, #667); font-size: 12px; }
+
+/* Trade docs: live totals under the line-item editor. Lives here, not in the
+   document TEMPLATE_CSS, because that stylesheet is only injected into the
+   letterhead preview and the print view — the editor would have rendered
+   unstyled. */
+.td-livetotals { display: flex; justify-content: flex-end; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--text-2); }
+.td-livetotals strong { color: var(--text); font-variant-numeric: tabular-nums; margin-left: 4px; }
+.td-livetotal { font-size: 15px; color: var(--text); font-weight: 600; }

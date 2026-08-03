@@ -50,6 +50,10 @@ jobs:
 
       - name: FAQ structured data still matches the page
         run: node test/faq_jsonld_matches.mjs
+
+      - name: Invoice amounts read correctly in words
+        run: node test/amount_in_words.mjs
+
       - name: Cross-tenant RLS probe + payroll golden (live DB)
         if: env.DATABASE_URL != ''
         run: |

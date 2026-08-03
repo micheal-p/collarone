@@ -2134,12 +2134,18 @@ export async function supabaseApi(path, opts = {}) {
     return { settings: data };
   }
   if (head === 'POST /trade-docs' && seg[1] === 'settings') {
-    const { companyName, address, tagline, phone, email, logoUrl, accentColor, signatureName, signatureTitle, signatureUrl, templateKey } = body;
+    const { companyName, address, tagline, phone, email, logoUrl, accentColor, signatureName, signatureTitle, signatureUrl, templateKey,
+      bankName, accountName, accountNumber, paymentNote } = body;
     const { data, error } = await supabase.rpc('upsert_trade_doc_settings', {
       p_company_name: companyName || '', p_address: address || '', p_tagline: tagline || '',
       p_phone: phone || '', p_email: email || '', p_logo_url: logoUrl || '', p_accent_color: accentColor || '#0A0E1A',
       p_signature_name: signatureName || '', p_signature_title: signatureTitle || '', p_signature_url: signatureUrl || '',
       p_template_key: templateKey || 'classic',
+      // Where customers send the money. This facade destructures an explicit
+      // list, so a field missing here is silently dropped on the way to the
+      // database no matter what the form sends.
+      p_bank_name: bankName || '', p_account_name: accountName || '',
+      p_account_number: accountNumber || '', p_payment_note: paymentNote || '',
     });
     if (error) fail(400, error.message);
     return { settings: data };
