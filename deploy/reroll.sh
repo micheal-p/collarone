@@ -19,7 +19,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 live_bundle() { curl -s --max-time 15 "$SITE/" | grep -o 'assets/index-[^"]*\.js' | head -1; }
 local_bundle() {
-  ls "$ROOT/client/dist/assets" 2>/dev/null | grep -o 'index-[^.]*\.js' | head -1
+  # -t (newest first), NOT alphabetical: vite.config.js keeps previous builds in
+  # dist now, so there are several index-*.js and the newest is the one HEAD
+  # produced. Sorting by name here silently compared prod against an old build
+  # and reported "current" when it was two commits behind.
+  ls -t "$ROOT/client/dist/assets" 2>/dev/null | grep -o 'index-[^.]*\.js' | head -1
 }
 
 LOCAL="$(local_bundle)"
