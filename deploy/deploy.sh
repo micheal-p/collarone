@@ -36,6 +36,14 @@ grep '^VITE_' .env > client/.env
 
 npm run build --workspace client
 
+# Vite no longer empties dist (see client/vite.config.js), so a tab still
+# holding the previous index.html can finish loading its chunks instead of
+# getting nginx's 404 page and parsing <html> as JavaScript. Prune what's
+# genuinely old so the directory can't grow forever — 7 days is far longer
+# than any real tab stays open, and content hashes mean a stale file is never
+# served to a current client.
+find "${APP_DIR}/client/dist/assets" -type f -mtime +7 -delete 2>/dev/null || true
+
 chown -R collarone:collarone "${APP_DIR}"
 systemctl restart collarone-api
 nginx -t && systemctl reload nginx

@@ -69,6 +69,29 @@ async function liveRateCard(admin) {
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// The suite catalog, mirrored from client/src/config/suites.js — this file is a
+// serverless function and can't import from the app bundle. The price and the
+// access gate both hang off this list, so a made-up key must never survive:
+// anything not recognised is dropped rather than trusted.
+const SUITE_KEYS = [
+  'hr', 'leave', 'tasks', 'visitors', 'payroll', 'crm', 'attendance', 'procurement',
+  'inventory', 'finance', 'projects', 'documents', 'trade-docs', 'automation', 'compliance',
+];
+// Hard dependencies: picking one of these pulls in its foundation, and the
+// customer pays for that foundation too. Mirrors requiredFoundations().
+const REQUIRES = { leave: ['hr'], payroll: ['hr'], attendance: ['hr'] };
+
+function cleanSuites(picked) {
+  const out = [];
+  const add = (k) => {
+    if (!SUITE_KEYS.includes(k) || out.includes(k)) return;
+    for (const dep of REQUIRES[k] || []) add(dep);
+    out.push(k);
+  };
+  for (const k of Array.isArray(picked) ? picked : []) add(String(k));
+  return out;
+}
+
 async function findValidPromo(admin, rawCode) {
   const code = (rawCode || '').trim().toUpperCase();
   if (!code) return null;
@@ -107,7 +130,7 @@ export default async function handler(req, res) {
     if (action === 'create') {
       const {
         planTier, orgName, orgSlug, themeColor = '#FF5B1F', logoUrl = '', websiteType = 'none', country = 'NG', externalWebsiteUrl = '',
-        ownerName, email, password, promoCode = '',
+        ownerName, email, password, promoCode = '', suites: pickedSuites = [],
       } = body;
 
       if (!['startup', 'standard', 'enterprise'].includes(planTier)) return json(res, 400, { message: 'Choose a plan.' });
@@ -172,6 +195,10 @@ export default async function handler(req, res) {
         base_fee_kobo: plan.baseKobo, per_seat_kobo: plan.seatKobo,
         included_suites: plan.included, extra_suite_fee_kobo: plan.extraKobo,
         rate_locked_at: new Date().toISOString(),
+        // What they actually bought. The cart has always sent this and the
+        // server has always dropped it, which is why every org billed for zero
+        // suites while its owner could open all of them (see org_suites.sql).
+        suites: cleanSuites(pickedSuites),
       }).select('id').single();
       if (orgErr || !org) {
         await admin.auth.admin.deleteUser(userId);
