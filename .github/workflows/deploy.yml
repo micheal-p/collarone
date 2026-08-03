@@ -54,6 +54,9 @@ jobs:
       - name: Invoice amounts read correctly in words
         run: node test/amount_in_words.mjs
 
+      - name: Trade documents say the right thing about money
+        run: node test/invoice_document_rules.mjs
+
       - name: Cross-tenant RLS probe + payroll golden (live DB)
         if: env.DATABASE_URL != ''
         run: |

@@ -27,9 +27,8 @@ export const emailInvoice = (docId) => notify({ action: 'invoice', docId });
 export const getPayments = (docId) => apiGet(`/trade-docs/${docId}/payments`).then((d) => d.payments);
 export const recordPayment = (docId, body) => apiPost(`/trade-docs/${docId}/payments`, body).then((d) => d.document);
 
-export const balance = (d) => Math.max(0, (Number(d.total) || 0) - (Number(d.amount_paid) || 0));
-export const isOverdue = (d) => !!d.due_date && balance(d) > 0 && d.status !== 'void' && d.status !== 'draft'
-  && new Date(d.due_date) < new Date(new Date().toDateString());
+// Pure, and unit-tested in test/invoice_document_rules.mjs — see docRules.js
+export { balance, isOverdue, moneyState } from './docRules.js';
 
 // Public share link a customer can open (and pay from) without an account
 export const publicInvoiceUrl = (d) => `${window.location.origin}/inv/${d.share_token}`;
@@ -60,10 +59,14 @@ export const TEMPLATES = {
 };
 
 export const DOC_TYPES = {
-  invoice: { label: 'Invoice', prefix: 'INV', needsParty: true, hasVat: true, hasStatus: true, hasDueDate: true },
+  // demandsPayment: this document asks for money, so it gets the amount-due
+  // treatment, the bank details and the overdue stamp. hasVat is NOT the same
+  // question — a quote and a receipt both carry VAT and neither is a demand.
+  invoice: { label: 'Invoice', prefix: 'INV', needsParty: true, hasVat: true, hasStatus: true, hasDueDate: true, demandsPayment: true },
   // priced paperwork BEFORE the sale — convert to an invoice when they say yes
   quote:   { label: 'Quotation', prefix: 'QUO', needsParty: true, hasVat: true, hasStatus: true, hasDueDate: false },
-  receipt: { label: 'Receipt', prefix: 'RCT', needsParty: true, hasVat: true, hasStatus: false, hasDueDate: false },
+  // proof that money already arrived; never asks for it
+  receipt: { label: 'Receipt', prefix: 'RCT', needsParty: true, hasVat: true, hasStatus: false, hasDueDate: false, isReceipt: true },
   grn:     { label: 'Goods received note', prefix: 'GRN', needsParty: true, hasVat: false, hasStatus: false, hasDueDate: false, isStock: true, stockDirection: 'in' },
   srp:     { label: 'Stock release note',  prefix: 'SRP', needsParty: true, hasVat: false, hasStatus: false, hasDueDate: false, isStock: true, stockDirection: 'out' },
   // custody paperwork — company property changing hands, signed both ways.

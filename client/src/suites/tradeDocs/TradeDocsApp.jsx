@@ -546,16 +546,18 @@ function DocPreviewBody({ doc, settings }) {
   const s = settings || {};
   const paid = Number(doc.amount_paid) || 0;
   const balance = TD.balance(doc);
-  // "Settled" only means something for a document that carries money at all —
-  // a delivery note has no balance and must not be stamped PAID.
-  const settled = meta.hasVat && Number(doc.total) > 0 && balance <= 0;
-  const overdue = meta.hasVat && TD.isOverdue(doc);
+  // One rule for what this document says about money, per document type, tested
+  // in test/invoice_document_rules.mjs. hasVat is not the question: a quotation
+  // and a receipt both carry VAT and neither one asks to be paid.
+  const mny = TD.moneyState(doc, meta);
+  const settled = mny.settled;
+  const overdue = mny.overdue;
   return (
     <div id="td-print-area" className={`tdt-doc tdt-${s.template_key || 'classic'}`} style={{ '--accent': s.accent_color || '#0A0E1A' }}>
       <div className="tdt-band" />
-      {(settled || overdue) && (
-        <div className={`tdt-stamp${overdue ? ' tdt-stamp-overdue' : ''}`} aria-hidden="true">
-          {settled ? 'PAID' : 'OVERDUE'}
+      {mny.stamp && (
+        <div className={`tdt-stamp${mny.stamp === 'overdue' ? ' tdt-stamp-overdue' : ''}`} aria-hidden="true">
+          {mny.stamp === 'paid' ? 'PAID' : 'OVERDUE'}
         </div>
       )}
       <div className="tdt-header">
@@ -587,13 +589,15 @@ function DocPreviewBody({ doc, settings }) {
           {doc.party_email && <div className="muted" style={{ fontSize: 13 }}>{doc.party_email}</div>}
           {doc.reference && <div className="muted" style={{ fontSize: 13 }}>Ref: {doc.reference}</div>}
         </div>
-        {meta.hasVat && (
-          <div className={`tdt-duebox${overdue ? ' tdt-duebox-overdue' : ''}${settled ? ' tdt-duebox-paid' : ''}`}>
-            <div className="tdt-label">{settled ? 'Amount paid' : 'Amount due'}</div>
-            <div className="tdt-dueamount">{TD.money(settled ? doc.total : balance)}</div>
-            {settled
-              ? <div className="tdt-duemeta">Paid in full, thank you</div>
-              : doc.due_date && <div className="tdt-duemeta">{overdue ? 'Overdue since' : 'Due'} {TD.fmtDate(doc.due_date)}</div>}
+        {mny.show && (
+          <div className={`tdt-duebox${mny.overdue ? ' tdt-duebox-overdue' : ''}${mny.settled ? ' tdt-duebox-paid' : ''}`}>
+            <div className="tdt-label">{mny.label}</div>
+            <div className="tdt-dueamount">{TD.money(mny.amount)}</div>
+            {mny.settled
+              ? <div className="tdt-duemeta">{meta.isReceipt ? 'Received with thanks' : 'Paid in full, thank you'}</div>
+              : meta.hasDueDate && doc.due_date
+                ? <div className="tdt-duemeta">{mny.overdue ? 'Overdue since' : 'Due'} {TD.fmtDate(doc.due_date)}</div>
+                : null}
           </div>
         )}
       </div>
@@ -618,19 +622,31 @@ function DocPreviewBody({ doc, settings }) {
         </tbody>
       </table>
 
-      {meta.hasVat && (
+      {mny.showTotals && (
         <>
           <div className="tdt-totals">
             <table>
               <tbody>
                 <tr><th scope="row">Subtotal</th><td>{TD.money(doc.subtotal)}</td></tr>
                 <tr><th scope="row">VAT ({(doc.vat_rate * 100).toFixed(1)}%)</th><td>{TD.money(doc.vat_amount)}</td></tr>
-                <tr><th scope="row">Total</th><td>{TD.money(doc.total)}</td></tr>
-                {paid > 0 && <tr><th scope="row">Paid</th><td>&minus;{TD.money(paid)}</td></tr>}
-                <tr className="tdt-totals-due">
-                  <th scope="row">{settled ? 'Balance' : 'Balance due'}</th>
-                  <td>{TD.money(balance)}</td>
-                </tr>
+                {/* Only a demand for payment has a balance. A quotation ends at
+                    its total, and a receipt has nothing left to owe — printing
+                    "Balance due" on either is wrong and, on a quote, misleading. */}
+                {meta.demandsPayment ? (
+                  <>
+                    <tr><th scope="row">Total</th><td>{TD.money(doc.total)}</td></tr>
+                    {paid > 0 && <tr><th scope="row">Paid</th><td>&minus;{TD.money(paid)}</td></tr>}
+                    <tr className="tdt-totals-due">
+                      <th scope="row">{settled ? 'Balance' : 'Balance due'}</th>
+                      <td>{TD.money(balance)}</td>
+                    </tr>
+                  </>
+                ) : (
+                  <tr className="tdt-totals-due">
+                    <th scope="row">{meta.isReceipt ? 'Total paid' : 'Total'}</th>
+                    <td>{TD.money(doc.total)}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -642,7 +658,7 @@ function DocPreviewBody({ doc, settings }) {
       {doc.notes && <div className="tdt-notes">{doc.notes}</div>}
 
       {/* An invoice that doesn't say where to pay isn't actionable. */}
-      {meta.hasVat && !settled && (s.account_number || s.bank_name || s.payment_note) && (
+      {mny.showPayTo && (s.account_number || s.bank_name || s.payment_note) && (
         <div className="tdt-paybox">
           <div className="tdt-label">Pay to</div>
           <div className="tdt-payline">
