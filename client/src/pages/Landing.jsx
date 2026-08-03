@@ -542,7 +542,7 @@ export default function Landing() {
 
       <Marquee items={marqueeItems} dark />
 
-      <section className="cl-trust" aria-label="Platform facts">
+      <section className="cl-trust cl-trust-modern" aria-label="Platform facts">
         <div className="cl-wrap cl-trust-row">
           <span className="cl-trust-cell"><strong>15</strong> suites live</span>
           <span className="cl-trust-dot" aria-hidden="true" />
@@ -554,7 +554,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec" id="capabilities">
+      <section className="cl-sec cl-capabilities-section" id="capabilities" data-section="01 — DIFFERENT BY DESIGN">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">Why it feels different</p>
@@ -570,7 +570,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-tint" id="platform">
+      <section className="cl-sec cl-tint cl-platform-section" id="platform" data-section="02 — THE OPERATING SYSTEM">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">One platform</p>
@@ -622,7 +622,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-tint" id="themes">
+      <section className="cl-sec cl-tint cl-themes-section" id="themes" data-section="03 — YOUR DIGITAL FRONT DOOR">
         <div className="cl-wrap">
           <motion.div className="cl-sec-head" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
             <p className="cl-eyebrow">A real website, included on every plan</p>
@@ -633,7 +633,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec" id="nigeria">
+      <section className="cl-sec cl-nigeria-section" id="nigeria" data-section="04 — BUILT HERE, BUILT RIGHT">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">Not translated. Built here.</p>
@@ -659,7 +659,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-tint" id="pricing">
+      <section className="cl-sec cl-tint cl-pricing-section" id="pricing" data-section="05 — HONEST PRICING">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">Pricing</p>
@@ -689,7 +689,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-tint" id="jobs-board">
+      <section className="cl-sec cl-tint cl-jobs-section" id="jobs-board" data-section="06 — HIRE WITHOUT THE HASSLE">
         <div className="cl-wrap">
           <div className="cl-jobs-grid">
             <Reveal className="cl-jobs-copy">
@@ -725,7 +725,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec cl-tint" id="faq">
+      <section className="cl-sec cl-tint cl-faq-section" id="faq" data-section="07 — THE DETAILS">
         <div className="cl-wrap">
           <Reveal className="cl-sec-head">
             <p className="cl-eyebrow">Questions</p>
@@ -750,7 +750,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="cl-sec" id="contact" style={{ paddingTop: 0 }}>
+      <section className="cl-sec cl-contact-section" id="contact" data-section="08 — YOUR MOVE">
         <div className="cl-wrap">
           <Reveal className="cl-contact-card cl-dark-card">
             <h2>Let's get your business on Collarone.</h2>
@@ -764,7 +764,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="cl-footer">
+      <footer className="cl-footer cl-footer-revamped">
         <div className="cl-wrap">
           <div className="cl-footer-top">
             <div className="cl-footer-col cl-footer-about">
