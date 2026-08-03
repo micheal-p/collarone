@@ -50,6 +50,7 @@ const SEED = {
   vendors:        (o, u) => c.query('insert into vendors(org_id,name,created_by) values($1,$2,$3) returning id', [o, 'Probe', u]),
   overtime_requests:    (o, u) => c.query("insert into overtime_requests(org_id,employee_id,work_date,hours,created_by) values($1,$2,'2099-01-01',2,$3) returning id", [o, u, u]),
   attendance_device_map:(o, u) => c.query('insert into attendance_device_map(org_id,device_uid,employee_id) values($1,$2,$3) returning id', [o, 'DEV-' + uuid().slice(0, 6), u]),
+  org_chat_messages:    (o, u) => c.query("insert into org_chat_messages(org_id,room,author_id,body) values($1,'general',$2,'Probe') returning id", [o, u]),
 };
 
 const seeded = {}; // table -> { A: idA, B: idB }
@@ -144,6 +145,65 @@ try {
     }
   } catch (e) {
     check('team_absences() · org-scoped', false, e.message);
+  }
+
+  // ---- team chat rooms: org-scoped AND membership-scoped. General is open to
+  // the whole tenant, but a group room must be shut to non-members, shut to
+  // other tenants, and shut once archived — and the unread count must never
+  // report a room you can't open, which would leak both its existence and its
+  // traffic. The probe users are super_admins, who can open any group in their
+  // OWN org by design, so it demotes one to staff inside the transaction.
+  try {
+    const { rows: [gA] } = await c.query("insert into chat_groups(org_id,name) values($1,'Probe Group A') returning id", [A.org]);
+    const { rows: [gB] } = await c.query("insert into chat_groups(org_id,name) values($1,'Probe Group B') returning id", [B.org]);
+    for (const [P, g] of [[A, gA], [B, gB]]) {
+      await c.query("insert into org_chat_messages(org_id,room,author_id,body) values($1,$2,$3,'group secret')",
+        [P.org, `group:${g.id}`, P.user]);
+    }
+
+    const asStaffA = async (fn) => {
+      await c.query('begin');
+      await c.query("update profiles set role='staff' where id=$1", [A.user]);
+      await fn();
+      await c.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify({ sub: A.user, role: 'authenticated' })]);
+      await c.query('set local role authenticated');
+      const can = async (room) => (await c.query('select public.can_read_chat_room($1) v', [room])).rows[0].v;
+      const groupMsgs = async () => (await c.query("select count(*)::int n from org_chat_messages where room like 'group:%'")).rows[0].n;
+      const unread = async () => (await c.query('select coalesce(sum(unread),0)::int n from public.chat_unread_counts()')).rows[0].n;
+      const out = { can, groupMsgs, unread };
+      return out;
+    };
+
+    { // not a member of anything
+      const p = await asStaffA(async () => {});
+      check('chat · a non-member cannot open a group in their own org', (await p.can(`group:${gA.id}`)) === false);
+      check("chat · nobody can open another tenant's group", (await p.can(`group:${gB.id}`)) === false);
+      check('chat · group messages are invisible to a non-member', (await p.groupMsgs()) === 0, `saw ${await p.groupMsgs()}`);
+      check('chat · unread never counts a room you cannot open', (await p.unread()) === 0, `counted ${await p.unread()}`);
+      await c.query('rollback');
+    }
+
+    { // a member of their own org's group
+      const p = await asStaffA(async () => {
+        await c.query('insert into chat_group_members(group_id,user_id) values($1,$2)', [gA.id, A.user]);
+      });
+      check('chat · a member CAN open their group', (await p.can(`group:${gA.id}`)) === true);
+      check("chat · still shut out of the other tenant's group", (await p.can(`group:${gB.id}`)) === false);
+      check('chat · a member sees exactly one group message (their own)', (await p.groupMsgs()) === 1, `saw ${await p.groupMsgs()}`);
+      await c.query('rollback');
+    }
+
+    { // member, but the group has been archived
+      const p = await asStaffA(async () => {
+        await c.query('insert into chat_group_members(group_id,user_id) values($1,$2)', [gA.id, A.user]);
+        await c.query('update chat_groups set archived=true where id=$1', [gA.id]);
+      });
+      check('chat · archiving shuts the room for its own members', (await p.can(`group:${gA.id}`)) === false);
+      check('chat · archived group messages disappear too', (await p.groupMsgs()) === 0, `saw ${await p.groupMsgs()}`);
+      await c.query('rollback');
+    }
+  } catch (e) {
+    check('chat · room isolation', false, e.message);
   }
 } finally {
   // ---- cleanup (superuser) ----
