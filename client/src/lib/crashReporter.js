@@ -2,6 +2,8 @@
 // real user-facing crashes surface in Platform Control instead of dying
 // silently in someone's browser. The /status uptime checks only prove the
 // API and database answer; they can't see an exception inside the bundle.
+import { looksLikeStaleChunk } from './staleBuild.js';
+
 const seen = new Set();
 let sent = 0;
 
@@ -29,6 +31,17 @@ export function reportCrash(message, stack) {
 }
 
 export function installCrashReporter() {
-  window.addEventListener('error', (e) => reportCrash(e.error?.message || e.message || 'Script error', e.error?.stack));
-  window.addEventListener('unhandledrejection', (e) => reportCrash(e.reason?.message || String(e.reason || 'Unhandled rejection'), e.reason?.stack));
+  window.addEventListener('error', (e) => {
+    const msg = e.error?.message || e.message || 'Script error';
+    // A tab outliving its deploy isn't a crash — staleBuild.js reloads it. It
+    // used to arrive here as "Unexpected token '<'" ×160 in one night, which
+    // buries the real crashes this reporter exists to surface.
+    if (looksLikeStaleChunk(msg)) return;
+    reportCrash(msg, e.error?.stack);
+  });
+  window.addEventListener('unhandledrejection', (e) => {
+    const msg = e.reason?.message || String(e.reason || 'Unhandled rejection');
+    if (looksLikeStaleChunk(msg)) return;
+    reportCrash(msg, e.reason?.stack);
+  });
 }
