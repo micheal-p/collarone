@@ -105,7 +105,12 @@ if [ -n "\$CONF" ]; then
 fi
 # Readable over /api/health, because the deploy log needs GitHub auth to read
 # and this is the one thing that has silently done nothing twice.
-printf '%s\n' "\$NGINX_STATUS" > "\${APP_DIR}/NGINX_STATUS"
+# APP_DIR unescaped on purpose: it is a LOCAL variable expanded before the
+# heredoc is sent. Escaping it made the remote shell expand an undefined name,
+# so this file was being written to /NGINX_STATUS at the filesystem root and
+# health.js never found it. Same reason BUILD_ID above is unescaped.
+printf '%s\n' "\$NGINX_STATUS" > "${APP_DIR}/NGINX_STATUS"
+rm -f /NGINX_STATUS 2>/dev/null || true
 echo "nginx cache header: \$NGINX_STATUS"
 
 # Only reload if the whole config still parses. If it doesn't, pull the
