@@ -84,18 +84,29 @@ NGINX
 # server block in that file — landing in a port-80 redirect block as well is
 # harmless (a location that never matches), whereas guessing "the first block"
 # would silently wire it into the redirect and do nothing at all.
-CONF=\$(grep -rl 'collarone' /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null | head -1)
-if [ -n "\$CONF" ] && ! grep -q 'collarone-cache.conf' "\$CONF"; then
-  BACKUP="\$CONF.pre-cache-header.\$(date +%s)"
-  cp "\$CONF" "\$BACKUP"
-  sed -i 's|^\([[:space:]]*\)server[[:space:]]*{|\1server {\n\1    include snippets/collarone-cache.conf;|' "\$CONF"
-  if nginx -t 2>/dev/null; then
-    echo "Wired snippets/collarone-cache.conf into \$CONF"
+# Search widely: the site config is not always in sites-enabled, and it may be
+# named anything. Anything that mentions the app's directory or hostname counts.
+CONF=\$(grep -rl -e 'collarone' -e 'server_name' /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ /etc/nginx/nginx.conf 2>/dev/null | head -1)
+NGINX_STATUS="conf-not-found"
+if [ -n "\$CONF" ]; then
+  if grep -q 'collarone-cache.conf' "\$CONF"; then
+    NGINX_STATUS="already-wired:\$CONF"
   else
-    cp "\$BACKUP" "\$CONF"
-    echo "WARNING: including the cache snippet broke nginx -t; restored \$CONF from backup" >&2
+    BACKUP="\$CONF.pre-cache-header.\$(date +%s)"
+    cp "\$CONF" "\$BACKUP"
+    sed -i 's|^\([[:space:]]*\)server[[:space:]]*{|\1server {\n\1    include snippets/collarone-cache.conf;|' "\$CONF"
+    if nginx -t 2>/dev/null; then
+      NGINX_STATUS="wired:\$CONF"
+    else
+      cp "\$BACKUP" "\$CONF"
+      NGINX_STATUS="nginx-t-failed:\$CONF"
+    fi
   fi
 fi
+# Readable over /api/health, because the deploy log needs GitHub auth to read
+# and this is the one thing that has silently done nothing twice.
+printf '%s\n' "\$NGINX_STATUS" > "\${APP_DIR}/NGINX_STATUS"
+echo "nginx cache header: \$NGINX_STATUS"
 
 # Only reload if the whole config still parses. If it doesn't, pull the
 # snippet back out and leave nginx exactly as it was.

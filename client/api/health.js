@@ -32,6 +32,20 @@ function buildId() {
   return BUILD_ID;
 }
 
+// Whether the nginx cache-header snippet actually got wired in. deploy.sh
+// writes it; without this the only way to know was reading the deploy log,
+// which needs GitHub auth, and this step had silently done nothing twice.
+let NGINX_STATUS;
+function nginxStatus() {
+  if (NGINX_STATUS !== undefined) return NGINX_STATUS;
+  try {
+    NGINX_STATUS = readFileSync(new URL('../../NGINX_STATUS', import.meta.url), 'utf8').trim() || 'unknown';
+  } catch {
+    NGINX_STATUS = 'unknown';
+  }
+  return NGINX_STATUS;
+}
+
 // Dunning copy per lifecycle transition — one source for banner + email so the
 // two channels never tell a customer different stories.
 const DUNNING = {
@@ -248,5 +262,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ status, apiOk, dbOk, responseMs, build: buildId(), checkedAt: new Date().toISOString() });
+  return res.status(200).json({ status, apiOk, dbOk, responseMs, build: buildId(), nginx: nginxStatus(), checkedAt: new Date().toISOString() });
 }
