@@ -8,7 +8,6 @@ import SuiteIcon from '../components/SuiteIcon.jsx';
 import { supabase } from '../lib/supabaseClient.js';
 import ChatWidget from './ChatWidget.jsx';
 import { PLANS, PRICING, usePricing, naira } from '../lib/pricing.js';
-import shotHome from '../assets/shots/home.jpg';
 import './Landing.css';
 
 const Mark = ({ size = 24 }) => (
@@ -22,10 +21,6 @@ const Mark = ({ size = 24 }) => (
 );
 
 const I = {
-  people: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="9" cy="8" r="3.2" /><path d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5" /><path d="M16 6.5a3 3 0 0 1 0 5.6M17 14c2.5.4 4 2.3 4 5" /></svg>,
-  calendar: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3.5" y="5" width="17" height="15" rx="2" /><path d="M3.5 9.5h17M8 3v4M16 3v4" /></svg>,
-  chat: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 5h16v11H8l-4 4z" /></svg>,
-  globe: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" /></svg>,
   shield: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z" /><path d="M9 12l2 2 4-4" /></svg>,
   bolt: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z" /></svg>,
   money: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2" /><circle cx="12" cy="12" r="3" /><path d="M6 6v12M18 6v12" /></svg>,
@@ -35,7 +30,6 @@ const I = {
   expand: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" /></svg>,
   close: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 5l14 14M19 5L5 19" /></svg>,
   menu: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>,
-  docSm: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></svg>,
   arrowLeft: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 4L7 12l8 8" /></svg>,
   arrowRight: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4l8 8-8 8" /></svg>,
   check: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l5 5L19 7" /></svg>,
@@ -92,33 +86,6 @@ function Marquee({ items, dark }) {
         ))}
       </div>
     </div>
-  );
-}
-
-// The headline's moving part — cycles what "your whole business" actually
-// means, one suite at a time.
-const ROTATE_WORDS = ['whole business.', 'people & payroll.', 'company letters.', 'customers.', 'front desk.'];
-function RotatingWord() {
-  const reduce = useReducedMotion();
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    if (reduce) return undefined;
-    const t = setInterval(() => setI((x) => (x + 1) % ROTATE_WORDS.length), 2400);
-    return () => clearInterval(t);
-  }, [reduce]);
-  if (reduce) return <span className="cl-grad-word">whole business.</span>;
-  return (
-    <span className="cl-rotate-wrap">
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.span
-          key={ROTATE_WORDS[i]} className="cl-grad-word cl-rotate-word"
-          initial={{ y: '85%', opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: '-70%', opacity: 0 }}
-          transition={{ duration: 0.4, ease: [0.2, 0.7, 0.3, 1] }}
-        >
-          {ROTATE_WORDS[i]}
-        </motion.span>
-      </AnimatePresence>
-    </span>
   );
 }
 
@@ -298,6 +265,114 @@ const heroItem = {
   show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.2, 0.7, 0.3, 1] } },
 };
 
+const heroMetrics = [
+  { label: 'People active', value: '42', note: '+2 this month', tone: 'orange' },
+  { label: 'Pipeline', value: '₦8.4m', note: '6 open deals', tone: 'blue' },
+  { label: 'Work on track', value: '87%', note: 'Across 4 teams', tone: 'green' },
+];
+
+const heroActivity = [
+  { icon: 'check', title: 'Leave request approved', meta: 'Bola A. · People', time: 'Now', tone: '#16a36a' },
+  { icon: 'users', title: 'New lead captured', meta: 'Meridian Foods · CRM', time: '8m', tone: '#4f7cff' },
+  { icon: 'file', title: 'Invoice CO-1042 paid', meta: '₦480,000 · Finance', time: '24m', tone: '#ff6b2c' },
+];
+
+function BusinessCommandCenter({ reduce }) {
+  return (
+    <motion.div
+      className="cl-os-stage"
+      initial={reduce ? false : { opacity: 0, y: 34, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.9, delay: 0.32, ease: [0.16, 0.8, 0.2, 1] }}
+      aria-label="A live preview of the Collarone business command centre"
+    >
+      <div className="cl-os-glow" aria-hidden="true" />
+      <div className="cl-os-shell">
+        <div className="cl-os-topbar">
+          <div className="cl-os-dots"><i /><i /><i /></div>
+          <div className="cl-os-address"><span className="cl-os-lock">◆</span> workspace.collarone.app</div>
+          <div className="cl-os-avatar">AO</div>
+        </div>
+        <div className="cl-os-app">
+          <aside className="cl-os-rail">
+            <span className="cl-os-mini-mark"><Mark size={22} /></span>
+            {['grid', 'users', 'calendar', 'briefcase', 'wallet'].map((icon, i) => (
+              <span className={`cl-os-rail-item${i === 0 ? ' on' : ''}`} key={icon}>
+                <SuiteIcon name={icon} size={15} color={i === 0 ? '#fff' : 'currentColor'} />
+              </span>
+            ))}
+            <span className="cl-os-rail-spacer" />
+            <span className="cl-os-rail-item"><SuiteIcon name="settings" size={15} /></span>
+          </aside>
+
+          <div className="cl-os-main">
+            <div className="cl-os-welcome">
+              <div>
+                <span className="cl-os-overline">MONDAY · 9:41 AM</span>
+                <h2>Good morning, Ada.</h2>
+                <p>Here is what needs your attention today.</p>
+              </div>
+              <button type="button" className="cl-os-add" tabIndex={-1}><span>+</span> Quick add</button>
+            </div>
+
+            <div className="cl-os-metrics">
+              {heroMetrics.map((metric) => (
+                <div className={`cl-os-metric ${metric.tone}`} key={metric.label}>
+                  <span className="cl-os-metric-label">{metric.label}</span>
+                  <strong>{metric.value}</strong>
+                  <small>{metric.note}</small>
+                </div>
+              ))}
+            </div>
+
+            <div className="cl-os-grid">
+              <div className="cl-os-panel cl-os-activity">
+                <div className="cl-os-panel-head"><strong>Live activity</strong><span>View all</span></div>
+                <div className="cl-os-activity-list">
+                  {heroActivity.map((item) => (
+                    <div className="cl-os-activity-row" key={item.title}>
+                      <span className="cl-os-activity-icon" style={{ '--activity-tone': item.tone }}>
+                        <SuiteIcon name={item.icon} size={14} color="currentColor" />
+                      </span>
+                      <span><b>{item.title}</b><small>{item.meta}</small></span>
+                      <time>{item.time}</time>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="cl-os-panel cl-os-focus">
+                <div className="cl-os-panel-head"><strong>Needs you</strong><span className="cl-os-count">3</span></div>
+                <div className="cl-os-focus-item">
+                  <div><span>Payroll</span><b>August payroll is ready</b></div>
+                  <span className="cl-os-arrow">↗</span>
+                </div>
+                <div className="cl-os-progress"><i /></div>
+                <div className="cl-os-focus-foot"><span>42 staff</span><strong>₦6.2m</strong></div>
+              </div>
+            </div>
+
+            <div className="cl-os-automation">
+              <span className="cl-os-pulse" />
+              <div><strong>Automation is working</strong><small>4 reminders sent · 2 tasks created · nothing overdue</small></div>
+              <span className="cl-os-live">LIVE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <motion.div className="cl-os-float cl-os-float-pay"
+        animate={reduce ? undefined : { y: [0, -7, 0] }} transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut' }}>
+        <span className="cl-os-float-icon green">✓</span><span><strong>Payroll ready</strong><small>All 42 records checked</small></span>
+      </motion.div>
+      <motion.div className="cl-os-float cl-os-float-lead"
+        animate={reduce ? undefined : { y: [0, 7, 0] }} transition={{ duration: 4.8, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}>
+        <span className="cl-os-float-icon orange">↗</span><span><strong>New deal</strong><small>₦1.2m added to CRM</small></span>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 const modules = [
   {
     name: 'People & Operations', status: 'live',
@@ -342,21 +417,12 @@ export default function Landing() {
     ? {}
     : { variants: heroStagger, initial: 'hidden', animate: 'show' };
   const heroItemVariants = reduce ? {} : { variants: heroItem };
-  const heroShotProps = reduce
-    ? {}
-    : {
-        initial: { opacity: 0, y: 28, scale: 0.96, rotate: 1.5 },
-        animate: { opacity: 1, y: 0, scale: 1, rotate: 0 },
-        transition: { duration: 0.9, delay: 0.3, ease: [0.16, 0.8, 0.2, 1] },
-      };
-
-  const [scrolled, setScrolled] = useState(false);
   const [pastHero, setPastHero] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [faqCat, setFaqCat] = useState('All');
   const visibleFaqs = faqCat === 'All' ? faqs : faqs.filter((f) => f.cat === faqCat);
   const { scrollY } = useScroll();
-  useMotionValueEvent(scrollY, 'change', (v) => { setScrolled(v > 10); setPastHero(v > 520); });
+  useMotionValueEvent(scrollY, 'change', (v) => { setPastHero(v > 520); });
 
   const heroRef = useRef(null);
   const [glowOn, setGlowOn] = useState(false);
@@ -451,49 +517,27 @@ export default function Landing() {
         )}
         <div className="cl-wrap cl-hero-grid">
           <motion.div className="cl-hero-inner" {...heroTextProps}>
-            <motion.span {...heroItemVariants} className="cl-kicker"><span className="cl-dot" />Now onboarding early businesses</motion.span>
-            <motion.h1 {...heroItemVariants}>Run your<br /><RotatingWord /><br /><span className="cl-grad-word">One login.</span></motion.h1>
-            <motion.p {...heroItemVariants} className="cl-hero-sub">HR with an Employee 360 and AI-drafted company letters, payroll, CRM and your website: 15 live suites behind one login, priced in naira.</motion.p>
+            <motion.span {...heroItemVariants} className="cl-kicker"><span className="cl-dot" />The business OS built for Nigeria</motion.span>
+            <motion.h1 {...heroItemVariants}>Stop running your business <span className="cl-grad-word">from memory.</span></motion.h1>
+            <motion.p {...heroItemVariants} className="cl-hero-sub">People, payroll, customers, tasks and money—finally moving together in one calm command centre.</motion.p>
             <motion.div {...heroItemVariants} className="cl-hero-ctas">
-              <Link className="cl-btn cl-btn-primary" to="/signup">Get started</Link>
-              <a className="cl-btn cl-btn-ghost" href="#platform">See what's inside</a>
+              <Link className="cl-btn cl-btn-primary cl-hero-primary" to="/signup">Build my workspace <span aria-hidden="true">↗</span></Link>
+              <Link className="cl-btn cl-btn-ghost" to="/try">Explore the live demo <span aria-hidden="true">→</span></Link>
             </motion.div>
-            <motion.div {...heroItemVariants} className="cl-chip-row">
-              <span className="cl-chip">{I.people}Employee 360</span>
-              <span className="cl-chip">{I.docSm}Letters with AI</span>
-              <span className="cl-chip">{I.calendar}Track leave</span>
-              <span className="cl-chip">{I.globe}Build your website</span>
+            <motion.div {...heroItemVariants} className="cl-hero-proof">
+              <div><strong>15</strong><span>live suites</span></div>
+              <i />
+              <div><strong>Minutes</strong><span>to get started</span></div>
+              <i />
+              <div><strong>₦ Naira</strong><span>simple local billing</span></div>
             </motion.div>
           </motion.div>
 
-          <div className="cl-hero-shot-wrap" style={{ perspective: 1100 }}>
-            <motion.div className="cl-hero-shot" {...heroShotProps} style={reduce ? undefined : { rotateX: rx, rotateY: ry }}>
-              <div className="cl-browser-bar">
-                <span className="cl-dotb r" /><span className="cl-dotb y" /><span className="cl-dotb g" />
-                <span className="cl-url">collarone.app/home</span>
-              </div>
-              <img className="cl-shot-img" src={shotHome} alt="Collarone real product screenshot" loading="eager" />
-            </motion.div>
-            <motion.div
-              className="cl-float-toast cl-toast-a"
-              initial={reduce ? false : { opacity: 0, y: 16, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 1.15, duration: 0.55, ease: [0.16, 0.8, 0.2, 1] }}
-            >
-              <span className="cl-toast-ic ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10" /></svg></span>
-              <span><strong>Leave approved</strong><small>Bola A. · just now</small></span>
-            </motion.div>
-            <motion.div
-              className="cl-float-toast cl-toast-b"
-              initial={reduce ? false : { opacity: 0, y: 16, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: 1.5, duration: 0.55, ease: [0.16, 0.8, 0.2, 1] }}
-            >
-              <span className="cl-toast-ic pay">{I.chat}</span>
-              <span><strong>New lead: Chidinma O.</strong><small>via website · CRM</small></span>
-            </motion.div>
-          </div>
+          <motion.div className="cl-hero-shot-wrap" style={reduce ? undefined : { perspective: 1100, rotateX: rx, rotateY: ry }}>
+            <BusinessCommandCenter reduce={reduce} />
+          </motion.div>
         </div>
+        <div className="cl-hero-scroll" aria-hidden="true"><span>Scroll to explore</span><i /></div>
       </header>
 
       <Marquee items={marqueeItems} dark />
