@@ -1,35 +1,28 @@
-# nginx: one line to add, once
+# nginx cache headers
 
-`deploy/deploy.sh` writes `/etc/nginx/snippets/collarone-cache.conf` on every
-deploy. It does nothing until the site's server block includes it — nginx
-snippets are inert on their own.
+`deploy/deploy.sh` now does this itself, on every deploy:
 
-**Run this once on the VPS**, then never again:
+1. writes `/etc/nginx/snippets/collarone-cache.conf`, and
+2. wires `include snippets/collarone-cache.conf;` into the site's server
+   blocks the first time it finds them without it.
 
-```bash
-ssh root@72.61.156.142
+Both steps are guarded. If including the snippet makes `nginx -t` fail, the
+config is restored from a timestamped backup and the previous config is
+reloaded, so a deploy can never take the site down over a cache header.
 
-# 1. find the server block for collarone.app
-grep -rl 'collarone' /etc/nginx/sites-available/
-
-# 2. inside that server { … } block, add:
-#      include snippets/collarone-cache.conf;
-#    put it above the existing `location /` so the exact-match
-#    `location = /index.html` is in scope.
-
-# 3. prove it parses, then reload
-nginx -t && systemctl reload nginx
-```
-
-Verify from anywhere:
+**Nothing to run by hand.** Verify after a deploy:
 
 ```bash
 curl -sI https://collarone.app/ | grep -i cache-control
 # want: Cache-Control: no-cache, must-revalidate
 
 curl -sI https://collarone.app/assets/index-*.js | grep -i cache-control
-# want: Cache-Control: public, immutable   (unchanged — this one SHOULD cache)
+# want: Cache-Control: public, immutable   (unchanged, this one SHOULD cache)
 ```
+
+If the first command prints nothing, the wiring didn't find the site config.
+Check the deploy log for "Wired snippets/collarone-cache.conf into …", then
+look for the file yourself: `grep -rl collarone /etc/nginx/sites-enabled/`.
 
 ## Why
 

@@ -61,10 +61,10 @@ systemctl restart collarone-api
 # deploy those are gone. That is the "Unexpected token '<'" flood — nginx
 # answers with its 404 page and the browser parses <html> as JavaScript.
 #
-# Written as a snippet the site config includes, so this script never edits
-# the server block itself. If the config doesn't include it yet the snippet
-# is inert and this is a no-op — see the one-time include line in
-# ops/nginx/README.md.
+# The snippet is written here and wired in below. It is inert on its own, so
+# the wiring is what makes it take effect — and both steps are guarded by
+# nginx -t with a restore, because a deploy must never be able to take the
+# site down over a cache header.
 mkdir -p /etc/nginx/snippets
 cat > /etc/nginx/snippets/collarone-cache.conf <<'NGINX'
 # managed by deploy/deploy.sh — edit there, not here
@@ -78,9 +78,27 @@ location = /service-worker.js {
 }
 NGINX
 
+# Wire the snippet into the site config, once. Idempotent: it only edits a
+# file that doesn't already reference the snippet, and it keeps a timestamped
+# backup so a bad edit can be put straight back. The include goes into EVERY
+# server block in that file — landing in a port-80 redirect block as well is
+# harmless (a location that never matches), whereas guessing "the first block"
+# would silently wire it into the redirect and do nothing at all.
+CONF=\$(grep -rl 'collarone' /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null | head -1)
+if [ -n "\$CONF" ] && ! grep -q 'collarone-cache.conf' "\$CONF"; then
+  BACKUP="\$CONF.pre-cache-header.\$(date +%s)"
+  cp "\$CONF" "\$BACKUP"
+  sed -i 's|^\([[:space:]]*\)server[[:space:]]*{|\1server {\n\1    include snippets/collarone-cache.conf;|' "\$CONF"
+  if nginx -t 2>/dev/null; then
+    echo "Wired snippets/collarone-cache.conf into \$CONF"
+  else
+    cp "\$BACKUP" "\$CONF"
+    echo "WARNING: including the cache snippet broke nginx -t; restored \$CONF from backup" >&2
+  fi
+fi
+
 # Only reload if the whole config still parses. If it doesn't, pull the
-# snippet back out and leave nginx exactly as it was — a deploy must never
-# be able to take the site down over a cache header.
+# snippet back out and leave nginx exactly as it was.
 if nginx -t 2>/dev/null; then
   systemctl reload nginx
 else
