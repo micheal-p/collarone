@@ -24,10 +24,17 @@ rsync -az --delete \
   client server package.json package-lock.json \
   "${REMOTE_USER}@${REMOTE_HOST}:${APP_DIR}/"
 
-echo "==> Installing dependencies + building on the server"
+BUILD_ID="$(git -C "$(dirname "${BASH_SOURCE[0]}")/.." rev-parse --short HEAD 2>/dev/null || echo unknown)-$(date -u +%Y%m%d%H%M)"
+
+echo "==> Installing dependencies + building on the server (build ${BUILD_ID})"
 $SSH bash -s <<EOF
 set -euo pipefail
 cd "${APP_DIR}"
+
+# What /api/health reports. The repo's .git is deliberately not rsynced, so the
+# sha has to come from the machine that ran this script.
+printf '%s\n' "${BUILD_ID}" > "${APP_DIR}/BUILD_ID"
+
 npm ci --workspace client
 npm ci --prefix server
 
@@ -46,7 +53,41 @@ find "${APP_DIR}/client/dist/assets" -type f -mtime +7 -delete 2>/dev/null || tr
 
 chown -R collarone:collarone "${APP_DIR}"
 systemctl restart collarone-api
-nginx -t && systemctl reload nginx
+
+# ---- index.html must never be cached -------------------------------------
+# The hashed assets are immutable and cached for a year, which is right. The
+# HTML that NAMES them must be the opposite: if a browser holds an old
+# index.html it keeps asking for chunks by their old hashes, and after a
+# deploy those are gone. That is the "Unexpected token '<'" flood — nginx
+# answers with its 404 page and the browser parses <html> as JavaScript.
+#
+# Written as a snippet the site config includes, so this script never edits
+# the server block itself. If the config doesn't include it yet the snippet
+# is inert and this is a no-op — see the one-time include line in
+# ops/nginx/README.md.
+mkdir -p /etc/nginx/snippets
+cat > /etc/nginx/snippets/collarone-cache.conf <<'NGINX'
+# managed by deploy/deploy.sh — edit there, not here
+location = /index.html {
+    add_header Cache-Control "no-cache, must-revalidate" always;
+    expires -1;
+}
+location = /service-worker.js {
+    add_header Cache-Control "no-cache, must-revalidate" always;
+    expires -1;
+}
+NGINX
+
+# Only reload if the whole config still parses. If it doesn't, pull the
+# snippet back out and leave nginx exactly as it was — a deploy must never
+# be able to take the site down over a cache header.
+if nginx -t 2>/dev/null; then
+  systemctl reload nginx
+else
+  rm -f /etc/nginx/snippets/collarone-cache.conf
+  nginx -t && systemctl reload nginx
+  echo "WARNING: cache-header snippet rejected by nginx -t; removed it and reloaded the previous config" >&2
+fi
 
 echo "Deployed \$(git -C "${APP_DIR}" rev-parse --short HEAD 2>/dev/null || echo 'n/a') at \$(date -u +%FT%TZ)"
 EOF

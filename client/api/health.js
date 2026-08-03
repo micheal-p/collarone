@@ -11,9 +11,26 @@ import { createClient } from '@supabase/supabase-js';
 import { sendBillingNotice } from './_lib/billingNotify.js';
 import { runAutomationRules, periodOf, scheduleDue } from './_lib/automationRules.js';
 
+import { readFileSync } from 'node:fs';
+
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const THROTTLE_MS = 5 * 60 * 1000;
+
+// What's actually running. This used to be a hand-typed string and it sat ten
+// days stale — during an incident it's the first thing anyone reads, and a
+// wrong answer sends you looking in the wrong place. deploy/deploy.sh writes
+// BUILD_ID next to the app on every deploy; read it once and cache.
+let BUILD_ID;
+function buildId() {
+  if (BUILD_ID !== undefined) return BUILD_ID;
+  try {
+    BUILD_ID = readFileSync(new URL('../../BUILD_ID', import.meta.url), 'utf8').trim() || 'unknown';
+  } catch {
+    BUILD_ID = process.env.BUILD_ID || 'dev';
+  }
+  return BUILD_ID;
+}
 
 // Dunning copy per lifecycle transition — one source for banner + email so the
 // two channels never tell a customer different stories.
@@ -231,5 +248,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ status, apiOk, dbOk, responseMs, build: '2026-07-24a', checkedAt: new Date().toISOString() });
+  return res.status(200).json({ status, apiOk, dbOk, responseMs, build: buildId(), checkedAt: new Date().toISOString() });
 }

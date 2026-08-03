@@ -1,5 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "//": "collarone.app is served by nginx on the VPS (DNS A -> 72.61.156.142). Vercel still builds this repo on every push, so collarone.vercel.app is a SECOND live front-end talking to the same database. The two deploy independently: Vercel lands in seconds, the VPS can fail on a blocked runner IP, so they drift — and a bookmarked vercel.app URL then runs a different build of the product against production data. Send it home instead. /api is left alone so the Vercel crons that call /api/health and /api/automations-run keep working.",
+      "source": "/((?!api/).*)",
+      "has": [{ "type": "host", "value": "collarone.vercel.app" }],
+      "destination": "https://collarone.app/$1",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/((?!api/|assets/).*)",
