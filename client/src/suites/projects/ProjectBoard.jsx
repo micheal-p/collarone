@@ -337,6 +337,11 @@ function StatusEditor({ columns, counts, onClose, onSave, onMove, onDelete, onAd
 export default function ProjectBoard({
   projectId, tasks, statuses, onChanged,
   canManageStatuses = true, onOpenTask = null, onDeleteTask = null, flash: flashProp = null,
+  // Ids of tasks whose prerequisites are not finished, answered by the server.
+  // Without this the board let a blocked card be dragged straight into a done
+  // column and the database refused it afterwards, which reads as a bug rather
+  // than a rule.
+  blockedIds = null,
 }) {
   // taskId -> statusId, held only until the parent's refetch agrees. Overriding
   // the props like this, instead of copying them into state, means a parent that
@@ -410,6 +415,14 @@ export default function ProjectBoard({
   const moveTask = async (task, statusId) => {
     if (!statusId || statusId === task.status_id) return;
     const to = statusIndex[statusId];
+    // Say no before the write, not after. The database enforces this too, but
+    // an error toast arriving after a successful-looking drag is worse than a
+    // move that simply does not happen.
+    if (to?.is_done && blockedIds?.has(task.id)) {
+      setLive('');
+      flashProp?.(`“${task.title}” is still waiting on another task. Finish that first, or remove the dependency.`, true);
+      return;
+    }
     const from = task.status_id;
     setMoved((m) => ({ ...m, [task.id]: statusId }));
     setLive(`${task.title} moved to ${to?.name || 'another column'}.`);

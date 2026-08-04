@@ -53,6 +53,26 @@ const SEED = {
   org_chat_messages:    (o, u) => c.query("insert into org_chat_messages(org_id,room,author_id,body) values($1,'general',$2,'Probe') returning id", [o, u]),
 };
 
+// Projects v2 adds five tables that carry work, comments and the dependency
+// graph. They get the same treatment as everything else: seeded per org, then
+// each user must see only their own. Seeded after SEED because they need a
+// project row to hang off.
+const PROJECT_SEED = async (P) => {
+  const { rows: [pr] } = await c.query(
+    "insert into projects(org_id,name,owner_id,created_by) values($1,'RLS probe project',$2,$2) returning id", [P.org, P.user]);
+  const { rows: [st] } = await c.query(
+    "insert into project_statuses(org_id,project_id,name,position) values($1,$2,'Probe status',0) returning id", [P.org, pr.id]);
+  const { rows: [t1] } = await c.query(
+    "insert into project_tasks(org_id,project_id,title,created_by,status_id) values($1,$2,'Probe task A',$3,$4) returning id", [P.org, pr.id, P.user, st.id]);
+  const { rows: [t2] } = await c.query(
+    "insert into project_tasks(org_id,project_id,title,created_by,status_id) values($1,$2,'Probe task B',$3,$4) returning id", [P.org, pr.id, P.user, st.id]);
+  const { rows: [dep] } = await c.query(
+    "insert into project_task_deps(org_id,project_id,task_id,depends_on_id,created_by) values($1,$2,$3,$4,$5) returning id", [P.org, pr.id, t2.id, t1.id, P.user]);
+  const { rows: [cm] } = await c.query(
+    "insert into project_task_comments(org_id,project_id,task_id,author_id,body) values($1,$2,$3,$4,'probe') returning id", [P.org, pr.id, t1.id, P.user]);
+  return { project_statuses: st.id, project_task_deps: dep.id, project_task_comments: cm.id };
+};
+
 const seeded = {}; // table -> { A: idA, B: idB }
 
 try {
@@ -68,6 +88,17 @@ try {
       const ra = await fn(A.org, A.user); const rb = await fn(B.org, B.user);
       seeded[table] = { A: ra.rows[0].id, B: rb.rows[0].id };
     } catch (e) { seeded[table] = { err: e.message }; }
+  }
+
+  // Projects v2 tables, seeded together because they hang off one project.
+  try {
+    const pa = await PROJECT_SEED(A);
+    const pb = await PROJECT_SEED(B);
+    for (const table of Object.keys(pa)) seeded[table] = { A: pa[table], B: pb[table] };
+  } catch (e) {
+    for (const table of ['project_statuses', 'project_task_deps', 'project_task_comments']) {
+      seeded[table] = { err: e.message };
+    }
   }
 
   // ---- probe: as each user, they must see their OWN row and NOT the other's ----

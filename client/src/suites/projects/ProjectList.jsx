@@ -96,7 +96,12 @@ function SortTh({ label, col, sort, onSort }) {
   );
 }
 
-export default function ProjectList({ projectId, tasks = [], statuses = [], members = [], onChanged }) {
+export default function ProjectList({
+  projectId, tasks = [], statuses = [], members = [], onChanged,
+  // The server's answer, when the parent has it. Falls back to the local
+  // (pessimistic) computation only where the route is unavailable.
+  blockedIds: blockedIdsProp = null,
+}) {
   const [deps, setDeps] = useState([]);
   const [q, setQ] = useState('');
   const [assignee, setAssignee] = useState('');
@@ -134,6 +139,7 @@ export default function ProjectList({ projectId, tasks = [], statuses = [], memb
   }, [statusIndex]);
 
   const blockedIds = useMemo(() => {
+    if (blockedIdsProp) return blockedIdsProp;
     if (hasStatuses) return PR.blockedTaskIds(tasks, deps, statuses);
     // PR.blockedTaskIds reads doneness off status_id alone. With no status rows
     // every prerequisite would look unfinished and every dependent task would
@@ -145,7 +151,7 @@ export default function ProjectList({ projectId, tasks = [], statuses = [], memb
       if (prereq && prereq.status !== 'done') out.add(d.task_id);
     }
     return out;
-  }, [tasks, deps, statuses, hasStatuses]);
+  }, [tasks, deps, statuses, hasStatuses, blockedIdsProp]);
 
   // Only the prerequisites still OUTSTANDING. Listing every edge meant a task
   // waiting on A (finished) and B (open) read "Waiting for A, B" in the tooltip,

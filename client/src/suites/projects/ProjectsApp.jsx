@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import * as PR from './projectsApi.js';
 import { apiGet } from '../../api/client.js';
 import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
+import ProjectBoard from './ProjectBoard.jsx';
+import ProjectList from './ProjectList.jsx';
+import ProjectReports from './ProjectReports.jsx';
+import ProjectTaskTree from './ProjectTaskTree.jsx';
 
 const CSS = `
   .pj-badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; letter-spacing:.03em; }
@@ -147,6 +151,12 @@ function ProjectDetail({ project, onBack, onProjectUpdated, flash }) {
   const [milestones, setMilestones] = useState([]);
   const [members, setMembers] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [statuses, setStatuses] = useState([]);
+  const [deps, setDeps] = useState([]);
+  // Blocked-ness comes from the server: a prerequisite this viewer cannot read
+  // must never be mistaken for a finished one. See project_blocked_tasks().
+  const [blockedIds, setBlockedIds] = useState(() => new Set());
+  const [openTask, setOpenTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [taskModal, setTaskModal] = useState(null); // 'new' | task | null
   const [editModal, setEditModal] = useState(false);
@@ -161,6 +171,16 @@ function ProjectDetail({ project, onBack, onProjectUpdated, flash }) {
     try {
       const [t, m, mem] = await Promise.all([PR.getTasks(project.id), PR.getMilestones(project.id), PR.getMembers(project.id)]);
       setTasks(t); setMilestones(m); setMembers(mem);
+      // Statuses, dependencies and blocked-ness are additive: demo mode has no
+      // routes for them and an older database has no tables, so a failure here
+      // degrades the new views rather than emptying the whole project.
+      const [st, dp, bl] = await Promise.all([
+        PR.getStatuses(project.id).catch(() => []),
+        PR.getDependencies(project.id).catch(() => []),
+        PR.getBlocked(project.id).catch(() => null),
+      ]);
+      setStatuses(st); setDeps(dp);
+      setBlockedIds(bl ? PR.blockedIdSet(bl) : PR.blockedTaskIds(t, dp, st));
     } catch (e) { flash(e.message, true); } finally { setLoading(false); }
   }, [project.id, flash]);
 
@@ -223,7 +243,9 @@ function ProjectDetail({ project, onBack, onProjectUpdated, flash }) {
       <div className="lv-tabs">
         <button className="btn btn-ghost" onClick={onBack}>&larr; All projects</button>
         <button className={`lv-tab ${tab === 'board' ? 'active' : ''}`} onClick={() => setTab('board')}>Board</button>
+        <button className={`lv-tab ${tab === 'list' ? 'active' : ''}`} onClick={() => setTab('list')}>List</button>
         <button className={`lv-tab ${tab === 'milestones' ? 'active' : ''}`} onClick={() => setTab('milestones')}>Milestones</button>
+        <button className={`lv-tab ${tab === 'reports' ? 'active' : ''}`} onClick={() => setTab('reports')}>Reports</button>
         <button className={`lv-tab ${tab === 'members' ? 'active' : ''}`} onClick={() => setTab('members')}>Members</button>
         <button className={`lv-tab ${tab === 'time' ? 'active' : ''}`} onClick={() => setTab('time')}>Time</button>
         {tab === 'board' && <button className="btn btn-primary lv-apply" onClick={() => setTaskModal('new')}>Add task</button>}
@@ -238,7 +260,24 @@ function ProjectDetail({ project, onBack, onProjectUpdated, flash }) {
 
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
 
-      {!loading && tab === 'board' && (
+      {/* The custom-status board replaces the four hard-coded columns, but only
+          once the project actually has status rows. An org whose database has
+          not been migrated, or demo mode, still gets the original board rather
+          than an empty screen. */}
+      {!loading && tab === 'board' && statuses.length > 0 && (
+        <ProjectBoard
+          projectId={project.id}
+          tasks={tasks}
+          statuses={statuses}
+          blockedIds={blockedIds}
+          onOpenTask={setOpenTask}
+          onDeleteTask={removeTask}
+          onChanged={load}
+          flash={flash}
+        />
+      )}
+
+      {!loading && tab === 'board' && statuses.length === 0 && (
         <div className="pj-board">
           {PR.COLUMNS.map((col) => (
             <div className="pj-col" key={col.key}>
@@ -263,6 +302,37 @@ function ProjectDetail({ project, onBack, onProjectUpdated, flash }) {
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && tab === 'list' && (
+        <ProjectList
+          projectId={project.id}
+          tasks={tasks}
+          statuses={statuses}
+          blockedIds={blockedIds}
+          members={members}
+          onChanged={load}
+        />
+      )}
+
+      {!loading && tab === 'reports' && (
+        <ProjectReports
+          projectId={project.id}
+          tasks={tasks}
+          statuses={statuses}
+          members={members}
+        />
+      )}
+
+      {openTask && (
+        <Modal title={openTask.title} onClose={() => setOpenTask(null)} wide>
+          <ProjectTaskTree
+            task={openTask}
+            projectId={project.id}
+            statuses={statuses}
+            onChanged={() => { load(); }}
+          />
+        </Modal>
       )}
 
       {!loading && tab === 'milestones' && (

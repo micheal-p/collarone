@@ -35,6 +35,8 @@ const COPY = {
   'chat.mention': (p, uid) => `${p.by || 'Someone'} mentioned ${p.mentioned === uid ? 'you' : 'a teammate'} in chat: “${p.snippet || ''}”`,
   'automation.notice': (p) => p.message || 'Automation ran',
   'task.comment': (p, uid) => `${p.by || 'Someone'} commented on ${Array.isArray(p.for) && p.for.includes(uid) ? 'your task' : 'a task'} “${p.title || ''}”: ${p.snippet || ''}`,
+  // Without a line here the bell renders the raw event type, "project.comment".
+  'project.comment': (p, uid) => `${p.by || 'Someone'} commented on ${Array.isArray(p.for) && p.for.includes(uid) ? 'your task' : 'a task'} “${p.title || ''}”: ${p.snippet || ''}`,
   'document.sign_requested': (p, uid) => `${p.by || 'Someone'} asked ${Array.isArray(p.for) && p.for.includes(uid) ? 'YOU' : 'a teammate'} to sign “${p.name || 'a document'}”`,
   'document.signed': (p) => `${p.by || 'Someone'} signed “${p.name || 'a document'}”`,
   'document.expiring': (p) => `Document “${p.name || ''}” expires ${p.expiresAt || 'soon'}, renew or replace it`,
