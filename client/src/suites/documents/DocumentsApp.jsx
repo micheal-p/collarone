@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as D from './documentsApi.js';
+import FilePreview, { canPreview } from '../../components/FilePreview.jsx';
 import { apiGet } from '../../api/client.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { useToast, useConfirm, Modal, EmptyState, searchMatcher, usePagedList, Paginator } from '../../components/ui.jsx';
@@ -277,6 +278,14 @@ export default function DocumentsApp({ access }) {
   const download = async (doc) => {
     try { window.open(await D.getDownloadUrl(doc.file_path), '_blank'); } catch (e) { flash(e.message, true); }
   };
+
+  // Opening a signed URL in a new tab loses your place, and on a phone the
+  // browser usually downloads instead of showing. Preview keeps you here.
+  const [preview, setPreview] = useState(null);   // { doc, url } | null
+  const openPreview = async (doc) => {
+    try { setPreview({ doc, url: await D.getDownloadUrl(doc.file_path) }); }
+    catch (e) { flash(e.message, true); }
+  };
   // Swap the updated document into place without a full reload.
   const applyDocUpdate = (saved) => setDocs((ds) => ds.map((d) => (d.id === saved.id ? saved : d)));
   const remove = async (doc) => {
@@ -343,6 +352,9 @@ export default function DocumentsApp({ access }) {
                       <td className="muted" style={{ fontSize: 13 }}>{d.visibility === 'restricted' ? 'Restricted' : 'Org'}</td>
                       <td className="muted" style={{ fontSize: 13 }}>{D.fmtDt(d.updated_at)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
+                        {canPreview(d.name) && (
+                          <button className="iconbtn" onClick={() => openPreview(d)}>Preview</button>
+                        )}
                         <button className="iconbtn" onClick={() => download(d)}>Download</button>
                         <button className="iconbtn" onClick={() => setVersionDoc(d)}>Versions</button>
                         <button className="iconbtn" onClick={() => setSignDoc(d)}>Signatures</button>
@@ -360,6 +372,14 @@ export default function DocumentsApp({ access }) {
         </div>
       )}
 
+      {preview && (
+        <FilePreview
+          name={preview.doc.name}
+          url={preview.url}
+          onClose={() => setPreview(null)}
+          onDownload={() => { download(preview.doc); setPreview(null); }}
+        />
+      )}
       {signDoc && <SignaturesModal doc={signDoc} onClose={() => setSignDoc(null)} flash={flash} />}
       {uploadModal && <UploadModal folders={folders} defaultFolderId={activeFolder} onClose={() => setUploadModal(false)} onSaved={load} flash={flash} />}
       {editDoc && <DocEditModal doc={editDoc} folders={folders} onClose={() => setEditDoc(null)} onSaved={applyDocUpdate} flash={flash} />}

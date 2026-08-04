@@ -927,3 +927,16 @@ textarea.input { padding: 12px 14px; }
   border-radius: 10px; padding: 12px 16px; margin: 0 0 16px;
 }
 .att-nudge > div { flex: 1; min-width: 240px; }
+
+/* File preview: fills the modal, scrolls inside itself so the page behind
+   never moves. Height is viewport-relative because a document is read, not
+   glanced at, and a fixed pixel height wastes a laptop screen. */
+.fp-frame { display: flex; align-items: center; justify-content: center;
+  background: #f4f2ec; border: 1px solid var(--line); border-radius: 10px;
+  min-height: 320px; height: 62dvh; overflow: auto; }
+.fp-pdf { width: 100%; height: 100%; border: 0; border-radius: 10px; background: #fff; }
+.fp-img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.fp-text { margin: 0; padding: 16px; width: 100%; height: 100%; overflow: auto;
+  font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; background: #fff; border-radius: 10px; }
+.fp-none { text-align: center; padding: 32px; }
+@media (max-width: 760px) { .fp-frame { height: 54dvh; } }

@@ -17,11 +17,33 @@ export const getPermissions = (docId) => apiGet(`/documents/${docId}/permissions
 export const grantPermission = (docId, userId) => apiPost(`/documents/${docId}/permissions`, { userId }).then((d) => d.permission);
 export const revokePermission = (docId, userId) => apiDelete(`/documents/${docId}/permissions/${userId}`);
 
+// Browsers do not always report a file's type: pick it up from a file manager,
+// an unusual extension, or some Android pickers, and file.type is ''. Supabase
+// then stores the object as text/plain, and a PDF saved that way can never be
+// previewed inline, only downloaded. The extension is a good enough fallback.
+const MIME_BY_EXT = {
+  pdf: 'application/pdf',
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+  webp: 'image/webp', avif: 'image/avif', bmp: 'image/bmp', svg: 'image/svg+xml',
+  txt: 'text/plain', csv: 'text/csv', md: 'text/markdown', json: 'application/json',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
+
+export const mimeFor = (file) => {
+  if (file?.type) return file.type;
+  const ext = String(file?.name || '').split('.').pop().toLowerCase();
+  return MIME_BY_EXT[ext] || 'application/octet-stream';
+};
+
 // Upload a file to Supabase Storage; returns {path, size}
 export const uploadFile = async (file, prefix = '') => {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const path = `${prefix}${Date.now()}-${safe}`;
-  const { error } = await supabase.storage.from('org-documents').upload(path, file);
+  const { error } = await supabase.storage.from('org-documents')
+    .upload(path, file, { contentType: mimeFor(file) });
   if (error) throw new Error(error.message);
   return { path, size: file.size };
 };
