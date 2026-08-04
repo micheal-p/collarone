@@ -63,6 +63,9 @@ jobs:
       - name: The demo answers every route the app calls
         run: node test/demo_route_parity.mjs
 
+      - name: Every audited action is one the audit-log constraint allows
+        run: node test/audit_actions_in_sync.mjs
+
       - name: Cross-tenant RLS probe + payroll golden (live DB)
         if: env.DATABASE_URL != ''
         run: |
