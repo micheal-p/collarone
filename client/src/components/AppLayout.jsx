@@ -394,19 +394,21 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
         </nav>
 
         <main className="content">
-          {breadcrumb.length > 0 && (
-            <nav className="breadcrumb">
-              {breadcrumb.map((b, i) => (
-                <span key={i} className="crumb">
-                  {b.to ? <Link to={b.to}>{b.label}</Link> : <span>{b.label}</span>}
-                  {i < breadcrumb.length - 1 && <ChevronRight />}
-                </span>
-              ))}
-            </nav>
-          )}
-          {title && <h1 className="page-title">{title}</h1>}
-          {commandBar && <div className="commandbar">{commandBar}</div>}
-          {children}
+          <div className="content-frame">
+            {breadcrumb.length > 0 && (
+              <nav className="breadcrumb">
+                {breadcrumb.map((b, i) => (
+                  <span key={i} className="crumb">
+                    {b.to ? <Link to={b.to}>{b.label}</Link> : <span>{b.label}</span>}
+                    {i < breadcrumb.length - 1 && <ChevronRight />}
+                  </span>
+                ))}
+              </nav>
+            )}
+            {title && <h1 className="page-title">{title}</h1>}
+            {commandBar && <div className="commandbar">{commandBar}</div>}
+            {children}
+          </div>
         </main>
       </div>
     </div>

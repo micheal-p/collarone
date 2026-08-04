@@ -254,7 +254,7 @@ export default function HRApp({ access }) {
   ];
 
   return (
-    <div className="lv">
+    <div className="lv hr-app">
       <style>{`
         .hr-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px 20px; font-size:13px; }
         .hr-detail-grid > div > span.muted { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.03em; margin-bottom:2px; }

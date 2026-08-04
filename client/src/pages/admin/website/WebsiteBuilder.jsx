@@ -926,6 +926,7 @@ export default function AdminWebsite() {
 
   return (
     <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Website' }]} title="Your website">
+      <div className="site-builder">
       {!site && <SetupWizard themes={themes} defaultName={org?.name} onSetup={doSetup} onExisting={doExisting} flash={flash} />}
 
       {site && (
@@ -964,6 +965,7 @@ export default function AdminWebsite() {
         </>
       )}
       <Toast toast={toast} />
+      </div>
     </AppLayout>
   );
 }

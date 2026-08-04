@@ -13,12 +13,13 @@
   --positive: #0E7A3D;
 
   /* Surfaces: warm paper canvas, white cards */
-  --bg: #F5F2EC;
+  --bg: #ECE9E2;
   --surface: #ffffff;
-  --surface-2: #F3F1EB;
-  --rail: #F5F2EC;         /* left nav rail sits on the canvas */
-  --line: rgba(10, 14, 26, 0.09);
-  --line-strong: rgba(10, 14, 26, 0.18);
+  --surface-2: #F6F3ED;
+  --surface-3: #ECE8DF;
+  --rail: #111520;
+  --line: rgba(10, 14, 26, 0.10);
+  --line-strong: rgba(10, 14, 26, 0.20);
 
   /* Ink-derived text scale */
   --text: #0A0E1A;
@@ -27,12 +28,12 @@
   --danger: #B42318;
   --warn: #8a6d00;
 
-  --radius: 10px;
-  --radius-lg: 14px;
+  --radius: 12px;
+  --radius-lg: 18px;
   /* Ink-tinted shadows (never pure black) */
-  --shadow-2: 0 1px 2px rgba(10,14,26,0.05), 0 1px 1px rgba(10,14,26,0.03);
-  --shadow-8: 0 8px 24px rgba(10,14,26,0.08), 0 2px 6px rgba(10,14,26,0.04);
-  --shadow-16: 0 24px 64px rgba(10,14,26,0.13), 0 4px 12px rgba(10,14,26,0.06);
+  --shadow-2: 0 1px 2px rgba(10,14,26,0.04), 0 6px 20px rgba(10,14,26,0.04);
+  --shadow-8: 0 14px 38px rgba(10,14,26,0.09), 0 2px 8px rgba(10,14,26,0.04);
+  --shadow-16: 0 30px 80px rgba(10,14,26,0.16), 0 6px 18px rgba(10,14,26,0.07);
 
   --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
 }

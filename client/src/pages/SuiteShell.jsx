@@ -61,11 +61,12 @@ export default function SuiteShell() {
 
       {!loading && suite && (
         <>
-          <header className="suite-head">
+          <header className="suite-head" style={{ '--suite-accent': meta.tint || 'var(--brand)' }}>
             <span className="suite-head-icon" style={{ background: meta.tint || 'var(--brand)' }}>
               <SuiteIcon name={meta.icon || 'grid'} size={30} color="#fff" />
             </span>
-            <div>
+            <div className="suite-head-copy">
+              <span className="suite-kicker">Workspace suite</span>
               <h1 style={{ margin: 0 }}>{suite.name}</h1>
               <p>{suite.desc}</p>
             </div>
@@ -75,6 +76,7 @@ export default function SuiteShell() {
             </span>
           </header>
 
+          <div className="suite-stage" data-suite={key}>
           {(() => {
             const App = SUITE_APPS[key];
             if (App) return (
@@ -93,6 +95,7 @@ export default function SuiteShell() {
               </section>
             );
           })()}
+          </div>
         </>
       )}
     </AppLayout>

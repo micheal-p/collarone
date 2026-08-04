@@ -1001,7 +1001,7 @@ export default function TradeDocsApp({ access }) {
   const [statementParty, setStatementParty] = useState(null);
 
   return (
-    <div className="lv">
+    <div className="lv trade-docs-app">
       {tour && <ProductTour steps={TOUR_STEPS} userId={user?.id} tourId="tradedocs_v1" onClose={() => setTour(false)} />}
 
       {/* A real tablist: these look like tabs and behave like tabs, so a screen

@@ -301,13 +301,20 @@ export default function Launcher() {
         animate={reduce ? {} : { opacity: 1, y: 0 }}
         transition={{ duration: 0.55, ease: [0.2, 0.7, 0.3, 1] }}
       >
-        <p className="hk">{greeting()},</p>
-        <h1>{user?.name?.split(' ')[0] || 'there'}</h1>
-        <p>
-          {isAdmin
-            ? 'You have full access as System Administrator. Pick a suite or open the Admin Center.'
-            : `You have access to ${grantedCount} suite${grantedCount === 1 ? '' : 's'}. Pick one to get started.`}
-        </p>
+        <div className="home-hero-copy">
+          <p className="hk">{greeting()},</p>
+          <h1>{user?.name?.split(' ')[0] || 'there'}</h1>
+          <p>
+            {isAdmin
+              ? 'Your entire operation is ready. Choose a workspace and move the day forward.'
+              : `Your ${grantedCount} workspace suite${grantedCount === 1 ? ' is' : 's are'} ready. Pick up where your team left off.`}
+          </p>
+        </div>
+        <div className="home-signal" aria-hidden="true">
+          <span className="home-signal-kicker">Live workspace</span>
+          <strong>{grantedCount}</strong>
+          <span>active suite{grantedCount === 1 ? '' : 's'}</span>
+        </div>
       </motion.div>
 
       {err && <div className="error-text">{err}</div>}

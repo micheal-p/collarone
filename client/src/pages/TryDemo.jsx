@@ -236,11 +236,12 @@ export default function TryDemo() {
 
       {/* suite header, mirroring the real shell */}
       <div style={{ maxWidth: 1160, margin: '0 auto', padding: '22px 20px 60px', width: '100%', flex: 1 }}>
-        <header className="suite-head">
+        <header className="suite-head" style={{ '--suite-accent': meta.tint || '#FF5B1F' }}>
           <span className="suite-head-icon" style={{ background: meta.tint || '#FF5B1F' }}>
             <SuiteIcon name={meta.icon || 'grid'} size={30} color="#fff" />
           </span>
-          <div>
+          <div className="suite-head-copy">
+            <span className="suite-kicker">Live product demo</span>
             <h1 style={{ margin: 0 }}>{suite.name}</h1>
             <p>{suite.desc}</p>
           </div>
