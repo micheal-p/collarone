@@ -1747,6 +1747,42 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { records: data };
   }
+  // Clock-in rules: office pin, geofence radius, work times, grace.
+  //
+  // attendance_settings and the geofence check inside attendance_clock_in()
+  // have existed since attendance_shifts.sql, but nothing in the app ever read
+  // or wrote this table, so the office was never set, the row never existed,
+  // and the fence was inert. RLS already allows the write for an attendance
+  // manager, so these go straight to the table.
+  if (head === 'GET /attendance' && seg[1] === 'settings' && seg.length === 2) {
+    const { data, error } = await supabase.from('attendance_settings').select('*').maybeSingle();
+    if (error) fail(400, error.message);
+    return { settings: data || null };
+  }
+  if (head === 'POST /attendance' && seg[1] === 'settings' && seg.length === 2) {
+    const p = await myProfile();
+    const row = {
+      org_id: p.org_id,
+      office_lat: body.officeLat === '' || body.officeLat == null ? null : Number(body.officeLat),
+      office_lng: body.officeLng === '' || body.officeLng == null ? null : Number(body.officeLng),
+      // Only office_lat/office_lng are nullable on this table. The rest are NOT
+      // NULL with defaults, so "no fence" is radius 0, not null, and blanking a
+      // time field has to fall back to the default rather than send null.
+      geofence_radius_m: body.radiusM === '' || body.radiusM == null ? 0 : Math.round(Number(body.radiusM)),
+      work_start: body.workStart || '08:00',
+      work_close: body.workClose || '17:00',
+      working_days: Array.isArray(body.workingDays) && body.workingDays.length
+        ? body.workingDays.map(Number)
+        : [1, 2, 3, 4, 5],
+      grace_minutes: body.graceMinutes === '' || body.graceMinutes == null ? 10 : Math.round(Number(body.graceMinutes)),
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await supabase.from('attendance_settings')
+      .upsert(row, { onConflict: 'org_id' }).select().single();
+    if (error) fail(400, error.message);
+    return { settings: data };
+  }
+
   if (head === 'POST /attendance' && seg[1] === 'clockin') {
     const { lat, lng } = body;
     const { data, error } = await supabase.rpc('attendance_clock_in', { p_lat: lat ?? null, p_lng: lng ?? null });

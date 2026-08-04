@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import * as A from './attendanceApi.js';
 import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
 import { apiGet } from '../../api/client.js';
@@ -34,26 +34,188 @@ function Kpi({ val, label }) {
 }
 const kpiGrid = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 18 };
 
-/* ---- clock in/out (unchanged behaviour) ---- */
-function ClockCard({ mine, onChange, flash }) {
+
+/* ---- clock-in rules (attendance manager only) -------------------------------
+   These columns and the geofence check have existed in the database since
+   attendance_shifts.sql. Nothing ever wrote them, so no org had a row: the
+   fence was inert and lateness had nothing to compare against. This is that
+   missing screen, not a new feature. */
+const DAYS = [['1', 'Mon'], ['2', 'Tue'], ['3', 'Wed'], ['4', 'Thu'], ['5', 'Fri'], ['6', 'Sat'], ['0', 'Sun']];
+
+function RulesPanel({ settings, onSaved, flash }) {
+  const [f, setF] = useState(() => ({
+    officeLat: settings?.office_lat ?? '',
+    officeLng: settings?.office_lng ?? '',
+    // 0 means "no fence" on this table, it is NOT NULL with a default of 0.
+    // Only offer the default radius when nothing has ever been configured.
+    radiusM: settings?.geofence_radius_m ?? A.DEFAULT_RADIUS_M,
+    workStart: (settings?.work_start || '').slice(0, 5),
+    workClose: (settings?.work_close || '').slice(0, 5),
+    workingDays: Array.isArray(settings?.working_days) ? settings.working_days.map(String) : ['1', '2', '3', '4', '5'],
+    graceMinutes: settings?.grace_minutes ?? 10,
+  }));
+  const [busy, setBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
+
+  const useHere = () => {
+    if (!navigator.geolocation) { flash('This device cannot report a location.', true); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        set('officeLat', pos.coords.latitude.toFixed(6));
+        set('officeLng', pos.coords.longitude.toFixed(6));
+        setLocating(false);
+        flash('Office location set to where you are now.');
+      },
+      () => { setLocating(false); flash('Could not read your location. Type the coordinates instead.', true); },
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  };
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if ((f.officeLat === '') !== (f.officeLng === '')) {
+      flash('An office location needs both a latitude and a longitude.', true); return;
+    }
+    setBusy(true);
+    try { onSaved(await A.saveSettings(f)); flash('Clock-in rules saved.'); }
+    catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
+  const fenced = f.officeLat !== '' && Number(f.radiusM) > 0;
+
+  return (
+    <form onSubmit={submit} style={{ maxWidth: 640 }}>
+      <fieldset style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+        <legend style={{ fontSize: 12.5, fontWeight: 700, padding: '0 6px' }}>Where staff may clock in</legend>
+        <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
+          {fenced
+            ? `Clock-in is refused further than ${f.radiusM}m from this point. Someone who taps while still outside waits, and is clocked in the moment they arrive.`
+            : 'No location set, so staff can clock in from anywhere. Set a point to restrict it.'}
+        </p>
+        <div className="form-grid">
+          <div className="field"><label>Latitude</label>
+            <input className="input" value={f.officeLat} onChange={(e) => set('officeLat', e.target.value)} placeholder="6.4281" inputMode="decimal" />
+          </div>
+          <div className="field"><label>Longitude</label>
+            <input className="input" value={f.officeLng} onChange={(e) => set('officeLng', e.target.value)} placeholder="3.4219" inputMode="decimal" />
+          </div>
+          <div className="field"><label>Radius (metres)</label>
+            <input className="input" type="number" min="25" step="25" value={f.radiusM} onChange={(e) => set('radiusM', e.target.value)} />
+          </div>
+        </div>
+        <button type="button" className="btn btn-ghost" disabled={locating} onClick={useHere}>
+          {locating ? 'Reading location…' : 'Use my current location'}
+        </button>
+        {f.officeLat !== '' && (
+          <button type="button" className="btn btn-ghost" style={{ marginLeft: 8 }}
+            onClick={() => { set('officeLat', ''); set('officeLng', ''); set('radiusM', 0); }}>
+            Clear location
+          </button>
+        )}
+      </fieldset>
+
+      <fieldset style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+        <legend style={{ fontSize: 12.5, fontWeight: 700, padding: '0 6px' }}>Working hours</legend>
+        <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
+          The company-wide schedule. Anyone with their own shift follows that instead; this is the fallback.
+        </p>
+        <div className="form-grid">
+          <div className="field"><label>Start</label>
+            <input className="input" type="time" value={f.workStart} onChange={(e) => set('workStart', e.target.value)} />
+          </div>
+          <div className="field"><label>Close</label>
+            <input className="input" type="time" value={f.workClose} onChange={(e) => set('workClose', e.target.value)} />
+          </div>
+          <div className="field"><label>Grace before late (minutes)</label>
+            <input className="input" type="number" min="0" max="120" value={f.graceMinutes} onChange={(e) => set('graceMinutes', e.target.value)} />
+          </div>
+        </div>
+        <div className="field">
+          <label>Working days</label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {DAYS.map(([n, label]) => {
+              const on = f.workingDays.includes(n);
+              return (
+                <button key={n} type="button" aria-pressed={on}
+                  className={`btn ${on ? 'btn-primary' : 'btn-ghost'}`} style={{ padding: '0 12px', height: 32 }}
+                  onClick={() => set('workingDays', on ? f.workingDays.filter((d) => d !== n) : [...f.workingDays, n])}>
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </fieldset>
+
+      <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Save clock-in rules'}</button>
+    </form>
+  );
+}
+
+/* ---- clock in/out ----------------------------------------------------------
+   Clocking in waits for the geofence rather than refusing outright. Someone
+   walking up to the gate taps once and it completes as they arrive; the time
+   recorded is the arrival, never the tap, because lateness feeds payroll. */
+function ClockCard({ mine, onChange, flash, settings }) {
   const openShift = mine.find((r) => !r.clock_out_at);
   const [busy, setBusy] = useState(false);
+  const [waiting, setWaiting] = useState(null);   // { distanceM, radiusM }
+  const pending = useRef(null);
+
+  useEffect(() => () => pending.current?.cancel(), []);
 
   const act = async (fn, msg) => {
     setBusy(true);
     try { await fn(); flash(msg); onChange(); } catch (e) { flash(e.message, true); } finally { setBusy(false); }
   };
 
+  const startClockIn = async () => {
+    setBusy(true); setWaiting(null);
+    const job = A.clockInWhenInside({
+      settings,
+      onProgress: ({ distanceM, radiusM }) => setWaiting({ distanceM, radiusM }),
+    });
+    pending.current = job;
+    try {
+      await job.promise;
+      flash('Clocked in.');
+      onChange();
+    } catch (e) {
+      flash(e.message, true);
+    } finally {
+      setBusy(false); setWaiting(null); pending.current = null;
+    }
+  };
+
+  const cancelWait = () => { pending.current?.cancel(); pending.current = null; setWaiting(null); setBusy(false); };
+
   return (
     <div className="card" style={{ maxWidth: 420, marginBottom: 20, padding: 18 }}>
       <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 10 }}>
         {openShift ? `Clocked in at ${A.fmtDt(openShift.clock_in_at)}` : 'Not clocked in'}
       </div>
-      {!openShift && (
-        <button className="btn btn-primary" disabled={busy} onClick={() => act(A.clockIn, 'Clocked in.')}>
+
+      {!openShift && !waiting && (
+        <button className="btn btn-primary" disabled={busy} onClick={startClockIn}>
           {busy ? <span className="spinner" /> : 'Clock in'}
         </button>
       )}
+
+      {!openShift && waiting && (
+        <div aria-live="polite">
+          <div style={{ fontSize: 13.5, marginBottom: 6 }}>
+            You are <strong>{waiting.distanceM}m</strong> away. Clock-in happens automatically
+            as soon as you are within {waiting.radiusM}m.
+          </div>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+            Keep this open while you walk in. The time recorded is when you arrive.
+          </div>
+          <button className="btn btn-ghost" onClick={cancelWait}>Cancel</button>
+        </div>
+      )}
+
       {openShift && (
         <button className="btn btn-danger" disabled={busy} onClick={() => act(A.clockOut, 'Clocked out.')}>
           {busy ? <span className="spinner" /> : 'Clock out'}
@@ -353,6 +515,7 @@ export default function AttendanceApp({ access }) {
   const [all, setAll] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('mine');
+  const [settings, setSettings] = useState(null);
   const [editRec, setEditRec] = useState(null);
   const { flash, toastNode } = useToast();
 
@@ -360,6 +523,10 @@ export default function AttendanceApp({ access }) {
     setLoading(true);
     try {
       const [m, a] = await Promise.all([A.getMyRecords(), isManager ? A.getAllRecords() : Promise.resolve([])]);
+      // Everyone needs the rules: the clock-in card uses the fence to wait
+      // rather than fail. Tolerated, because an org that never set them still
+      // clocks in exactly as before.
+      A.getSettings().then(setSettings).catch(() => setSettings(null));
       setMine(m); setAll(a);
     } catch (e) { flash(e.message, true); } finally { setLoading(false); }
   }, [isManager, flash]);
@@ -372,7 +539,7 @@ export default function AttendanceApp({ access }) {
   };
 
   const TABS = useMemo(() => isManager
-    ? [{ key: 'mine', label: 'My attendance' }, { key: 'today', label: 'Today' }, { key: 'timesheet', label: 'Timesheet' }, { key: 'shifts', label: 'Shifts' }]
+    ? [{ key: 'mine', label: 'My attendance' }, { key: 'today', label: 'Today' }, { key: 'timesheet', label: 'Timesheet' }, { key: 'shifts', label: 'Shifts' }, { key: 'rules', label: 'Clock-in rules' }]
     : [{ key: 'mine', label: 'My attendance' }], [isManager]);
 
   return (
@@ -383,7 +550,7 @@ export default function AttendanceApp({ access }) {
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
       {!loading && tab === 'mine' && (
         <>
-          <ClockCard mine={mine} onChange={load} flash={flash} />
+          <ClockCard mine={mine} onChange={load} flash={flash} settings={settings} />
           <MyWeekSummary mine={mine} />
           <MyShiftsTable records={mine} onEdit={isManager ? setEditRec : null} />
         </>
@@ -391,6 +558,9 @@ export default function AttendanceApp({ access }) {
       {!loading && tab === 'today' && isManager && <TodayView all={all} onEdit={setEditRec} />}
       {!loading && tab === 'timesheet' && isManager && <TimesheetView all={all} onEdit={setEditRec} />}
       {tab === 'shifts' && isManager && <ShiftsTab flash={flash} />}
+      {tab === 'rules' && isManager && (
+        <RulesPanel settings={settings} onSaved={setSettings} flash={flash} />
+      )}
       {editRec && <EditShiftModal rec={editRec} onClose={() => setEditRec(null)} onSaved={applyUpdate} flash={flash} />}
       {toastNode}
     </div>
