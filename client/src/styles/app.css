@@ -1,4 +1,9 @@
 /* ============ Collarone shell: ink topbar over a paper canvas ============ */
+/* The mobile drawer, its scrim and the search panel all hang off the topbar's
+   height. They were hard-coded to 52px, so raising the bar to 64px in the
+   workspace refresh left all three 12px out of place on a phone. One variable,
+   set once, so the next change to the bar cannot silently break them. */
+:root { --topbar-h: 64px; }
 /* 100dvh, not 100vh: on a phone 100vh measures the viewport as if the browser's
    URL bar were hidden, so a full-height shell always runs taller than what you
    can actually see — the bottom of every page sits under the chrome and the
@@ -9,7 +14,7 @@
 /* ---- Suite bar: dark ink, same language as the marketing hero. The paper
    logo mark is drawn for this background. ---- */
 .suitebar {
-  height: 52px; flex: none; display: flex; align-items: center; gap: 8px;
+  height: var(--topbar-h); flex: none; display: flex; align-items: center; gap: 8px;
   background: var(--ink); border-bottom: 1px solid rgba(244,241,234,0.08); padding: 0 10px; z-index: 50;
 }
 .sb-left { display: flex; align-items: center; gap: 2px; }
@@ -283,12 +288,12 @@
   .sb-search { display: none; }
   /* safe-area bottom for iOS home indicator */
   .content { padding: 18px 16px max(56px, calc(env(safe-area-inset-bottom) + 40px)); }
-  .rail { position: fixed; top: 52px; bottom: 0; left: 0; z-index: 45; transform: translateX(-100%); box-shadow: var(--shadow-16); width: 264px; background: var(--bg); }
+  .rail { position: fixed; top: var(--topbar-h); bottom: 0; left: 0; z-index: 45; transform: translateX(-100%); box-shadow: var(--shadow-16); width: 264px; background: var(--bg); }
   .rail.rail-drawer { transform: none; }
   .rail-collapsed { width: 264px; }
   .rail-collapsed .rail-label, .rail-collapsed .rail-group, .rail-collapsed .rail-divider { display: revert; }
   .rail-collapsed .rail-item { justify-content: flex-start; padding: 0 12px; }
-  .rail-scrim { display: block; position: fixed; inset: 52px 0 0 0; background: rgba(10,14,26,.35); z-index: 44; }
+  .rail-scrim { display: block; position: fixed; inset: var(--topbar-h) 0 0 0; background: rgba(10,14,26,.35); z-index: 44; }
   .tile-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .form-grid, .grant-grid { grid-template-columns: 1fr; }
   .page-title { font-size: 22px; margin-bottom: 12px; }
@@ -370,7 +375,7 @@
 
 /* global search results: fixed full-width on very small screens */
 @media (max-width: 460px) {
-  .sb-results { position: fixed; top: 52px; left: 0; right: 0; min-width: 0; border-radius: 0 0 14px 14px; max-height: 70vh; overflow-y: auto; }
+  .sb-results { position: fixed; top: var(--topbar-h); left: 0; right: 0; min-width: 0; border-radius: 0 0 14px 14px; max-height: 70vh; overflow-y: auto; }
 }
 
 /* ============ Leave Management suite ============ */
@@ -525,7 +530,7 @@
 /* Shell: the product now reads as one focused command centre, not a stack of
    separate admin pages. */
 .suitebar {
-  height: 64px;
+  height: var(--topbar-h);
   padding: 0 18px;
   gap: 12px;
   background:
