@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import * as A from './attendanceApi.js';
 import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
+import ProductTour, { tourSeen } from '../../components/ProductTour.jsx';
+import { useAuth } from '../../auth/AuthContext.jsx';
 import { apiGet } from '../../api/client.js';
 
 /* ---- inline icons ---- */
@@ -509,6 +511,28 @@ function EditShiftModal({ rec, onClose, onSaved, flash }) {
 }
 
 /* ---- app ---- */
+
+/* Attendance tour. Steps whose target is off screen are skipped by ProductTour,
+   so a member of staff never hears about the manager-only tabs. The clock-in
+   rules step is the point of the whole thing: everything else works out of the
+   box, and an unset office location is the one gap that looks like it works. */
+const TOUR_STEPS = [
+  { title: 'Time & Attendance',
+    body: 'Clocking in and out from a phone, with the location it happened, hours totalled for payroll. A short walkthrough; skip anytime.' },
+  { target: '[data-tour="att-tab-mine"]', title: 'Your own attendance',
+    body: 'Clock in and out here, and see your own history. Clock-in records where you were, so the record can be trusted later.' },
+  { target: '[data-tour="att-nudge"]', title: 'Set your office location first',
+    body: 'Until you do, staff can clock in from anywhere, from home, from the road, and the record will look perfectly normal. Set a point and a radius and clock-in is simply refused outside it. Someone who taps while still walking in waits, and is clocked in the moment they arrive, at the time they arrive.' },
+  { target: '[data-tour="att-tab-rules"]', title: 'Clock-in rules',
+    body: 'The office location and radius, your working hours and days, and how many minutes grace before someone counts as late. Anyone with their own shift follows that instead; this is the company-wide fallback.' },
+  { target: '[data-tour="att-tab-today"]', title: 'Today',
+    body: 'Who is in, who is late, who has not arrived, as it happens.' },
+  { target: '[data-tour="att-tab-timesheet"]', title: 'Timesheet',
+    body: 'Hours per person over a period, including overtime, which is what flows into a payroll run.' },
+  { target: '[data-tour="att-tab-shifts"]', title: 'Shifts',
+    body: 'Different start times for different people. Lateness is judged against a person\'s own shift, so a night-shift worker is not marked late at nine in the morning.' },
+];
+
 export default function AttendanceApp({ access }) {
   const isManager = access?.role === 'manager';
   const [mine, setMine] = useState([]);
@@ -516,6 +540,23 @@ export default function AttendanceApp({ access }) {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('mine');
   const [settings, setSettings] = useState(null);
+  const [tour, setTour] = useState(false);
+  const { user: me } = useAuth();
+  // A fence exists only when there is a point AND a radius. Radius 0 is the
+  // table's default and means "no fence".
+  const fenceSet = Boolean(settings?.office_lat != null && Number(settings?.geofence_radius_m) > 0);
+
+  // First visit per user, replayable via /suite/attendance?tour=1. Waits for
+  // load so the tabs and the nudge it points at are actually mounted.
+  useEffect(() => {
+    if (loading) return undefined;
+    const wantsReplay = new URLSearchParams(window.location.search).get('tour') === '1';
+    if (wantsReplay || !tourSeen(me?.id, 'attendance_v1')) {
+      const t = setTimeout(() => setTour(true), 700);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [loading]); // eslint-disable-line
   const [editRec, setEditRec] = useState(null);
   const { flash, toastNode } = useToast();
 
@@ -523,10 +564,12 @@ export default function AttendanceApp({ access }) {
     setLoading(true);
     try {
       const [m, a] = await Promise.all([A.getMyRecords(), isManager ? A.getAllRecords() : Promise.resolve([])]);
-      // Everyone needs the rules: the clock-in card uses the fence to wait
-      // rather than fail. Tolerated, because an org that never set them still
-      // clocks in exactly as before.
-      A.getSettings().then(setSettings).catch(() => setSettings(null));
+      // Awaited, not fired and forgotten. The clock-in card needs the fence to
+      // wait rather than fail, and the tour points at a nudge that only exists
+      // once settings have arrived: resolving this after `loading` clears meant
+      // the tour could open first and silently skip its most important step.
+      // Tolerated, because an org that never set these still clocks in as before.
+      setSettings(await A.getSettings().catch(() => null));
       setMine(m); setAll(a);
     } catch (e) { flash(e.message, true); } finally { setLoading(false); }
   }, [isManager, flash]);
@@ -545,8 +588,28 @@ export default function AttendanceApp({ access }) {
   return (
     <div className="lv">
       <div className="lv-tabs">
-        {TABS.map((t) => <button key={t.key} className={`lv-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>)}
+        {TABS.map((t) => (
+          <button key={t.key} data-tour={`att-tab-${t.key}`} className={`lv-tab ${tab === t.key ? 'active' : ''}`} onClick={() => setTab(t.key)}>{t.label}</button>
+        ))}
       </div>
+
+      {/* An unset office location does not fail loudly: it silently means
+          "clock in from anywhere", which looks identical to a working geofence
+          until you check where someone actually was. Managers get told. */}
+      {!loading && isManager && settings && !fenceSet && (
+        <div className="att-nudge" data-tour="att-nudge" role="status">
+          <div>
+            <strong>Staff can currently clock in from anywhere.</strong>
+            <div className="muted" style={{ fontSize: 12.5, marginTop: 2 }}>
+              Set your office location and a radius, and clock-in is refused outside it. Until then
+              attendance records where someone was, but never questions it.
+            </div>
+          </div>
+          <button className="btn btn-primary" onClick={() => setTab('rules')}>Set office location</button>
+        </div>
+      )}
+      {tour && <ProductTour steps={TOUR_STEPS} userId={me?.id} tourId="attendance_v1" onClose={() => setTour(false)} />}
+
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
       {!loading && tab === 'mine' && (
         <>
