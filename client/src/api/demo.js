@@ -1105,7 +1105,13 @@ async function demoApiInner(path, opts = {}) {
       if (method === 'DELETE' && seg[2] === 'milestones' && seg.length === 4) {
         db.projectMilestones = db.projectMilestones.filter((x) => x.id !== seg[3]); save(); return { ok: true };
       }
-      if (method === 'GET' && seg[2] === 'tasks') return { tasks: db.projectTasks.filter((t) => t.project_id === seg[1]) };
+      // seg.length matters: without it this also swallowed
+      // GET /projects/:id/tasks/:taskId/comments and returned { tasks: [...] },
+      // so getTaskComments resolved to undefined and the caller crashed on
+      // .map instead of showing the "not in the demo" message.
+      if (method === 'GET' && seg[2] === 'tasks' && seg.length === 3) {
+        return { tasks: db.projectTasks.filter((t) => t.project_id === seg[1]) };
+      }
       if (method === 'POST' && seg[2] === 'tasks') {
         if (!body.title?.trim()) fail(400, 'Task title is required.');
         const ms = db.projectMilestones.find((x) => x.id === body.milestoneId) || null;

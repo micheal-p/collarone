@@ -805,17 +805,20 @@ language sql security definer stable set search_path = public as $$
 $$;
 grant execute on function public.project_blocked_tasks(uuid) to authenticated;
 
--- Renaming a status has to obey the same uniqueness the create path enforces.
--- slug is unique per project, but only the insert computed it, so a rename
--- could quietly produce two columns with the same name.
-create or replace function public.project_statuses_slug_trg()
-returns trigger language plpgsql set search_path = public as $$
-begin
-  new.slug := public.project_status_slug(new.name);
-  return new;
-end;
-$$;
+-- Renaming a status has to obey the same uniqueness the create path enforces,
+-- but NOT by recomputing the slug.
+--
+-- The first attempt added a trigger that recomputed slug from name on update.
+-- It fired after project_statuses_set_slug, which deliberately FREEZES the slug
+-- on rename precisely so the legacy project_tasks.status text keeps resolving.
+-- Recomputing it meant renaming "In review" to "Checking" left every task
+-- carrying status='in_review' with no column of that slug, and
+-- project_tasks_sync_status then dumped those cards into the FIRST column.
+--
+-- The slug is an identity, the name is a label. Enforce the label's uniqueness
+-- directly and leave the identity alone.
 drop trigger if exists project_statuses_slug on public.project_statuses;
-create trigger project_statuses_slug
-  before insert or update of name on public.project_statuses
-  for each row execute function public.project_statuses_slug_trg();
+drop function if exists public.project_statuses_slug_trg();
+
+create unique index if not exists project_statuses_name_uniq
+  on public.project_statuses (project_id, lower(trim(name)));

@@ -2496,6 +2496,96 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
 
+  // ---- projects v2: statuses, dependencies, task comments ----
+  // These sit ABOVE the /projects/:id/tasks routes on purpose: those match on
+  // seg[2] === 'tasks' without a length check, so the deeper comment routes
+  // have to be offered first or they get swallowed.
+  if (head === 'GET /projects' && seg[2] === 'statuses' && seg.length === 3) {
+    const { data, error } = await supabase.from('project_statuses')
+      .select('*').eq('project_id', seg[1]).order('position').order('name');
+    if (error) fail(400, error.message);
+    return { statuses: data };
+  }
+  if (method === 'POST' && seg[0] === 'projects' && seg[2] === 'statuses' && seg[3] === 'reorder') {
+    const { data, error } = await supabase.rpc('reorder_project_statuses', { p_project: seg[1], p_ids: body.ids || [] });
+    if (error) fail(400, error.message);
+    return { statuses: data };
+  }
+  if (method === 'POST' && seg[0] === 'projects' && seg[2] === 'statuses' && seg.length === 3) {
+    const { name, colour, position, isDone } = body;
+    if (!name?.trim()) fail(400, 'A status needs a name.');
+    const { data, error } = await supabase.from('project_statuses').insert({
+      project_id: seg[1], org_id: await myOrgId(), name: name.trim(),
+      slug: '', // derived by the database from the name, never trusted from here
+      colour: colour || '#605e5c', position: Number(position) || 0, is_done: isDone === true,
+    }).select().single();
+    if (error) fail(400, /unique/i.test(error.message) ? 'This project already has a status with that name.' : error.message);
+    return { status: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'projects' && seg[2] === 'statuses' && seg.length === 4) {
+    const patch = {};
+    if (body.name !== undefined) patch.name = body.name;
+    if (body.colour !== undefined) patch.colour = body.colour;
+    if (body.position !== undefined) patch.position = Number(body.position) || 0;
+    if (body.isDone !== undefined) patch.is_done = body.isDone === true;
+    const { data, error } = await supabase.from('project_statuses').update(patch).eq('id', seg[3]).select().single();
+    if (error) fail(400, error.message);
+    return { status: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'projects' && seg[2] === 'statuses' && seg.length === 4) {
+    const { error } = await supabase.from('project_statuses').delete().eq('id', seg[3]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  const PDEP_SELECT = '*, task:project_tasks!task_id(id,title), prerequisite:project_tasks!depends_on_id(id,title)';
+  // Which tasks are blocked, answered by the SERVER. The client used to work
+  // this out from the tasks it had fetched, which silently treated a
+  // prerequisite the viewer cannot READ as finished, and announced a genuinely
+  // blocked task as clear. Unknown must never resolve to safe.
+  if (head === 'GET /projects' && seg[2] === 'blocked' && seg.length === 3) {
+    const { data, error } = await supabase.rpc('project_blocked_tasks', { p_project: seg[1] });
+    if (error) fail(400, error.message);
+    return { blocked: data || [] };
+  }
+
+  if (head === 'GET /projects' && seg[2] === 'deps' && seg.length === 3) {
+    const { data, error } = await supabase.from('project_task_deps')
+      .select(PDEP_SELECT).eq('project_id', seg[1]);
+    if (error) fail(400, error.message);
+    return { deps: data };
+  }
+  if (method === 'POST' && seg[0] === 'projects' && seg[2] === 'deps' && seg.length === 3) {
+    const { taskId, dependsOnId } = body;
+    if (!taskId || !dependsOnId) fail(400, 'Pick both tasks.');
+    if (taskId === dependsOnId) fail(400, 'A task cannot wait on itself.');
+    const { data: { user } } = await supabase.auth.getUser();
+    // project_id and org_id are overwritten by a trigger from the task itself,
+    // so what is sent here is only a placeholder to satisfy NOT NULL.
+    const { data, error } = await supabase.from('project_task_deps').insert({
+      project_id: seg[1], org_id: await myOrgId(), task_id: taskId, depends_on_id: dependsOnId, created_by: user.id,
+    }).select(PDEP_SELECT).single();
+    if (error) fail(400, /unique/i.test(error.message) ? 'That dependency already exists.' : error.message);
+    return { dep: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'projects' && seg[2] === 'deps' && seg.length === 4) {
+    const { error } = await supabase.from('project_task_deps').delete().eq('id', seg[3]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  if (head === 'GET /projects' && seg[2] === 'tasks' && seg[4] === 'comments') {
+    const { data, error } = await supabase.from('project_task_comments')
+      .select('*, author:profiles!author_id(id, name)').eq('task_id', seg[3]).order('created_at', { ascending: true });
+    if (error) fail(400, error.message);
+    return { comments: data };
+  }
+  if (method === 'POST' && seg[0] === 'projects' && seg[2] === 'tasks' && seg[4] === 'comments') {
+    const { data, error } = await supabase.rpc('add_project_task_comment', { p_task: seg[3], p_body: body.body });
+    if (error) fail(400, error.message);
+    return { comment: data };
+  }
+
   const PTASK_SELECT = '*, assignee:profiles!assigned_to(id,name,email), milestone:milestones(id,title)';
   if (head === 'GET /projects' && seg[2] === 'tasks') {
     const { data, error } = await supabase.from('project_tasks').select(PTASK_SELECT).eq('project_id', seg[1]).order('created_at', { ascending: false });
@@ -2509,6 +2599,8 @@ export async function supabaseApi(path, opts = {}) {
     const { data, error } = await supabase.from('project_tasks').insert({
       project_id: seg[1], title: title.trim(), description: description || '', milestone_id: milestoneId || null,
       assigned_to: assignedTo || null, priority: priority || 'medium', due_date: dueDate || null,
+      // v2: null status_id falls to the project's first column, null parent = top level
+      status_id: body.statusId || null, parent_task_id: body.parentTaskId || null,
       created_by: user.id, org_id: await myOrgId(),
     }).select(PTASK_SELECT).single();
     if (error) fail(400, error.message);
@@ -2520,6 +2612,10 @@ export async function supabaseApi(path, opts = {}) {
     if (body.assignedTo !== undefined) patch.assigned_to = body.assignedTo || null;
     if (body.milestoneId !== undefined) patch.milestone_id = body.milestoneId || null;
     if (body.dueDate !== undefined) patch.due_date = body.dueDate || null;
+    // v2: statusId is only ever set to a real column, never cleared, so a
+    // half-filled form cannot silently sweep a card back to the first column.
+    if (body.statusId) patch.status_id = body.statusId;
+    if (body.parentTaskId !== undefined) patch.parent_task_id = body.parentTaskId || null;
     const { data, error } = await supabase.from('project_tasks').update(patch).eq('id', seg[3]).select(PTASK_SELECT).single();
     if (error) fail(400, error.message);
     return { task: data };
