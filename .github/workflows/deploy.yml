@@ -60,6 +60,9 @@ jobs:
       - name: Every product-tour step points at a real element
         run: node test/tour_targets.mjs
 
+      - name: The demo answers every route the app calls
+        run: node test/demo_route_parity.mjs
+
       - name: Cross-tenant RLS probe + payroll golden (live DB)
         if: env.DATABASE_URL != ''
         run: |

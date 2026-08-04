@@ -506,6 +506,26 @@ async function demoApiInner(path, opts = {}) {
       // records stays deterministic (regenerated per call).
       if (!db.attShifts) { db.attShifts = []; save(); }
       const me = session.get();
+      // Clock-in rules. The suite tolerates this failing, but returning a real
+      // shape lets the demo show the manager nudge and the rules screen. No
+      // fence (radius 0) so demo clock-in works from wherever the viewer is.
+      if (method === 'GET' && seg[1] === 'settings') {
+        return { settings: db.attSettings || { office_lat: null, office_lng: null, geofence_radius_m: 0,
+          work_start: '08:00:00', work_close: '17:00:00', working_days: [1, 2, 3, 4, 5], grace_minutes: 10 } };
+      }
+      if (method === 'POST' && seg[1] === 'settings') {
+        db.attSettings = {
+          office_lat: body.officeLat === '' || body.officeLat == null ? null : Number(body.officeLat),
+          office_lng: body.officeLng === '' || body.officeLng == null ? null : Number(body.officeLng),
+          geofence_radius_m: body.radiusM === '' || body.radiusM == null ? 0 : Math.round(Number(body.radiusM)),
+          work_start: body.workStart || '08:00:00',
+          work_close: body.workClose || '17:00:00',
+          working_days: Array.isArray(body.workingDays) && body.workingDays.length ? body.workingDays.map(Number) : [1, 2, 3, 4, 5],
+          grace_minutes: body.graceMinutes === '' || body.graceMinutes == null ? 10 : Math.round(Number(body.graceMinutes)),
+        };
+        save();
+        return { settings: db.attSettings };
+      }
       if (method === 'POST' && seg[1] === 'clockin') {
         if (db.attShifts.some((r) => r.employee_id === me.id && !r.clock_out_at)) fail(400, 'You already have an open shift, clock out first.');
         const rec = { id: 'sh' + Math.random().toString(36).slice(2, 8), employee_id: me.id, employee: { id: me.id, name: me.name, email: me.email }, clock_in_at: new Date().toISOString(), clock_out_at: null, notes: '' };
@@ -1050,13 +1070,70 @@ async function demoApiInner(path, opts = {}) {
         db.projects = [{ id: 'pj1', name: 'Website Revamp', description: 'Relaunch the corporate site with the new brand.', status: 'active', owner_id: owner.id, owner: uref(owner), start_date: daysAgo(30).slice(0, 10), target_date: daysAgo(-45).slice(0, 10), created_at: daysAgo(30) }];
         db.projectMembers = active.slice(0, 3).map((u, i) => ({ id: 'pm' + i, project_id: 'pj1', user_id: u.id, role: i === 0 ? 'lead' : 'member', user: uref(u) }));
         db.projectMilestones = [];
+        // Custom statuses, so the demo board is the real board and not the
+        // legacy four-column fallback. status_id is what the new views read;
+        // the legacy `status` text stays for the old board.
+        db.projectStatuses = [
+          { id: 'ps1', project_id: 'pj1', name: 'To do', slug: 'todo', colour: '#6b7280', position: 0, is_done: false },
+          { id: 'ps2', project_id: 'pj1', name: 'In progress', slug: 'in_progress', colour: '#2b6cb0', position: 1, is_done: false },
+          { id: 'ps3', project_id: 'pj1', name: 'In review', slug: 'in_review', colour: '#b7791f', position: 2, is_done: false },
+          { id: 'ps4', project_id: 'pj1', name: 'Done', slug: 'done', colour: '#1a7f42', position: 3, is_done: true },
+        ];
         db.projectTasks = [
           { id: 'pt1', project_id: 'pj1', title: 'Audit current site content', description: '', status: 'done', priority: 'medium', due_date: daysAgo(20).slice(0, 10), assigned_to: a(1).id, assignee: uref(a(1)), milestone_id: null, milestone: null, created_at: daysAgo(28) },
           { id: 'pt2', project_id: 'pj1', title: 'New homepage design', description: 'Hero, services grid, testimonials.', status: 'in_review', priority: 'high', due_date: daysAgo(2).slice(0, 10), assigned_to: a(2).id, assignee: uref(a(2)), milestone_id: null, milestone: null, created_at: daysAgo(24) },
           { id: 'pt3', project_id: 'pj1', title: 'Migrate blog posts', description: '', status: 'in_progress', priority: 'medium', due_date: daysAgo(-7).slice(0, 10), assigned_to: a(3).id, assignee: uref(a(3)), milestone_id: null, milestone: null, created_at: daysAgo(18) },
           { id: 'pt4', project_id: 'pj1', title: 'Set up analytics and uptime checks', description: '', status: 'todo', priority: 'low', due_date: daysAgo(-14).slice(0, 10), assigned_to: a(0).id, assignee: uref(a(0)), milestone_id: null, milestone: null, created_at: daysAgo(10) },
         ];
+        // status_id alongside the legacy status text, and one subtask, so the
+        // tree has something to show.
+        const SLUG_TO_ID = { todo: 'ps1', in_progress: 'ps2', in_review: 'ps3', done: 'ps4' };
+        db.projectTasks = db.projectTasks.map((t) => ({ ...t, status_id: SLUG_TO_ID[t.status] || 'ps1', parent_task_id: null }));
+        db.projectTasks.push({
+          id: 'pt5', project_id: 'pj1', title: 'Rewrite the services copy', description: '', status: 'todo',
+          status_id: 'ps1', parent_task_id: 'pt2', priority: 'medium', due_date: daysAgo(-5).slice(0, 10),
+          assigned_to: a(1).id, assignee: uref(a(1)), milestone_id: null, milestone: null, created_at: daysAgo(9),
+        });
+        // "Migrate blog posts" waits for "Audit current site content".
+        db.projectDeps = [{
+          id: 'pd1', project_id: 'pj1', task_id: 'pt3', depends_on_id: 'pt1', created_by: owner.id, created_at: daysAgo(17),
+          task: { id: 'pt3', title: 'Migrate blog posts' }, prerequisite: { id: 'pt1', title: 'Audit current site content' },
+        }];
+        db.projectComments = [{
+          id: 'pc1', project_id: 'pj1', task_id: 'pt2', author_id: owner.id, author: uref(owner),
+          body: 'Client approved the hero. Testimonials still to come.', created_at: daysAgo(3),
+        }];
         save();
+      }
+      // ---- Projects v2: statuses, dependencies, blocked, comments ----------
+      // Without these the board, list, reports and task panel all throw in the
+      // demo, which is the version a prospect is handed.
+      if (method === 'GET' && seg[2] === 'statuses' && seg.length === 3) {
+        return { statuses: (db.projectStatuses || []).filter((x) => x.project_id === seg[1]) };
+      }
+      if (method === 'GET' && seg[2] === 'deps' && seg.length === 3) {
+        return { deps: (db.projectDeps || []).filter((x) => x.project_id === seg[1]) };
+      }
+      if (method === 'GET' && seg[2] === 'blocked' && seg.length === 3) {
+        // Same rule as the server: a prerequisite not in a done status blocks.
+        const statuses = db.projectStatuses || [];
+        const doneIds = new Set(statuses.filter((x) => x.is_done).map((x) => x.id));
+        const byId = Object.fromEntries((db.projectTasks || []).map((t) => [t.id, t]));
+        const counts = {};
+        for (const d of (db.projectDeps || []).filter((x) => x.project_id === seg[1])) {
+          const pre = byId[d.depends_on_id];
+          if (!pre || !doneIds.has(pre.status_id)) counts[d.task_id] = (counts[d.task_id] || 0) + 1;
+        }
+        return { blocked: Object.entries(counts).map(([task_id, waiting_on]) => ({ task_id, waiting_on })) };
+      }
+      if (method === 'GET' && seg[2] === 'tasks' && seg[4] === 'comments') {
+        return { comments: (db.projectComments || []).filter((x) => x.task_id === seg[3]) };
+      }
+      if (method === 'POST' && seg[2] === 'tasks' && seg[4] === 'comments') {
+        if (!body.body?.trim()) fail(400, 'Say something first.');
+        const c = { id: rid('pc'), project_id: seg[1], task_id: seg[3], author_id: me.id, author: meRef, body: body.body.trim(), created_at: now() };
+        db.projectComments = [...(db.projectComments || []), c]; save();
+        return { comment: c };
       }
       if (route === 'GET /projects') return { projects: db.projects };
       if (route === 'POST /projects') {
