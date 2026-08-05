@@ -3,7 +3,11 @@ name: Deploy to VPS
 on:
   push:
     branches: [main]
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      attempt:
+        description: 'Auto-reroll attempt counter (leave as 1 for manual runs)'
+        default: '1'
 
 concurrency:
   group: production-deploy
@@ -100,17 +104,34 @@ jobs:
           printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      # Single attempt on purpose: when the VPS refuses THIS runner's IP, retrying
+      # from the same runner (same IP) can't succeed and only risks deepening the
+      # fail2ban timer. Fail fast; the reroll job below re-dispatches on a FRESH
+      # runner (fresh IP), which is what actually gets through.
       - name: Deploy
+        run: ./deploy/deploy.sh
+
+  # Auto-reroll. The deploy fails when the VPS refuses THIS run's runner IP
+  # (intermittent fail2ban / firewall on port 22). A *new* run gets a *new*
+  # runner IP, so on failure we re-dispatch ourselves with attempt+1 until it
+  # lands or we hit the cap. GITHUB_TOKEN is permitted to trigger
+  # workflow_dispatch — the single exception to Actions' recursion prevention —
+  # so this needs no personal token. Expect a short chain of red runs ending in
+  # a green one, with zero manual clicks.
+  reroll:
+    needs: [deploy]
+    if: ${{ always() && needs.deploy.result == 'failure' && fromJSON(github.event.inputs.attempt || '1') < 6 }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Re-dispatch on a fresh runner
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          THIS_ATTEMPT: ${{ github.event.inputs.attempt || '1' }}
         run: |
-          for attempt in 1 2 3; do
-            echo "::group::Deploy attempt $attempt/3"
-            if ./deploy/deploy.sh; then
-              echo "::endgroup::"
-              exit 0
-            fi
-            echo "::endgroup::"
-            echo "Attempt $attempt failed"
-            [ "$attempt" -lt 3 ] && sleep 15
-          done
-          echo "All 3 deploy attempts failed"
-          exit 1
+          next=$(( THIS_ATTEMPT + 1 ))
+          echo "Deploy attempt $THIS_ATTEMPT failed (likely a runner-IP ban)."
+          echo "Re-rolling as attempt $next/6 on a fresh runner."
+          sleep 45   # brief cooldown before the next run picks up a new IP
+          gh workflow run "Deploy to VPS" --ref main -f attempt="$next"
