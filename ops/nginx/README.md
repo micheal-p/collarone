@@ -1,8 +1,11 @@
-# OPEN TASK: no-cache on index.html (needs someone with SSH)
+# RESOLVED: no-cache on index.html
 
-**Status: not done.** Everything below is verified, so this should be a
-five-minute job for whoever has shell access to the VPS. Please don't
-re-derive it — four deploys went into narrowing it down.
+**Status: done — verified in production 2026-08-06.**
+`curl -sI https://collarone.app/` returns `Cache-Control: no-cache, must-revalidate`
+and hashed assets still return `public, immutable`. The health endpoint reports
+`"nginx":"already-wired:...effective=yes"`, so `deploy.sh` now detects the config
+handles it and no longer touches nginx. Everything below is kept as the history
+of how it was diagnosed.
 
 ## The problem
 

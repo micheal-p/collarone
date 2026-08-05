@@ -130,6 +130,33 @@ if nginx -T 2>/dev/null | grep -q 'collarone-cache.conf'; then
 else
   NGINX_STATUS="\${NGINX_STATUS} effective=no"
 fi
+
+# ---- tenant subdomains: server_name must answer for *.collarone.app -------
+# Published tenant sites live at <slug>.collarone.app (client/src/lib/
+# subdomain.js renders PublicSite for the whole host). DNS and TLS for the
+# wildcard are handled at the edge (Cloudflare proxied wildcard record); this
+# makes nginx route those hosts to the same site instead of whatever block
+# happens to be the default server. Same guard pattern as the cache header:
+# idempotent, backup to /tmp, restore if nginx -t objects, never fail the
+# deploy. Status lands in the same /api/health nginx field as wildcard=...
+WILDCARD_STATUS="conf-not-found"
+if [ -n "\$CONF" ]; then
+  if grep -q '[*]\.collarone\.app' "\$CONF"; then
+    WILDCARD_STATUS="already-wired"
+  else
+    WBACKUP="/tmp/collarone-nginx-wildcard-backup.\$(date +%s)"
+    cp "\$CONF" "\$WBACKUP"
+    sed -i 's/^\([[:space:]]*server_name[^;]*collarone\.app[^;]*\);/\1 *.collarone.app;/' "\$CONF"
+    if nginx -t 2>/dev/null; then
+      WILDCARD_STATUS="wired"
+    else
+      WHY=\$(nginx -t 2>&1 | grep -iE 'emerg|error' | head -1 | cut -c1-160)
+      cp "\$WBACKUP" "\$CONF"
+      WILDCARD_STATUS="nginx-t-failed :: \$WHY"
+    fi
+  fi
+fi
+NGINX_STATUS="\${NGINX_STATUS} wildcard=\${WILDCARD_STATUS}"
 # Readable over /api/health, because the deploy log needs GitHub auth to read
 # and this is the one thing that has silently done nothing twice.
 # APP_DIR unescaped on purpose: it is a LOCAL variable expanded before the
