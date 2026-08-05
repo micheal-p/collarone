@@ -75,6 +75,9 @@ jobs:
       - name: Turnstile is graceful when off, enforced when on
         run: node test/turnstile_graceful.mjs
 
+      - name: User-supplied URLs are sanitised before becoming links
+        run: node test/safe_url.mjs
+
       - name: Cross-tenant RLS probe + payroll golden + support read-only (live DB)
         if: env.DATABASE_URL != ''
         run: |

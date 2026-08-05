@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import * as C from './careersApi.js';
 import { CareersChrome, CAREERS_CSS } from './CareersIndex.jsx';
 import Turnstile, { TURNSTILE_ON } from '../../components/Turnstile.jsx';
+import { safeExternalUrl, EXTERNAL_LINK_REL } from '../../lib/safeUrl.js';
 
 export default function CareersApply() {
   const { orgSlug, id } = useParams();
@@ -66,10 +67,8 @@ export default function CareersApply() {
                 </div>
                 <p>Hiring through Collarone, your application goes straight to {posting.org_name}'s recruiting pipeline and is visible only to their team. No account needed.</p>
                 <div className="careers-company-links">
-                  {org?.website && (
-                    org.website.startsWith('/')
-                      ? <Link to={org.website}>Visit their website →</Link>
-                      : <a href={org.website} target="_blank" rel="noreferrer">Visit their website →</a>
+                  {safeExternalUrl(org?.website) && (
+                    <a href={safeExternalUrl(org.website)} target="_blank" rel={EXTERNAL_LINK_REL}>Visit their website →</a>
                   )}
                   <Link to={`/careers/${orgSlug}`}>All roles at {posting.org_name} →</Link>
                   <Link to="/jobs">Jobs from other companies →</Link>

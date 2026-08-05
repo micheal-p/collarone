@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../../auth/AuthContext.jsx';
 import { applyOrgTheme } from '../../../lib/theme.js';
 import AppLayout from '../../../components/AppLayout.jsx';
+import { safeExternalUrl, EXTERNAL_LINK_REL } from '../../../lib/safeUrl.js';
 import ThemeMockup from '../../../components/ThemeMockup.jsx';
 import ThemePreviewModal from '../../../components/ThemePreview.jsx';
 import { waDigits } from '../../../lib/whatsapp.js';
@@ -910,7 +911,7 @@ export default function AdminWebsite() {
       <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Website' }]} title="Your website">
         <div style={{ maxWidth: 620 }}>
           <h2 style={{ fontSize: 18, margin: '0 0 10px' }}>Your website is connected</h2>
-          <p style={{ fontSize: 14, marginBottom: 4 }}>Your site: <a href={org.externalWebsiteUrl} target="_blank" rel="noreferrer">{org.externalWebsiteUrl}</a></p>
+          <p style={{ fontSize: 14, marginBottom: 4 }}>Your site: {safeExternalUrl(org.externalWebsiteUrl) ? <a href={safeExternalUrl(org.externalWebsiteUrl)} target="_blank" rel={EXTERNAL_LINK_REL}>{org.externalWebsiteUrl}</a> : org.externalWebsiteUrl}</p>
           <p className="muted" style={{ fontSize: 13, marginBottom: 20, lineHeight: 1.6 }}>
             Your website stays yours, hosted wherever it is today, Collarone doesn't touch it.
             The two connectors below are how it works with your workspace: jobs you post here appear on

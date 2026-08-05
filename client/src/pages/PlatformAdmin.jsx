@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { apiGet, apiPost, apiPatch, getAccessToken } from '../api/client.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { waLink } from '../lib/whatsapp.js';
+import { safeExternalUrl, EXTERNAL_LINK_REL } from '../lib/safeUrl.js';
 import { FOUNDING_ORG_ID } from '../config/org.js';
 import PlatformShell from '../components/PlatformShell.jsx';
 import { SUITES } from '../config/suites.js';
@@ -637,8 +638,8 @@ function OrgSiteCell({ org, site, themes }) {
       </span>
     );
   }
-  if (org.external_website_url) {
-    return <a href={org.external_website_url} target="_blank" rel="noreferrer" title={org.external_website_url} style={{ color: 'var(--blue)', textDecoration: 'none', fontSize: 12.5 }}>External ↗</a>;
+  if (safeExternalUrl(org.external_website_url)) {
+    return <a href={safeExternalUrl(org.external_website_url)} target="_blank" rel={EXTERNAL_LINK_REL} title={org.external_website_url} style={{ color: 'var(--blue)', textDecoration: 'none', fontSize: 12.5 }}>External ↗</a>;
   }
   return <span className="pc-faint" style={{ fontSize: 12.5 }}>—</span>;
 }
@@ -689,7 +690,7 @@ function JobPostersPanel({ flash }) {
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600 }}>{p.name || '—'} <span className="pc-dim" style={{ fontWeight: 400 }}>· {p.role || 'role n/a'}{p.company ? ` @ ${p.company}` : ''}</span></div>
                   <div className="pc-dim" style={{ fontSize: 13 }}>{[p.email, p.phone].filter(Boolean).join(' · ')}</div>
-                  {p.website && <div style={{ fontSize: 13 }}><a href={/^https?:/.test(p.website) ? p.website : `https://${p.website}`} target="_blank" rel="noreferrer">{p.website}</a></div>}
+                  {safeExternalUrl(p.website) && <div style={{ fontSize: 13 }}><a href={safeExternalUrl(p.website)} target="_blank" rel={EXTERNAL_LINK_REL}>{p.website}</a></div>}
                   {p.about && <div className="pc-dim" style={{ fontSize: 13, marginTop: 4, maxWidth: 560 }}>{p.about}</div>}
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>

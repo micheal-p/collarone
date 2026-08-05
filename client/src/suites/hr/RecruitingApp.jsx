@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as L from './lifecycleApi.js';
+import { safeExternalUrl, EXTERNAL_LINK_REL } from '../../lib/safeUrl.js';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { useToast, useConfirm, Modal, EmptyState, SearchSelect } from '../../components/ui.jsx';
 
@@ -515,8 +516,8 @@ function ApplicationDetail({ app, reqTitle, staff, myId, isHrManager, onUpdated,
       </div>
       <div className="lc-app-detail">
             {app.candidate.notes && <p className="muted" style={{ fontSize:13, margin:'10px 0' }}>{app.candidate.notes}</p>}
-            {app.candidate.portfolio_url && (
-              <p style={{ fontSize:13, margin:'10px 0' }}><a href={app.candidate.portfolio_url} target="_blank" rel="noreferrer">{app.candidate.portfolio_url}</a></p>
+            {safeExternalUrl(app.candidate.portfolio_url) && (
+              <p style={{ fontSize:13, margin:'10px 0' }}><a href={safeExternalUrl(app.candidate.portfolio_url)} target="_blank" rel={EXTERNAL_LINK_REL}>{app.candidate.portfolio_url}</a></p>
             )}
             {(app.years_experience != null || app.expected_salary != null) && (
               <p className="muted" style={{ fontSize:13, margin:'10px 0' }}>
