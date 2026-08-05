@@ -65,6 +65,11 @@ systemctl restart collarone-api
 # the wiring is what makes it take effect — and both steps are guarded by
 # nginx -t with a restore, because a deploy must never be able to take the
 # site down over a cache header.
+# The cache-header wiring is best-effort: the code is already synced, built and
+# the API restarted above. Turn OFF errexit for the whole block so no nginx
+# command (nginx -t currently fails on this box with a /run/nginx.pid permission
+# error, unrelated to config) can abort the deploy and throw away a good build.
+set +e
 mkdir -p /etc/nginx/snippets
 cat > /etc/nginx/snippets/collarone-cache.conf <<'NGINX'
 # managed by deploy/deploy.sh — edit there, not here
@@ -85,7 +90,7 @@ NGINX
 # harmless (a location that never matches), whereas guessing "the first block"
 # would silently wire it into the redirect and do nothing at all.
 # Ask nginx which file actually declares the site, instead of guessing from
-# filenames. `nginx -T` dumps the effective config with a "# configuration file
+# filenames. 'nginx -T' dumps the effective config with a "# configuration file
 # <path>:" header before each one, so the last such header before the
 # server_name line is the file that really serves collarone.app. Guessing gave
 # nginx.conf, which passed nginx -t and changed nothing observable.
@@ -134,21 +139,20 @@ echo "nginx cache header: \$NGINX_STATUS"
 #
 # CRITICAL: none of this may fail the deploy. The code is already synced, built
 # and the API restarted by the time we get here — the cache header is a nicety,
-# not the deploy. Every branch is guarded with `|| true` so a failing nginx -t
-# can never abort the script under `set -e` and throw away a good build. This
-# is exactly what was happening: `nginx -t` fails with
+# not the deploy. Every branch is guarded with '|| true' so a failing nginx -t
+# can never abort the script under 'set -e' and throw away a good build. This
+# is exactly what was happening: 'nginx -t' fails with
 #   open() "/run/nginx.pid" failed (13: Permission denied)
 # (the CONFIG SYNTAX is fine — it is a privilege/pid-file issue on the box, not
-# our snippet), and the bare `nginx -t && systemctl reload` below tripped set -e
+# our snippet), and the bare 'nginx -t && systemctl reload' below tripped set -e
 # and failed all three attempts. Until the pid-file permission is sorted on the
 # server, the cache header simply won't wire, but the app still ships.
 if nginx -t 2>/dev/null; then
-  systemctl reload nginx || true
+  systemctl reload nginx 2>/dev/null
 else
-  rm -f /etc/nginx/snippets/collarone-cache.conf
-  { nginx -t 2>/dev/null && systemctl reload nginx; } \
-    || echo "WARNING: nginx not reloaded (nginx -t failed — see NGINX_STATUS; likely /run/nginx.pid perms, not the snippet). The app was still deployed." >&2
+  echo "nginx not reloaded (nginx -t failed — likely /run/nginx.pid perms, not the snippet). App still deployed." >&2
 fi
+set -e   # errexit back on for the rest of the script
 
 echo "Deployed \$(git -C "${APP_DIR}" rev-parse --short HEAD 2>/dev/null || echo 'n/a') at \$(date -u +%FT%TZ)"
 EOF
