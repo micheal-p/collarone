@@ -92,10 +92,17 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
     return () => { alive = false; clearInterval(t); window.removeEventListener('collarone:chat-read', load); };
   }, []);
 
-  const exitGuestMode = () => {
+  // Exiting no longer logs you out — in the new support model you were never a
+  // tenant account, just your own identity carrying a read-only claim. Consume
+  // the grant so a token refresh can't re-stamp it, drop the claim by
+  // refreshing now, and reboot back to the platform admin as yourself. (The
+  // 30-min grant expiry is the backstop if the network call fails.)
+  const exitGuestMode = async () => {
     localStorage.removeItem(GUEST_KEY);
     sessionStorage.removeItem(GUEST_KEY);
-    logout();
+    try { await apiPost('/platform/end-guest', {}); } catch { /* expiry is the backstop */ }
+    try { await supabase.auth.refreshSession(); } catch { /* claim drops on next refresh */ }
+    window.location.href = '/platform-admin';
   };
 
   // Hard expiry: a guest session self-terminates after GUEST_TTL_MS even if

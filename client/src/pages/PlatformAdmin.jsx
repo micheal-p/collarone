@@ -818,22 +818,25 @@ export default function PlatformAdmin() {
     } catch (e) { flash(e.message, true); } finally { setTestingOrg(null); }
   };
 
-  // Real login as the org's own admin, for actually clicking through and
-  // unit-testing a suite — audited, and the landed session shows a
-  // persistent "guest mode" banner the whole time (see AppLayout.jsx).
-  // The token is redeemed right here with verifyOtp (no redirect link — see
-  // admin.js), which swaps this browser's session to the org's admin; the
-  // full-page navigation reboots the app under that new identity.
+  // Enter a tenant workspace to click through it — WITHOUT impersonating anyone.
+  // We stay signed in as ourselves; the server records a short-lived, reason-
+  // stamped support_grant, and refreshing the session makes the access-token
+  // hook add a read-only claim (mode=support_read, act_tenant=<org>) to our own
+  // token. my_org_id() then scopes reads to that tenant while the
+  // block_support_writes trigger refuses every write — so nothing on the
+  // tenant's side ever sees a real member act. The full-page nav reboots into
+  // the tenant workspace; AppLayout shows the persistent guest banner.
   const guestIntoOrg = async (org) => {
+    const reason = window.prompt(`Reason for entering ${org.name}'s workspace (recorded in the audit log):`);
+    if (reason === null) return;                          // cancelled the prompt
+    if (!reason.trim()) { flash('A reason is required to enter a workspace.', true); return; }
     setGuestingOrg(org.id);
     try {
-      const d = await apiPost('/platform/guest-mode', { orgId: org.id });
-      const { error } = await supabase.auth.verifyOtp({ type: 'magiclink', token_hash: d.tokenHash });
+      const d = await apiPost('/platform/guest-mode', { orgId: org.id, reason: reason.trim() });
+      const { error } = await supabase.auth.refreshSession();   // re-mint our token WITH the support claim
       if (error) throw new Error(error.message);
-      // localStorage, NOT sessionStorage: the auth session itself lives in
-      // localStorage, so the guest marker must survive a closed tab too —
-      // otherwise you reopen the browser silently logged into a customer's
-      // org with no banner. AppLayout enforces a hard expiry on this marker.
+      // localStorage (not sessionStorage): the marker must survive a closed tab,
+      // or you could reopen mid-session with no banner. AppLayout hard-expires it.
       localStorage.setItem(GUEST_KEY, JSON.stringify({ orgId: org.id, orgName: d.orgName, startedAt: Date.now() }));
       window.location.href = '/workspace';
     } catch (e) { flash(e.message, true); setGuestingOrg(null); }

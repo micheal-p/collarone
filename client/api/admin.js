@@ -350,18 +350,31 @@ export default async function handler(req, res) {
     if (action === 'guest-mode') {
       await requirePlatformAdmin();
 
-      const { orgId } = body;
+      const { orgId, reason } = body;
       if (!orgId) return json(res, 400, { message: 'orgId is required.' });
+      if (!reason || !String(reason).trim()) return json(res, 400, { message: 'A reason is required to enter a tenant workspace.' });
       const { data: org } = await admin.from('organizations').select('name, slug').eq('id', orgId).maybeSingle();
-      const { data: target } = await admin.from('profiles').select('id, email, name')
-        .eq('org_id', orgId).eq('role', 'super_admin').limit(1).maybeSingle();
-      if (!target) return json(res, 404, { message: 'This organization has no admin account to guest into.' });
+      if (!org) return json(res, 404, { message: 'Organization not found.' });
 
-      const { data: link, error: linkErr } = await admin.auth.admin.generateLink({ type: 'magiclink', email: target.email });
-      if (linkErr) return json(res, 400, { message: linkErr.message });
+      // Never mint a tenant session. The support session keeps the admin's OWN
+      // identity and carries a short-lived, read-only claim (see
+      // custom_access_token_hook + my_org_id + the block_support_writes trigger).
+      // Retire any still-open grant first so exactly one is ever live.
+      await admin.from('support_grants').update({ consumed_at: new Date().toISOString() })
+        .eq('admin_id', user.id).is('consumed_at', null);
+      const { error: grantErr } = await admin.from('support_grants')
+        .insert({ admin_id: user.id, tenant_id: orgId, reason: String(reason).trim() });
+      if (grantErr) return json(res, 400, { message: grantErr.message });
 
-      await logAudit('guest_mode', orgId, { targetProfileId: target.id, targetEmail: target.email });
-      return json(res, 200, { tokenHash: link.properties.hashed_token, name: target.name, email: target.email, orgName: org?.name || 'this organization' });
+      await logAudit('guest_mode', orgId, { reason: String(reason).trim() });
+      return json(res, 200, { ok: true, orgId, orgName: org.name || 'this organization' });
+    }
+
+    if (action === 'end-guest') {
+      await requirePlatformAdmin();
+      await admin.from('support_grants').update({ consumed_at: new Date().toISOString() })
+        .eq('admin_id', user.id).is('consumed_at', null);
+      return json(res, 200, { ok: true });
     }
 
     // Per-merchant Paystack gateway — the merchant's OWN keys, so card

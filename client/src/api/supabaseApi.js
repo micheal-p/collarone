@@ -82,6 +82,21 @@ async function amIPlatformAdmin() {
   return Boolean(data && data.length);
 }
 
+// During a support (guest) session the platform admin keeps their OWN identity;
+// the tenant they're scoped into lives ONLY in the signed JWT as act_tenant
+// (mode=support_read), put there by custom_access_token_hook. Read it so the
+// workspace loads that tenant's branding/suites — the data itself is already
+// scoped by my_org_id() in RLS. Returns null for a normal session.
+async function supportActTenant() {
+  const { data: { session } } = await supabase.auth.getSession();
+  const tok = session?.access_token;
+  if (!tok) return null;
+  try {
+    const p = JSON.parse(atob(tok.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return p.mode === 'support_read' ? (p.act_tenant || null) : null;
+  } catch { return null; }
+}
+
 // HR-suite tables carry their own org_id (not derivable server-side on
 // insert), so every write into them needs the caller's org_id attached.
 async function myOrgId() {
@@ -195,9 +210,12 @@ export async function supabaseApi(path, opts = {}) {
   // ---- me / catalog ----
   if (head === 'GET /me' && !seg[1]) {
     const profile = await myProfile();
-    const org = await myOrg(profile.org_id);
     const isPlatformAdmin = await amIPlatformAdmin();
-    return { user: { ...toPublic(profile), org: toPublicOrg(org), isPlatformAdmin } };
+    // In a support session, load the ACTED tenant's org (branding/suites) so the
+    // workspace matches the RLS-scoped data; identity stays the admin's own.
+    const actTenant = isPlatformAdmin ? await supportActTenant() : null;
+    const org = await myOrg(actTenant || profile.org_id);
+    return { user: { ...toPublic(profile), org: toPublicOrg(org), isPlatformAdmin, guestingOrgId: actTenant || null } };
   }
   if (head === 'PATCH /me' && !seg[1]) {
     const { phone, whatsapp, avatarUrl, dateOfBirth, address, emergencyContactName, emergencyContactPhone } = body;
@@ -332,7 +350,10 @@ export async function supabaseApi(path, opts = {}) {
     return callAdmin('delete-org', { orgId: body.orgId });
   }
   if (head === 'POST /platform' && seg[1] === 'guest-mode') {
-    return callAdmin('guest-mode', { orgId: body.orgId });
+    return callAdmin('guest-mode', { orgId: body.orgId, reason: body.reason });
+  }
+  if (head === 'POST /platform' && seg[1] === 'end-guest') {
+    return callAdmin('end-guest', {});
   }
   if (head === 'POST /platform' && seg[1] === 'set-billing-state') {
     return callAdmin('set-billing-state', { orgId: body.orgId, status: body.status, periodEndDays: body.periodEndDays });
