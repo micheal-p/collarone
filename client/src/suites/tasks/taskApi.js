@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from '../../api/client.js';
-import { supabase } from '../../lib/supabaseClient.js';
+import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
 
 export const getTasks    = ()        => apiGet('/tasks').then((d) => d.tasks);
 export const createTask  = (body)    => apiPost('/tasks', body).then((d) => d.task);
@@ -16,7 +16,7 @@ export const submitReport    = (taskId, reportBody, attachments) =>
 // Upload a file to Supabase Storage; returns {name, path, size}
 export const uploadAttachment = async (taskId, file) => {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = `${taskId}/${Date.now()}-${safe}`;
+  const path = `${await currentOrgId()}/${taskId}/${Date.now()}-${safe}`;
   const { error } = await supabase.storage.from('task-attachments').upload(path, file);
   if (error) throw new Error(error.message);
   return { name: file.name, path, size: file.size };

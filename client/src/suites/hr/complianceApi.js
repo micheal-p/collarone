@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from '../../api/client.js';
-import { supabase } from '../../lib/supabaseClient.js';
+import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
 
 export const getDocuments = (employeeId) => apiGet(`/hr/documents${employeeId ? `?employeeId=${employeeId}` : ''}`).then((d) => d.documents);
 export const createDocument = (body) => apiPost('/hr/documents', body).then((d) => d.document);
@@ -7,7 +7,7 @@ export const deleteDocument = (id) => apiDelete(`/hr/documents/${id}`);
 
 export const uploadDocument = async (employeeId, file) => {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = `${employeeId}/${Date.now()}-${safe}`;
+  const path = `${await currentOrgId()}/${employeeId}/${Date.now()}-${safe}`;
   const { error } = await supabase.storage.from('employee-documents').upload(path, file);
   if (error) throw new Error(error.message);
   return path;

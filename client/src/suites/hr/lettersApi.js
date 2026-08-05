@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPatch, apiDelete, DEMO } from '../../api/client.js';
-import { supabase } from '../../lib/supabaseClient.js';
+import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
 import { LETTER_TYPES } from './letterheadTemplates.js';
 
 export const getLetters = () => apiGet('/hr/letters').then((d) => d.letters);
@@ -16,7 +16,7 @@ export const issueLetter      = (body) => apiPost('/hr/issued-letters', body).th
 
 export const uploadLetterheadFile = async (file) => {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = `letterheads/${Date.now()}-${safe}`;
+  const path = `${await currentOrgId()}/letterheads/${Date.now()}-${safe}`;
   const { error } = await supabase.storage.from('hr-letters').upload(path, file);
   if (error) throw new Error(error.message);
   return path;
@@ -24,7 +24,7 @@ export const uploadLetterheadFile = async (file) => {
 
 export const uploadIssuedLetterHtml = async (html, title) => {
   const safe = title.replace(/[^a-zA-Z0-9]+/g, '-');
-  const path = `issued/${Date.now()}-${safe}.html`;
+  const path = `${await currentOrgId()}/issued/${Date.now()}-${safe}.html`;
   const file = new File([html], `${safe}.html`, { type: 'text/html' });
   const { error } = await supabase.storage.from('hr-letters').upload(path, file);
   if (error) throw new Error(error.message);
@@ -61,7 +61,7 @@ export const aiDraftLetter = async (ctx) => {
 
 export const uploadLetter = async (letterId, file) => {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = `${letterId}/${Date.now()}-${safe}`;
+  const path = `${await currentOrgId()}/${letterId}/${Date.now()}-${safe}`;
   const { error } = await supabase.storage.from('hr-letters').upload(path, file);
   if (error) throw new Error(error.message);
   return path;

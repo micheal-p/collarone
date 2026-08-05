@@ -1,5 +1,5 @@
 import { apiGet, apiPost, DEMO } from '../../api/client.js';
-import { supabase } from '../../lib/supabaseClient.js';
+import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
 
 export const getOrgInfo = (orgSlug) => apiGet(`/careers/org/${orgSlug}`).then((d) => d.org);
 export const getPostings = (orgSlug) => apiGet(`/careers/postings/${orgSlug}`).then((d) => d.postings);
@@ -22,10 +22,14 @@ export const getAllPostings = async () => {
 export const submitApplication = (body) => apiPost('/careers/apply', body).then((d) => d.applicationId);
 
 // Anonymous applicants upload before a candidate record exists — key by a
-// throwaway token rather than an id.
-export const uploadResume = async (file) => {
+// throwaway token rather than an id. The org id goes first so the resume lands
+// in the hiring org's folder and only that org's recruiters can read it back;
+// the applicant isn't authenticated, so they can't derive it — the careers
+// page passes the id it already loaded for the posting.
+export const uploadResume = async (orgId, file) => {
+  if (!orgId) throw new Error('Could not attach the resume — reload the page and try again.');
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = `public/${crypto.randomUUID()}-${safe}`;
+  const path = `${orgId}/${crypto.randomUUID()}-${safe}`;
   const { error } = await supabase.storage.from('candidate-resumes').upload(path, file);
   if (error) throw new Error(error.message);
   return path;

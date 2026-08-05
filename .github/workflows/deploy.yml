@@ -66,12 +66,16 @@ jobs:
       - name: Every audited action is one the audit-log constraint allows
         run: node test/audit_actions_in_sync.mjs
 
+      - name: Private storage buckets are org-prefixed (static half)
+        run: node test/storage_tenant_scoped.mjs
+
       - name: Cross-tenant RLS probe + payroll golden + support read-only (live DB)
         if: env.DATABASE_URL != ''
         run: |
           node test/rls_probe.mjs
           node test/payroll_golden.mjs
           DB_URL="$DATABASE_URL" node test/support_write_denial.mjs
+          DB_URL="$DATABASE_URL" node test/storage_tenant_scoped.mjs
 
   deploy:
     needs: [typecheck, tests]

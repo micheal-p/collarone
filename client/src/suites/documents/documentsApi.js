@@ -1,5 +1,5 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from '../../api/client.js';
-import { supabase } from '../../lib/supabaseClient.js';
+import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
 
 export const getFolders  = () => apiGet('/docfolders').then((d) => d.folders);
 export const createFolder = (body) => apiPost('/docfolders', body).then((d) => d.folder);
@@ -41,7 +41,8 @@ export const mimeFor = (file) => {
 // Upload a file to Supabase Storage; returns {path, size}
 export const uploadFile = async (file, prefix = '') => {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-  const path = `${prefix}${Date.now()}-${safe}`;
+  const orgId = await currentOrgId();
+  const path = `${orgId}/${prefix}${Date.now()}-${safe}`;
   const { error } = await supabase.storage.from('org-documents')
     .upload(path, file, { contentType: mimeFor(file) });
   if (error) throw new Error(error.message);

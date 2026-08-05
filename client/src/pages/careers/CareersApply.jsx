@@ -115,7 +115,7 @@ function ApplyForm({ posting, onSubmitted }) {
     setBusy(true);
     try {
       let resumePath = null;
-      if (file) resumePath = await C.uploadResume(file);
+      if (file) resumePath = await C.uploadResume(posting.org_id, file);
       await C.submitApplication({
         requisitionId: posting.id,
         name: f.name, email: f.email, phone: f.phone, portfolioUrl: f.portfolioUrl,

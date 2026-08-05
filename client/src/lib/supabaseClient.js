@@ -12,3 +12,25 @@ export const supabase = createClient(url, anonKey, {
 });
 
 export const SUPABASE_CONFIGURED = Boolean(url && anonKey);
+
+// The org id of the signed-in user, cached for the tab's lifetime.
+//
+// Every private storage bucket is scoped by making the org id the first path
+// segment, and the matching RLS policy refuses to read or write a path whose
+// first folder is not your org. So an upload MUST be prefixed with this, or it
+// will be written somewhere its own uploader can never read back. Uploaders
+// call currentOrgId() and put it first. Anonymous flows (careers) can't use
+// this — they pass the org id they already hold explicitly.
+let _orgIdPromise = null;
+export const currentOrgId = async () => {
+  if (!_orgIdPromise) {
+    _orgIdPromise = (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not signed in.');
+      const { data, error } = await supabase.from('profiles').select('org_id').eq('id', user.id).single();
+      if (error) throw new Error(error.message);
+      return data.org_id;
+    })().catch((e) => { _orgIdPromise = null; throw e; });  // don't cache a failure
+  }
+  return _orgIdPromise;
+};
