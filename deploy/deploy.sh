@@ -131,12 +131,23 @@ echo "nginx cache header: \$NGINX_STATUS"
 
 # Only reload if the whole config still parses. If it doesn't, pull the
 # snippet back out and leave nginx exactly as it was.
+#
+# CRITICAL: none of this may fail the deploy. The code is already synced, built
+# and the API restarted by the time we get here — the cache header is a nicety,
+# not the deploy. Every branch is guarded with `|| true` so a failing nginx -t
+# can never abort the script under `set -e` and throw away a good build. This
+# is exactly what was happening: `nginx -t` fails with
+#   open() "/run/nginx.pid" failed (13: Permission denied)
+# (the CONFIG SYNTAX is fine — it is a privilege/pid-file issue on the box, not
+# our snippet), and the bare `nginx -t && systemctl reload` below tripped set -e
+# and failed all three attempts. Until the pid-file permission is sorted on the
+# server, the cache header simply won't wire, but the app still ships.
 if nginx -t 2>/dev/null; then
-  systemctl reload nginx
+  systemctl reload nginx || true
 else
   rm -f /etc/nginx/snippets/collarone-cache.conf
-  nginx -t && systemctl reload nginx
-  echo "WARNING: cache-header snippet rejected by nginx -t; removed it and reloaded the previous config" >&2
+  { nginx -t 2>/dev/null && systemctl reload nginx; } \
+    || echo "WARNING: nginx not reloaded (nginx -t failed — see NGINX_STATUS; likely /run/nginx.pid perms, not the snippet). The app was still deployed." >&2
 fi
 
 echo "Deployed \$(git -C "${APP_DIR}" rev-parse --short HEAD 2>/dev/null || echo 'n/a') at \$(date -u +%FT%TZ)"

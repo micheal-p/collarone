@@ -13,7 +13,8 @@
 //
 // Run:  [DB_URL=...] node test/storage_tenant_scoped.mjs
 import { readFileSync } from 'node:fs';
-import pg from 'pg';
+// pg is imported lazily below — it is only installed in CI when a DATABASE_URL
+// secret is present, but the static half of this check must run without it.
 
 const PRIVATE_BUCKETS = ['org-documents','employee-documents','hr-letters','finance-receipts','task-attachments','candidate-resumes'];
 
@@ -49,6 +50,7 @@ const url = process.env.DB_URL || process.env.DATABASE_URL;
 if (!url) {
   console.log('~ no DB_URL: skipping live policy check (runs in the live CI job)');
 } else {
+  const { default: pg } = await import('pg');
   const c = new pg.Client({ connectionString: url, ssl: { rejectUnauthorized: false } });
   await c.connect();
   try {
