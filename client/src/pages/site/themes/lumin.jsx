@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
+import { emph } from './_kit.jsx';
 import { CartProvider, CartCtx, CartDrawer, Block } from '../siteLayouts.jsx';
 
 // =============================================================================
@@ -181,7 +182,7 @@ function Hero({ c }) {
     <section className="at-hero" ref={ref}>
       <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1, delayChildren: 0.05 } } }}>
         {c.eyebrow && <motion.div className="at-eyebrow" variants={rise}>{c.eyebrow}</motion.div>}
-        <motion.h1 className="at-h1" variants={rise} dangerouslySetInnerHTML={{ __html: (c.heading || '').replace(/\*(.+?)\*/g, '<em>$1</em>') }} />
+        <motion.h1 className="at-h1" variants={rise} dangerouslySetInnerHTML={emph(c.heading || '')} />
         {c.subheading && <motion.p className="at-sub" variants={rise}>{c.subheading}</motion.p>}
         {c.button_text && <motion.div variants={rise}><Magnetic><a className="at-btn accent" href={c.button_link || '#shop'}>{c.button_text}<span className="arw">→</span></a></Magnetic></motion.div>}
       </motion.div>

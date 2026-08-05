@@ -1,5 +1,6 @@
 import { useContext, useEffect, useRef } from 'react';
 import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
+import { emph } from './_kit.jsx';
 import { CartProvider, CartCtx, CartDrawer, Block } from '../siteLayouts.jsx';
 
 // =============================================================================
@@ -105,7 +106,7 @@ function Hero({ c }) {
       {c.image_url && <motion.div className="bg" style={{ y }}><img src={c.image_url} alt="" /></motion.div>}
       <motion.div className="in" initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.13, delayChildren: 0.1 } } }}>
         {c.eyebrow && <motion.div className="bn-eye" variants={rise}>{c.eyebrow}</motion.div>}
-        <motion.h1 className="bn-h1" variants={rise} dangerouslySetInnerHTML={{ __html: (c.heading || '').replace(/\*(.+?)\*/g, '<em>$1</em>') }} />
+        <motion.h1 className="bn-h1" variants={rise} dangerouslySetInnerHTML={emph(c.heading || '')} />
         {c.subheading && <motion.p className="bn-sub" variants={rise}>{c.subheading}</motion.p>}
         {c.button_text && <motion.div variants={rise}><a className="bn-btn" href={c.button_link || '#shop'}>{c.button_text}</a></motion.div>}
       </motion.div>
@@ -138,7 +139,7 @@ function Products({ c, site }) {
 function CTA({ c }) {
   return (
     <section className="bn-cta"><Reveal>
-      <motion.h2 variants={rise} dangerouslySetInnerHTML={{ __html: (c.heading || 'The pieces that stay.').replace(/\*(.+?)\*/g, '<em>$1</em>') }} />
+      <motion.h2 variants={rise} dangerouslySetInnerHTML={emph(c.heading || 'The pieces that stay.')} />
       {c.button_text && <motion.div variants={rise}><a className="bn-btn" href={c.button_link || '#shop'}>{c.button_text}</a></motion.div>}
     </Reveal></section>
   );

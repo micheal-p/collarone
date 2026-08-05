@@ -30,5 +30,13 @@ export function useFonts(id, href) {
   }, [id, href]);
 }
 
-// pull *asterisked* words into an accent <em>
-export const emph = (s) => ({ __html: String(s || '').replace(/\*(.+?)\*/g, '<em>$1</em>') });
+// Escape HTML so storefront content can never inject markup. Storefront pages
+// are PUBLIC, and the heading text is org-authored — without this, a heading
+// containing <script> or <img onerror=...> would run in every visitor's
+// browser (stored XSS). Escape FIRST, then apply the *emphasis* transform, so
+// the only markup that survives is the <em> we add on purpose.
+const escHtml = (s) => String(s || '').replace(/[&<>"']/g, (ch) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+// pull *asterisked* words into an accent <em> (on escaped text — see above)
+export const emph = (s) => ({ __html: escHtml(s).replace(/\*(.+?)\*/g, '<em>$1</em>') });

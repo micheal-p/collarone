@@ -69,6 +69,9 @@ jobs:
       - name: Private storage buckets are org-prefixed (static half)
         run: node test/storage_tenant_scoped.mjs
 
+      - name: Storefront headings can't inject markup (XSS)
+        run: node test/storefront_no_xss.mjs
+
       - name: Cross-tenant RLS probe + payroll golden + support read-only (live DB)
         if: env.DATABASE_URL != ''
         run: |
