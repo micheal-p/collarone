@@ -99,12 +99,18 @@ CONF=\$(nginx -T 2>/dev/null | awk '
   /server_name[^;]*collarone/ { print f; exit }
 ')
 [ -z "\$CONF" ] && CONF=\$(grep -rl 'server_name[^;]*collarone' /etc/nginx/ 2>/dev/null | grep -v 'collarone-cache' | head -1)
+# Self-heal: earlier runs wrote backups NEXT TO the site file, i.e. inside
+# sites-enabled/, where nginx loads EVERY file — so each backup re-declared
+# 'listen 443' and made nginx -t fail with "duplicate listen options". Remove
+# any such strays before testing. Backups now go to /tmp, outside nginx's path.
+CONF_DIR=\$(dirname "\$CONF")
+rm -f "\$CONF_DIR"/*.pre-cache-header.* 2>/dev/null || true
 NGINX_STATUS="conf-not-found"
 if [ -n "\$CONF" ]; then
   if grep -q 'collarone-cache.conf' "\$CONF"; then
     NGINX_STATUS="already-wired:\$CONF"
   else
-    BACKUP="\$CONF.pre-cache-header.\$(date +%s)"
+    BACKUP="/tmp/collarone-nginx-backup.\$(date +%s)"
     cp "\$CONF" "\$BACKUP"
     sed -i 's|^\([[:space:]]*\)server[[:space:]]*{|\1server {\n\1    include snippets/collarone-cache.conf;|' "\$CONF"
     if nginx -t 2>/dev/null; then
