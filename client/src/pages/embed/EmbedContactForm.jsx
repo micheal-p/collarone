@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { apiPost } from '../../api/client.js';
+import Turnstile, { TURNSTILE_ON } from '../../components/Turnstile.jsx';
 
 // Designed to be embedded via <iframe> in a company's own (possibly
 // external) website — minimal chrome, no header/nav, just the form. Posts a
@@ -11,14 +12,26 @@ export default function EmbedContactForm() {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  const [token, setToken] = useState('');
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
 
   const submit = async (e) => {
     e.preventDefault();
     if (!f.name.trim()) return setError('Name is required.');
+    if (TURNSTILE_ON && !token) return setError('Please complete the "I am human" check.');
     setBusy(true); setError('');
     try {
-      await apiPost('/embed/lead', { orgSlug, ...f });
+      if (TURNSTILE_ON) {
+        // gated path: verify the human check server-side, then the same insert
+        const r = await fetch('/api/public-form', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'embed-lead', orgSlug, ...f, turnstileToken: token }),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.message || 'Could not send your message.');
+      } else {
+        await apiPost('/embed/lead', { orgSlug, ...f });   // unchanged until Turnstile is set up
+      }
       setDone(true);
     } catch (e2) { setError(e2.message); } finally { setBusy(false); }
   };
@@ -45,6 +58,7 @@ export default function EmbedContactForm() {
       <div className="ecf-field"><label>Email</label><input type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></div>
       <div className="ecf-field"><label>Phone</label><input value={f.phone} onChange={(e) => set('phone', e.target.value)} /></div>
       <div className="ecf-field"><label>Message</label><textarea rows={3} value={f.message} onChange={(e) => set('message', e.target.value)} /></div>
+      <Turnstile onToken={setToken} />
       {error && <p style={{ color: '#a4262c', fontSize: 13 }}>{error}</p>}
       <button className="ecf-btn" disabled={busy}>{busy ? 'Sending…' : 'Send message'}</button>
     </form>

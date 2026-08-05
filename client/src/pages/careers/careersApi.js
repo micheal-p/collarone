@@ -1,5 +1,6 @@
 import { apiGet, apiPost, DEMO } from '../../api/client.js';
 import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
+import { TURNSTILE_ON } from '../../components/Turnstile.jsx';
 
 export const getOrgInfo = (orgSlug) => apiGet(`/careers/org/${orgSlug}`).then((d) => d.org);
 export const getPostings = (orgSlug) => apiGet(`/careers/postings/${orgSlug}`).then((d) => d.postings);
@@ -19,7 +20,21 @@ export const getAllPostings = async () => {
   return data;
 };
 
-export const submitApplication = (body) => apiPost('/careers/apply', body).then((d) => d.applicationId);
+// When Turnstile is configured, applications go through /api/public-form so the
+// human check is verified server-side before the insert; otherwise the original
+// direct path is used unchanged. (body carries turnstileToken in the gated case.)
+export const submitApplication = async (body) => {
+  if (TURNSTILE_ON && !DEMO) {
+    const r = await fetch('/api/public-form', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'careers-apply', ...body }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.message || 'Could not submit your application.');
+    return d.applicationId;
+  }
+  return apiPost('/careers/apply', body).then((d) => d.applicationId);
+};
 
 // Anonymous applicants upload before a candidate record exists — key by a
 // throwaway token rather than an id. The org id goes first so the resume lands

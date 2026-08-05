@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import * as C from './careersApi.js';
 import { CareersChrome, CAREERS_CSS } from './CareersIndex.jsx';
+import Turnstile, { TURNSTILE_ON } from '../../components/Turnstile.jsx';
 
 export default function CareersApply() {
   const { orgSlug, id } = useParams();
@@ -106,12 +107,14 @@ function ApplyForm({ posting, onSubmitted }) {
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [token, setToken] = useState('');
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
 
   const submit = async (e) => {
     e.preventDefault();
     setErr('');
     if (!f.name.trim() || !f.email.trim()) { setErr('Name and email are required.'); return; }
+    if (TURNSTILE_ON && !token) { setErr('Please complete the "I am human" check.'); return; }
     setBusy(true);
     try {
       let resumePath = null;
@@ -123,6 +126,7 @@ function ApplyForm({ posting, onSubmitted }) {
         yearsExperience: f.yearsExperience ? Number(f.yearsExperience) : null,
         expectedSalary: f.expectedSalary ? Number(f.expectedSalary) : null,
         resumePath,
+        turnstileToken: token,
       });
       onSubmitted();
     } catch (e2) { setErr(e2.message); } finally { setBusy(false); }
@@ -158,6 +162,7 @@ function ApplyForm({ posting, onSubmitted }) {
       <div className="field"><label>Cover letter <span className="muted">(optional)</span></label>
         <textarea className="input" rows={5} value={f.coverLetter} onChange={(e) => set('coverLetter', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} placeholder="Tell us why you're a fit for this role…" /></div>
       {err && <div className="error-text" style={{ marginBottom: 10 }}>{err}</div>}
+      <Turnstile onToken={setToken} />
       <button className="btn btn-primary" style={{ width: '100%', marginTop: 4 }} disabled={busy}>{busy ? <span className="spinner" /> : 'Submit application'}</button>
       <p className="muted" style={{ fontSize: 11.5, textAlign: 'center', margin: '12px 0 0' }}>Your application goes only to {posting.org_name}.</p>
     </form>
