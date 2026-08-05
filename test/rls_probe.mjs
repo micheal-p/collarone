@@ -29,6 +29,35 @@ const check = (label, ok, detail = '') => {
 const c = new Client({ connectionString: conn, ssl: { rejectUnauthorized: false } });
 await c.connect();
 
+// Remove EVERY probe org — this run's two and any a previous run leaked —
+// under session_replication_role=replica so FK order can never block the org
+// delete. That silent block (org delete wrapped in .catch) is exactly what
+// leaked 8 "RLS Probe" orgs into production before. Atomic: all-or-nothing,
+// and a failure is surfaced, not swallowed. Runs at startup (self-heal) and in
+// the finally.
+async function sweepProbeOrgs() {
+  await c.query('reset role').catch(() => {});
+  await c.query('begin');
+  try {
+    await c.query("create temp table _po on commit drop as select id from organizations where slug like 'rls-probe-%' or name like 'RLS Probe %'");
+    await c.query('create temp table _pu on commit drop as select id from profiles where org_id in (select id from _po)');
+    await c.query('set local session_replication_role = replica');   // FK triggers off — order-independent
+    // base tables only (relkind='r') — VIEWS also expose an org_id column and
+    // can't be deleted from (org_credit_balance is one).
+    const scoped = (await c.query(`
+      select c.relname from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      join pg_attribute a on a.attrelid = c.oid and a.attname = 'org_id' and not a.attisdropped
+      where n.nspname = 'public' and c.relkind = 'r'`)).rows.map((r) => r.relname);
+    for (const t of scoped) await c.query(`delete from public.${t} where org_id in (select id from _po)`);
+    await c.query('delete from auth.users where id in (select id from _pu)');
+    await c.query('delete from organizations where id in (select id from _po)');
+    await c.query('commit');
+  } catch (e) { await c.query('rollback').catch(() => {}); throw e; }
+}
+
+await sweepProbeOrgs().catch((e) => console.log('startup sweep warning:', e.message));
+
 // two disposable orgs + users
 const A = { org: uuid(), user: uuid(), email: `rls-probe-a-${Date.now()}@collarone-test.app` };
 const B = { org: uuid(), user: uuid(), email: `rls-probe-b-${Date.now()}@collarone-test.app` };
@@ -237,21 +266,17 @@ try {
     check('chat · room isolation', false, e.message);
   }
 } finally {
-  // ---- cleanup (superuser) ----
-  // Delete every org-scoped row for the two disposable orgs — not just the ones
-  // we seeded: the org-creation trigger also seeds paye_bands, deduction_rates,
-  // etc. Enumerate all org_id tables and sweep in a few passes so FK order
-  // (child-before-parent) resolves itself, then the parents.
-  await c.query('reset role').catch(() => {});
-  const orgs = [A.org, B.org];
-  const scoped = (await c.query("select table_name from information_schema.columns where column_name='org_id' and table_schema='public'")).rows.map(r => r.table_name);
-  for (let pass = 0; pass < 3; pass++) {
-    for (const t of scoped) {
-      try { await c.query(`delete from ${t} where org_id = any($1::uuid[])`, [orgs]); } catch { /* retry next pass */ }
-    }
+  // ---- cleanup ---- one bulletproof sweep (see sweepProbeOrgs). If it fails,
+  // say so loudly and verify nothing was left behind, so a leak can never again
+  // be silent.
+  try {
+    await sweepProbeOrgs();
+    const left = (await c.query("select count(*)::int n from organizations where slug like 'rls-probe-%' or name like 'RLS Probe %'")).rows[0].n;
+    if (left > 0) { console.error(`CLEANUP LEAK: ${left} probe org(s) still present after sweep`); fail++; }
+  } catch (e) {
+    console.error('CLEANUP FAILED:', e.message);
+    fail++;
   }
-  await c.query('delete from auth.users where id = any($1::uuid[])', [[A.user, B.user]]).catch(() => {});
-  await c.query('delete from organizations where id = any($1::uuid[])', [orgs]).catch(() => {});
   await c.end();
 }
 
