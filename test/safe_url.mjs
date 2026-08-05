@@ -7,9 +7,33 @@
 //
 // Run:  node test/safe_url.mjs
 import { readFileSync } from 'node:fs';
-import { safeExternalUrl } from '../client/src/lib/safeUrl.js';
+import { safeExternalUrl, safeLinkOrEmpty } from '../client/src/lib/safeUrl.js';
 
 let failures = 0;
+
+// 0. safeLinkOrEmpty — CTA buttons: keep anchors/paths/http(s), drop the rest.
+for (const [input, expected] of [
+  ['#contact', '#contact'],
+  ['/shop', '/shop'],
+  ['//evil.com', ''],
+  ['/\\evil.com', ''],
+  ['javascript:alert(1)', ''],
+  ['mailto:hi@x.com', 'mailto:hi@x.com'],
+  ['acme.com', 'https://acme.com/'],
+  ['', ''],
+]) {
+  const got = safeLinkOrEmpty(input);
+  if (String(got) !== String(expected)) {
+    failures++;
+    console.log(`✗ safeLinkOrEmpty(${JSON.stringify(input)}) = ${JSON.stringify(got)}, expected ${JSON.stringify(expected)}`);
+  }
+}
+// storefront content is sanitised centrally before any theme renders it
+if (!readFileSync(new URL('../client/src/pages/site/PublicSite.jsx', import.meta.url), 'utf8')
+      .includes('safeLinkOrEmpty(b.content.button_link)')) {
+  failures++;
+  console.log('✗ PublicSite.jsx no longer sanitises button_link centrally');
+}
 
 // 1. The helper itself.
 const cases = [

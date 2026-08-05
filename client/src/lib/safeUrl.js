@@ -29,3 +29,17 @@ export function safeExternalUrl(raw) {
 
 // Standard safe attributes for a user-supplied external link.
 export const EXTERNAL_LINK_REL = 'noopener noreferrer nofollow';
+
+// For storefront CTA buttons, whose link a merchant sets and public visitors
+// click. Keeps in-page #anchors, site-relative /paths, mailto:/tel: and safe
+// http(s); anything dangerous (javascript:, data:, //host, /\host) becomes ''
+// so the caller's `|| '#fallback'` default takes over — never an active link.
+export function safeLinkOrEmpty(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  const norm = s.replace(/\\/g, '/');
+  if (s.startsWith('#')) return s;                       // in-page anchor
+  if (s.startsWith('/') && !norm.startsWith('//')) return s;  // site-relative, not protocol-relative
+  if (/^(mailto:|tel:)/i.test(s)) return s;
+  return safeExternalUrl(s) || '';                       // http(s)/bare-domain, else drop
+}

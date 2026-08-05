@@ -3,6 +3,25 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { getPublicSite, getPreviewSite } from '../admin/website/websiteApi.js';
 import { LAYOUTS } from './siteLayouts.jsx';
 import { getSiteTheme } from './themes/index.js';
+import { safeLinkOrEmpty } from '../../lib/safeUrl.js';
+
+// Neutralise merchant-set CTA links before any theme renders them as href — a
+// javascript: link would run in a visitor's browser. Every theme reads
+// block.content.button_link, so sanitising it here, once, covers them all.
+function sanitizeSiteLinks(d) {
+  if (!d?.pages) return d;
+  return {
+    ...d,
+    pages: d.pages.map((p) => ({
+      ...p,
+      blocks: (p.blocks || []).map((b) => (
+        b?.content?.button_link
+          ? { ...b, content: { ...b.content, button_link: safeLinkOrEmpty(b.content.button_link) } }
+          : b
+      )),
+    })),
+  };
+}
 
 export default function PublicSite({ slugProp }) {
   const params = useParams();
@@ -42,7 +61,7 @@ export default function PublicSite({ slugProp }) {
     let cancelled = false;
     const fetchSite = isPreview ? getPreviewSite() : getPublicSite(slug);
     fetchSite
-      .then((d) => { if (cancelled) return; if (!d) { setError(true); } else { setData(d); setActiveSlug(d.pages.find((p) => p.is_home)?.slug || d.pages[0]?.slug); } })
+      .then((d) => { if (cancelled) return; if (!d) { setError(true); } else { const s = sanitizeSiteLinks(d); setData(s); setActiveSlug(s.pages.find((p) => p.is_home)?.slug || s.pages[0]?.slug); } })
       .catch(() => { if (!cancelled) setError(true); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
