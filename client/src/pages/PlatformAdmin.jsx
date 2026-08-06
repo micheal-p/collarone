@@ -374,14 +374,26 @@ function PricingPanel({ flash }) {
         <table className="pc-table">
           <thead><tr><th>Plan</th><th>Base fee (₦/mo)</th><th>Suites included</th><th>Extra suite (₦/mo)</th></tr></thead>
           <tbody>
-            {plans.map((x) => (
+            {plans.map((x) => (x.plan_key === 'enterprise' ? (
+              // Enterprise is QUOTE-BASED — locked decision, synced with the
+              // landing page, chat and best-tier renewals (which all exclude
+              // it). An editable ₦ figure here read as "this is published
+              // somewhere", which it never is. Suite counts stay editable:
+              // they seed what a custom quote starts from.
+              <tr key={x.plan_key}>
+                <td style={{ textTransform: 'capitalize', fontWeight: 600 }}>{x.name || x.plan_key}</td>
+                <td style={{ fontSize: 12.5, color: 'var(--pc-dim, #9aa0b0)' }}>Quote-based — priced per deal, never shown as a number</td>
+                <td><input className="pc-input" style={{ width: 70 }} type="number" min="1" value={x.included_suites} onChange={(e) => setPlan(x.plan_key, 'included_suites', e.target.value)} /></td>
+                <td><input className="pc-input" style={cell} type="number" min="0" value={x.extra_fee_naira ?? nairaField(x.extra_suite_fee_kobo)} onChange={(e) => setPlan(x.plan_key, 'extra_fee_naira', e.target.value)} /></td>
+              </tr>
+            ) : (
               <tr key={x.plan_key}>
                 <td style={{ textTransform: 'capitalize', fontWeight: 600 }}>{x.name || x.plan_key}</td>
                 <td><input className="pc-input" style={cell} type="number" min="0" value={x.base_fee_naira ?? nairaField(x.base_fee_kobo)} onChange={(e) => setPlan(x.plan_key, 'base_fee_naira', e.target.value)} /></td>
                 <td><input className="pc-input" style={{ width: 70 }} type="number" min="1" value={x.included_suites} onChange={(e) => setPlan(x.plan_key, 'included_suites', e.target.value)} /></td>
                 <td><input className="pc-input" style={cell} type="number" min="0" value={x.extra_fee_naira ?? nairaField(x.extra_suite_fee_kobo)} onChange={(e) => setPlan(x.plan_key, 'extra_fee_naira', e.target.value)} /></td>
               </tr>
-            ))}
+            )))}
             {settings && (
               <tr>
                 <td style={{ fontWeight: 600 }}>All plans</td>

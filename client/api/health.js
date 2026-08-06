@@ -85,7 +85,26 @@ export default async function handler(req, res) {
 
   const responseMs = Date.now() - startedAt;
   const apiOk = true; // this function executed, so the API itself is up
-  const status = apiOk && dbOk ? 'operational' : dbOk ? 'degraded' : 'down';
+
+  // The server being up is not the whole story: a bad deploy can crash inside
+  // users' BROWSERS while api/db answer perfectly (the 161x "Unexpected
+  // token '<'" night). Those crashes land in client_errors via /api/track —
+  // fold the last hour's rate into the public status so the dashboard can't
+  // say "operational" through a client-side incident. Threshold, not any
+  // single error: one user's flaky extension shouldn't page anyone.
+  let clientErrorsLastHour = 0;
+  if (admin) {
+    try {
+      const { count } = await admin.from('client_errors')
+        .select('id', { count: 'exact', head: true })
+        .gte('occurred_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
+      clientErrorsLastHour = count || 0;
+    } catch { /* counting must never break the health check itself */ }
+  }
+  const CLIENT_ERROR_DEGRADED_AT = 10; // per hour, across all users
+  const status = !dbOk ? 'down'
+    : clientErrorsLastHour >= CLIENT_ERROR_DEGRADED_AT ? 'degraded'
+    : 'operational';
 
   if (admin) {
     try {
@@ -262,5 +281,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ status, apiOk, dbOk, responseMs, build: buildId(), nginx: nginxStatus(), checkedAt: new Date().toISOString() });
+  return res.status(200).json({ status, apiOk, dbOk, responseMs, clientErrorsLastHour, build: buildId(), nginx: nginxStatus(), checkedAt: new Date().toISOString() });
 }

@@ -103,6 +103,11 @@ export default function Status() {
           <span style={{ fontSize: 14, fontWeight: 600 }}>{stateLabel}</span>
           {live && <span style={{ fontSize: 12, color: 'rgba(10,14,26,0.4)' }}>· checked just now, {live.responseMs}ms</span>}
         </div>
+        {state === 'degraded' && live?.clientErrorsLastHour >= 10 && (
+          <p style={{ fontSize: 13, color: '#c8951a', margin: '0 0 8px' }}>
+            The servers are answering, but we&rsquo;re seeing an elevated rate of in-app errors and are looking into it.
+          </p>
+        )}
         <p style={{ fontSize: 13, color: 'rgba(10,14,26,0.5)', margin: '0 0 20px' }}>Uptime over the past {days.length} days. Hover a bar for that day's detail.</p>
 
         <div style={{ border: '1px solid rgba(10,14,26,0.1)', borderRadius: 14, padding: '20px 22px 18px', marginBottom: 32 }}>
