@@ -106,6 +106,32 @@ export default async function handler(req, res) {
     : clientErrorsLastHour >= CLIENT_ERROR_DEGRADED_AT ? 'degraded'
     : 'operational';
 
+  // Error spikes become PERMANENT history, not just a live banner: open an
+  // app_bug incident when the rate crosses the line, close it when calm
+  // returns. The 03 Aug flood (161 crashes) never showed on the status page
+  // because nothing recorded it — the July incident had been written in by
+  // hand. The status_checks trigger deliberately ignores app_bug incidents
+  // (status_incident_auto_appbug.sql), so a healthy server check can't close
+  // one out from under us.
+  if (admin) {
+    try {
+      const { data: openBug } = await admin.from('status_incidents')
+        .select('id, started_at').eq('kind', 'app_bug').is('resolved_at', null)
+        .order('started_at', { ascending: false }).limit(1).maybeSingle();
+      if (clientErrorsLastHour >= CLIENT_ERROR_DEGRADED_AT && !openBug) {
+        await admin.from('status_incidents').insert({
+          kind: 'app_bug',
+          notes: 'Elevated rate of in-app errors detected automatically. Servers are answering normally; the client-side error rate crossed the alerting threshold.',
+        });
+      } else if (clientErrorsLastHour < CLIENT_ERROR_DEGRADED_AT && openBug) {
+        await admin.from('status_incidents').update({
+          resolved_at: new Date().toISOString(),
+          duration_sec: Math.round((Date.now() - new Date(openBug.started_at).getTime()) / 1000),
+        }).eq('id', openBug.id);
+      }
+    } catch { /* incident bookkeeping must never break the health check */ }
+  }
+
   if (admin) {
     try {
       const { data: last } = await admin.from('status_checks').select('checked_at').order('checked_at', { ascending: false }).limit(1).maybeSingle();
