@@ -102,7 +102,7 @@ export const compressLogo = (file) => compressImage(file, 320, 160);
 export const compressSignature = (file) => compressImage(file, 300, 100);
 
 export const LETTERHEAD_CSS = `
-  .lh-page { background: #fff; color: #14161a; font-family: Georgia, 'Times New Roman', serif; line-height: 1.65; font-size: 13.5px; padding: 44px 52px; min-height: 640px; --accent: #0A0E1A; }
+  .lh-page { background: #fff; color: #14161a; font-family: Georgia, 'Times New Roman', serif; line-height: 1.65; font-size: 13.5px; padding: 44px 52px; min-height: 640px; --accent: #0A0E1A; display: flex; flex-direction: column; }
   .lh-head { margin-bottom: 26px; }
   .lh-name { font-weight: 700; font-size: 21px; letter-spacing: .01em; }
   .lh-logo { display: block; max-height: 52px; max-width: 220px; object-fit: contain; margin-bottom: 6px; }
@@ -113,11 +113,14 @@ export const LETTERHEAD_CSS = `
   .lh-body { white-space: pre-wrap; margin-top: 18px; }
   .lh-date { text-align: right; font-size: 12.5px; margin-bottom: 6px; }
   .lh-ref { font-size: 11.5px; color: #5a5a55; margin-bottom: 14px; }
-  .lh-sig { margin-top: 34px; }
+  .lh-sig { margin-top: 34px; margin-bottom: 30px; }
   .lh-sig-img { display: block; max-height: 54px; max-width: 190px; object-fit: contain; margin-bottom: 2px; }
   .lh-sig-name { font-weight: 700; }
   .lh-sig-role { font-size: 12px; color: #5a5a55; }
-  .lh-foot { margin-top: 40px; padding-top: 10px; border-top: 1px solid #e4e1da; font-size: 10px; color: #8a877f; text-align: center; }
+  /* margin-top:auto pins the footer to the page bottom (the page is a flex
+     column), where a letterhead footer belongs — 40px under the signature
+     read as "no footer at all". */
+  .lh-foot { margin-top: auto; padding-top: 10px; border-top: 1px solid #e4e1da; font-size: 10px; color: #8a877f; text-align: center; line-height: 1.6; }
 
   .lh-classic .lh-head { text-align: center; border-bottom: 2.5px solid var(--accent); padding-bottom: 14px; }
   .lh-classic .lh-name { font-size: 23px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); }
@@ -172,7 +175,7 @@ export function letterHeadHtml(letterhead, { forPrint = false } = {}) {
         <div class="lh-meta">${esc(contact)}${d.rcNumber ? `${contact ? '<br/>' : ''}RC ${esc(d.rcNumber)}` : ''}</div>
       </div>
       %BODY%
-      ${d.rcNumber || contact ? `<div class="lh-foot">${esc(d.companyName || '')}${d.rcNumber ? ` · RC ${esc(d.rcNumber)}` : ''}</div>` : ''}
+      ${contact || d.companyName || d.rcNumber ? `<div class="lh-foot">${contact ? `${esc(contact)}<br/>` : ''}${esc(d.companyName || '')}${d.rcNumber ? ` · RC ${esc(d.rcNumber)}` : ''}</div>` : ''}
     </div>`;
 }
 
@@ -201,6 +204,6 @@ export function buildLetterDocument({ letterhead, title, date, reference, body, 
     </div>`;
   const page = letterHeadHtml(letterhead).replace('%BODY%', sig);
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
-<style>body{margin:0;background:#fff;} ${LETTERHEAD_CSS} @media print { .lh-page { padding: 24px 8px; min-height: auto; } }</style>
+<style>body{margin:0;background:#fff;} ${LETTERHEAD_CSS} @media print { html, body { height: 100%; } .lh-page { padding: 24px 8px; min-height: 100%; box-sizing: border-box; } }</style>
 </head><body>${page}</body></html>`;
 }

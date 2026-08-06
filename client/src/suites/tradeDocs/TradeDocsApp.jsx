@@ -411,6 +411,10 @@ const TEMPLATE_CSS = `
 .tdt-sigrole { font-size: 11.5px; font-weight: 700; margin-top: 5px; }
 .tdt-sigmeta { font-size: 10.5px; color: #8b8578; margin-top: 1px; }
 
+/* ---- footer strip: who issued this, on every copy ---- */
+.tdt-foot { margin-top: 30px; padding-top: 9px; border-top: 1px solid #e5e2d9;
+  font-size: 10px; color: #8b8578; text-align: center; line-height: 1.6; }
+
 .tdt-stamp { position: absolute; top: 104px; right: 40px; transform: rotate(-13deg);
   font-size: 38px; font-weight: 800; letter-spacing: .1em; color: rgba(26,127,66,.15);
   border: 5px solid rgba(26,127,66,.15); border-radius: 10px; padding: 3px 16px; pointer-events: none; }
@@ -825,6 +829,17 @@ function DocPreviewBody({ doc, settings, warehouseName = '' }) {
           </div>
         </div>
       )}
+
+      {/* The page used to just stop at the signature. A document that leaves
+          the building closes with who issued it, same as the letterheads. */}
+      {(s.company_name || s.address || s.phone || s.email) && (
+        <div className="tdt-foot">
+          {[s.address, s.phone, s.email].filter(Boolean).length > 0 && (
+            <>{[s.address, s.phone, s.email].filter(Boolean).join(' · ')}<br /></>
+          )}
+          {s.company_name || ''}
+        </div>
+      )}
     </div>
   );
 }
@@ -866,6 +881,12 @@ function PrintView({ doc, settings, onClose, flash }) {
           #td-print-area .tdt-paybox,
           #td-print-area .tdt-sigblock { page-break-inside: avoid; break-inside: avoid; }
           #td-print-area .tdt-totals { page-break-before: avoid; }
+          /* Pin the issuer strip to the bottom of the sheet (it repeats on
+             every page), where a document footer belongs — flowing inline it
+             sat mid-page under the signature. The padding keeps the last line
+             of content from running into it. */
+          #td-print-area .tdt-foot { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; }
+          #td-print-area { padding-bottom: 44px; }
           /* Backgrounds and the stamp are meaningful here, not decoration. */
           #td-print-area { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
