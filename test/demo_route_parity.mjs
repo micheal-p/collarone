@@ -23,6 +23,8 @@ const REQUIRED = [
   { call: 'GET /projects/:id/blocked', needle: "seg[2] === 'blocked'" },
   { call: 'GET /projects/:id/tasks/:taskId/comments', needle: "seg[4] === 'comments'" },
   { call: 'GET /attendance/settings', needle: "seg[1] === 'settings'" },
+  { call: 'GET /attendance/devices', needle: "seg[1] === 'devices'" },
+  { call: 'POST /attendance/device-map', needle: "seg[1] === 'device-map'" },
   { call: 'GET /trade-docs/settings', needle: '/trade-docs/settings' },
 ];
 

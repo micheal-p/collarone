@@ -510,11 +510,15 @@ async function demoApiInner(path, opts = {}) {
       // shape lets the demo show the manager nudge and the rules screen. No
       // fence (radius 0) so demo clock-in works from wherever the viewer is.
       if (method === 'GET' && seg[1] === 'settings') {
-        return { settings: db.attSettings || { office_lat: null, office_lng: null, geofence_radius_m: 0,
-          work_start: '08:00:00', work_close: '17:00:00', working_days: [1, 2, 3, 4, 5], grace_minutes: 10 } };
+        return { settings: db.attSettings || { office_name: null, office_lat: null, office_lng: null, geofence_radius_m: 0,
+          work_start: '08:00:00', work_close: '17:00:00', working_days: [1, 2, 3, 4, 5], grace_minutes: 10,
+          phone_enabled: true, device_enabled: true } };
       }
       if (method === 'POST' && seg[1] === 'settings') {
         db.attSettings = {
+          office_name: body.officeName?.trim() || null,
+          phone_enabled: body.phoneEnabled !== undefined ? Boolean(body.phoneEnabled) : true,
+          device_enabled: body.deviceEnabled !== undefined ? Boolean(body.deviceEnabled) : true,
           office_lat: body.officeLat === '' || body.officeLat == null ? null : Number(body.officeLat),
           office_lng: body.officeLng === '' || body.officeLng == null ? null : Number(body.officeLng),
           geofence_radius_m: body.radiusM === '' || body.radiusM == null ? 0 : Math.round(Number(body.radiusM)),
@@ -525,6 +529,36 @@ async function demoApiInner(path, opts = {}) {
         };
         save();
         return { settings: db.attSettings };
+      }
+      // Universal punch lane: registered devices + PIN-to-staff mapping. Demo
+      // seeds one wall device so the tab demonstrates itself.
+      if (seg[1] === 'devices' || seg[1] === 'device-map') {
+        if (!db.attDevices) {
+          db.attDevices = [{ id: 'dev1', name: 'Front desk thumbprint', serial: 'ZK-8842-DEMO', vendor: 'ZKTeco', api_key: 'demo0000demo0000demo0000demo0000demo0000demo0000', active: true, last_seen_at: new Date().toISOString(), created_at: new Date().toISOString() }];
+          db.attMaps = [{ id: 'map1', device_uid: '1', employee_id: staff[0]?.id }, { id: 'map2', device_uid: '2', employee_id: staff[1]?.id }];
+          save();
+        }
+        if (method === 'GET' && seg[1] === 'devices') {
+          return { devices: db.attDevices, maps: db.attMaps, staff: staff.map((s) => ({ id: s.id, name: s.name })) };
+        }
+        if (method === 'POST' && seg[1] === 'devices') {
+          const d = { id: 'dev' + Math.random().toString(36).slice(2, 8), name: body.name, serial: body.serial, vendor: body.vendor || null, api_key: Math.random().toString(36).slice(2).padEnd(48, '0'), active: true, last_seen_at: null, created_at: new Date().toISOString() };
+          db.attDevices.push(d); save(); return { device: d };
+        }
+        if (method === 'PATCH' && seg[1] === 'devices' && seg.length === 3) {
+          const d = db.attDevices.find((x) => x.id === seg[2]) || fail(404, 'Device not found.');
+          d.active = Boolean(body.active); save(); return { device: d };
+        }
+        if (method === 'DELETE' && seg[1] === 'devices' && seg.length === 3) {
+          db.attDevices = db.attDevices.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+        }
+        if (method === 'POST' && seg[1] === 'device-map') {
+          const m = { id: 'map' + Math.random().toString(36).slice(2, 8), device_uid: body.deviceUid, employee_id: body.employeeId };
+          db.attMaps = [...db.attMaps.filter((x) => x.device_uid !== body.deviceUid), m]; save(); return { map: m };
+        }
+        if (method === 'DELETE' && seg[1] === 'device-map' && seg.length === 3) {
+          db.attMaps = db.attMaps.filter((x) => x.id !== seg[2]); save(); return { ok: true };
+        }
       }
       if (method === 'POST' && seg[1] === 'clockin') {
         if (db.attShifts.some((r) => r.employee_id === me.id && !r.clock_out_at)) fail(400, 'You already have an open shift, clock out first.');

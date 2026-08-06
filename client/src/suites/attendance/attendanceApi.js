@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost, apiDelete } from '../../api/client.js';
+import { DEMO, apiGet, apiPatch, apiPost, apiDelete, getAccessToken } from '../../api/client.js';
 
 export const getAllRecords = () => apiGet('/attendance/records').then((d) => d.records);
 export const getMyRecords  = () => apiGet('/attendance/mine').then((d) => d.records);
@@ -95,6 +95,30 @@ export const downloadCsv = (csv, filename) => {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+};
+
+// ---- devices: the universal punch lane ---------------------------------------
+export const getDevices = () => apiGet('/attendance/devices');
+export const createDevice = (body) => apiPost('/attendance/devices', body).then((d) => d.device);
+export const setDeviceActive = (id, active) => apiPatch(`/attendance/devices/${id}`, { active }).then((d) => d.device);
+export const deleteDevice = (id) => apiDelete(`/attendance/devices/${id}`);
+export const saveDeviceMap = (deviceUid, employeeId) => apiPost('/attendance/device-map', { deviceUid, employeeId }).then((d) => d.map);
+export const deleteDeviceMap = (id) => apiDelete(`/attendance/device-map/${id}`);
+
+// CSV import rides the same universal /api/punch lane as the hardware, just
+// authenticated as the manager instead of a device key.
+export const importPunches = async (punches) => {
+  // The demo has no real punch endpoint — pretend the import worked so the
+  // prospect sees the flow without a 401.
+  if (DEMO) return { received: punches.length, applied: punches.length, duplicates: 0, unmapped: [], errors: [] };
+  const r = await fetch('/api/punch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getAccessToken() || ''}` },
+    body: JSON.stringify({ punches }),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.message || 'Import failed.');
+  return d;
 };
 
 // ---- shift rosters -----------------------------------------------------------

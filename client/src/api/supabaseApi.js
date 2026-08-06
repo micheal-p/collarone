@@ -1804,12 +1804,66 @@ export async function supabaseApi(path, opts = {}) {
         ? body.workingDays.map(Number)
         : [1, 2, 3, 4, 5],
       grace_minutes: body.graceMinutes === '' || body.graceMinutes == null ? 10 : Math.round(Number(body.graceMinutes)),
+      // Which clock-in lanes this company allows. Defaults preserve today's
+      // behaviour: phone on, devices off until one is registered and enabled.
+      phone_enabled: body.phoneEnabled !== undefined ? Boolean(body.phoneEnabled) : true,
+      device_enabled: body.deviceEnabled !== undefined ? Boolean(body.deviceEnabled) : false,
       updated_at: new Date().toISOString(),
     };
     const { data, error } = await supabase.from('attendance_settings')
       .upsert(row, { onConflict: 'org_id' }).select().single();
     if (error) fail(400, error.message);
     return { settings: data };
+  }
+
+  // ---- attendance devices (the universal punch lane's registry) ----
+  if (head === 'GET /attendance' && seg[1] === 'devices') {
+    const [{ data: devices, error: e1 }, { data: maps, error: e2 }, { data: staff }] = await Promise.all([
+      supabase.from('attendance_devices').select('*').order('created_at'),
+      supabase.from('attendance_device_map').select('*').order('device_uid'),
+      supabase.rpc('attendance_org_staff'),
+    ]);
+    if (e1) fail(400, e1.message);
+    if (e2) fail(400, e2.message);
+    return { devices: devices || [], maps: maps || [], staff: staff || [] };
+  }
+  if (head === 'POST /attendance' && seg[1] === 'devices' && seg.length === 2) {
+    const p = await myProfile();
+    if (!body.name?.trim() || !body.serial?.trim()) fail(400, 'A device needs a name and its serial number.');
+    // The key is generated here, shown to the manager, and only ever grants
+    // "submit punches for this org".
+    const key = Array.from(crypto.getRandomValues(new Uint8Array(24)), (b) => b.toString(16).padStart(2, '0')).join('');
+    const { data, error } = await supabase.from('attendance_devices').insert({
+      org_id: p.org_id, name: body.name.trim(), serial: body.serial.trim(),
+      vendor: body.vendor?.trim() || null, api_key: key,
+    }).select().single();
+    if (error) fail(400, error.code === '23505' ? 'A device with that serial is already registered.' : error.message);
+    return { device: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'attendance' && seg[1] === 'devices' && seg.length === 3) {
+    const { data, error } = await supabase.from('attendance_devices')
+      .update({ active: Boolean(body.active) }).eq('id', seg[2]).select().single();
+    if (error) fail(400, error.message);
+    return { device: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'attendance' && seg[1] === 'devices' && seg.length === 3) {
+    const { error } = await supabase.from('attendance_devices').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+  if (head === 'POST /attendance' && seg[1] === 'device-map' && seg.length === 2) {
+    const p = await myProfile();
+    if (!body.deviceUid?.trim() || !body.employeeId) fail(400, 'Pick the person and type the PIN the device knows them by.');
+    const { data, error } = await supabase.from('attendance_device_map').upsert({
+      org_id: p.org_id, device_uid: body.deviceUid.trim(), employee_id: body.employeeId,
+    }, { onConflict: 'org_id,device_uid' }).select().single();
+    if (error) fail(400, error.message);
+    return { map: data };
+  }
+  if (method === 'DELETE' && seg[0] === 'attendance' && seg[1] === 'device-map' && seg.length === 3) {
+    const { error } = await supabase.from('attendance_device_map').delete().eq('id', seg[2]);
+    if (error) fail(400, error.message);
+    return { ok: true };
   }
 
   if (head === 'POST /attendance' && seg[1] === 'clockin') {

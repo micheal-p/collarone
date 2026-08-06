@@ -12,6 +12,7 @@ const IcDownload = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="n
 const IcChevL = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>;
 const IcChevR = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>;
 const IcChevDown = ({ open }) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .12s' }}><path d="M6 9l6 6 6-6" /></svg>;
+const IcX = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>;
 
 const OT_NOTE = 'Overtime is hours beyond an 8h workday. A per-org schedule setting is coming later.';
 
@@ -66,6 +67,8 @@ function RulesPanel({ settings, onSaved, flash }) {
     workClose: (settings?.work_close || '').slice(0, 5),
     workingDays: Array.isArray(settings?.working_days) ? settings.working_days.map(String) : ['1', '2', '3', '4', '5'],
     graceMinutes: settings?.grace_minutes ?? 10,
+    phoneEnabled: settings?.phone_enabled ?? true,
+    deviceEnabled: settings?.device_enabled ?? false,
   }));
   const [busy, setBusy] = useState(false);
   const [locating, setLocating] = useState(false);
@@ -90,6 +93,9 @@ function RulesPanel({ settings, onSaved, flash }) {
     e.preventDefault();
     if ((f.officeLat === '') !== (f.officeLng === '')) {
       flash('An office location needs both a latitude and a longitude.', true); return;
+    }
+    if (!f.phoneEnabled && !f.deviceEnabled) {
+      flash('At least one clock-in method must stay on, or nobody can clock in at all.', true); return;
     }
     setBusy(true);
     try { onSaved(await A.saveSettings(f)); flash('Clock-in rules saved.'); }
@@ -124,6 +130,19 @@ function RulesPanel({ settings, onSaved, flash }) {
         <button type="button" className="btn btn-ghost" disabled={locating} onClick={useHere}>
           {locating ? 'Reading location…' : 'Use my current location'}
         </button>
+        {/* Two lanes into the same timesheet — the company picks which are
+            open. Not every business gets a wall device; not every business
+            wants phones. */}
+        <div style={{ marginTop: 12, display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13 }}>
+            <input type="checkbox" checked={f.phoneEnabled} onChange={(e) => set('phoneEnabled', e.target.checked)} />
+            Phone clock-in
+          </label>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13 }}>
+            <input type="checkbox" checked={f.deviceEnabled} onChange={(e) => set('deviceEnabled', e.target.checked)} />
+            Wall device punches (see the Devices tab)
+          </label>
+        </div>
         {f.officeLat !== '' && (
           <button type="button" className="btn btn-ghost" style={{ marginLeft: 8 }}
             onClick={() => { set('officeLat', ''); set('officeLng', ''); set('radiusM', 0); }}>
@@ -535,6 +554,167 @@ function EditShiftModal({ rec, onClose, onSaved, flash }) {
    so a member of staff never hears about the manager-only tabs. The clock-in
    rules step is the point of the whole thing: everything else works out of the
    box, and an unset office location is the one gap that looks like it works. */
+/* ---- devices: the universal punch lane ---------------------------------------
+   Any hardware that can make an HTTP request feeds the same pipeline as the
+   phone: register it, hand its installer the key, map the PINs it knows people
+   by to real staff. CSV import is the fallback that makes "any device ever
+   made" literally true — every clocking machine can export a spreadsheet. */
+function DevicesView({ flash, onPunchesImported }) {
+  const [data, setData] = useState(null);
+  const [form, setForm] = useState({ name: '', serial: '', vendor: '' });
+  const [mapForm, setMapForm] = useState({ deviceUid: '', employeeId: '' });
+  const [busy, setBusy] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const load = () => A.getDevices().then(setData).catch((e) => flash(e.message, true));
+  useEffect(() => { load(); }, []); // eslint-disable-line
+
+  const addDevice = async (e) => {
+    e.preventDefault(); setBusy(true);
+    try { await A.createDevice(form); setForm({ name: '', serial: '', vendor: '' }); flash('Device registered — hand its key to whoever configures the hardware.'); load(); }
+    catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+  const addMap = async (e) => {
+    e.preventDefault(); setBusy(true);
+    try { await A.saveDeviceMap(mapForm.deviceUid, mapForm.employeeId); setMapForm({ deviceUid: '', employeeId: '' }); flash('Mapped.'); load(); }
+    catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+  const copyKey = async (key) => {
+    try { await navigator.clipboard.writeText(key); flash('Key copied.'); }
+    catch { flash('Could not copy — select it by hand.', true); }
+  };
+
+  // CSV: personRef,timestamp,direction? — one punch per line, header optional.
+  const importCsv = async (file) => {
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const punches = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+        .map((l) => l.split(',').map((c) => c.trim()))
+        .filter((cols) => cols[0] && !/^person|^pin|^ref/i.test(cols[0]))
+        .map(([personRef, timestamp, direction]) => ({ personRef, timestamp: timestamp || undefined, direction: direction || undefined }));
+      if (!punches.length) { flash('No punches found in that file. Expected lines like: 42,2026-08-06T08:03:00+01:00,in', true); return; }
+      let applied = 0; let duplicates = 0; const unmapped = new Set(); let errors = 0;
+      for (let i = 0; i < punches.length; i += 400) {
+        const r = await A.importPunches(punches.slice(i, i + 400));
+        applied += r.applied; duplicates += r.duplicates; r.unmapped.forEach((u) => unmapped.add(u)); errors += r.errors.length;
+      }
+      flash(`Imported: ${applied} applied, ${duplicates} already known${unmapped.size ? `, ${unmapped.size} unmapped PIN${unmapped.size > 1 ? 's' : ''} (${[...unmapped].slice(0, 5).join(', ')}) — map them below and re-import` : ''}${errors ? `, ${errors} rejected` : ''}.`, unmapped.size > 0 || errors > 0);
+      load(); onPunchesImported?.();
+    } catch (e) { flash(e.message, true); } finally { setImporting(false); }
+  };
+
+  if (!data) return <div className="suite-loading"><div className="boot-spinner" /></div>;
+  const punchUrl = `${window.location.origin}/api/punch`;
+
+  return (
+    <div style={{ maxWidth: 860 }}>
+      <div className="card" style={{ padding: '14px 16px', marginBottom: 16 }}>
+        <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 4 }}>Connect any clocking hardware</div>
+        <p className="muted" style={{ fontSize: 12.5, margin: 0, lineHeight: 1.6 }}>
+          Register the device below, then have its installer send each punch to{' '}
+          <code style={{ fontSize: 12 }}>{punchUrl}</code> with the device key in an <code style={{ fontSize: 12 }}>x-device-key</code> header
+          and the person&rsquo;s PIN as <code style={{ fontSize: 12 }}>personRef</code>. Punches buffered offline arrive late and are accepted.
+          Only punch events are ever stored — fingerprints never leave the device. No API on your machine? Import its CSV export below instead.
+        </p>
+      </div>
+
+      <form onSubmit={addDevice} className="form-grid" style={{ marginBottom: 10, alignItems: 'end' }}>
+        <div className="field"><label>Device name</label>
+          <input className="input" value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} placeholder="Front desk thumbprint" />
+        </div>
+        <div className="field"><label>Serial number</label>
+          <input className="input" value={form.serial} onChange={(e) => setForm((s) => ({ ...s, serial: e.target.value }))} placeholder="On the device sticker" />
+        </div>
+        <div className="field"><label>Vendor (optional)</label>
+          <input className="input" value={form.vendor} onChange={(e) => setForm((s) => ({ ...s, vendor: e.target.value }))} placeholder="ZKTeco" />
+        </div>
+        <div className="field"><button className="btn btn-primary" disabled={busy}>Register device</button></div>
+      </form>
+
+      <div className="table-wrap" style={{ marginBottom: 20 }}>
+        <table className="table">
+          <thead><tr><th>Device</th><th>Serial</th><th>Key</th><th>Last seen</th><th /><th style={{ width: 40 }} /></tr></thead>
+          <tbody>
+            {data.devices.length === 0 && <tr><td colSpan={6} className="td-empty">No devices yet. A registered device gets a key that lets it submit punches for your company — nothing else.</td></tr>}
+            {data.devices.map((d) => (
+              <tr key={d.id}>
+                <td style={{ fontWeight: 550 }}>{d.name}{d.vendor ? <span className="muted" style={{ fontSize: 12 }}> · {d.vendor}</span> : null}</td>
+                <td className="muted" style={{ fontSize: 12.5 }}>{d.serial}</td>
+                <td>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => copyKey(d.api_key)} title="Copy the device key">
+                    <code style={{ fontSize: 11 }}>{d.api_key.slice(0, 8)}…</code> copy
+                  </button>
+                </td>
+                <td className="muted" style={{ fontSize: 12.5 }}>{d.last_seen_at ? A.fmtDt(d.last_seen_at) : <span className="st-pill st-warn">Never</span>}</td>
+                <td>
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={busy}
+                    onClick={async () => { try { await A.setDeviceActive(d.id, !d.active); load(); } catch (e) { flash(e.message, true); } }}>
+                    {d.active ? 'Disable' : 'Enable'}
+                  </button>
+                </td>
+                <td>
+                  <button type="button" className="iconbtn" aria-label="Delete device" title="Delete device"
+                    onClick={async () => { try { await A.deleteDevice(d.id); flash('Device removed.'); load(); } catch (e) { flash(e.message, true); } }}>
+                    <IcX />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 4 }}>Who is PIN 42?</div>
+      <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
+        The device knows people by the PIN they enrolled with. Map each PIN to the real person once; unmapped punches wait, and apply on re-import once mapped.
+      </p>
+      <form onSubmit={addMap} className="form-grid" style={{ marginBottom: 10, alignItems: 'end' }}>
+        <div className="field"><label>PIN on the device</label>
+          <input className="input" value={mapForm.deviceUid} onChange={(e) => setMapForm((s) => ({ ...s, deviceUid: e.target.value }))} placeholder="42" />
+        </div>
+        <div className="field"><label>Person</label>
+          <select className="input" value={mapForm.employeeId} onChange={(e) => setMapForm((s) => ({ ...s, employeeId: e.target.value }))}>
+            <option value="">Choose…</option>
+            {data.staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+        <div className="field"><button className="btn btn-primary" disabled={busy || !mapForm.employeeId}>Map</button></div>
+      </form>
+      <div className="table-wrap" style={{ marginBottom: 20 }}>
+        <table className="table">
+          <thead><tr><th>PIN</th><th>Person</th><th style={{ width: 40 }} /></tr></thead>
+          <tbody>
+            {data.maps.length === 0 && <tr><td colSpan={3} className="td-empty">No mappings yet.</td></tr>}
+            {data.maps.map((m) => (
+              <tr key={m.id}>
+                <td className="muted" style={{ fontSize: 13 }}>{m.device_uid}</td>
+                <td style={{ fontWeight: 550 }}>{data.staff.find((s) => s.id === m.employee_id)?.name || '—'}</td>
+                <td>
+                  <button type="button" className="iconbtn" aria-label="Remove mapping" title="Remove mapping"
+                    onClick={async () => { try { await A.deleteDeviceMap(m.id); load(); } catch (e) { flash(e.message, true); } }}>
+                    <IcX />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ fontWeight: 650, fontSize: 14, marginBottom: 4 }}>Import a CSV export</div>
+      <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
+        One punch per line: <code style={{ fontSize: 12 }}>PIN,timestamp,in|out</code> — direction optional, the timesheet pairs ins and outs itself.
+      </p>
+      <label className="btn btn-ghost" style={{ cursor: importing ? 'wait' : 'pointer' }}>
+        {importing ? 'Importing…' : 'Choose CSV file'}
+        <input type="file" accept=".csv,text/csv" style={{ display: 'none' }} disabled={importing}
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importCsv(f); }} />
+      </label>
+    </div>
+  );
+}
+
 const TOUR_STEPS = [
   { title: 'Time & Attendance',
     body: 'Clocking in and out from a phone, with the location it happened, hours totalled for payroll. A short walkthrough; skip anytime.' },
@@ -601,7 +781,7 @@ export default function AttendanceApp({ access }) {
   };
 
   const TABS = useMemo(() => isManager
-    ? [{ key: 'mine', label: 'My attendance' }, { key: 'today', label: 'Today' }, { key: 'timesheet', label: 'Timesheet' }, { key: 'shifts', label: 'Shifts' }, { key: 'rules', label: 'Clock-in rules' }]
+    ? [{ key: 'mine', label: 'My attendance' }, { key: 'today', label: 'Today' }, { key: 'timesheet', label: 'Timesheet' }, { key: 'shifts', label: 'Shifts' }, { key: 'devices', label: 'Devices' }, { key: 'rules', label: 'Clock-in rules' }]
     : [{ key: 'mine', label: 'My attendance' }], [isManager]);
 
   return (
@@ -639,6 +819,7 @@ export default function AttendanceApp({ access }) {
       )}
       {!loading && tab === 'today' && isManager && <TodayView all={all} onEdit={setEditRec} settings={settings} />}
       {!loading && tab === 'timesheet' && isManager && <TimesheetView all={all} onEdit={setEditRec} settings={settings} />}
+      {!loading && tab === 'devices' && isManager && <DevicesView flash={flash} onPunchesImported={load} />}
       {tab === 'shifts' && isManager && <ShiftsTab flash={flash} />}
       {tab === 'rules' && isManager && (
         <RulesPanel settings={settings} onSaved={setSettings} flash={flash} />
