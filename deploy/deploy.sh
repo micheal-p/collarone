@@ -54,6 +54,21 @@ find "${APP_DIR}/client/dist/assets" -type f -mtime +7 -delete 2>/dev/null || tr
 chown -R collarone:collarone "${APP_DIR}"
 systemctl restart collarone-api
 
+# ---- gateway encryption key: generate once, on the box --------------------
+# Tenant Paystack secrets are AES-256-GCM-encrypted with GATEWAY_ENC_KEY
+# (client/api/_lib/gatewayCrypto.js), and merchant-paystack FAILS CLOSED when
+# it's missing — every tenant's "Connect Paystack" 503s. Generate it here so
+# it exists without anyone SSHing in by hand, and so the value never leaves
+# the server. Idempotent: an existing key is never touched, because rotating
+# it would orphan every secret already encrypted under it.
+if ! grep -q '^GATEWAY_ENC_KEY=' "${APP_DIR}/.env" 2>/dev/null; then
+  echo "GATEWAY_ENC_KEY=\$(openssl rand -hex 32)" >> "${APP_DIR}/.env"
+  systemctl restart collarone-api
+  echo "GATEWAY_ENC_KEY: generated"
+else
+  echo "GATEWAY_ENC_KEY: present"
+fi
+
 # ---- index.html must never be cached -------------------------------------
 # The hashed assets are immutable and cached for a year, which is right. The
 # HTML that NAMES them must be the opposite: if a browser holds an old
