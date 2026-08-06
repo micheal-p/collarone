@@ -953,8 +953,8 @@ export default function AdminWebsite() {
                 Your site is currently <strong style={{ color: site.published ? '#1a6a1a' : 'var(--text-2)' }}>{site.published ? 'live' : 'unpublished'}</strong>.
               </p>
               <p className="muted" style={{ fontSize: 13, marginBottom: 16 }}>
-                Public URL: <a href={`/site/${org?.slug}`} target="_blank" rel="noreferrer">{window.location.origin}/site/{org?.slug}</a>
-                <br />(Will move to <strong>{org?.slug}.collarone.app</strong> once wildcard subdomains are wired up.)
+                Public URL: <a href={`https://${org?.slug}.collarone.app`} target="_blank" rel="noreferrer"><strong>{org?.slug}.collarone.app</strong></a>
+                <br />(Also reachable at <a href={`/site/${org?.slug}`} target="_blank" rel="noreferrer">{window.location.origin}/site/{org?.slug}</a>.)
               </p>
               <button className="btn btn-primary" onClick={togglePublish}>{site.published ? 'Unpublish site' : 'Publish site'}</button>
               <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid var(--line)' }}>
