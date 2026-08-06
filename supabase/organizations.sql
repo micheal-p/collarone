@@ -43,10 +43,18 @@ update public.profiles set org_id = '00000000-0000-0000-0000-000000000001' where
 alter table public.profiles alter column org_id set not null;
 
 -- ---- org-scoping helpers -----------------------------------------------------
-create or replace function public.my_org_id()
-returns uuid language sql security definer stable set search_path = public as $$
-  select org_id from public.profiles where id = auth.uid();
-$$;
+-- Base fallback only — support_identity.sql owns the CANONICAL my_org_id()
+-- (support-session aware). Created here only when the function doesn't exist
+-- yet (fresh database), so replaying this file can never clobber the canonical
+-- definition back to a support-blind one.
+do $$ begin
+  if to_regproc('public.my_org_id') is null then
+    create function public.my_org_id()
+    returns uuid language sql security definer stable set search_path = public as $fn$
+      select org_id from public.profiles where id = auth.uid();
+    $fn$;
+  end if;
+end $$;
 
 create or replace function public.same_org(target_org uuid)
 returns boolean language sql stable as $$

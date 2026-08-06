@@ -8,3 +8,7 @@ client/.env
 .DS_Store
 data/
 coverage/
+
+# Never publish: signed founders agreements, signature image, prod-poking scripts
+legal/
+scratchpad/

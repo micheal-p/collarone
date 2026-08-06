@@ -17,17 +17,18 @@
 -- them anyway) and must always succeed.
 -- ============================================================================
 
--- Is the current request a support (read-only) session? Reads the JWT claim
--- PostgREST puts on the connection. current_setting(..., true) returns NULL
--- when unset; coalesce makes the whole thing false rather than NULL, so this
--- can never collapse a guard to "unknown".
-create or replace function public.is_support_session()
-  returns boolean language sql stable as $$
-  select coalesce(
-    (current_setting('request.jwt.claims', true)::jsonb ->> 'mode') = 'support_read',
-    false
-  );
-$$;
+-- Is the current request a support (read-only) session? Fallback only —
+-- support_identity.sql owns the CANONICAL is_support_session() (auth.jwt()
+-- based, empty-string-claim safe). Created here only when missing (fresh
+-- database), so replaying this file can never regress the canonical one.
+do $$ begin
+  if to_regproc('public.is_support_session') is null then
+    create function public.is_support_session()
+      returns boolean language sql stable as $fn$
+      select coalesce((auth.jwt() ->> 'mode') = 'support_read', false);
+    $fn$;
+  end if;
+end $$;
 
 create or replace function public.block_support_writes()
   returns trigger language plpgsql as $$

@@ -37,8 +37,20 @@ create table if not exists public.support_grants (
 create index if not exists support_grants_admin_active
   on public.support_grants (admin_id, expires_at) where consumed_at is null;
 
--- Service-role only: RLS on, zero policies (same posture as org_payment_gateways).
+-- Service-role only for the app: RLS on, no policies for authenticated/anon.
+-- supabase_auth_admin gets its own SELECT policy below — the hook runs as that
+-- role WITHOUT rls bypass, so a table grant alone is not enough to read here.
 alter table public.support_grants enable row level security;
+
+drop policy if exists "support_grants_auth_hook_read" on public.support_grants;
+create policy "support_grants_auth_hook_read" on public.support_grants
+  for select to supabase_auth_admin using (true);
+
+-- The hook also checks platform_admins directly (not via the security-definer
+-- helper), so that table needs the same auth-role read path.
+drop policy if exists "platform_admins_auth_hook_read" on public.platform_admins;
+create policy "platform_admins_auth_hook_read" on public.platform_admins
+  for select to supabase_auth_admin using (true);
 
 -- ---- 2. the access-token hook ----------------------------------------------
 -- Runs at every token mint/refresh. Adds the support claims only when the user
@@ -73,19 +85,44 @@ grant select on public.support_grants, public.platform_admins to supabase_auth_a
 -- No one else may call it.
 revoke execute on function public.custom_access_token_hook(jsonb) from authenticated, anon, public;
 
--- ---- 3. my_org_id honours act_tenant for reads ------------------------------
--- The core helper every policy reads. The change is additive: for any normal
--- request the mode check fails immediately and it returns the profile's org
--- exactly as before — is_platform_admin() is only consulted once a token
--- already claims support_read, which only the hook can put there, and only for
--- a platform admin. A forged act_tenant on a non-admin token is ignored.
+-- ---- 3. the CANONICAL claim-reading helpers ---------------------------------
+-- This file owns the one true definition of is_support_session() and
+-- my_org_id(). organizations.sql and support_readonly_enforcement.sql only
+-- create fallbacks when the function is missing (fresh database), so replaying
+-- any file in any order can never regress these.
+--
+-- auth.jwt() is Supabase's builtin claims reader; it already collapses the
+-- empty-string GUC to NULL — the ''::jsonb crash the old hand-copied
+-- nullif(...) expressions guarded against, now guarded in exactly one place.
+
+create or replace function public.is_support_session()
+  returns boolean language sql stable as $$
+  select coalesce((auth.jwt() ->> 'mode') = 'support_read', false);
+$$;
+
+-- my_org_id honours act_tenant FOR READS. Additive for normal requests: the
+-- mode check fails immediately and it returns the profile's org exactly as
+-- before. A forged act_tenant on a non-admin token is ignored — and the claim
+-- alone is not enough: the grant row must still be live and unconsumed, so
+-- ending a session (or its 30-minute expiry) cuts access on the very next
+-- query even for a token minted moments before. Claims no longer outlive the
+-- grant. The one-row FROM subquery parses the JWT once per call instead of
+-- 2-3 times — this runs inside every RLS policy, so it matters.
 create or replace function public.my_org_id()
   returns uuid language sql stable security definer set search_path to 'public' as $$
   select case
-    when (current_setting('request.jwt.claims', true)::jsonb ->> 'mode') = 'support_read'
-     and (current_setting('request.jwt.claims', true)::jsonb ->> 'act_tenant') is not null
+    when (j.c ->> 'mode') = 'support_read'
+     and (j.c ->> 'act_tenant') is not null
      and public.is_platform_admin()
-    then (current_setting('request.jwt.claims', true)::jsonb ->> 'act_tenant')::uuid
+     and exists (
+       select 1 from public.support_grants g
+       where g.admin_id = auth.uid()
+         and g.tenant_id = (j.c ->> 'act_tenant')::uuid
+         and g.consumed_at is null
+         and g.expires_at > now()
+     )
+    then (j.c ->> 'act_tenant')::uuid
     else (select org_id from public.profiles where id = auth.uid())
-  end;
+  end
+  from (select auth.jwt() as c) j;
 $$;
