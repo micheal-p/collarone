@@ -140,7 +140,13 @@ if [ -n "\$CONF" ]; then
   fi
 fi
 # Did it actually reach the running config? "wired" only means a file changed.
-if nginx -T 2>/dev/null | grep -q 'collarone-cache.conf'; then
+# nginx -T flakes on this box (pid-permission), and an EMPTY dump must read as
+# "couldn't check", not "no" — a false no here already sent one investigation
+# chasing a regression that never happened.
+NGINX_DUMP=\$(nginx -T 2>/dev/null)
+if [ -z "\$NGINX_DUMP" ]; then
+  NGINX_STATUS="\${NGINX_STATUS} effective=unknown"
+elif printf '%s' "\$NGINX_DUMP" | grep -q 'collarone-cache.conf'; then
   NGINX_STATUS="\${NGINX_STATUS} effective=yes"
 else
   NGINX_STATUS="\${NGINX_STATUS} effective=no"
