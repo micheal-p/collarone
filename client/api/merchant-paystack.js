@@ -12,7 +12,7 @@
 //   POST { action: 'connect', publicKey, secretKey }  (Bearer, super_admin) → { ok }
 //   POST { action: 'disconnect' }                     (Bearer, super_admin) → { ok }
 import { createClient } from '@supabase/supabase-js';
-import { encryptSecret, isEncryptionConfigured } from './_lib/gatewayCrypto.js';
+import { decryptSecret, encryptSecret, isEncryptionConfigured } from './_lib/gatewayCrypto.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -37,8 +37,21 @@ export default async function handler(req, res) {
 
   try {
     if (action === 'status') {
-      const { data: gw } = await admin.from('org_payment_gateways').select('enabled, public_key').eq('org_id', caller.org_id).maybeSingle();
-      return json(res, 200, { enabled: Boolean(gw?.enabled), publicKey: gw?.public_key || '' });
+      const { data: gw } = await admin.from('org_payment_gateways').select('enabled, public_key, secret_key').eq('org_id', caller.org_id).maybeSingle();
+      const enabled = Boolean(gw?.enabled);
+      // Live-verify the STORED key so the UI can show an honest "Verified"
+      // check — a merchant can rotate or revoke keys in their Paystack
+      // dashboard any time, which silently kills their checkout. 401 means
+      // the key is dead; network trouble means unknown, which is not the
+      // same as broken, so it reports null rather than crying wolf.
+      let verified = null;
+      if (enabled && gw?.secret_key) {
+        try {
+          const vr = await fetch('https://api.paystack.co/balance', { headers: { Authorization: `Bearer ${decryptSecret(gw.secret_key)}` } });
+          verified = vr.ok ? true : (vr.status === 401 ? false : null);
+        } catch { verified = null; }
+      }
+      return json(res, 200, { enabled, publicKey: gw?.public_key || '', verified });
     }
 
     // writes require the org's own admin
