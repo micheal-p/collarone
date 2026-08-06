@@ -7,6 +7,7 @@ import { useAuth } from '../../auth/AuthContext.jsx';
 import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
 import { amountInWords } from '../../lib/amountInWords.js';
 import ProductTour, { tourSeen } from '../../components/ProductTour.jsx';
+import PaystackConnect from '../../components/PaystackConnect.jsx';
 
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 
@@ -1020,6 +1021,13 @@ export default function TradeDocsApp({ access }) {
       </div>
 
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
+
+      {/* Invoices are where card payments matter, but the connect UI lives in
+          Website settings, which an invoicing-only business may never open.
+          Nudge here until connected; once ON this renders nothing. */}
+      {!loading && (tab === 'invoice' || tab === 'receivables') && (
+        <PaystackConnect flash={flash} isAdmin={user?.role === 'super_admin'} nudge />
+      )}
 
       {!loading && (
         <div className="table-wrap">

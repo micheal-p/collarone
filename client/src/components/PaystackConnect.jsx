@@ -4,7 +4,7 @@
 // Paystack, stored where the browser can never read it). Money settles into
 // the merchant's own bank; Collarone never holds it.
 import { useEffect, useState } from 'react';
-import { getAccessToken } from '../api/client.ts';
+import { DEMO, getAccessToken } from '../api/client.ts';
 
 const call = async (payload) => {
   const r = await fetch('/api/merchant-paystack', {
@@ -17,7 +17,10 @@ const call = async (payload) => {
   return d;
 };
 
-export default function PaystackConnect({ flash, isAdmin }) {
+// `nudge`: render only while payments are NOT connected — for money-adjacent
+// surfaces (invoices) that should prompt setup but not carry a permanent
+// management card. The Website settings card stays the full always-on manager.
+export default function PaystackConnect({ flash, isAdmin, nudge = false }) {
   const [enabled, setEnabled] = useState(false);
   const [publicKey, setPublicKey] = useState('');
   const [loading, setLoading] = useState(true);
@@ -25,8 +28,10 @@ export default function PaystackConnect({ flash, isAdmin }) {
   const [form, setForm] = useState({ publicKey: '', secretKey: '' });
   const [busy, setBusy] = useState(false);
 
+  // The /try sandbox and demo builds have no real session or gateway — don't
+  // hit the live endpoint or dangle a connect form that can only 401.
   const load = () => call({ action: 'status' }).then((d) => { setEnabled(d.enabled); setPublicKey(d.publicKey || ''); }).catch(() => {}).finally(() => setLoading(false));
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (!DEMO) load(); }, []);
 
   const connect = async (e) => {
     e.preventDefault();
@@ -44,6 +49,7 @@ export default function PaystackConnect({ flash, isAdmin }) {
   };
 
   if (loading) return null;
+  if (nudge && enabled) return null;
 
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 10, padding: '14px 16px', margin: '16px 0', background: 'var(--surface-2)' }}>
