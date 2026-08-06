@@ -1747,6 +1747,10 @@ export async function supabaseApi(path, opts = {}) {
   // ---- attendance ----
   const ATT_SELECT = '*, employee:profiles!employee_id(id,name,email)';
   if (head === 'GET /attendance' && seg[1] === 'records') {
+    // Lazy auto-close (no cron exists): shifts left open past their day are
+    // closed-and-flagged before anyone reads the board. Failure is harmless —
+    // the next load tries again.
+    await supabase.rpc('attendance_autoclose_stale');
     const { data, error } = await supabase.from('attendance_records').select(ATT_SELECT).order('clock_in_at', { ascending: false });
     if (error) fail(400, error.message);
     return { records: data };
@@ -1756,13 +1760,16 @@ export async function supabaseApi(path, opts = {}) {
   if (method === 'PATCH' && seg[0] === 'attendance' && seg[1] === 'records' && seg.length === 3) {
     const patch = {};
     if (body.clockInAt !== undefined) patch.clock_in_at = body.clockInAt;
-    if (body.clockOutAt !== undefined) patch.clock_out_at = body.clockOutAt;
+    // A manual clock-out correction is a human decision, so it CONFIRMS an
+    // auto-closed day — provisional hours become real ones.
+    if (body.clockOutAt !== undefined) { patch.clock_out_at = body.clockOutAt; patch.auto_closed = false; }
     if (body.notes !== undefined) patch.notes = body.notes;
     const { data, error } = await supabase.from('attendance_records').update(patch).eq('id', seg[2]).select(ATT_SELECT).single();
     if (error) fail(400, error.message);
     return { record: data };
   }
   if (head === 'GET /attendance' && seg[1] === 'mine') {
+    await supabase.rpc('attendance_autoclose_stale');
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('attendance_records').select('*').eq('employee_id', user.id).order('clock_in_at', { ascending: false });
     if (error) fail(400, error.message);
@@ -1784,6 +1791,7 @@ export async function supabaseApi(path, opts = {}) {
     const p = await myProfile();
     const row = {
       org_id: p.org_id,
+      office_name: body.officeName?.trim() || null,
       office_lat: body.officeLat === '' || body.officeLat == null ? null : Number(body.officeLat),
       office_lng: body.officeLng === '' || body.officeLng == null ? null : Number(body.officeLng),
       // Only office_lat/office_lng are nullable on this table. The rest are NOT

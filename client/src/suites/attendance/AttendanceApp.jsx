@@ -16,12 +16,22 @@ const IcChevDown = ({ open }) => <svg width="14" height="14" viewBox="0 0 24 24"
 const OT_NOTE = 'Overtime is hours beyond an 8h workday. A per-org schedule setting is coming later.';
 
 /* ---- small shared cells ---- */
-function LocationCell({ lat, lng }) {
+function LocationCell({ lat, lng, settings }) {
   if (lat == null || lng == null) return <span className="muted">—</span>;
+  // Distance from the named office turns raw coordinates into an answer:
+  // "1.8km · Ikate Office" says where they were without opening a map. The
+  // map link stays for the times a manager wants the actual spot.
+  const d = settings?.office_lat != null && settings?.office_lng != null
+    ? A.distanceM(lat, lng, settings.office_lat, settings.office_lng)
+    : null;
+  const label = d == null
+    ? 'View location'
+    : `${d < 950 ? `${Math.round(d)}m` : `${(d / 1000).toFixed(1)}km`} · ${settings?.office_name || 'office'}`;
   return (
     <a href={`https://maps.google.com/?q=${lat},${lng}`} target="_blank" rel="noreferrer"
+      title="Open in Google Maps"
       style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12.5, color: 'var(--brand)', textDecoration: 'none', fontWeight: 500 }}>
-      <IcPin /> View location
+      <IcPin /> {label}
     </a>
   );
 }
@@ -46,6 +56,7 @@ const DAYS = [['1', 'Mon'], ['2', 'Tue'], ['3', 'Wed'], ['4', 'Thu'], ['5', 'Fri
 
 function RulesPanel({ settings, onSaved, flash }) {
   const [f, setF] = useState(() => ({
+    officeName: settings?.office_name ?? '',
     officeLat: settings?.office_lat ?? '',
     officeLng: settings?.office_lng ?? '',
     // 0 means "no fence" on this table, it is NOT NULL with a default of 0.
@@ -93,10 +104,13 @@ function RulesPanel({ settings, onSaved, flash }) {
         <legend style={{ fontSize: 12.5, fontWeight: 700, padding: '0 6px' }}>Where staff may clock in</legend>
         <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
           {fenced
-            ? `Clock-in is refused further than ${f.radiusM}m from this point. Someone who taps while still outside waits, and is clocked in the moment they arrive.`
+            ? `Clock-in is refused further than ${f.radiusM}m from ${f.officeName || 'this point'}. Someone who taps while still outside waits, and is clocked in the moment they arrive.`
             : 'No location set, so staff can clock in from anywhere. Set a point to restrict it.'}
         </p>
         <div className="form-grid">
+          <div className="field"><label>Office name</label>
+            <input className="input" value={f.officeName} onChange={(e) => set('officeName', e.target.value)} placeholder="Ikate Office" maxLength={60} />
+          </div>
           <div className="field"><label>Latitude</label>
             <input className="input" value={f.officeLat} onChange={(e) => set('officeLat', e.target.value)} placeholder="6.4281" inputMode="decimal" />
           </div>
@@ -208,8 +222,8 @@ function ClockCard({ mine, onChange, flash, settings }) {
       {!openShift && waiting && (
         <div aria-live="polite">
           <div style={{ fontSize: 13.5, marginBottom: 6 }}>
-            You are <strong>{waiting.distanceM}m</strong> away. Clock-in happens automatically
-            as soon as you are within {waiting.radiusM}m.
+            You are <strong>{waiting.distanceM >= 950 ? `${(waiting.distanceM / 1000).toFixed(1)}km` : `${waiting.distanceM}m`}</strong> from{' '}
+            {settings?.office_name || 'the office'}. Clock-in happens automatically as soon as you are within {waiting.radiusM}m.
           </div>
           <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
             Keep this open while you walk in. The time recorded is when you arrive.
@@ -255,7 +269,7 @@ function MyWeekSummary({ mine }) {
 }
 
 /* ---- shift rows (my view + generic) ---- */
-function MyShiftsTable({ records, onEdit }) {
+function MyShiftsTable({ records, onEdit, settings }) {
   return (
     <>
       <div className="table-wrap">
@@ -274,11 +288,14 @@ function MyShiftsTable({ records, onEdit }) {
               return (
                 <tr key={r.id}>
                   <td className="muted" style={{ fontSize: 13 }}>{A.fmtDt(r.clock_in_at)}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{r.clock_out_at ? A.fmtDt(r.clock_out_at) : <span className="st-pill st-success">Open</span>}</td>
+                  <td className="muted" style={{ fontSize: 13 }}>
+                    {r.clock_out_at ? A.fmtDt(r.clock_out_at) : <span className="st-pill st-success">Open</span>}
+                    {r.auto_closed && <span className="st-pill st-warn" style={{ marginLeft: 6 }} title="Closed automatically at day end because clock-out was forgotten. Hours are provisional until a manager confirms them with the pencil.">Auto-closed</span>}
+                  </td>
                   <td className="muted" style={{ fontSize: 13 }}>{hours != null ? hours.toFixed(1) : '—'}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{ot != null && ot > 0 ? `${ot.toFixed(1)}h` : '—'}</td>
                   <td className="muted" style={{ fontSize: 13, maxWidth: 220 }}>{r.notes || '—'}</td>
-                  <td><LocationCell lat={r.clock_in_lat} lng={r.clock_in_lng} /></td>
+                  <td><LocationCell lat={r.clock_in_lat} lng={r.clock_in_lng} settings={settings} /></td>
                   {onEdit && (
                     <td>
                       <button className="iconbtn" aria-label="Edit shift" title="Edit shift" onClick={() => onEdit(r)}><IcPencil /></button>
@@ -296,11 +313,12 @@ function MyShiftsTable({ records, onEdit }) {
 }
 
 /* ---- manager: today ---- */
-function TodayView({ all, onEdit }) {
+function TodayView({ all, onEdit, settings }) {
   const todayKey = A.dayKey(new Date().toISOString());
-  // Open shifts from any day count as "on shift now" — a stale one from
-  // yesterday is exactly the forgot-to-clock-out case a manager should fix.
-  const open = all.filter((r) => !r.clock_out_at);
+  // Today means TODAY: a stale open shift from yesterday is not "on shift
+  // now" — auto-close turns those into flagged completed records the moment
+  // anyone loads the suite, and they belong to their own day's timesheet.
+  const open = all.filter((r) => !r.clock_out_at && A.dayKey(r.clock_in_at) === todayKey);
   const completed = all.filter((r) => r.clock_out_at && A.dayKey(r.clock_in_at) === todayKey);
   const lateCount = [...open, ...completed].filter((r) => A.dayKey(r.clock_in_at) === todayKey && A.isLate(r.clock_in_at)).length;
 
@@ -315,7 +333,7 @@ function TodayView({ all, onEdit }) {
         </td>
         <td>{done ? <span className="st-pill st-neutral">Completed</span> : <span className="st-pill st-success">On shift</span>}</td>
         <td className="muted" style={{ fontSize: 13 }}>{done ? `${A.fmtTime(r.clock_out_at)} · ${hours.toFixed(1)}h` : '—'}</td>
-        <td><LocationCell lat={r.clock_in_lat} lng={r.clock_in_lng} /></td>
+        <td><LocationCell lat={r.clock_in_lat} lng={r.clock_in_lng} settings={settings} /></td>
         <td>
           <button className="iconbtn" aria-label="Edit shift" title="Edit shift" onClick={() => onEdit(r)}><IcPencil /></button>
         </td>
@@ -350,7 +368,7 @@ function TodayView({ all, onEdit }) {
 }
 
 /* ---- manager: weekly timesheet ---- */
-function TimesheetView({ all, onEdit }) {
+function TimesheetView({ all, onEdit, settings }) {
   const [weekStart, setWeekStart] = useState(() => A.startOfWeek());
   const [expanded, setExpanded] = useState(() => new Set());
   const isThisWeek = weekStart.getTime() === A.startOfWeek().getTime();
@@ -414,7 +432,7 @@ function TimesheetView({ all, onEdit }) {
           <tbody>
             {groups.length === 0 && <tr><td colSpan={5} className="td-empty">No hours recorded this week yet, timesheets build themselves from clock-ins and feed straight into Payroll.</td></tr>}
             {groups.map((g) => (
-              <GroupRows key={g.id} g={g} open={expanded.has(g.id)} onToggle={() => toggle(g.id)} onEdit={onEdit} />
+              <GroupRows key={g.id} g={g} open={expanded.has(g.id)} onToggle={() => toggle(g.id)} onEdit={onEdit} settings={settings} />
             ))}
           </tbody>
         </table>
@@ -426,7 +444,7 @@ function TimesheetView({ all, onEdit }) {
   );
 }
 
-function GroupRows({ g, open, onToggle, onEdit }) {
+function GroupRows({ g, open, onToggle, onEdit, settings }) {
   return (
     <>
       <tr onClick={onToggle} style={{ cursor: 'pointer' }}>
@@ -445,12 +463,13 @@ function GroupRows({ g, open, onToggle, onEdit }) {
             <td className="muted" style={{ fontSize: 13 }} colSpan={2}>
               {A.fmtTime(r.clock_in_at)} → {r.clock_out_at ? A.fmtTime(r.clock_out_at) : <span className="st-pill st-success">Open</span>}
               {hours != null && <span style={{ marginLeft: 8 }}>({hours.toFixed(1)}h)</span>}
+              {r.auto_closed && <span className="st-pill st-warn" style={{ marginLeft: 8 }} title="Closed automatically at day end because clock-out was forgotten. Hours are provisional until a manager confirms them with the pencil.">Auto-closed</span>}
               {A.isLate(r.clock_in_at) && <span className="st-pill st-warn" style={{ marginLeft: 8 }}>Late</span>}
               {r.notes && <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 2 }}>{r.notes}</span>}
             </td>
             <td>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                <LocationCell lat={r.clock_in_lat} lng={r.clock_in_lng} />
+                <LocationCell lat={r.clock_in_lat} lng={r.clock_in_lng} settings={settings} />
                 <button className="iconbtn" aria-label="Edit shift" title="Edit shift" onClick={(e) => { e.stopPropagation(); onEdit(r); }}><IcPencil /></button>
               </span>
             </td>
@@ -615,11 +634,11 @@ export default function AttendanceApp({ access }) {
         <>
           <ClockCard mine={mine} onChange={load} flash={flash} settings={settings} />
           <MyWeekSummary mine={mine} />
-          <MyShiftsTable records={mine} onEdit={isManager ? setEditRec : null} />
+          <MyShiftsTable records={mine} onEdit={isManager ? setEditRec : null} settings={settings} />
         </>
       )}
-      {!loading && tab === 'today' && isManager && <TodayView all={all} onEdit={setEditRec} />}
-      {!loading && tab === 'timesheet' && isManager && <TimesheetView all={all} onEdit={setEditRec} />}
+      {!loading && tab === 'today' && isManager && <TodayView all={all} onEdit={setEditRec} settings={settings} />}
+      {!loading && tab === 'timesheet' && isManager && <TimesheetView all={all} onEdit={setEditRec} settings={settings} />}
       {tab === 'shifts' && isManager && <ShiftsTab flash={flash} />}
       {tab === 'rules' && isManager && (
         <RulesPanel settings={settings} onSaved={setSettings} flash={flash} />
