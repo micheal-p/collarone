@@ -55,7 +55,7 @@ export default function TryChooser() {
             </p>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
             {suites.map((s) => {
               const meta = SUITE_META[s.key] || {};
               return (

@@ -5,7 +5,9 @@
 import { LegalNav, LegalFooter } from './LegalChrome.jsx';
 import './Legal.css';
 
-const code = { display: 'block', background: '#14161a', color: '#e8e6e1', borderRadius: 8, padding: '12px 14px', fontSize: 12.5, lineHeight: 1.6, overflowX: 'auto', whiteSpace: 'pre', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', margin: '8px 0 18px' };
+// pre-wrap, not pre: clipped-looking code blocks read as truncated docs
+// (audit finding 18) — wrapped lines beat an invisible horizontal scroll.
+const code = { display: 'block', background: '#14161a', color: '#e8e6e1', borderRadius: 8, padding: '12px 14px', fontSize: 12.5, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', margin: '8px 0 18px' };
 const h2 = { fontSize: 18, fontWeight: 700, margin: '28px 0 8px' };
 const h3 = { fontSize: 14.5, fontWeight: 700, margin: '18px 0 6px' };
 const p = { fontSize: 14, lineHeight: 1.7, margin: '0 0 10px' };

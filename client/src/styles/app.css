@@ -954,3 +954,22 @@ textarea.input { padding: 12px 14px; }
   .login-actions { justify-content: stretch; }
   .login-actions .btn { width: 100%; }
 }
+
+/* ==== UX-audit batch 3 ==================================================== */
+/* [11] touch devices: icon buttons get a real 40px tap target */
+@media (pointer: coarse) {
+  .iconbtn { min-width: 40px; min-height: 40px; }
+}
+/* [27] scrollable tab bars on phones: edge shadows that appear only when
+   there is more to scroll (background-attachment local/scroll pair) */
+@media (max-width: 640px) {
+  .lv-tabs {
+    background:
+      linear-gradient(90deg, #f4f1eb, transparent 28px) left / 48px 100%,
+      linear-gradient(270deg, #f4f1eb, transparent 28px) right / 48px 100%,
+      radial-gradient(farthest-side at 0 50%, rgba(10, 14, 26, 0.22), transparent) left / 14px 100%,
+      radial-gradient(farthest-side at 100% 50%, rgba(10, 14, 26, 0.22), transparent) right / 14px 100%;
+    background-repeat: no-repeat;
+    background-attachment: local, local, scroll, scroll;
+  }
+}

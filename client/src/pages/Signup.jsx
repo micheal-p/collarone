@@ -291,7 +291,7 @@ export default function Signup() {
               if (!inFam.length) return null;
               return (
                 <div key={fam.key} style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 7, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: '#99a', flex: '0 0 78px' }}>{fam.shortLabel || fam.label.split(' — ')[0]}</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase', color: '#99a', flex: '0 0 auto', minWidth: 78, whiteSpace: 'nowrap' }}>{fam.shortLabel || fam.label.split(' — ')[0]}</span>
                   <span style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flex: 1, minWidth: 260 }}>
                     {inFam.map((s) => {
                       const on = suites.has(s.key); const locked = lockedKeys.has(s.key); const meta = SUITE_META[s.key] || {};
