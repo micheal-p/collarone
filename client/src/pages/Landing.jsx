@@ -44,8 +44,12 @@ function Reveal({ children, delay = 0, className, hover = false }) {
       className={className}
       initial={{ opacity: 0, y: 16 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-60px' }}
-      transition={{ duration: 0.6, delay, ease: [0.2, 0.7, 0.3, 1] }}
+      // Pre-trigger ~a card BEFORE the element enters (positive bottom margin
+      // extends the observed area downward) — the old '-60px' made sections
+      // animate only once well inside the viewport, so continuous scrolling
+      // showed whole bands of blank page (audit finding 2).
+      viewport={{ once: true, margin: '0px 0px 240px 0px' }}
+      transition={{ duration: 0.45, delay, ease: [0.2, 0.7, 0.3, 1] }}
       {...(hover ? {
         whileHover: { y: -8, transition: { duration: 0.25, ease: [0.2, 0.7, 0.3, 1] } },
         whileTap: { scale: 0.98 },
@@ -257,13 +261,15 @@ function PriceCalculator() {
   );
 }
 
+// Snappier than the original 0.11/0.7 — first paint already pays the bundle
+// cost, the entrance must not add seconds on top (audit finding 5).
 const heroStagger = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.11, delayChildren: 0.05 } },
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0 } },
 };
 const heroItem = {
   hidden: { opacity: 0, y: 22 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.2, 0.7, 0.3, 1] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.2, 0.7, 0.3, 1] } },
 };
 
 const heroMetrics = [
@@ -284,7 +290,7 @@ function BusinessCommandCenter({ reduce }) {
       className="cl-os-stage"
       initial={reduce ? false : { opacity: 0, y: 34, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.9, delay: 0.32, ease: [0.16, 0.8, 0.2, 1] }}
+      transition={{ duration: 0.65, delay: 0.15, ease: [0.16, 0.8, 0.2, 1] }}
       aria-label="A live preview of the Collarone business command centre"
     >
       <div className="cl-os-glow" aria-hidden="true" />
@@ -410,8 +416,11 @@ export default function Landing() {
   const [faqCat, setFaqCat] = useState('All');
   const [faqAll, setFaqAll] = useState(false);
   const visibleFaqs = faqCat === 'All' ? faqs : faqs.filter((f) => f.cat === faqCat);
+  // inHeroScroll: still inside the dark hero but scrolled — the transparent
+  // nav was letting hero content collide with the logo row (audit finding 24).
+  const [inHeroScroll, setInHeroScroll] = useState(false);
   const { scrollY } = useScroll();
-  useMotionValueEvent(scrollY, 'change', (v) => { setPastHero(v > 520); });
+  useMotionValueEvent(scrollY, 'change', (v) => { setPastHero(v > 520); setInHeroScroll(v > 24 && v <= 520); });
 
   const heroRef = useRef(null);
   const [glowOn, setGlowOn] = useState(false);
@@ -445,7 +454,7 @@ export default function Landing() {
   return (
     <div className="cl">
       {!reduce && <motion.div className="cl-progress" style={{ scaleX: pageProgressSpring }} />}
-      <nav className={`cl-nav${(pastHero || navOpen) ? ' cl-nav-scrolled' : ' cl-nav-ondark'}${navOpen ? ' cl-nav-open' : ''}`}>
+      <nav className={`cl-nav${(pastHero || navOpen) ? ' cl-nav-scrolled' : ' cl-nav-ondark'}${!pastHero && !navOpen && inHeroScroll ? ' cl-nav-inscroll' : ''}${navOpen ? ' cl-nav-open' : ''}`}>
         <div className="cl-wrap">
           <a className="cl-brand" href="#top">
             <Mark size={24} />
@@ -584,7 +593,7 @@ export default function Landing() {
                 return (
                   <motion.div
                     key={m.name} className="cl-bento-feat"
-                    initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-60px' }}
+                    initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '0px 0px 240px 0px' }}
                     transition={{ duration: 0.6, ease: [0.2, 0.7, 0.3, 1] }}
                     whileHover={{ y: -4 }}
                   >
@@ -613,7 +622,7 @@ export default function Landing() {
 
       <section className="cl-sec cl-tint cl-themes-section" id="themes" data-section="03 · YOUR DIGITAL FRONT DOOR">
         <div className="cl-wrap">
-          <motion.div className="cl-sec-head" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+          <motion.div className="cl-sec-head" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '0px 0px 240px 0px' }} transition={{ duration: 0.45 }}>
             <p className="cl-eyebrow">A real website, included on every plan</p>
             <h2 className="cl-sec-h">Give your business a site worth visiting</h2>
             <p className="cl-sec-lede">Pick a theme, edit every word, and sell online or take enquiries. No designer, no monthly website bill. Tap Preview to see one live.</p>

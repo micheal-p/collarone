@@ -1015,3 +1015,42 @@
 }
 
 /* ---- "Try it live" embed in the walkthrough (desktop only) ---- */
+
+/* ==== UX-audit batch 1 fixes (see UX-AUDIT.md) =========================== */
+
+/* [24] scrolled inside the dark hero: the transparent nav gains a dark glass
+   background so hero content passing under it reads as "behind the bar". */
+.cl-nav-ondark.cl-nav-inscroll {
+  background: rgba(10, 14, 26, 0.88);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom-color: rgba(244, 241, 234, 0.08);
+}
+
+/* [23] "/mo" was a smudge on the dark sticky banner. */
+.cl-calc-total small { color: var(--text-soft); }
+
+/* [25] the selected-suite check rode on top of the pill border. */
+.cl-calc-suite { overflow: hidden; }
+.cl-calc-suite .cl-calc-tick { margin-right: 2px; }
+
+/* [10]+[31] phones: the pinned price bar covered headings and made the page
+   feel stuck while a full screen of scroll was absorbed. Under 640px it flows
+   with the content; 641-860 keeps the pin with a solid background so covered
+   text reads as "behind the bar", not clipped. */
+@media (max-width: 860px) {
+  .cl-calc-summary { background: var(--surface); }
+}
+@media (max-width: 640px) {
+  .cl-calc-summary { position: static; top: auto; }
+}
+
+/* [30] the two-column theme gallery left a card-sized hole beside the last
+   card at phone widths — single column below 640px. */
+@media (max-width: 640px) {
+  .ptg-grid { grid-template-columns: 1fr; }
+}
+
+/* [6] the chat bubble sat on the footer's last line on phones. */
+@media (max-width: 640px) {
+  .cl-footer { padding-bottom: 116px; }
+}
