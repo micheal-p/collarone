@@ -13,6 +13,24 @@ const IcChevL = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none
 const IcChevR = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>;
 const IcChevDown = ({ open }) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .12s' }}><path d="M6 9l6 6 6-6" /></svg>;
 const IcX = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>;
+const IcCheck = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>;
+
+/* Connection state, derived from the only honest signal we have: when the
+   device last delivered a punch. Devices push when people punch (no idle
+   heartbeat), so a quiet weekend is normal — the tiers reflect that. */
+function DeviceStatus({ d }) {
+  if (!d.active) return <span className="st-pill st-neutral">Disabled</span>;
+  if (!d.last_seen_at) return <span className="st-pill st-warn">Waiting for first punch</span>;
+  const ageH = (Date.now() - new Date(d.last_seen_at).getTime()) / 3600000;
+  if (ageH <= 48) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: '#12833F' }}>
+        <IcCheck /> Connected <span className="muted" style={{ fontWeight: 400 }}>· {A.fmtDt(d.last_seen_at)}</span>
+      </span>
+    );
+  }
+  return <span className="muted" style={{ fontSize: 12.5 }}>Last punch {A.fmtDt(d.last_seen_at)}</span>;
+}
 
 const OT_NOTE = 'Overtime is hours beyond an 8h workday. A per-org schedule setting is coming later.';
 
@@ -568,6 +586,12 @@ function DevicesView({ flash, onPunchesImported }) {
 
   const load = () => A.getDevices().then(setData).catch((e) => flash(e.message, true));
   useEffect(() => { load(); }, []); // eslint-disable-line
+  // Poll while the tab is open so the green check appears the moment an
+  // installer's test punch lands — no manual refresh during installation.
+  useEffect(() => {
+    const t = setInterval(() => { A.getDevices().then(setData).catch(() => {}); }, 15000);
+    return () => clearInterval(t);
+  }, []);
 
   const addDevice = async (e) => {
     e.preventDefault(); setBusy(true);
@@ -637,7 +661,7 @@ function DevicesView({ flash, onPunchesImported }) {
 
       <div className="table-wrap" style={{ marginBottom: 20 }}>
         <table className="table">
-          <thead><tr><th>Device</th><th>Serial</th><th>Key</th><th>Last seen</th><th /><th style={{ width: 40 }} /></tr></thead>
+          <thead><tr><th>Device</th><th>Serial</th><th>Key</th><th>Status</th><th /><th style={{ width: 40 }} /></tr></thead>
           <tbody>
             {data.devices.length === 0 && <tr><td colSpan={6} className="td-empty">No devices yet. A registered device gets a key that lets it submit punches for your company — nothing else.</td></tr>}
             {data.devices.map((d) => (
@@ -649,7 +673,7 @@ function DevicesView({ flash, onPunchesImported }) {
                     <code style={{ fontSize: 11 }}>{d.api_key.slice(0, 8)}…</code> copy
                   </button>
                 </td>
-                <td className="muted" style={{ fontSize: 12.5 }}>{d.last_seen_at ? A.fmtDt(d.last_seen_at) : <span className="st-pill st-warn">Never</span>}</td>
+                <td><DeviceStatus d={d} /></td>
                 <td>
                   <button type="button" className="btn btn-ghost btn-sm" disabled={busy}
                     onClick={async () => { try { await A.setDeviceActive(d.id, !d.active); load(); } catch (e) { flash(e.message, true); } }}>

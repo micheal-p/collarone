@@ -58,7 +58,7 @@ Content-Type: application/json`}</code>
   -H "x-device-key: YOUR_DEVICE_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"personRef":"42"}'`}</code>
-      <p style={p}>A successful call answers like this — and the device&rsquo;s <em>Last seen</em> light in the admin&rsquo;s Devices tab goes green:</p>
+      <p style={p}>A successful call answers like this — and within seconds the device&rsquo;s row in the admin&rsquo;s Devices tab shows a green <strong>✓ Connected</strong> check. That checkmark is your proof the wiring is done:</p>
       <code style={code}>{`{ "received": 1, "applied": 1, "duplicates": 0, "unmapped": [], "errors": [] }`}</code>
 
       <h2 style={h2}>Rules the endpoint enforces</h2>
