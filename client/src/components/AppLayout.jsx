@@ -101,7 +101,12 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
     localStorage.removeItem(GUEST_KEY);
     sessionStorage.removeItem(GUEST_KEY);
     try { await apiPost('/platform/end-guest', {}); } catch { /* expiry is the backstop */ }
-    try { await supabase.auth.refreshSession(); } catch { /* claim drops on next refresh */ }
+    try {
+      // Same already-used-token race as guest ENTRY: refresh from the stored
+      // session, not the possibly stale in-memory one.
+      const { data: { session } } = await supabase.auth.getSession();
+      await supabase.auth.refreshSession(session ? { refresh_token: session.refresh_token } : undefined);
+    } catch { /* claim drops on next refresh; grant re-check revokes reads regardless */ }
     window.location.href = '/platform-admin';
   };
 

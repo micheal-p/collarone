@@ -214,42 +214,66 @@ function ContactMessagesPanel({ flash }) {
 function AppErrorsPanel() {
   const [errors, setErrors] = useState([]);
   const [expanded, setExpanded] = useState(null);
+  const [showResolved, setShowResolved] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    apiGet('/platform/client-errors').then((d) => setErrors(d.errors || [])).catch(() => {});
-  }, []);
+  const load = () => apiGet('/platform/client-errors').then((d) => setErrors(d.errors || [])).catch(() => {});
+  useEffect(() => { load(); }, []);
 
-  // group identical messages so a crash loop reads as one row, not fifty
+  // Group identical messages so a crash loop reads as one row, not fifty. A
+  // group is resolved only when EVERY row in it is — a fresh occurrence of an
+  // old message reopens it, which is exactly what "it came back" should do.
   const grouped = useMemo(() => {
     const m = new Map();
     errors.forEach((e) => {
       const g = m.get(e.message);
-      if (g) { g.count += 1; if (e.occurred_at > g.last) g.last = e.occurred_at; }
-      else m.set(e.message, { ...e, count: 1, last: e.occurred_at });
+      if (g) {
+        g.count += 1;
+        if (e.occurred_at > g.last) g.last = e.occurred_at;
+        if (!e.resolved_at) g.resolved = false;
+      } else m.set(e.message, { ...e, count: 1, last: e.occurred_at, resolved: Boolean(e.resolved_at) });
     });
     return [...m.values()].sort((a, b) => (a.last < b.last ? 1 : -1));
   }, [errors]);
 
-  const weekCount = errors.filter((e) => Date.now() - new Date(e.occurred_at).getTime() < 7 * DAY_MS).length;
+  const visible = grouped.filter((g) => showResolved || !g.resolved);
+  const weekCount = errors.filter((e) => !e.resolved_at && Date.now() - new Date(e.occurred_at).getTime() < 7 * DAY_MS).length;
+
+  const resolve = async (g) => {
+    setBusy(true);
+    try { await apiPost('/platform/client-errors/resolve', { message: g.message }); load(); }
+    catch { /* stays visible, retry available */ } finally { setBusy(false); }
+  };
 
   return (
     <section className="pc-section">
-      <SectionHead title="App errors" count={weekCount > 0 ? `${weekCount} this week` : '0 this week'} />
-      {grouped.length === 0 ? (
+      <SectionHead title="App errors" count={weekCount > 0 ? `${weekCount} open this week` : 'inbox zero'}>
+        <button className="pc-btn sm" onClick={() => setShowResolved((v) => !v)}>{showResolved ? 'Hide resolved' : 'Show resolved'}</button>
+      </SectionHead>
+      {visible.length === 0 ? (
         <div className="pc-panel" style={{ padding: '14px 16px', fontSize: 12.5, color: 'var(--faint)' }}>
-          No front-end errors reported. Crashes inside users' browsers are captured automatically and land here.
+          {grouped.length === 0
+            ? "No front-end errors reported. Crashes inside users' browsers are captured automatically and land here."
+            : 'All error groups resolved. New occurrences reopen them automatically.'}
         </div>
       ) : (
         <div className="pc-panel">
-          {grouped.map((e) => (
-            <div key={e.id} style={{ padding: '11px 16px', borderTop: '1px solid var(--line)', cursor: e.stack ? 'pointer' : 'default' }}
+          {visible.map((e) => (
+            <div key={e.id} style={{ padding: '11px 16px', borderTop: '1px solid var(--line)', cursor: e.stack ? 'pointer' : 'default', opacity: e.resolved ? 0.55 : 1 }}
               onClick={() => setExpanded(expanded === e.id ? null : e.id)}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                <span className="pc-mono" style={{ fontSize: 12.5, color: 'var(--err)' }}>{e.message}</span>
+                <span className="pc-mono" style={{ fontSize: 12.5, color: e.resolved ? 'var(--dim)' : 'var(--err)' }}>{e.message}</span>
                 {e.count > 1 && <span className="pc-badge accent">×{e.count}</span>}
+                {e.resolved && <span className="pc-badge">resolved</span>}
                 <span className="pc-sec-spacer" />
                 {e.path && <span className="pc-mono pc-faint" style={{ fontSize: 11 }}>{e.path}</span>}
                 <span className="pc-mono pc-faint" style={{ fontSize: 11 }}>{fmtDateTime(e.last)}</span>
+                {!e.resolved && (
+                  <button className="pc-btn sm" disabled={busy}
+                    onClick={(ev) => { ev.stopPropagation(); resolve(e); }}>
+                    Resolve
+                  </button>
+                )}
               </div>
               {expanded === e.id && e.stack && (
                 <pre className="pc-mono" style={{ fontSize: 11, color: 'var(--dim)', margin: '8px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 180, overflow: 'auto' }}>{e.stack}</pre>
@@ -928,7 +952,19 @@ export default function PlatformAdmin() {
     setGuestingOrg(org.id);
     try {
       const d = await apiPost('/platform/guest-mode', { orgId: org.id, reason: reason.trim() });
-      const { error } = await supabase.auth.refreshSession();   // re-mint our token WITH the support claim
+      // Re-mint our token WITH the support claim. refreshSession() on the
+      // in-memory session throws "Invalid Refresh Token: Already Used" when an
+      // auto-refresh (this tab's or another's) rotated it first — so always
+      // re-read the CURRENT session from storage, and retry once on the race.
+      const mint = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        return supabase.auth.refreshSession(session ? { refresh_token: session.refresh_token } : undefined);
+      };
+      let { error } = await mint();
+      if (error && /already.?used/i.test(error.message)) {
+        await new Promise((r) => setTimeout(r, 600));
+        ({ error } = await mint());
+      }
       if (error) throw new Error(error.message);
       // localStorage (not sessionStorage): the marker must survive a closed tab,
       // or you could reopen mid-session with no banner. AppLayout hard-expires it.

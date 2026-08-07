@@ -97,6 +97,7 @@ export default async function handler(req, res) {
     try {
       const { count } = await admin.from('client_errors')
         .select('id', { count: 'exact', head: true })
+        .is('resolved_at', null)   // acknowledged noise stops counting
         .gte('occurred_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
       clientErrorsLastHour = count || 0;
     } catch { /* counting must never break the health check itself */ }

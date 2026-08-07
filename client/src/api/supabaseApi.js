@@ -409,6 +409,17 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { errors: data };
   }
+  // Resolve a whole error GROUP (every unresolved row with this exact
+  // message) — acknowledgement, not deletion; a guard trigger pins the rest.
+  if (head === 'POST /platform' && seg[1] === 'client-errors' && seg[2] === 'resolve') {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!body.message) fail(400, 'Which error group?');
+    const { error } = await supabase.from('client_errors')
+      .update({ resolved_at: new Date().toISOString(), resolved_by: user?.id || null })
+      .eq('message', body.message).is('resolved_at', null);
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { ok: true };
+  }
   if (head === 'GET /platform' && seg[1] === 'contact-messages') {
     const { data, error } = await supabase.from('platform_contact_messages').select('*').order('created_at', { ascending: false }).limit(300);
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);

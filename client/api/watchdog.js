@@ -27,7 +27,7 @@ export default async function handler(req, res) {
   try {
     const { count } = await admin.from('client_errors')
       .select('id', { count: 'exact', head: true })
-      .eq('path', '/signup').gte('occurred_at', since(30));
+      .eq('path', '/signup').is('resolved_at', null).gte('occurred_at', since(30));
     if ((count || 0) >= 2) findings.push({ kind: 'signup_failures', count, detail: `${count} signup failures in 30min — check app errors for who and why` });
   } catch { /* each check independent */ }
 
@@ -62,7 +62,7 @@ export default async function handler(req, res) {
   try {
     const { count } = await admin.from('client_errors')
       .select('id', { count: 'exact', head: true })
-      .eq('path', '/deploy').gte('occurred_at', since(6 * 60));
+      .eq('path', '/deploy').is('resolved_at', null).gte('occurred_at', since(6 * 60));
     if ((count || 0) > 0) findings.push({ kind: 'deploy_failures', count, detail: `${count} deploy failure${count > 1 ? 's' : ''} reported in 6h — prod may be behind main` });
   } catch { /* independent */ }
 
