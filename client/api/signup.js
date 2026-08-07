@@ -198,7 +198,13 @@ export default async function handler(req, res) {
       }
       if (cErr) {
         if (!/registered|exists/i.test(cErr.message)) {
-          await recordSignupError(admin, 'auth-create', cErr.message, { email: cleanEmail, slug, orgName: orgName?.trim() });
+          // The '{}' class hides everything useful in .message — capture the
+          // whole error shape (status, code, name) so the trace says WHY.
+          await recordSignupError(admin, 'auth-create', cErr.message, {
+            email: cleanEmail, slug, orgName: orgName?.trim(),
+            status: cErr.status, code: cErr.code, name: cErr.name,
+            raw: JSON.stringify(cErr, Object.getOwnPropertyNames(cErr)).slice(0, 600),
+          });
           return json(res, 400, { message: friendly(cErr.message) });
         }
         // Email exists in auth. A genuine account has a profile — look it up by
