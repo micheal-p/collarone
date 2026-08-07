@@ -81,24 +81,24 @@ export default function Status() {
   const isMonitoring = checks && checks.length > 0;
   const days = checks ? buildDays(checks) : [];
 
-  // Availability, honestly: server reachability alone read "100.00%" while
-  // the incident history right below it listed 100+ hours of application
-  // errors — the page argued with itself. The headline now subtracts every
-  // recorded incident's duration (app errors included) from the window, and
-  // takes the worse of that and raw server uptime. Green today can be true
-  // while the number still remembers last week.
+  // Availability, honestly — in BOTH directions. Server reachability alone
+  // read "100.00%" over a history of app errors; counting every incident hour
+  // as fully down overstated the other way (110h of browser errors ≠ four
+  // days of black screen). Each incident carries a declared IMPACT weight
+  // (full outage 1.0, degraded 0.5, application error 0.25 — kind-based, not
+  // invented per incident) and availability subtracts duration × impact.
   const serverPct = checks?.length ? checks.filter((c) => c.api_ok && c.db_ok).length / checks.length : null;
   const overallPct = useMemo(() => {
     if (serverPct === null) return null;
     const windowMs = 90 * DAY_MS;
     const start = Date.now() - windowMs;
-    let incidentMs = 0;
+    let weightedMs = 0;
     (incidents || []).forEach((x) => {
       const s = Math.max(new Date(x.started_at).getTime(), start);
       const e = Math.min(new Date(x.resolved_at || Date.now()).getTime(), Date.now());
-      if (e > s) incidentMs += e - s;
+      if (e > s) weightedMs += (e - s) * (Number(x.impact) || 0.25);
     });
-    return Math.min(serverPct, (windowMs - incidentMs) / windowMs);
+    return Math.min(serverPct, (windowMs - weightedMs) / windowMs);
   }, [serverPct, incidents]);
 
   // The banner reflects a real check made right now (hits the API + DB live),
@@ -189,7 +189,9 @@ export default function Status() {
             <span>{days.length} days ago</span>
             <span style={{ flex: 1, height: 1, background: 'rgba(10,14,26,0.12)' }} />
             <span style={{ color: 'rgba(10,14,26,0.65)', fontWeight: 500 }}>
-              {overallPct !== null ? `${(overallPct * 100).toFixed(2)}% availability` : 'No history yet'}
+              <span title="Each incident is weighted by its declared impact — a partial application error counts a quarter of a full outage. The method, not a hand-picked number.">
+                {overallPct !== null ? `${(overallPct * 100).toFixed(2)}% availability` : 'No history yet'}
+              </span>
             </span>
             <span style={{ flex: 1, height: 1, background: 'rgba(10,14,26,0.12)' }} />
             <span>Today</span>
@@ -202,6 +204,11 @@ export default function Status() {
         {err && <p style={{ fontSize: 13.5, color: '#c02b2b' }}>{err}</p>}
 
         <h2>Incident history</h2>
+        <p style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.45)', margin: '4px 0 10px' }}>
+          Each incident shows how much of the service it affected. The availability figure above weights incidents by
+          that impact — a partial application error counts a quarter of a full outage, so the number reflects what was
+          actually broken, not just that something was.
+        </p>
         {incidents.length === 0 ? (
           <p style={{ fontSize: 13.5, color: 'rgba(10,14,26,0.5)' }}>No incidents recorded, every scheduled check has come back healthy. These checks cover the Collarone servers and database; issues inside the app are tracked and fixed separately.</p>
         ) : (
@@ -212,6 +219,14 @@ export default function Status() {
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>
                     {INCIDENT_LABEL[inc.kind] || inc.kind}
+                    <span style={{
+                      marginLeft: 8, fontSize: 11.5, fontWeight: 700, borderRadius: 100, padding: '2px 9px',
+                      background: (Number(inc.impact) || 0.25) >= 1 ? '#fbe4e4' : (Number(inc.impact) || 0.25) >= 0.5 ? '#fdf0dc' : '#fdf6e4',
+                      color: (Number(inc.impact) || 0.25) >= 1 ? '#c02b2b' : '#9c6b12',
+                    }}>
+                      {(Number(inc.impact) || 0.25) >= 1 ? 'Full outage' : (Number(inc.impact) || 0.25) >= 0.5 ? 'Major degradation' : 'Partial impact'}
+                      {' · ~'}{Math.round((1 - (Number(inc.impact) || 0.25)) * 100)}% of service healthy
+                    </span>
                     {!inc.resolved_at && <span style={{ color: '#c02b2b', marginLeft: 8, fontSize: 12.5, fontWeight: 700 }}>ONGOING</span>}
                   </div>
                   <div style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.5)', marginTop: 2 }}>
