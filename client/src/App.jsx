@@ -15,6 +15,7 @@ import AdminBilling from './pages/admin/Billing.jsx';
 import AdminWebsite from './pages/admin/website/WebsiteBuilder.jsx';
 import PlatformAdmin from './pages/PlatformAdmin.jsx';
 import PlatformAnalytics from './pages/PlatformAnalytics.jsx';
+import PlatformSupport from './pages/PlatformSupport.jsx';
 import PublicSite from './pages/site/PublicSite.jsx';
 import { tenantSlug } from './lib/subdomain.js';
 import PublicInvoice from './pages/PublicInvoice.jsx';
@@ -207,6 +208,15 @@ export default function App() {
         element={
           <ProtectedRoute requirePlatformAdmin>
             <PlatformAnalytics />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/platform-admin/support"
+        element={
+          <ProtectedRoute requirePlatformAdmin>
+            <PlatformSupport />
           </ProtectedRoute>
         }
       />

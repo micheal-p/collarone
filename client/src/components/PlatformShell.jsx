@@ -6,6 +6,7 @@ import '../styles/platform.css';
 const TABS = [
   { to: '/platform-admin', label: 'Overview' },
   { to: '/platform-admin/analytics', label: 'Analytics' },
+  { to: '/platform-admin/support', label: 'Support' },
 ];
 
 const Mark = ({ size = 20 }) => (
