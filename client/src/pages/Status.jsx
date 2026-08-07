@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiGet } from '../api/client.js';
 import { LegalNav, LegalFooter } from './LegalChrome.jsx';
 import './Legal.css';
@@ -79,8 +79,27 @@ export default function Status() {
   }, []);
 
   const isMonitoring = checks && checks.length > 0;
-  const overallPct = checks?.length ? checks.filter((c) => c.api_ok && c.db_ok).length / checks.length : null;
   const days = checks ? buildDays(checks) : [];
+
+  // Availability, honestly: server reachability alone read "100.00%" while
+  // the incident history right below it listed 100+ hours of application
+  // errors — the page argued with itself. The headline now subtracts every
+  // recorded incident's duration (app errors included) from the window, and
+  // takes the worse of that and raw server uptime. Green today can be true
+  // while the number still remembers last week.
+  const serverPct = checks?.length ? checks.filter((c) => c.api_ok && c.db_ok).length / checks.length : null;
+  const overallPct = useMemo(() => {
+    if (serverPct === null) return null;
+    const windowMs = 90 * DAY_MS;
+    const start = Date.now() - windowMs;
+    let incidentMs = 0;
+    (incidents || []).forEach((x) => {
+      const s = Math.max(new Date(x.started_at).getTime(), start);
+      const e = Math.min(new Date(x.resolved_at || Date.now()).getTime(), Date.now());
+      if (e > s) incidentMs += e - s;
+    });
+    return Math.min(serverPct, (windowMs - incidentMs) / windowMs);
+  }, [serverPct, incidents]);
 
   // The banner reflects a real check made right now (hits the API + DB live),
   // not just the daily-cron history — so it reads correctly from the first
@@ -170,7 +189,7 @@ export default function Status() {
             <span>{days.length} days ago</span>
             <span style={{ flex: 1, height: 1, background: 'rgba(10,14,26,0.12)' }} />
             <span style={{ color: 'rgba(10,14,26,0.65)', fontWeight: 500 }}>
-              {overallPct !== null ? `${(overallPct * 100).toFixed(2)}% uptime` : 'No history yet'}
+              {overallPct !== null ? `${(overallPct * 100).toFixed(2)}% availability` : 'No history yet'}
             </span>
             <span style={{ flex: 1, height: 1, background: 'rgba(10,14,26,0.12)' }} />
             <span>Today</span>
