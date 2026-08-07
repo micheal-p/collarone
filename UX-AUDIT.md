@@ -83,7 +83,7 @@
 - [x] **27. LOW ui** — Live demo - HR & Staff suite — tab bars
   At 360px the suite tab bar and sub-tab bars truncate labels mid-word at the right edge with no fade or scroll hint: 'Re' (Recruitment), 'Training & certification', and even the selected 'Cases &' tab stays half cut off after tapping it. The bars do scroll horizontally, but nothing signals that.
 
-- [ ] **28. (round 2: seed Demo Guest with real-looking title/email in demo.js) LOW ux** — Live demo - HR & Staff suite — Staff tab
+- [x] **28. LOW ux** — fixed: demo free-pass users seeded with title+department and appended after showcase staff
   At 360px the first staff card in the demo list is 'Demo Guest' with bare em-dash placeholders for job title and email ('-' / IT / '-'), so the very first thing a prospect sees in the showcase list looks like a half-broken record rather than sample data.
 
 - [x] **29. LOW copy** — Jobs board — search placeholder

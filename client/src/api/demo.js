@@ -109,7 +109,10 @@ async function demoApiInner(path, opts = {}) {
       const email = (body.email || '').toLowerCase().trim();
       if (!email) fail(400, 'Email is required.');
       let u = db.users.find((x) => x.email === email);
-      if (!u) { u = mk({ name: nameFromEmail(email), email, password: body.password, role: 'super_admin' }); db.users.unshift(u); } // free pass
+      // Free pass — but seeded like a real person and appended, not unshifted:
+      // a bare "Demo Guest / — / —" row used to headline the HR showcase list,
+      // making the first thing a prospect saw look broken (audit finding 28).
+      if (!u) { u = mk({ name: nameFromEmail(email), email, password: body.password, role: 'super_admin', jobTitle: 'Managing Director', department: 'Management' }); db.users.push(u); }
       if (u.status !== 'active') fail(403, 'Your account has been disabled.');
       u.lastLoginAt = new Date().toISOString(); save();
       session.set(u);
