@@ -47,7 +47,13 @@ async function callSignup(action, payload) {
   const text = await res.text();
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { /* noop */ }
-  if (!res.ok) { const e = new Error(data?.message || 'Request failed.'); e.status = res.status; throw e; }
+  if (!res.ok) {
+    // Never surface a data-shaped "message" ('{}', a JSON blob) to a visitor —
+    // someone saw exactly that mid-signup once. Humans get sentences.
+    const raw = typeof data?.message === 'string' ? data.message.trim() : '';
+    const e = new Error(raw && raw !== '{}' && !raw.startsWith('{') ? raw : 'Something went wrong on our side — please try again, or WhatsApp 0814 812 8551 and we will set you up personally.');
+    e.status = res.status; throw e;
+  }
   return data;
 }
 
@@ -228,6 +234,14 @@ export default function Signup() {
       setStepIdx(STEPS.indexOf('payment'));
     } catch (e2) {
       setErr(e2.message);
+      // Record the failure even when the server never got the request (network
+      // drop, deploy blip) — a lost signup must always leave a trace.
+      try {
+        fetch('/api/track', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: `signup submit failed: ${String(e2?.message || e2).slice(0, 300)}`, path: '/signup' }),
+        }).catch(() => {});
+      } catch { /* reporting must never mask the real error */ }
     } finally {
       setBusy(false);
     }

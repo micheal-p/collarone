@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const RESEND_KEY = process.env.RESEND_API_KEY;
-const TEAM_EMAIL = process.env.SUPPORT_EMAIL || 'collaroneapp@gmail.com';
+const TEAM_EMAIL = process.env.SUPPORT_EMAIL || 'hello@collarone.app';
 const FROM = process.env.EMAIL_FROM || 'notify@collarone.app';
 
 export default async function handler(req, res) {

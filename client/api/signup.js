@@ -9,6 +9,26 @@ const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 const json = (res, status, obj) => res.status(status).json(obj);
 
+// Errors a person can act on. Supabase can surface a raw '{}' or a JSON blob
+// as an error message on transient auth-service hiccups — a real visitor saw
+// exactly '{}' mid-signup. Nothing shaped like data ever reaches the screen
+// again, and every failed signup is RECORDED (client_errors → Platform
+// Control's app-errors inbox) so a lost prospect leaves a trace we can act on.
+const HUMAN_FALLBACK = 'Something went wrong on our side — please try again in a minute, or WhatsApp 0814 812 8551 and we will set you up personally.';
+const friendly = (msg) => {
+  const s = typeof msg === 'string' ? msg.trim() : '';
+  return (!s || s === '{}' || s.startsWith('{') || s.startsWith('[')) ? HUMAN_FALLBACK : s;
+};
+const recordSignupError = async (admin, stage, msg, ctx = {}) => {
+  try {
+    await admin.from('client_errors').insert({
+      message: `signup failed [${stage}]: ${String(msg || 'unknown').slice(0, 300)}`,
+      stack: JSON.stringify(ctx).slice(0, 2000) || null,   // email/slug so we can rescue the person; never the password
+      path: '/signup',
+    });
+  } catch { /* recording must never break signup itself */ }
+};
+
 // Server-side pricing FALLBACK, in kobo. Signup is the single WRITE point of
 // the locked rate — it snapshots the org's rate at creation so future charges
 // read the stored value. The live published prices come from platform_pricing
@@ -153,7 +173,10 @@ export default async function handler(req, res) {
         user_metadata: { name: ownerName.trim() },
       });
       if (cErr) {
-        if (!/registered|exists/i.test(cErr.message)) return json(res, 400, { message: cErr.message });
+        if (!/registered|exists/i.test(cErr.message)) {
+          await recordSignupError(admin, 'auth-create', cErr.message, { email: cleanEmail, slug, orgName: orgName?.trim() });
+          return json(res, 400, { message: friendly(cErr.message) });
+        }
         // Email exists in auth. A genuine account has a profile — look it up by
         // email first (cheap, no user scan): if a profile owns it OR the lookup
         // errors, refuse rather than risk touching a real account.
@@ -202,6 +225,7 @@ export default async function handler(req, res) {
       }).select('id').single();
       if (orgErr || !org) {
         await admin.auth.admin.deleteUser(userId);
+        if (orgErr?.code !== '23505') await recordSignupError(admin, 'org-insert', orgErr?.message, { email: cleanEmail, slug, orgName: orgName?.trim() });
         return json(res, orgErr?.code === '23505' ? 409 : 500, { message: orgErr?.code === '23505' ? 'That company handle is already taken.' : 'Could not set up your organization. Please try again.' });
       }
 
@@ -217,6 +241,7 @@ export default async function handler(req, res) {
       if (profErr) {
         await admin.auth.admin.deleteUser(userId);
         await admin.from('organizations').delete().eq('id', org.id);
+        await recordSignupError(admin, 'profile-upsert', profErr.message, { email: cleanEmail, slug, orgName: orgName?.trim() });
         return json(res, 500, { message: 'Could not set up your account. Please try again.' });
       }
 
@@ -261,6 +286,10 @@ export default async function handler(req, res) {
 
     return json(res, 400, { message: `Unknown action: ${action}` });
   } catch (e) {
-    return json(res, 500, { message: e.message || 'Signup failed.' });
+    try {
+      const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+      await recordSignupError(admin, 'unhandled', e.message, { action });
+    } catch { /* never block the response */ }
+    return json(res, 500, { message: friendly(e.message) });
   }
 }
