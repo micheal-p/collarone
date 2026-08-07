@@ -193,9 +193,9 @@ export default function Status() {
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: INCIDENT_COLOR[inc.kind] || '#c94f3d', flexShrink: 0 }} />
                       <div style={{ fontSize: 12.5 }}>
                         <strong>{INCIDENT_LABEL[inc.kind] || inc.kind}</strong>
-                        <span style={{ color: 'rgba(10,14,26,0.5)', marginLeft: 6 }}>
-                          {inc.resolved_at ? fmtDuration(inc.duration_sec) : 'ongoing'}
-                        </span>
+                        {inc.resolved_at
+                          ? <span style={{ color: '#1a7a3e', fontWeight: 600, marginLeft: 6 }}>✓ fixed in {fmtDuration(inc.duration_sec)}</span>
+                          : <span style={{ color: '#c02b2b', fontWeight: 700, marginLeft: 6 }}>ongoing</span>}
                       </div>
                     </div>
                   ))}
@@ -246,7 +246,9 @@ export default function Status() {
                       {(Number(inc.impact) || 0.25) >= 1 ? 'Full outage' : (Number(inc.impact) || 0.25) >= 0.5 ? 'Major degradation' : 'Partial impact'}
                       {' · ~'}{Math.round((1 - (Number(inc.impact) || 0.25)) * 100)}% of service healthy
                     </span>
-                    {!inc.resolved_at && <span style={{ color: '#c02b2b', marginLeft: 8, fontSize: 12.5, fontWeight: 700 }}>ONGOING</span>}
+                    {inc.resolved_at
+                      ? <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 700, borderRadius: 100, padding: '2px 9px', background: '#e2f2e4', color: '#1a7a3e' }}>✓ Fixed</span>
+                      : <span style={{ color: '#c02b2b', marginLeft: 8, fontSize: 12.5, fontWeight: 700 }}>ONGOING</span>}
                   </div>
                   <div style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.5)', marginTop: 2 }}>
                     Started {fmtWhen(inc.started_at)}
