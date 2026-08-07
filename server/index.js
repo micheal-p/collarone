@@ -29,3 +29,17 @@ const port = process.env.PORT || 4000;
 app.listen(port, '127.0.0.1', () => {
   console.log(`collarone-api listening on 127.0.0.1:${port}`);
 });
+
+// The watchdog clock: the platform examines itself every 30 minutes instead
+// of waiting for a founder to notice something. The handler (client/api/
+// watchdog.js) only answers loopback callers, so this in-process interval is
+// its sole trigger. First run shortly after boot, then on the half hour.
+const runWatchdog = () => {
+  fetch(`http://127.0.0.1:${port}/api/watchdog`, { method: 'POST' })
+    .then((r) => r.json()).then((d) => {
+      if (d?.findings?.length) console.log(`watchdog: ${d.findings.map((f) => f.kind).join(', ')}`);
+    })
+    .catch((e) => console.error('watchdog run failed:', e.message));
+};
+setTimeout(runWatchdog, 2 * 60 * 1000);
+setInterval(runWatchdog, 30 * 60 * 1000);

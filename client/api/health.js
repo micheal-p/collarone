@@ -101,9 +101,35 @@ export default async function handler(req, res) {
       clientErrorsLastHour = count || 0;
     } catch { /* counting must never break the health check itself */ }
   }
+  // The watchdog's latest self-examination (runs every 30min from
+  // server/index.js). Its findings ride the health JSON; a run that hasn't
+  // happened for 45+ minutes is itself a finding (dead-man switch) — silence
+  // must be detectable, not mistaken for health.
+  let watchdog = null;
+  if (admin) {
+    try {
+      const { data: run } = await admin.from('watchdog_runs')
+        .select('ran_at, findings, findings_count')
+        .order('ran_at', { ascending: false }).limit(1).maybeSingle();
+      if (run) {
+        watchdog = {
+          lastRunAt: run.ran_at,
+          findings: (run.findings || []).map((f) => f.kind),
+          stale: Date.now() - new Date(run.ran_at).getTime() > 45 * 60 * 1000,
+        };
+      } else {
+        watchdog = { lastRunAt: null, findings: [], stale: true };
+      }
+    } catch { /* health must answer regardless */ }
+  }
+
   const CLIENT_ERROR_DEGRADED_AT = 10; // per hour, across all users
+  // Public status degrades for what CUSTOMERS feel: crash floods, or the
+  // watchdog seeing signups actively fail. Internal-only findings (stale
+  // tickets, deploy failures) stay in the ops surfaces, not the public banner.
+  const watchdogCustomerImpact = Boolean(watchdog?.findings?.includes('signup_failures'));
   const status = !dbOk ? 'down'
-    : clientErrorsLastHour >= CLIENT_ERROR_DEGRADED_AT ? 'degraded'
+    : (clientErrorsLastHour >= CLIENT_ERROR_DEGRADED_AT || watchdogCustomerImpact) ? 'degraded'
     : 'operational';
 
   // Error spikes become PERMANENT history, not just a live banner: open an
@@ -307,5 +333,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ status, apiOk, dbOk, responseMs, clientErrorsLastHour, build: buildId(), nginx: nginxStatus(), checkedAt: new Date().toISOString() });
+  return res.status(200).json({ status, apiOk, dbOk, responseMs, clientErrorsLastHour, watchdog, build: buildId(), nginx: nginxStatus(), checkedAt: new Date().toISOString() });
 }

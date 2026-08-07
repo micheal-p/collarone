@@ -111,6 +111,21 @@ jobs:
       - name: Deploy
         run: ./deploy/deploy.sh
 
+  # A failed deploy tells the platform about itself — the row lands in
+  # client_errors (path /deploy), shows in the app-errors inbox, and the
+  # watchdog counts recent ones. Yesterday an afternoon of failed deploys was
+  # invisible while the status page read 100%; never again silently.
+  report-failure:
+    needs: [deploy]
+    if: ${{ always() && needs.deploy.result == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tell the platform its deploy failed
+        run: |
+          curl -s -m 10 -X POST https://collarone.app/api/track \
+            -H 'Content-Type: application/json' \
+            -d "{\"message\":\"deploy pipeline failed: run ${{ github.run_id }} attempt ${{ github.event.inputs.attempt || '1' }}\",\"path\":\"/deploy\"}" || true
+
   # Auto-reroll. The deploy fails when the VPS refuses THIS run's runner IP
   # (intermittent fail2ban / firewall on port 22). A *new* run gets a *new*
   # runner IP, so on failure we re-dispatch ourselves with attempt+1 until it
