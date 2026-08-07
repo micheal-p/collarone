@@ -30,6 +30,10 @@ export default async function handler(req, res) {
   if (!t) return res.status(404).json({ message: 'No such ticket.' });
 
   if (!RESEND_KEY) return res.status(200).json({ sent: false });
+  // Ticket subjects and org names are user input headed into email HTML.
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const subj = esc(t.subject).slice(0, 140);
+  const orgName = esc(t.organizations?.name || 'unknown org');
   try {
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -37,8 +41,8 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: FROM,
         to: TEAM_EMAIL,
-        subject: `[Support] ${kind === 'reply' ? 'Reply on' : 'New ticket'}: ${t.subject} — ${t.organizations?.name || 'unknown org'}`,
-        html: `<p style="font-size:14px;line-height:1.6">${kind === 'reply' ? 'A customer replied on' : 'A new support ticket was raised'}: <strong>${t.subject}</strong> (${t.category}) from <strong>${t.organizations?.name || t.org_id}</strong>.</p><p style="font-size:14px">Answer it in Platform Control → Support.</p>`,
+        subject: `[Support] ${kind === 'reply' ? 'Reply on' : 'New ticket'}: ${t.subject} — ${t.organizations?.name || 'unknown org'}`.slice(0, 180),
+        html: `<p style="font-size:14px;line-height:1.6">${kind === 'reply' ? 'A customer replied on' : 'A new support ticket was raised'}: <strong>${subj}</strong> (${esc(t.category)}) from <strong>${orgName}</strong>.</p><p style="font-size:14px">Answer it in Platform Control → Support.</p>`,
       }),
     });
     return res.status(200).json({ sent: true });

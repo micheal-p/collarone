@@ -61,7 +61,28 @@ create policy "support_tickets_insert" on public.support_tickets
 drop policy if exists "support_tickets_update" on public.support_tickets;
 create policy "support_tickets_update" on public.support_tickets
   for update using (public.is_platform_admin() or public.can_see_ticket(support_tickets))
-  with check (public.is_platform_admin() or status = 'resolved');
+  with check (public.is_platform_admin() or (status = 'resolved' and org_id = public.my_org_id()));
+
+-- WITH CHECK can't see the OLD row, so on its own a tenant "closing" a ticket
+-- could simultaneously rewrite its subject or org. Non-platform updates get
+-- every column except status pinned to what it was.
+create or replace function public.guard_ticket_update()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_platform_admin() then
+    new.org_id     := old.org_id;
+    new.created_by := old.created_by;
+    new.subject    := old.subject;
+    new.category   := old.category;
+    new.created_at := old.created_at;
+  end if;
+  new.updated_at := now();
+  return new;
+end; $$;
+drop trigger if exists trg_guard_ticket_update on public.support_tickets;
+create trigger trg_guard_ticket_update
+  before update on public.support_tickets
+  for each row execute function public.guard_ticket_update();
 
 drop policy if exists "support_msgs_select" on public.support_ticket_messages;
 create policy "support_msgs_select" on public.support_ticket_messages
