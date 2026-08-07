@@ -203,3 +203,77 @@
 .pc-subtab:hover { color: var(--text); }
 .pc-subtab.active { color: var(--text); border-bottom-color: var(--accent); }
 .pc-subtab-badge { background: var(--accent); color: #fff; font-size: 10.5px; font-weight: 800; border-radius: 100px; padding: 1px 7px; font-family: var(--mono); }
+
+/* ========================================================================== */
+/* 2026 platform refresh — Platform Control joins the workspace's design      */
+/* language (John's 9103f27 refresh): glow-gradient bars, orange active       */
+/* states with a lit edge, generous radii, layered depth, hover lift.        */
+/* Same voice, translated for a dark instrument panel.                        */
+/* ========================================================================== */
+
+.pc-head {
+  background:
+    radial-gradient(circle at 50% -90%, rgba(255, 91, 31, 0.28), transparent 42%),
+    var(--head, #0A0E1A);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+.pc-tabs { gap: 4px; align-items: center; }
+.pc-tab {
+  align-self: center;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 15px;
+  border-radius: 11px;
+  border-bottom: 0;
+  transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+.pc-tab:hover { color: #fff; background: rgba(255, 255, 255, 0.07); transform: translateY(-1px); }
+.pc-tab.active {
+  color: #fff;
+  border-bottom: 0;
+  background: linear-gradient(90deg, rgba(255, 91, 31, 0.24), rgba(255, 91, 31, 0.08));
+  box-shadow: inset 0 0 0 1px rgba(255, 116, 65, 0.16);
+}
+
+.pc-main { position: relative; max-width: 1360px; padding: 32px 28px 96px; }
+/* the workspace's decorative orbit ring, in the dark */
+.pc-main::before {
+  content: '';
+  position: fixed;
+  right: 3%;
+  top: 110px;
+  width: 220px;
+  height: 220px;
+  border: 1px solid rgba(255, 91, 31, 0.10);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.pc-panel {
+  border-radius: 18px;
+  border-color: rgba(255, 255, 255, 0.085);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 14px 35px rgba(0, 0, 0, 0.30);
+}
+.pc-section { margin-bottom: 44px; }
+.pc-sec-title { letter-spacing: 0.1em; }
+
+.pc-table th { height: 44px; letter-spacing: 0.1em; }
+.pc-table td { height: 52px; }
+.pc-table tbody tr { transition: background 0.15s ease, box-shadow 0.15s ease; }
+.pc-table tbody tr:hover { background: rgba(255, 91, 31, 0.05); box-shadow: inset 3px 0 0 var(--accent); }
+
+.pc-btn {
+  border-radius: 10px;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+.pc-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); }
+.pc-btn.primary { box-shadow: 0 8px 22px rgba(255, 91, 31, 0.28); }
+.pc-btn.primary:hover { box-shadow: 0 10px 28px rgba(255, 91, 31, 0.36); }
+
+.pc-input { border-radius: 10px; }
+.pc-input:focus { box-shadow: 0 0 0 4px rgba(255, 91, 31, 0.12); }
+
+.pc-kpis { border-radius: 18px; overflow: hidden; }
