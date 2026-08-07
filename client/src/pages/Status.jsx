@@ -68,13 +68,16 @@ function fmtWhen(d) {
 export default function Status() {
   const [checks, setChecks] = useState(null);
   const [incidents, setIncidents] = useState([]);
+  // "No incidents recorded" is a CLAIM — never assert it while the fetch is
+  // still in flight (the page briefly bragged a clean record it didn't have).
+  const [incLoaded, setIncLoaded] = useState(false);
   const [live, setLive] = useState(null); // this-instant check, independent of cron history
   const [err, setErr] = useState('');
   const [hover, setHover] = useState(null); // { i, d } — hovered day bar
 
   useEffect(() => {
     apiGet('/status/checks').then((d) => setChecks(d.checks)).catch((e) => setErr(e.message));
-    apiGet('/status/incidents').then((d) => setIncidents(d.incidents)).catch(() => {});
+    apiGet('/status/incidents').then((d) => setIncidents(d.incidents)).catch(() => {}).finally(() => setIncLoaded(true));
     fetch('/api/health').then((r) => r.json()).then(setLive).catch(() => {});
   }, []);
 
@@ -127,7 +130,13 @@ export default function Status() {
             The servers are answering, but we&rsquo;re seeing an elevated rate of in-app errors and are looking into it.
           </p>
         )}
-        <p style={{ fontSize: 13, color: 'rgba(10,14,26,0.5)', margin: '0 0 20px' }}>Uptime over the past {days.length} days. Hover a bar for that day's detail.</p>
+        <p style={{ fontSize: 13, color: 'rgba(10,14,26,0.5)', margin: '0 0 20px' }}>
+          {checks === null
+            ? 'Loading the check history…'
+            : days.length > 0
+              ? `Uptime over the past ${days.length} days. Hover or tap a bar for that day's detail.`
+              : 'Daily checks fill this in as they run.'}
+        </p>
 
         <div style={{ border: '1px solid rgba(10,14,26,0.1)', borderRadius: 14, padding: '20px 22px 18px', marginBottom: 32 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -135,7 +144,11 @@ export default function Status() {
             <span style={{ fontSize: 14, fontWeight: 600, color: stateColor }}>{state === 'operational' ? 'Operational' : state === 'checking' ? '—' : stateLabel}</span>
           </div>
 
-          <div style={{ position: 'relative' }} onMouseLeave={() => setHover(null)}>
+          {/* 90 bars at 3px+gap need ~570px — on a 360px phone that was pushing
+              the WHOLE PAGE into horizontal scroll. Wide content scrolls inside
+              its own container, never the page. */}
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ position: 'relative', minWidth: 480 }} onMouseLeave={() => setHover(null)}>
             <div style={{ display: 'flex', gap: 3, marginBottom: 12 }}>
               {days.map((d, i) => (
                 <div key={d.key} onMouseEnter={() => setHover({ i, d })}
@@ -203,6 +216,7 @@ export default function Status() {
               );
             })()}
           </div>
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12.5, color: 'rgba(10,14,26,0.45)' }}>
             <span>{days.length} days ago</span>
@@ -228,8 +242,10 @@ export default function Status() {
           that impact — a partial application error counts a quarter of a full outage, so the number reflects what was
           actually broken, not just that something was.
         </p>
-        {incidents.length === 0 ? (
-          <p style={{ fontSize: 13.5, color: 'rgba(10,14,26,0.5)' }}>No incidents recorded, every scheduled check has come back healthy. These checks cover the Collarone servers and database; issues inside the app are tracked and fixed separately.</p>
+        {!incLoaded ? (
+          <p style={{ fontSize: 13.5, color: 'rgba(10,14,26,0.4)' }}>Loading incident history…</p>
+        ) : incidents.length === 0 ? (
+          <p style={{ fontSize: 13.5, color: 'rgba(10,14,26,0.5)' }}>No incidents recorded — every scheduled check has come back healthy. These checks cover the Collarone servers and database; issues inside the app are tracked and fixed separately.</p>
         ) : (
           <div style={{ marginBottom: 8 }}>
             {incidents.map((inc) => (
@@ -262,7 +278,7 @@ export default function Status() {
         )}
 
         <h2>What's monitored</h2>
-        <p>A scheduled check hits the Collarone API and database directly, on a fixed interval, this page reads the real results, it doesn't assume anything is fine.</p>
+        <p>A scheduled check hits the Collarone API and database directly, on a fixed interval. This page reads the real results — it doesn't assume anything is fine.</p>
       </div>
       <LegalFooter />
     </div>
