@@ -27,6 +27,7 @@ import PostJob from './pages/careers/PostJob.jsx';
 import JobShare from './pages/careers/JobShare.jsx';
 import CareersApply from './pages/careers/CareersApply.jsx';
 import Terms from './pages/Terms.jsx';
+import DeviceGuide from './pages/DeviceGuide.jsx';
 import Privacy from './pages/Privacy.jsx';
 import Contact from './pages/Contact.jsx';
 import OfferPage from './pages/OfferPage.jsx';
@@ -104,6 +105,7 @@ export default function App() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="/docs/connect-device" element={<DeviceGuide />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/status" element={<Status />} />

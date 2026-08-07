@@ -174,11 +174,15 @@ begin
     raise exception 'Phone clock-in is turned off for your company — use the clocking device at the office.';
   end if;
 
+  -- Location is required for EVERY phone clock-in, fence or no fence: a
+  -- clock-in with no coordinates is a record nobody can trust later. Staff
+  -- who cannot or will not share location use the wall device lane instead.
+  if p_lat is null or p_lng is null then
+    raise exception 'Turn on location to clock in — every clock-in records where it happened.';
+  end if;
+
   if s.geofence_radius_m is not null and s.geofence_radius_m > 0
      and s.office_lat is not null then
-    if p_lat is null or p_lng is null then
-      raise exception 'Turn on location so we can confirm you are at work, then clock in again.';
-    end if;
     v_dist := 2 * 6371000 * asin(sqrt(
       power(sin(radians(p_lat - s.office_lat) / 2), 2) +
       cos(radians(s.office_lat)) * cos(radians(p_lat)) *

@@ -256,7 +256,7 @@ function ClockCard({ mine, onChange, flash, settings }) {
           {busy ? <span className="spinner" /> : 'Clock out'}
         </button>
       )}
-      <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>Your device coordinates are recorded with each entry (when location access is allowed).</p>
+      <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>Clocking in always asks for your location and records it — that is what makes the record trustworthy. No location, no clock-in; the office clocking device is the alternative.</p>
     </div>
   );
 }
@@ -617,6 +617,9 @@ function DevicesView({ flash, onPunchesImported }) {
           and the person&rsquo;s PIN as <code style={{ fontSize: 12 }}>personRef</code>. Punches buffered offline arrive late and are accepted.
           Only punch events are ever stored — fingerprints never leave the device. No API on your machine? Import its CSV export below instead.
         </p>
+        <a className="btn btn-ghost btn-sm" href="/docs/connect-device" target="_blank" rel="noreferrer" style={{ marginTop: 10, display: 'inline-block' }}>
+          Full installer guide — send this link with the key
+        </a>
       </div>
 
       <form onSubmit={addDevice} className="form-grid" style={{ marginBottom: 10, alignItems: 'end' }}>

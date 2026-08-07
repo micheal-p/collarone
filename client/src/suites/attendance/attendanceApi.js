@@ -17,7 +17,24 @@ const geo = () => new Promise((resolve) => {
   );
 });
 
-export const clockIn  = async () => { const { lat, lng } = await geo(); return apiPost('/attendance/clockin', { lat, lng }).then((d) => d.record); };
+// Clock-IN always asks for and REQUIRES a location — fence or no fence, a
+// clock-in with no location is a record that can't be trusted later, and the
+// server refuses it too. Clock-OUT still asks but tolerates failure: blocking
+// someone from ENDING their shift over a GPS hiccup only corrupts the hours.
+// The demo stays permissive — a prospect who denies the browser prompt should
+// still see the flow work.
+const geoRequired = () => new Promise((resolve, reject) => {
+  if (DEMO) return resolve({ lat: null, lng: null });
+  const refuse = () => reject(new Error('Turn on location to clock in — every clock-in records where it happened.'));
+  if (!navigator.geolocation) return reject(new Error('This device cannot report a location, so it cannot clock in. Use the office clocking device instead.'));
+  navigator.geolocation.getCurrentPosition(
+    (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+    refuse,
+    { enableHighAccuracy: true, timeout: 20000 },
+  );
+});
+
+export const clockIn  = async () => { const { lat, lng } = await geoRequired(); return apiPost('/attendance/clockin', { lat, lng }).then((d) => d.record); };
 export const clockOut = async () => { const { lat, lng } = await geo(); return apiPost('/attendance/clockout', { lat, lng }).then((d) => d.record); };
 
 /* ---- org day-start ---------------------------------------------------------
@@ -182,9 +199,12 @@ export function clockInWhenInside({ settings, onProgress, onError } = {}) {
       catch (e) { reject(e); }
     };
 
-    // No fence configured, or no geolocation available: behave exactly as before.
+    // No fence configured: no waiting-for-the-radius, but the location is
+    // still always asked for and required — same rule as everywhere else.
     if (!fenced || !navigator.geolocation) {
-      geo().then(({ lat, lng }) => finish(lat, lng));
+      geoRequired()
+        .then(({ lat, lng }) => finish(lat, lng))
+        .catch((e) => { if (done) return; done = true; stop(); onError?.(e); reject(e); });
       return;
     }
 
