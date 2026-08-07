@@ -169,6 +169,25 @@ export default function Status() {
                       <div style={{ marginTop: 4, color: 'rgba(10,14,26,0.4)' }}>{d.total} check{d.total === 1 ? '' : 's'} · {(d.pct * 100).toFixed(0)}% healthy</div>
                     </div>
                   )}
+                  {/* Incident days say the day's OWN weighted health, not just
+                      "the server answered" — a day can pass every ping while an
+                      application error chews on it. */}
+                  {d.pct !== null && dayIncs.length > 0 && (() => {
+                    const dayStart = new Date(`${d.key}T00:00:00`).getTime();
+                    const dayEnd = Math.min(dayStart + DAY_MS, Date.now());
+                    let weighted = 0;
+                    dayIncs.forEach((inc) => {
+                      const s = Math.max(new Date(inc.started_at).getTime(), dayStart);
+                      const e = Math.min(new Date(inc.resolved_at || Date.now()).getTime(), dayEnd);
+                      if (e > s) weighted += (e - s) * (Number(inc.impact) || 0.25);
+                    });
+                    const health = Math.max(0, Math.min(d.pct, 1 - weighted / (dayEnd - dayStart)));
+                    return (
+                      <div style={{ fontSize: 12.5, color: 'rgba(10,14,26,0.6)', lineHeight: 1.5 }}>
+                        {d.total} check{d.total === 1 ? '' : 's'} · <strong>{(health * 100).toFixed(0)}% healthy</strong> weighted for the incidents below
+                      </div>
+                    );
+                  })()}
                   {dayIncs.map((inc) => (
                     <div key={inc.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#FDF1EC', borderRadius: 8, padding: '8px 10px', marginTop: 4 }}>
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: INCIDENT_COLOR[inc.kind] || '#c94f3d', flexShrink: 0 }} />
