@@ -103,6 +103,12 @@ begin
     raise exception 'no open shift to close';
   end if;
 
+  -- An explicit 'in' while a shift is already open must not open a second
+  -- one — the phone lane forbids double shifts and this lane does too.
+  if v_open.id is not null then
+    raise exception 'already has an open shift';
+  end if;
+
   select * into s from public.attendance_settings where org_id = p_org;
   select ash.* into sh
     from public.attendance_shift_assignments a
@@ -127,8 +133,11 @@ begin
   returning id into v_id;
   return v_id;
 end; $$;
--- Service-role only: the punch endpoint is the sole caller.
+-- Service-role only: the punch endpoint is the sole caller. Revoking PUBLIC
+-- also strips service_role's inherited grant, so it must be granted back
+-- explicitly — without this the endpoint itself gets permission-denied.
 revoke execute on function public.attendance_apply_punch(uuid, uuid, timestamptz, text, text, text) from authenticated, anon, public;
+grant execute on function public.attendance_apply_punch(uuid, uuid, timestamptz, text, text, text) to service_role;
 
 -- ---- 4. staff picker for the mapping screen ---------------------------------
 -- An attendance manager may not hold the HR suite, so profiles RLS can hide

@@ -33,18 +33,21 @@ begin
   if v_org is null then return 0; end if;
   select * into s from public.attendance_settings where org_id = v_org;
 
-  -- Stale = still open and its clock-in calendar day (Lagos) is over.
+  -- Stale = open for at least 20 hours. AGE, deliberately not calendar day:
+  -- "from a previous day" would close a night guard who clocked in at 22:00
+  -- the moment anyone loads the suite at 06:00 — mid-shift. No legitimate
+  -- single shift runs 20 hours; a forgotten one always crosses it.
   for r in
     select id, clock_in_at from public.attendance_records
     where org_id = v_org and clock_out_at is null
-      and (clock_in_at at time zone 'Africa/Lagos')::date < (now() at time zone 'Africa/Lagos')::date
+      and clock_in_at < now() - interval '20 hours'
   loop
-    -- Close at that day's scheduled close (WAT), defaulting 17:00; a shift
-    -- that STARTED after the scheduled close gets a zero-length close at its
-    -- own clock-in — provisional either way, the flag is what matters.
+    -- Close at the scheduled close of the clock-in's own day (WAT), default
+    -- 17:00. A shift that STARTED after that close (evening/night shifts)
+    -- gets clock-in + 8h instead — still provisional, the flag is the point.
     v_close := ((r.clock_in_at at time zone 'Africa/Lagos')::date
                 + coalesce(s.work_close, '17:00'::time)) at time zone 'Africa/Lagos';
-    if v_close < r.clock_in_at then v_close := r.clock_in_at; end if;
+    if v_close <= r.clock_in_at then v_close := r.clock_in_at + interval '8 hours'; end if;
     update public.attendance_records
       set clock_out_at = v_close, auto_closed = true
       where id = r.id;

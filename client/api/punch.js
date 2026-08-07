@@ -73,12 +73,22 @@ export default async function handler(req, res) {
     const direction = ['in', 'out', 'auto'].includes(p.direction) ? p.direction : 'auto';
 
     // Raw log first — its unique index IS the idempotency.
-    const { data: raw, error: rawErr } = await admin.from('attendance_device_punches')
+    let raw;
+    const ins = await admin.from('attendance_device_punches')
       .insert({ org_id: orgId, device_id: deviceId, person_ref: personRef, punched_at: at.toISOString(), direction, source })
       .select('id').single();
-    if (rawErr) {
-      if (rawErr.code === '23505') { duplicates += 1; continue; }
-      errors.push({ personRef, error: rawErr.message }); continue;
+    if (ins.error) {
+      if (ins.error.code !== '23505') { errors.push({ personRef, error: ins.error.message }); continue; }
+      // Seen before. If it was APPLIED, it is a true duplicate. If it never
+      // applied (unmapped PIN at the time, or a transient failure), this
+      // re-send is the promised "map the PIN and re-import" — retry it.
+      const { data: prior } = await admin.from('attendance_device_punches')
+        .select('id, applied').eq('org_id', orgId).eq('person_ref', personRef)
+        .eq('punched_at', at.toISOString()).maybeSingle();
+      if (!prior || prior.applied) { duplicates += 1; continue; }
+      raw = prior;
+    } else {
+      raw = ins.data;
     }
 
     const { data: map } = await admin.from('attendance_device_map')
