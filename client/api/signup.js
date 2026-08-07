@@ -3,6 +3,7 @@
 // through the SERVICE ROLE key server-side, never the browser. Mirrors the
 // privileged-op pattern in admin.js.
 import { createClient } from '@supabase/supabase-js';
+import { allow, LIMIT_MESSAGE } from './_lib/rateLimit.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -14,7 +15,7 @@ const json = (res, status, obj) => res.status(status).json(obj);
 // exactly '{}' mid-signup. Nothing shaped like data ever reaches the screen
 // again, and every failed signup is RECORDED (client_errors → Platform
 // Control's app-errors inbox) so a lost prospect leaves a trace we can act on.
-const HUMAN_FALLBACK = 'Something went wrong on our side — please try again in a minute, or WhatsApp 0814 812 8551 and we will set you up personally.';
+const HUMAN_FALLBACK = 'Something went wrong on our side — please try again in a minute.';
 const friendly = (msg) => {
   const s = typeof msg === 'string' ? msg.trim() : '';
   return (!s || s === '{}' || s.startsWith('{') || s.startsWith('[')) ? HUMAN_FALLBACK : s;
@@ -129,6 +130,19 @@ export default async function handler(req, res) {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
   const { action } = body;
+
+  // Token bucket on the expensive/abusable actions, per IP. Deliberately NOT
+  // on check-slug — that fires per keystroke while someone types their handle
+  // and creates nothing. 'create' makes auth users and rows: 5-burst then one
+  // token per 15s starves scripted account creation without ever touching a
+  // human who fails twice and retries.
+  if (action === 'create' || action === 'suggest') {
+    if (!allow(`${req.ip}:signup:${action}`, action === 'create'
+      ? { capacity: 5, refillPerSec: 1 / 15 }
+      : { capacity: 10, refillPerSec: 1 / 3 })) {
+      return json(res, 429, { message: LIMIT_MESSAGE });
+    }
+  }
 
   try {
     if (action === 'check-slug') {

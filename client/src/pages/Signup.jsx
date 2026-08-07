@@ -51,7 +51,7 @@ async function callSignup(action, payload) {
     // Never surface a data-shaped "message" ('{}', a JSON blob) to a visitor —
     // someone saw exactly that mid-signup once. Humans get sentences.
     const raw = typeof data?.message === 'string' ? data.message.trim() : '';
-    const e = new Error(raw && raw !== '{}' && !raw.startsWith('{') ? raw : 'Something went wrong on our side — please try again, or WhatsApp 0814 812 8551 and we will set you up personally.');
+    const e = new Error(raw && raw !== '{}' && !raw.startsWith('{') ? raw : 'Something went wrong on our side — please try again in a minute.');
     e.status = res.status; throw e;
   }
   return data;

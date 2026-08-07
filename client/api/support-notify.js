@@ -3,6 +3,7 @@
 // database when this runs, so a missing RESEND_API_KEY (or a Resend outage)
 // costs the ping, never the ticket. Same graceful pattern as billing notices.
 import { createClient } from '@supabase/supabase-js';
+import { allow, LIMIT_MESSAGE } from './_lib/rateLimit.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -13,6 +14,11 @@ const FROM = process.env.EMAIL_FROM || 'notify@collarone.app';
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
   if (!SERVICE_KEY) return res.status(200).json({ sent: false });
+  // Each call can become a team email — bucket it so nobody (including a
+  // tenant hammering their own ticket) can flood the inbox from one IP.
+  if (!allow(`${req.ip}:support-notify`, { capacity: 3, refillPerSec: 1 / 20 })) {
+    return res.status(429).json({ message: LIMIT_MESSAGE });
+  }
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
   const { ticketId, kind } = body;
   if (!ticketId) return res.status(400).json({ message: 'ticketId required' });
