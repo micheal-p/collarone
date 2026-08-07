@@ -237,9 +237,15 @@ export default function Signup() {
       // Record the failure even when the server never got the request (network
       // drop, deploy blip) — a lost signup must always leave a trace.
       try {
+        // The email and company make the trace ACTIONABLE — a failed signup
+        // becomes someone we can reach, not just a count. Never the password.
         fetch('/api/track', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: `signup submit failed: ${String(e2?.message || e2).slice(0, 300)}`, path: '/signup' }),
+          body: JSON.stringify({
+            message: `signup submit failed: ${String(e2?.message || e2).slice(0, 200)}`,
+            stack: JSON.stringify({ email, orgName: orgName.trim(), slug: orgSlug }).slice(0, 500),
+            path: '/signup',
+          }),
         }).catch(() => {});
       } catch { /* reporting must never mask the real error */ }
     } finally {

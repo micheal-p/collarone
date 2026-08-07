@@ -180,12 +180,22 @@ export default async function handler(req, res) {
 
       const cleanEmail = email.toLowerCase().trim();
       let userId;
-      const { data: created, error: cErr } = await admin.auth.admin.createUser({
-        email: cleanEmail,
-        password,
-        email_confirm: true,
-        user_metadata: { name: ownerName.trim() },
-      });
+      // Transient auth-service hiccups (the raw-'{}' class) mostly succeed on
+      // a second try — one retry with a short pause turns a lost prospect
+      // into a signup nobody knew was ever at risk. Only retried when the
+      // failure does NOT look like a real verdict about this email.
+      let created; let cErr;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        ({ data: created, error: cErr } = await admin.auth.admin.createUser({
+          email: cleanEmail,
+          password,
+          email_confirm: true,
+          user_metadata: { name: ownerName.trim() },
+        }));
+        if (!cErr) break;
+        if (/registered|exists|invalid|password|email/i.test(cErr.message || '')) break;
+        await new Promise((r) => setTimeout(r, 1200));
+      }
       if (cErr) {
         if (!/registered|exists/i.test(cErr.message)) {
           await recordSignupError(admin, 'auth-create', cErr.message, { email: cleanEmail, slug, orgName: orgName?.trim() });
