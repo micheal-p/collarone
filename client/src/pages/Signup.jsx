@@ -568,7 +568,7 @@ function AiSuitePicker({ onPick }) {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <input value={prompt} onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && prompt.trim().length >= 8 && suggest()}
-          placeholder={'e.g. "a fashion store in Aba with 12 staff and two tailoring units"'}
+          placeholder={'e.g. "a fashion store in Aba"'}
           style={{ flex: 1, minWidth: 220, padding: '9px 12px', borderRadius: 10, border: '1px solid #d8d2c4', font: 'inherit', fontSize: 13.5 }} />
         <button type="button" className="su-btn su-btn-primary" disabled={busy || prompt.trim().length < 8} onClick={suggest}
           style={{ flexShrink: 0 }}>{busy ? 'Thinking…' : 'Pick for me'}</button>

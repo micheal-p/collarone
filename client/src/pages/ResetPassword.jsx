@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import logo from '../assets/collarone-mark.svg';
+import logo from '../assets/collarone-mark-dark.svg';
 
 // Public landing for a password-reset link. Supabase (detectSessionInUrl + PKCE)
 // exchanges the link's code for a short-lived recovery session as the page

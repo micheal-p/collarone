@@ -55,7 +55,7 @@ export default function JobsBoard() {
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 6 }}>
           <Link to="/jobs/post" className="cl-btn cl-btn-primary">Post a job, free</Link>
         </div>
-        <input className="careers-search" type="search" placeholder="Search roles, companies, locations…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search jobs" style={{ marginTop: 20 }} />
+        <input className="careers-search" type="search" placeholder="Search roles or locations…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search jobs" style={{ marginTop: 20 }} />
       </div>
 
       <main className="careers-list" style={{ maxWidth: 780 }}>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiPost } from '../api/client.js';
-import logo from '../assets/collarone-mark.svg';
+import logo from '../assets/collarone-mark-dark.svg';
 
 // Public page: request a password-reset link. The response is deliberately the
 // same whether or not the email has an account (no enumeration), so this always

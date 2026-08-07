@@ -2,7 +2,7 @@
 // individual job posts, the post-a-job page — match the landing instead of each
 // rolling its own. Reuses the landing's cl-nav / cl-footer styles.
 import { Link } from 'react-router-dom';
-import logoMark from '../assets/collarone-mark.svg';
+import logoMark from '../assets/collarone-mark-dark.svg';
 import '../pages/Landing.css';
 
 export function PublicNav({ active }) {

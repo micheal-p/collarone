@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import logo from '../../assets/collarone-mark.svg';
+import logo from '../../assets/collarone-mark-dark.svg';
 import * as C from './careersApi.js';
 
 /* Shared public-jobs chrome: the paper mark needs the ink band (it's

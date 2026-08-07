@@ -101,6 +101,8 @@ export default function App() {
   const siteSlug = tenantSlug();
   if (siteSlug) return <PublicSite slugProp={siteSlug} />;
   return (
+    <>
+    <TitleManager />
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -259,5 +261,32 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
+}
+
+// [Audit 14] The SPA never updated document.title, so every tab — sign-in,
+// suites, Platform Control — wore the full marketing SEO sentence and phones
+// showed indistinguishable "Collarone: HR, Pay…" tabs. First match wins.
+const ROUTE_TITLES = [
+  ['/login', 'Sign in'], ['/signup', 'Create your workspace'],
+  ['/forgot-password', 'Reset password'], ['/reset-password', 'Reset password'],
+  ['/change-password', 'Change password'], ['/status', 'System status'],
+  ['/support', 'Contact support'], ['/help', 'How to use Collarone'],
+  ['/profile', 'My profile'], ['/workspace', 'Workspace'],
+  ['/platform-admin', 'Platform Control'], ['/admin', 'Admin Center'],
+  ['/suite', 'Workspace'], ['/chat', 'Team Chat'],
+  ['/jobs', 'Jobs board'], ['/careers', 'Careers'],
+  ['/docs/connect-device', 'Connect a clocking device'], ['/try', 'Live demo'],
+  ['/themes', 'Website themes'], ['/terms', 'Terms'], ['/privacy', 'Privacy'],
+  ['/contact', 'Contact'],
+];
+const MARKETING_TITLE = 'Collarone: HR, Payroll, CRM & Business Software for Nigerian Companies';
+function TitleManager() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const hit = ROUTE_TITLES.find(([p]) => pathname === p || pathname.startsWith(`${p}/`));
+    document.title = hit ? `${hit[1]} — Collarone` : MARKETING_TITLE;
+  }, [pathname]);
+  return null;
 }

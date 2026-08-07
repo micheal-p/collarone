@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Navigate, Link } from 'react-router-dom';
+import { useNavigate, Navigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
-import logo from '../assets/collarone-mark.svg';
+import logo from '../assets/collarone-mark-dark.svg';
 
 export default function Login() {
   // Safety net: a leftover try-demo sandbox flag must never leak into real
@@ -15,13 +15,19 @@ export default function Login() {
   }, []);
   const { user, login, booting } = useAuth();
   const nav = useNavigate();
+  const loc = useLocation();
+  // ProtectedRoute has always sent the page someone was headed to — it was
+  // just never read here, so deep links died at the gate (audit finding 7).
+  // Same-origin paths only; anything else falls back to home.
+  const rawFrom = loc.state?.from;
+  const from = typeof rawFrom === 'string' && rawFrom.startsWith('/') && !rawFrom.startsWith('//') ? rawFrom : null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [step, setStep] = useState('email'); // 2-step: email, then password
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  if (!booting && user) return <Navigate to="/" replace />;
+  if (!booting && user) return <Navigate to={from || '/'} replace />;
 
   const next = (e) => {
     e.preventDefault();
@@ -35,7 +41,7 @@ export default function Login() {
     setErr(''); setBusy(true);
     try {
       const u = await login(email.trim(), password);
-      nav(u.mustChangePassword ? '/change-password' : '/', { replace: true });
+      nav(u.mustChangePassword ? '/change-password' : (from || '/'), { replace: true });
     } catch (e2) {
       setErr(e2.message || 'Sign in failed.');
     } finally {
@@ -57,9 +63,11 @@ export default function Login() {
         {step === 'email' && (
           <form onSubmit={next} className="login-form">
             <h1 className="login-h">Sign in</h1>
-            <p className="login-p">Use your work email to sign in.</p>
+            <p className="login-p">{from ? 'Sign in to continue where you were headed.' : 'Use your work email to sign in.'}</p>
             <div className="field">
+              <label htmlFor="login-email">Work email</label>
               <input
+                id="login-email"
                 className="input" type="email" autoFocus placeholder="you@company.com"
                 value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username"
               />
@@ -68,7 +76,7 @@ export default function Login() {
             <div className="login-actions">
               <button className="btn btn-primary" type="submit">Next</button>
             </div>
-            <p className="login-note">Staff accounts are created by your administrator, sign in with the email and password they gave you.</p>
+            <p className="login-note">Staff accounts are created by your administrator — sign in with the details you were given. <Link to="/forgot-password">Forgot your password?</Link></p>
           </form>
         )}
 
@@ -79,7 +87,9 @@ export default function Login() {
             </button>
             <h1 className="login-h">Enter password</h1>
             <div className="field">
+              <label htmlFor="login-password">Password</label>
               <input
+                id="login-password"
                 className="input" type="password" autoFocus placeholder="Password"
                 value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password"
               />

@@ -942,3 +942,15 @@ textarea.input { padding: 12px 14px; }
   font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; background: #fff; border-radius: 10px; }
 .fp-none { text-align: center; padding: 32px; }
 @media (max-width: 760px) { .fp-frame { height: 54dvh; } }
+
+/* ==== UX-audit batch 2: login readability + tap targets ================== */
+/* [19] helper text and escape link were borderline unreadable */
+.login-note { color: var(--text-2); }
+.login-note a { color: var(--brand); font-weight: 600; }
+.login-home-link { color: rgba(255,255,255,.78); }
+/* [15] 44px tap target, and full-width primary on phones */
+.login-actions .btn { height: 44px; }
+@media (max-width: 480px) {
+  .login-actions { justify-content: stretch; }
+  .login-actions .btn { width: 100%; }
+}

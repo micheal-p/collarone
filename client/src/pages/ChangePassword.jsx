@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { apiPost } from '../api/client.js';
-import logo from '../assets/collarone-mark.svg';
+import logo from '../assets/collarone-mark-dark.svg';
 
 export default function ChangePassword() {
   const { user, refreshUser, logout } = useAuth();
