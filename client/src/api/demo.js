@@ -454,6 +454,35 @@ async function demoApiInner(path, opts = {}) {
     return fail(404, `Demo API has no route for ${route}`);
   }
 
+  // ---- support tickets (tenant -> Collarone) ----
+  if (seg[0] === 'support' && seg[1] === 'tickets') {
+    if (!db.supTickets) { db.supTickets = []; db.supMsgs = []; save(); }
+    const me = session.get();
+    const now = () => new Date().toISOString();
+    if (method === 'GET' && seg.length === 2) return { tickets: db.supTickets };
+    if (method === 'POST' && seg.length === 2) {
+      const t = { id: 'tk' + Math.random().toString(36).slice(2, 8), org_id: 'demo-org', created_by: me.id, subject: body.subject, category: body.category || 'other', status: 'open', created_at: now(), updated_at: now() };
+      db.supTickets.unshift(t);
+      db.supMsgs.push({ id: 'sm' + Math.random().toString(36).slice(2, 8), ticket_id: t.id, author_id: me.id, is_platform: false, body: body.body, created_at: now() });
+      save(); return { ticket: t };
+    }
+    if (method === 'GET' && seg.length === 4 && seg[3] === 'messages') {
+      return { messages: db.supMsgs.filter((m) => m.ticket_id === seg[2]) };
+    }
+    if (method === 'POST' && seg.length === 4 && seg[3] === 'messages') {
+      const m = { id: 'sm' + Math.random().toString(36).slice(2, 8), ticket_id: seg[2], author_id: me.id, is_platform: Boolean(body.asPlatform), body: body.body, created_at: now() };
+      db.supMsgs.push(m);
+      const t = db.supTickets.find((x) => x.id === seg[2]);
+      if (t) { t.updated_at = m.created_at; t.status = m.is_platform ? 'pending' : 'open'; }
+      save(); return { message: m };
+    }
+    if (method === 'PATCH' && seg.length === 3) {
+      const t = db.supTickets.find((x) => x.id === seg[2]) || fail(404, 'Ticket not found.');
+      if (body.status) t.status = body.status;
+      save(); return { ticket: t };
+    }
+  }
+
   if (seg[0] === 'hr' || (seg[0] === 'departments') || (seg[0] === 'payroll' && ['salary', 'bank'].includes(seg[1])) || seg[0] === 'attendance' || route === 'GET /tasks') {
     requireAuth();
     const DEPTS = [{ id: 1, name: 'IT' }, { id: 2, name: 'People Ops' }, { id: 3, name: 'Operations' }, { id: 4, name: 'Logistics' }];

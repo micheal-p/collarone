@@ -66,6 +66,89 @@ function StatusRow() {
   );
 }
 
+// Support tickets raised by tenants from /support. RLS lets a platform admin
+// read and answer every org's tickets through the SAME routes tenants use —
+// a reply here lands in their thread as "Collarone support" and flips the
+// ticket to pending (their turn). Customer replies flip it back to open.
+function SupportTicketsPanel({ flash }) {
+  const [tickets, setTickets] = useState([]);
+  const [orgs, setOrgs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [openId, setOpenId] = useState(null);
+  const [messages, setMessages] = useState(null);
+  const [reply, setReply] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [showResolved, setShowResolved] = useState(false);
+
+  const load = () => {
+    Promise.all([apiGet('/support/tickets'), apiGet('/platform/organizations')])
+      .then(([t, o]) => { setTickets(t.tickets || []); setOrgs(o.organizations || []); })
+      .catch(() => {}).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+  const orgName = (id) => orgs.find((o) => o.id === id)?.name || '—';
+
+  const openThread = (t) => {
+    const next = openId === t.id ? null : t.id;
+    setOpenId(next); setMessages(null); setReply('');
+    if (next) apiGet(`/support/tickets/${t.id}/messages`).then((d) => setMessages(d.messages)).catch(() => setMessages([]));
+  };
+  const send = async (t) => {
+    if (!reply.trim()) return;
+    setBusy(true);
+    try {
+      await apiPost(`/support/tickets/${t.id}/messages`, { body: reply, asPlatform: true });
+      setReply(''); load();
+      apiGet(`/support/tickets/${t.id}/messages`).then((d) => setMessages(d.messages)).catch(() => {});
+    } catch (e) { flash(e.message, true); } finally { setBusy(false); }
+  };
+  const setStatus = async (t, status) => {
+    try { await apiPatch(`/support/tickets/${t.id}`, { status }); load(); }
+    catch (e) { flash(e.message, true); }
+  };
+
+  const needsUs = tickets.filter((t) => t.status === 'open').length;
+  const visible = showResolved ? tickets : tickets.filter((t) => t.status !== 'resolved');
+
+  return (
+    <section className="pc-section">
+      <SectionHead title="Support tickets" count={needsUs > 0 ? `${needsUs} need a reply` : String(tickets.length)}>
+        <button className="pc-btn sm" onClick={() => setShowResolved((v) => !v)}>{showResolved ? 'Hide resolved' : 'Show all'}</button>
+      </SectionHead>
+      {loading && <p className="pc-dim" style={{ fontSize: 13 }}>Loading…</p>}
+      {!loading && visible.length === 0 && <p className="pc-dim" style={{ fontSize: 13 }}>No open tickets — inbox zero.</p>}
+      {visible.map((t) => (
+        <div key={t.id} style={{ border: '1px solid var(--pc-line, rgba(255,255,255,0.08))', borderRadius: 10, marginBottom: 8, overflow: 'hidden' }}>
+          <button onClick={() => openThread(t)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: '10px 14px', display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600, fontSize: 13.5 }}>{t.subject}</span>
+            <span className="pc-dim" style={{ fontSize: 12 }}>{orgName(t.org_id)} · {t.category}</span>
+            <span className="pc-dim" style={{ fontSize: 11.5, marginLeft: 'auto' }}>
+              <span className="pc-dot" style={{ background: t.status === 'open' ? '#e8b23f' : t.status === 'pending' ? 'var(--ok)' : 'var(--faint)', marginRight: 6 }} />
+              {t.status === 'open' ? 'needs reply' : t.status}
+            </span>
+          </button>
+          {openId === t.id && (
+            <div style={{ padding: '0 14px 12px' }}>
+              {messages == null && <p className="pc-dim" style={{ fontSize: 12.5 }}>Loading thread…</p>}
+              {(messages || []).map((m) => (
+                <div key={m.id} style={{ fontSize: 13, lineHeight: 1.6, padding: '6px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  <span className="pc-dim" style={{ fontSize: 11.5 }}>{m.is_platform ? 'Collarone' : 'Customer'} · {fmtDate(m.created_at)}: </span>
+                  <span style={{ whiteSpace: 'pre-wrap' }}>{m.body}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <input className="pc-input" style={{ flex: 1 }} value={reply} placeholder="Reply as Collarone support…" onChange={(e) => setReply(e.target.value)} />
+                <button className="pc-btn sm primary" disabled={busy || !reply.trim()} onClick={() => send(t)}>Send</button>
+                {t.status !== 'resolved' && <button className="pc-btn sm" disabled={busy} onClick={() => setStatus(t, 'resolved')}>Resolve</button>}
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 // Messages submitted via the public /contact page — a platform-level inbox,
 // separate from any tenant's own CRM inbox. No automated sending exists
 // anywhere in this codebase, so this doesn't pretend to send anything — it
@@ -969,6 +1052,8 @@ export default function PlatformAdmin() {
 
       {tab === 'inbox' && (<>
       <ContactMessagesPanel flash={flash} />
+
+      <SupportTicketsPanel flash={flash} />
 
       <AppErrorsPanel />
       </>)}

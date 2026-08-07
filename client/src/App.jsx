@@ -37,6 +37,7 @@ import Signup from './pages/Signup.jsx';
 import Status from './pages/Status.jsx';
 import EmbedContactForm from './pages/embed/EmbedContactForm.jsx';
 import Help from './pages/Help.jsx';
+import Support from './pages/Support.jsx';
 import PublicThemes from './pages/PublicThemes.jsx';
 
 // "/" is the public marketing page for a signed-out visitor, and the app
@@ -224,6 +225,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/support"
+        element={
+          <ProtectedRoute>
+            <Support />
           </ProtectedRoute>
         }
       />

@@ -149,6 +149,13 @@ const INTENTS = [
     chips: ['What does it cost?', 'How do I get started?'],
   },
   {
+    id: 'support',
+    phrases: ['how do i contact support', 'how do i get help', 'raise a ticket', 'report a problem', 'something is broken', 'contact you'],
+    keys: ['support', 'ticket', 'help', 'complaint', 'escalate', 'broken'],
+    answer: 'Two ways. Inside your workspace, open your profile menu → Contact support and raise a ticket — it keeps the whole conversation threaded and your workspace admin can see it too; we reply right in the thread. For anything urgent, WhatsApp 0814 812 8551 first and raise the ticket after so there\'s a record.',
+    chips: ['How do I get started?', 'What does it cost?'],
+  },
+  {
     id: 'start',
     phrases: ['how do i get started', 'how to start', 'sign up', 'create account', 'register'],
     keys: ['start', 'signup', 'begin', 'join', 'onboard'],

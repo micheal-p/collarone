@@ -1816,6 +1816,61 @@ export async function supabaseApi(path, opts = {}) {
     return { settings: data };
   }
 
+  // ---- support tickets (tenant -> Collarone escalation) ----
+  // RLS does all the gating: creator + org super_admin see a ticket, platform
+  // admins see everything, and is_platform on a message must match reality.
+  if (head === 'GET /support' && seg[1] === 'tickets' && seg.length === 2) {
+    const { data, error } = await supabase.from('support_tickets').select('*').order('updated_at', { ascending: false });
+    if (error) fail(400, error.message);
+    return { tickets: data || [] };
+  }
+  if (head === 'POST /support' && seg[1] === 'tickets' && seg.length === 2) {
+    const p = await myProfile();
+    if (!body.subject?.trim() || !body.body?.trim()) fail(400, 'A ticket needs a subject and a message.');
+    const { data: t, error } = await supabase.from('support_tickets').insert({
+      org_id: p.org_id, created_by: p.id, subject: body.subject.trim(),
+      category: ['bug', 'billing', 'how_to', 'feature', 'other'].includes(body.category) ? body.category : 'other',
+    }).select().single();
+    if (error) fail(400, error.message);
+    const { error: e2 } = await supabase.from('support_ticket_messages')
+      .insert({ ticket_id: t.id, author_id: p.id, is_platform: false, body: body.body.trim() });
+    if (e2) fail(400, e2.message);
+    // Best-effort email ping to the Collarone team — never blocks the ticket.
+    fetch('/api/support-notify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketId: t.id, kind: 'new' }),
+    }).catch(() => {});
+    return { ticket: t };
+  }
+  if (head === 'GET /support' && seg[1] === 'tickets' && seg.length === 4 && seg[3] === 'messages') {
+    const { data, error } = await supabase.from('support_ticket_messages')
+      .select('*').eq('ticket_id', seg[2]).order('created_at');
+    if (error) fail(400, error.message);
+    return { messages: data || [] };
+  }
+  if (head === 'POST /support' && seg[1] === 'tickets' && seg.length === 4 && seg[3] === 'messages') {
+    const p = await myProfile();
+    if (!body.body?.trim()) fail(400, 'Write a message first.');
+    const { data, error } = await supabase.from('support_ticket_messages').insert({
+      ticket_id: seg[2], author_id: p.id, is_platform: Boolean(body.asPlatform), body: body.body.trim(),
+    }).select().single();
+    if (error) fail(400, error.message);
+    if (!body.asPlatform) {
+      fetch('/api/support-notify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId: seg[2], kind: 'reply' }),
+      }).catch(() => {});
+    }
+    return { message: data };
+  }
+  if (method === 'PATCH' && seg[0] === 'support' && seg[1] === 'tickets' && seg.length === 3) {
+    const patch = {};
+    if (body.status !== undefined) patch.status = body.status;
+    const { data, error } = await supabase.from('support_tickets').update(patch).eq('id', seg[2]).select().single();
+    if (error) fail(400, error.message);
+    return { ticket: data };
+  }
+
   // ---- attendance devices (the universal punch lane's registry) ----
   if (head === 'GET /attendance' && seg[1] === 'devices') {
     const [{ data: devices, error: e1 }, { data: maps, error: e2 }, { data: staff }] = await Promise.all([
