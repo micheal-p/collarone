@@ -327,14 +327,18 @@ export default async function handler(req, res) {
 
       const { data: org } = await admin.from('organizations').select('name, slug').eq('id', orgId).maybeSingle();
       const { data: members } = await admin.from('profiles').select('id').eq('org_id', orgId);
+      // The purge is a database function that walks EVERY public table with an
+      // org_id column in FK-safe passes — a hand-list here rotted the moment
+      // per-org seeded tables (paye_bands etc.) joined the schema, which is
+      // how deleting an org started failing.
+      const { data: rowsPurged, error: purgeErr } = await admin.rpc('platform_delete_org', { p_org: orgId });
+      if (purgeErr) return json(res, 400, { message: purgeErr.message });
+      // Auth accounts go through GoTrue's own API, never raw SQL — a raw
+      // delete once left a dangling identity that poisoned signups.
       for (const m of members || []) {
-        await admin.auth.admin.deleteUser(m.id); // cascades to delete the profile row
+        await admin.auth.admin.deleteUser(m.id).catch(() => {});
       }
-      await admin.from('org_credit_ledger').delete().eq('org_id', orgId);
-      await admin.from('billing_transactions').delete().eq('org_id', orgId);
-      const { error: delErr } = await admin.from('organizations').delete().eq('id', orgId);
-      if (delErr) return json(res, 400, { message: delErr.message });
-      await logAudit('delete_org', null, { orgId, name: org?.name, slug: org?.slug, memberCount: members?.length || 0 });
+      await logAudit('delete_org', null, { orgId, name: org?.name, slug: org?.slug, memberCount: members?.length || 0, rowsPurged });
       return json(res, 200, { ok: true });
     }
 
