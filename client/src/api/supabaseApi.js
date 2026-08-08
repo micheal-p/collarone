@@ -8,7 +8,59 @@
 import { supabase } from '../lib/supabaseClient.js';
 import { SUITES, MULTI_TENANT_SAFE_SUITES, suiteAllowedForCountry } from '../config/suites.js';
 
-const fail = (status, message) => { const e = new Error(message); e.status = status; e.code = 'supabase'; throw e; };
+// Turn database noise into a sentence a customer can act on.
+//
+// 261 call sites in this file end in `fail(400, error.message)`, and that
+// message is whatever Postgres said: "duplicate key value violates unique
+// constraint idx_org_slug", "new row violates row-level security policy for
+// table profiles". A customer reading that learns nothing except that the
+// product is amateur, and it leaks table and column names besides.
+//
+// Fixing 261 call sites individually would be busywork that drifts. They all
+// funnel through fail(), so the translation happens once, here.
+//
+// The important subtlety: our own `raise exception 'Only a finance manager
+// can post to the ledger.'` messages are already written for humans and must
+// pass through untouched. Only text that matches a recognisably DATABASE
+// shape is rewritten; everything else is returned as-is.
+const DB_ERRORS = [
+  [/duplicate key value|already exists/i,
+    'That already exists. Try a different name or code.'],
+  [/violates foreign key constraint/i,
+    'This is still being used somewhere else, so it cannot be removed yet.'],
+  [/violates row-level security|permission denied for|insufficient privilege/i,
+    'You do not have permission to do that. Ask an administrator if you think you should.'],
+  [/violates check constraint/i,
+    'Some of those details are not valid. Check the amounts and dates and try again.'],
+  [/null value in column .* violates not-null/i,
+    'Something required was left blank. Fill in every required field and try again.'],
+  [/invalid input syntax|invalid text representation/i,
+    'One of those values is not in the right format — check any numbers or dates.'],
+  [/JWT expired|invalid claim|token is expired/i,
+    'Your session has expired. Please sign in again.'],
+  [/could not serialize|deadlock detected/i,
+    'Someone else was editing the same thing at that moment. Please try again.'],
+  // Shapes that only ever mean "we shipped a bug": schema drift, a missing
+  // function, a broken query. The customer gets the founder's agreed wording.
+  [/(relation|column|function|operator) .* does not exist|syntax error at or near/i,
+    'Something went wrong on our side — please try again in a minute.'],
+];
+
+export const humanizeDbError = (message) => {
+  const raw = String(message ?? '').trim();
+  if (!raw) return 'Something went wrong on our side — please try again in a minute.';
+  for (const [pattern, friendly] of DB_ERRORS) if (pattern.test(raw)) return friendly;
+  // A message that is empty, JSON-shaped, or reads like a stack trace is not a
+  // sentence — same class as the '{}' a real prospect once saw at signup.
+  if (raw === '{}' || raw.startsWith('{') || raw.startsWith('[') || /\bat \w+ \(/.test(raw)) {
+    return 'Something went wrong on our side — please try again in a minute.';
+  }
+  return raw;
+};
+
+const fail = (status, message) => {
+  const e = new Error(humanizeDbError(message)); e.status = status; e.code = 'supabase'; throw e;
+};
 
 // Org lifecycle states that may still sign in. past_due (grace) and read_only
 // (renewal overdue) keep access so the customer can see their data and pay;
@@ -665,8 +717,11 @@ export async function supabaseApi(path, opts = {}) {
     return { task: data };
   }
   if (method === 'DELETE' && seg[0] === 'tasks' && seg.length === 2) {
-    const { error } = await supabase.from('tasks').delete().eq('id', seg[1]);
+    const { data: removed, error } = await supabase.from('tasks').delete().eq('id', seg[1]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
   // ---- task comments (RLS + RPC enforce who can see/say) ----
@@ -761,8 +816,11 @@ export async function supabaseApi(path, opts = {}) {
     return { account: data };
   }
   if (method === 'DELETE' && seg[0] === 'payroll' && seg[1] === 'bank' && seg.length === 3) {
-    const { error } = await supabase.from('bank_accounts').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('bank_accounts').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -781,8 +839,11 @@ export async function supabaseApi(path, opts = {}) {
     return { run };
   }
   if (method === 'DELETE' && seg[0] === 'payroll' && seg[1] === 'runs' && seg.length === 3) {
-    const { error } = await supabase.from('payroll_runs').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('payroll_runs').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
   if (method === 'PATCH' && seg[0] === 'payroll' && seg[1] === 'runs' && seg.length === 3) {
@@ -867,8 +928,10 @@ export async function supabaseApi(path, opts = {}) {
     return { shift: data };
   }
   if (method === 'DELETE' && seg[0] === 'attendance' && seg[1] === 'shifts' && seg.length === 3) {
-    const { error } = await supabase.from('attendance_shifts').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('attendance_shifts').delete().eq('id', seg[2]).select('id');
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    // A policy-blocked delete returns no error, it removes nothing.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
   if (method === 'POST' && seg[0] === 'attendance' && seg[1] === 'shifts' && seg[3] === 'assign') {
@@ -881,8 +944,10 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
   if (method === 'POST' && seg[0] === 'attendance' && seg[1] === 'shifts' && seg[2] === 'unassign') {
-    const { error } = await supabase.from('attendance_shift_assignments').delete().eq('user_id', body.userId);
+    const { data: removed, error } = await supabase.from('attendance_shift_assignments').delete().eq('user_id', body.userId).select('id');
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    // A policy-blocked delete returns no error, it removes nothing.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
   if (head === 'GET /payroll' && seg[1] === 'mypayslips') {
@@ -995,8 +1060,11 @@ export async function supabaseApi(path, opts = {}) {
     return { requisition: data };
   }
   if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'requisitions' && seg.length === 3) {
-    const { error } = await supabase.from('job_requisitions').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('job_requisitions').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -1040,8 +1108,11 @@ export async function supabaseApi(path, opts = {}) {
     return { application: data };
   }
   if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'applications' && seg.length === 3) {
-    const { error } = await supabase.from('applications').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('applications').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -1108,8 +1179,11 @@ export async function supabaseApi(path, opts = {}) {
     return { goal: data };
   }
   if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'goals' && seg.length === 3) {
-    const { error } = await supabase.from('goals').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('goals').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -1162,8 +1236,11 @@ export async function supabaseApi(path, opts = {}) {
     return { training: data };
   }
   if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'trainings' && seg.length === 3) {
-    const { error } = await supabase.from('trainings').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('trainings').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -1186,8 +1263,11 @@ export async function supabaseApi(path, opts = {}) {
     return { document: data };
   }
   if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'documents' && seg.length === 3) {
-    const { error } = await supabase.from('employee_documents').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('employee_documents').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -1282,8 +1362,11 @@ export async function supabaseApi(path, opts = {}) {
     return { letterhead: data };
   }
   if (method === 'DELETE' && seg[0] === 'hr' && seg[1] === 'letterheads' && seg.length === 3) {
-    const { error } = await supabase.from('hr_letterheads').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('hr_letterheads').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
   if (head === 'GET /hr' && seg[1] === 'issued-letters') {
@@ -1573,8 +1656,11 @@ export async function supabaseApi(path, opts = {}) {
     return { company: data };
   }
   if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'companies' && seg.length === 3) {
-    const { error } = await supabase.from('crm_companies').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('crm_companies').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -1608,8 +1694,11 @@ export async function supabaseApi(path, opts = {}) {
     return { contact: data };
   }
   if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'contacts' && seg.length === 3) {
-    const { error } = await supabase.from('crm_contacts').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('crm_contacts').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -1664,8 +1753,11 @@ export async function supabaseApi(path, opts = {}) {
     return { booking: data };
   }
   if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'bookings' && seg.length === 3) {
-    const { error } = await supabase.from('crm_bookings').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('crm_bookings').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -1700,8 +1792,11 @@ export async function supabaseApi(path, opts = {}) {
     return { receivable: data };
   }
   if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'receivables' && seg.length === 3) {
-    const { error } = await supabase.from('crm_receivables').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('crm_receivables').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -1736,8 +1831,11 @@ export async function supabaseApi(path, opts = {}) {
     return { deal: data };
   }
   if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'deals' && seg.length === 3) {
-    const { error } = await supabase.from('crm_deals').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('crm_deals').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
   if (head === 'POST /crm' && seg[1] === 'activities') {
@@ -1753,8 +1851,11 @@ export async function supabaseApi(path, opts = {}) {
     return { activity: data };
   }
   if (method === 'DELETE' && seg[0] === 'crm' && seg[1] === 'activities' && seg.length === 3) {
-    const { error } = await supabase.from('crm_activities').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('crm_activities').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -1922,8 +2023,11 @@ export async function supabaseApi(path, opts = {}) {
     return { device: data };
   }
   if (method === 'DELETE' && seg[0] === 'attendance' && seg[1] === 'devices' && seg.length === 3) {
-    const { error } = await supabase.from('attendance_devices').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('attendance_devices').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
   if (head === 'POST /attendance' && seg[1] === 'device-map' && seg.length === 2) {
@@ -1936,8 +2040,11 @@ export async function supabaseApi(path, opts = {}) {
     return { map: data };
   }
   if (method === 'DELETE' && seg[0] === 'attendance' && seg[1] === 'device-map' && seg.length === 3) {
-    const { error } = await supabase.from('attendance_device_map').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('attendance_device_map').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -1979,8 +2086,11 @@ export async function supabaseApi(path, opts = {}) {
     return { plan: data };
   }
   if (method === 'DELETE' && seg[0] === 'benefits' && seg[1] === 'plans' && seg.length === 3) {
-    const { error } = await supabase.from('benefit_plans').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('benefit_plans').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2019,8 +2129,11 @@ export async function supabaseApi(path, opts = {}) {
     return { enrollment: data };
   }
   if (method === 'DELETE' && seg[0] === 'benefits' && seg[1] === 'enrollments' && seg.length === 3) {
-    const { error } = await supabase.from('employee_benefits').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('employee_benefits').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2074,8 +2187,11 @@ export async function supabaseApi(path, opts = {}) {
     return { asset: data };
   }
   if (method === 'DELETE' && seg[0] === 'itassets' && seg[1] === 'assets' && seg.length === 3) {
-    const { error } = await supabase.from('it_assets').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('it_assets').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2104,8 +2220,11 @@ export async function supabaseApi(path, opts = {}) {
     return { vendor: data };
   }
   if (method === 'DELETE' && seg[0] === 'procurement' && seg[1] === 'vendors' && seg.length === 3) {
-    const { error } = await supabase.from('vendors').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('vendors').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2147,8 +2266,11 @@ export async function supabaseApi(path, opts = {}) {
     return { request: data };
   }
   if (method === 'DELETE' && seg[0] === 'procurement' && seg[1] === 'requests' && seg.length === 3) {
-    const { error } = await supabase.from('purchase_requests').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('purchase_requests').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2187,8 +2309,11 @@ export async function supabaseApi(path, opts = {}) {
     return { item: data };
   }
   if (method === 'DELETE' && seg[0] === 'inventory' && seg[1] === 'items' && seg.length === 3) {
-    const { error } = await supabase.from('stock_items').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('stock_items').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2316,8 +2441,11 @@ export async function supabaseApi(path, opts = {}) {
     return { document: data };
   }
   if (method === 'DELETE' && seg[0] === 'trade-docs' && seg.length === 2) {
-    const { error } = await supabase.from('trade_documents').delete().eq('id', seg[1]);
+    const { data: removed, error } = await supabase.from('trade_documents').delete().eq('id', seg[1]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2398,8 +2526,11 @@ export async function supabaseApi(path, opts = {}) {
     return { mark: data };
   }
   if (method === 'DELETE' && seg[0] === 'compliance' && seg[1] === 'marks' && seg.length === 3) {
-    const { error } = await supabase.from('compliance_marks').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('compliance_marks').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2432,8 +2563,10 @@ export async function supabaseApi(path, opts = {}) {
     return { rule: data };
   }
   if (method === 'DELETE' && seg[0] === 'automation' && seg[1] === 'rules' && seg.length === 3) {
-    const { error } = await supabase.from('org_automation_rules').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('org_automation_rules').delete().eq('id', seg[2]).select('id');
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    // A policy-blocked delete returns no error, it removes nothing.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
   if (head === 'GET /automation' && seg[1] === 'settings') {
@@ -2602,8 +2735,11 @@ export async function supabaseApi(path, opts = {}) {
     return { expense: data };
   }
   if (method === 'DELETE' && seg[0] === 'finance' && seg[1] === 'expenses' && seg.length === 3) {
-    const { error } = await supabase.from('expenses').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('expenses').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2624,8 +2760,11 @@ export async function supabaseApi(path, opts = {}) {
     return { budget: data };
   }
   if (method === 'DELETE' && seg[0] === 'finance' && seg[1] === 'budgets' && seg.length === 3) {
-    const { error } = await supabase.from('budgets').delete().eq('id', seg[2]);
+    const { data: removed, error } = await supabase.from('budgets').delete().eq('id', seg[2]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2659,8 +2798,11 @@ export async function supabaseApi(path, opts = {}) {
     return { project: data };
   }
   if (method === 'DELETE' && seg[0] === 'projects' && seg.length === 2) {
-    const { error } = await supabase.from('projects').delete().eq('id', seg[1]);
+    const { data: removed, error } = await supabase.from('projects').delete().eq('id', seg[1]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2679,8 +2821,11 @@ export async function supabaseApi(path, opts = {}) {
     return { member: data };
   }
   if (method === 'DELETE' && seg[0] === 'projects' && seg[2] === 'members' && seg.length === 4) {
-    const { error } = await supabase.from('project_members').delete().eq('project_id', seg[1]).eq('user_id', seg[3]);
+    const { data: removed, error } = await supabase.from('project_members').delete().eq('project_id', seg[1]).eq('user_id', seg[3]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2703,8 +2848,11 @@ export async function supabaseApi(path, opts = {}) {
     return { entry: data };
   }
   if (method === 'DELETE' && seg[0] === 'projects' && seg[2] === 'time' && seg.length === 4) {
-    const { error } = await supabase.from('project_time_entries').delete().eq('id', seg[3]);
+    const { data: removed, error } = await supabase.from('project_time_entries').delete().eq('id', seg[3]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
   if (method === 'POST' && seg[0] === 'projects' && seg[2] === 'time' && seg[3] === 'mark-invoiced') {
@@ -2741,8 +2889,11 @@ export async function supabaseApi(path, opts = {}) {
     return { milestone: data };
   }
   if (method === 'DELETE' && seg[0] === 'projects' && seg[2] === 'milestones' && seg.length === 4) {
-    const { error } = await supabase.from('milestones').delete().eq('id', seg[3]);
+    const { data: removed, error } = await supabase.from('milestones').delete().eq('id', seg[3]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2783,8 +2934,11 @@ export async function supabaseApi(path, opts = {}) {
     return { status: data };
   }
   if (method === 'DELETE' && seg[0] === 'projects' && seg[2] === 'statuses' && seg.length === 4) {
-    const { error } = await supabase.from('project_statuses').delete().eq('id', seg[3]);
+    const { data: removed, error } = await supabase.from('project_statuses').delete().eq('id', seg[3]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2819,8 +2973,11 @@ export async function supabaseApi(path, opts = {}) {
     return { dep: data };
   }
   if (method === 'DELETE' && seg[0] === 'projects' && seg[2] === 'deps' && seg.length === 4) {
-    const { error } = await supabase.from('project_task_deps').delete().eq('id', seg[3]);
+    const { data: removed, error } = await supabase.from('project_task_deps').delete().eq('id', seg[3]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2871,8 +3028,11 @@ export async function supabaseApi(path, opts = {}) {
     return { task: data };
   }
   if (method === 'DELETE' && seg[0] === 'projects' && seg[2] === 'tasks' && seg.length === 4) {
-    const { error } = await supabase.from('project_tasks').delete().eq('id', seg[3]);
+    const { data: removed, error } = await supabase.from('project_tasks').delete().eq('id', seg[3]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2893,8 +3053,11 @@ export async function supabaseApi(path, opts = {}) {
     return { folder: data };
   }
   if (method === 'DELETE' && seg[0] === 'docfolders' && seg.length === 2) {
-    const { error } = await supabase.from('doc_folders').delete().eq('id', seg[1]);
+    const { data: removed, error } = await supabase.from('doc_folders').delete().eq('id', seg[1]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2949,8 +3112,11 @@ export async function supabaseApi(path, opts = {}) {
     return { document: data };
   }
   if (method === 'DELETE' && seg[0] === 'documents' && seg.length === 2) {
-    const { error } = await supabase.from('documents').delete().eq('id', seg[1]);
+    const { data: removed, error } = await supabase.from('documents').delete().eq('id', seg[1]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 
@@ -2996,8 +3162,11 @@ export async function supabaseApi(path, opts = {}) {
     return { permission: data };
   }
   if (method === 'DELETE' && seg[0] === 'documents' && seg[2] === 'permissions' && seg.length === 4) {
-    const { error } = await supabase.from('document_permissions').delete().eq('document_id', seg[1]).eq('user_id', seg[3]);
+    const { data: removed, error } = await supabase.from('document_permissions').delete().eq('document_id', seg[1]).eq('user_id', seg[3]).select('id');
     if (error) fail(400, error.message);
+    // A delete blocked by a policy returns no error, it just removes
+    // nothing — so without this the UI cheerfully reports success.
+    if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
 

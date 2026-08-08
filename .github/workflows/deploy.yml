@@ -89,6 +89,7 @@ jobs:
           node test/payroll_golden.mjs
           DB_URL="$DATABASE_URL" node test/support_write_denial.mjs
           DB_URL="$DATABASE_URL" node test/storage_tenant_scoped.mjs
+          DB_URL="$DATABASE_URL" node test/definer_org_scope.mjs
 
   deploy:
     needs: [typecheck, tests]
