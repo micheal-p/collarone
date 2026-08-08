@@ -276,6 +276,41 @@ export default async function handler(req, res) {
           }
         } catch { /* never break health */ }
 
+        // Drain the "someone is waiting on you" queue: task assigned, leave
+        // submitted, leave decided. Triggers write the rows (notify_events.sql);
+        // this sends them through the shared sender.
+        //
+        // When email is off, rows are marked 'skipped' rather than left
+        // pending. Otherwise switching a key on months later would fire a
+        // backlog of stale news at everybody, which is worse than never having
+        // sent it — a leave decision from March is not news in August.
+        try {
+          const { emailEnabled: nOn, sendMail: nSend, wrap: nWrap, esc: nEsc } = await import('./_lib/email.js');
+          const { data: queued } = await admin.from('notification_outbox')
+            .select('id, kind, email_to, subject, body')
+            .eq('status', 'claimed')
+            .in('kind', ['task_assigned', 'leave_submitted', 'leave_decided'])
+            .limit(200);
+          for (const n of queued || []) {
+            if (!nOn() || !n.email_to) {
+              await admin.from('notification_outbox').update({ status: 'skipped', error: nOn() ? 'no address' : 'email off' })
+                .eq('id', n.id).then(() => {}, () => {});
+              continue;
+            }
+            try {
+              await nSend({
+                to: n.email_to,
+                subject: n.subject || 'Collarone',
+                html: nWrap(n.subject || 'Collarone', `<p style="font-size:14px;line-height:1.6">${nEsc(n.body || '')}</p>`),
+              });
+              await admin.from('notification_outbox').update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', n.id);
+            } catch (e) {
+              await admin.from('notification_outbox').update({ status: 'failed', error: String(e.message).slice(0, 300) })
+                .eq('id', n.id).then(() => {}, () => {});
+            }
+          }
+        } catch { /* never break health */ }
+
         // Chat @mention delivery: bell is instant via the spine; this sweep
         // adds email (and WhatsApp when the channel exists) through the same
         // shared sender. Marks messages notified either way so the queue
