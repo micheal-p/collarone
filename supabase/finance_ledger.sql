@@ -396,3 +396,10 @@ language sql stable security definer set search_path = public as $$
   order by 1;
 $$;
 grant execute on function public.ledger_balance_sheet(date) to authenticated;
+
+-- REMINDER, learned the hard way twice now: any migration that CREATES tables
+-- must re-run supabase/support_readonly_enforcement.sql afterwards, or the new
+-- tables carry no support-write block and a read-only support session can
+-- write to them. These three tables shipped without it and CI caught it —
+-- a support session could have written to a customer's books.
+--   node scratchpad/runsql.mjs supabase/support_readonly_enforcement.sql
