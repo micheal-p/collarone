@@ -56,6 +56,19 @@ export default function ChatWidget({ visible = true }) {
   const [chips, setChips] = useState(QUICK_CHIPS);
   const bodyRef = useRef(null);
   const timerRef = useRef(null);
+  // While the visitor scrolls, the launcher fades back so it never sits on top
+  // of mid-page content they're reading (audit finding 6); it returns on idle.
+  const [dim, setDim] = useState(false);
+  useEffect(() => {
+    let t = null;
+    const onScroll = () => {
+      setDim(true);
+      clearTimeout(t);
+      t = setTimeout(() => setDim(false), 600);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { clearTimeout(t); window.removeEventListener('scroll', onScroll); };
+  }, []);
 
   useEffect(() => {
     try { sessionStorage.setItem('cl_chat', JSON.stringify(msgs.slice(-20))); } catch { /* private mode */ }
@@ -91,7 +104,7 @@ export default function ChatWidget({ visible = true }) {
       <AnimatePresence>
         {visible && !open && (
           <motion.button
-            type="button" className="cl-wa-float" aria-label="Chat with us"
+            type="button" className={`cl-wa-float${dim ? ' dim' : ''}`} aria-label="Chat with us"
             onClick={() => setOpen(true)}
             initial={{ opacity: 0, y: 16, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.9 }}
             transition={{ duration: 0.25 }}

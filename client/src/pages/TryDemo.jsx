@@ -24,7 +24,7 @@ const FLAG = 'co-try-demo';
 // "sign up" against fake data and believe they registered.
 const leaveDemoTo = (path) => {
   sessionStorage.removeItem(FLAG);
-  localStorage.removeItem('orgops_demo_session');
+  localStorage.removeItem('collarone_demo_session'); localStorage.removeItem('orgops_demo_session');
   // inside the landing-page embed, break out of the iframe to the real page
   if (window.top !== window.self) { window.top.location.href = path; return; }
   window.location.href = path;
@@ -162,7 +162,7 @@ export default function TryDemo() {
   const exit = () => setFeedback(true);
   const reallyExit = () => {
     sessionStorage.removeItem(FLAG);
-    localStorage.removeItem('orgops_demo_session');
+    localStorage.removeItem('collarone_demo_session'); localStorage.removeItem('orgops_demo_session');
     window.location.href = '/';
   };
 

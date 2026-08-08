@@ -9,7 +9,7 @@ export default function Login() {
   useEffect(() => {
     if (import.meta.env.VITE_DEMO_MODE !== 'true' && sessionStorage.getItem('co-try-demo') === '1') {
       sessionStorage.removeItem('co-try-demo');
-      localStorage.removeItem('orgops_demo_session');
+      localStorage.removeItem('collarone_demo_session'); localStorage.removeItem('orgops_demo_session');
       window.location.reload();
     }
   }, []);

@@ -161,6 +161,11 @@
   box-shadow: 0 10px 30px rgba(10,14,26,0.35), 0 0 0 3px rgba(255,91,31,0.12);
 }
 .cl-wa-float:hover { background: #131a2e; }
+/* Reading mode: fade back while the page scrolls so the pill never covers
+   mid-page content; hover always wins so it stays clickable at full strength. */
+.cl-wa-float { transition: opacity .3s ease; }
+.cl-wa-float.dim { opacity: 0.3; }
+.cl-wa-float.dim:hover { opacity: 1; }
 @media (max-width: 640px) { .cl-wa-float span { display: none; } .cl-wa-float { padding: 14px; } }
 
 /* ---- Collarone assistant panel ---- */

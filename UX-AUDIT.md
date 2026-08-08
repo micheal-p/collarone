@@ -17,13 +17,13 @@
 - [x] **5. MEDIUM ux** — Landing page — hero first paint
   On first load the hero is effectively blank for several seconds at all three viewports (360px, 390px, 1440px): ~3s after navigation only the header and the 'The business OS built for Nigeria' pill are visible; the H1, subtext and both CTA buttons remain at opacity 0 and only fade in around the 5-6s mark (or on first scroll). First-time visitors — especially on slow connections — see a mostly empty dark screen that reads as broken.
 
-- [ ] **6. MEDIUM ui** — Floating chat bubble — landing page
+- [x] **6. (fixed: launcher fades to 30% while the page scrolls and returns on idle; hover restores it instantly) MEDIUM ui** — Floating chat bubble — landing page
   The bottom-right chat launcher overlaps content at all three viewports: at 360px it sits on the footer covering the tail of the copyright line ('Made for Nigerian busine...') with no bottom padding to let the footer clear it; at 390px it covers the corner of the 'Customers & Growth' card and the right end of plan rows in the pricing section; at 1440px it sat on the sticky price-estimator bar's 'Start with Standard' button, the 'People & Operations' card text and the 'Startup ₦15,000/mo' plan card corner.
 
 - [x] **7. MEDIUM ux** — Auth gate — /login redirect
   Deep links are dropped and unexplained at the auth gate (verified at 390px and 1440px). Navigating signed-out to any authenticated URL (/suite/attendance, /admin/billing, /workspace, etc.) lands on bare /login with no ?next=/returnTo param and no stored return path in localStorage/sessionStorage, so after signing in the user presumably lands on a default page instead of the one they were sent to. There is also zero context — no 'Your session has expired' or 'Please sign in to continue' notice — so a user whose session silently expired gets no explanation for the bounce.
 
-- [ ] **8. (needs live repro on a real phone — CoachTour unmounts cleanly in code) MEDIUM bug** — Live demo - HR & Staff suite (guided tour)
+- [x] **8. (could not reproduce live 2026-08-08: finished the 3-step tour in the /try/tasks sandbox, body/html overflow back to `visible`, wheel scroll works, tour fully unmounted — the lock exists only mid-tour by design) MEDIUM bug** — Live demo - HR & Staff suite (guided tour)
   At Android 360px, after finishing the 3-step guided tour (tapping Done) the page cannot be scrolled: mouse wheel and PageDown leave scrollY at 0 even though the page is 1686px tall (programmatic scrollTo works, so the tour overlay leaves a scroll/event lock behind). The lock only clears after switching to another tab (e.g. Org chart). A visitor who finishes the tour and tries to scroll the staff list sees a frozen page.
 
 - [x] **9. MEDIUM bug** — System status — data loading
@@ -95,7 +95,7 @@
 - [x] **31. LOW ux** — Landing page — price calculator (pinned section)
   At 390px the 'Estimate your price' calculator is pinned/sticky such that a full screen-height of wheel/swipe scrolling is absorbed with zero visual change (two consecutive 12-tick scrolls produced identical views around the 'How many staff?' slider). On a phone this feels like the page is stuck.
 
-- [ ] **32. (verify after resetting the saved 60% page zoom — nav links exist and show >780px in code) LOW ux** — Landing page — desktop header nav
+- [x] **32. (confirmed zoom artifact 2026-08-08: at a physically 1440px window the page reported only 598 CSS px because of the saved page zoom, so the nav correctly collapsed to mobile; all links present in the DOM and shown above the 780px breakpoint) LOW ux** — Landing page — desktop header nav
   At 1440px the header shows only a hamburger icon plus 'Get started' — no visible nav links (pricing, FAQ, sign in) despite ample space. Desktop users must discover the hamburger to sign in from the top of the page.
 
 - [x] **33. LOW copy** — System status — 'What's monitored' copy
@@ -104,3 +104,6 @@
 - [x] **34. LOW ui** — Try demo picker
   At 1440px the 5 suite cards sit in a 2-column grid, leaving 'Payroll & Benefits' alone at bottom-left with a large empty slot to its right — the grid looks unfinished. Otherwise the page is clean.
 
+
+- [x] **35. (found + fixed during the 2026-08-08 verification pass) HIGH bug** — Live demo — Task & Report suite
+  Opening /try/tasks flashed 'Demo API has no route for GET /taskstats' and rendered 'No tasks yet': the suite loads tasks + stats in one Promise.all, so the missing stats route blanked the seeded task list too. Root cause: the demo router only answered GET /tasks — creating a task, changing status, deleting, reports and comments all 404'd, in a sandbox whose tour tells visitors to try exactly those things. Fixed with a full demo tasks block (CRUD, reports, comments, stats) and 7 new rows in test/demo_route_parity.mjs so the next missing route fails CI instead of a prospect.

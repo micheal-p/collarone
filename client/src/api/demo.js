@@ -5,8 +5,12 @@
 // ---------------------------------------------------------------------------
 import { SUITES } from '../config/suites.js';
 
-const DB_KEY = 'orgops_demo_db_v1';
-const SESSION_KEY = 'orgops_demo_session';
+// Renamed from the legacy orgops_ prefix (audit finding 22): pre-pivot
+// branding in prod-origin storage read as foreign data during inspection.
+// The old keys are swept on load so nobody carries stale residue.
+const DB_KEY = 'collarone_demo_db_v1';
+const SESSION_KEY = 'collarone_demo_session';
+try { localStorage.removeItem('orgops_demo_db_v1'); localStorage.removeItem('orgops_demo_session'); } catch { /* private mode */ }
 const KEYS = SUITES.map((s) => s.key);
 
 function seed() {
@@ -486,7 +490,7 @@ async function demoApiInner(path, opts = {}) {
     }
   }
 
-  if (seg[0] === 'hr' || (seg[0] === 'departments') || (seg[0] === 'payroll' && ['salary', 'bank'].includes(seg[1])) || seg[0] === 'attendance' || route === 'GET /tasks') {
+  if (seg[0] === 'hr' || (seg[0] === 'departments') || (seg[0] === 'payroll' && ['salary', 'bank'].includes(seg[1])) || seg[0] === 'attendance' || seg[0] === 'tasks' || seg[0] === 'taskstats' || seg[0] === 'taskreports') {
     requireAuth();
     const DEPTS = [{ id: 1, name: 'IT' }, { id: 2, name: 'People Ops' }, { id: 3, name: 'Operations' }, { id: 4, name: 'Logistics' }];
     const ET = ['full_time', 'full_time', 'contract', 'full_time'];
@@ -617,11 +621,77 @@ async function demoApiInner(path, opts = {}) {
       if (seg[1] === 'mine') return { records: [...db.attShifts.filter((r) => r.employee_id === me.id), ...gen.filter((r) => r.employee_id === me.id)] };
       return { records: [...db.attShifts, ...gen] };
     }
-    if (route === 'GET /tasks') {
-      return { tasks: staff.flatMap((s, i) => [
-        { id: `t${i}a`, title: ['Quarterly stock reconciliation', 'Onboard new vendor', 'Prepare payroll inputs', 'Site visit report, Ikeja'][i % 4], status: 'in_progress', due_date: daysAgo(-3).slice(0, 10), assigned_to: s.id, assignee: { id: s.id, name: s.name } },
-        { id: `t${i}b`, title: 'Weekly report', status: 'done', due_date: daysAgo(4).slice(0, 10), assigned_to: s.id, assignee: { id: s.id, name: s.name } },
-      ]) };
+    // ---- tasks (full CRUD + reports + comments + stats) --------------------
+    // The tour literally tells visitors to open a task and add a report, so
+    // the sandbox must answer every route the real suite calls — the load is
+    // a Promise.all, and one 404 (it was /taskstats) blanked the whole page.
+    if (seg[0] === 'tasks' || seg[0] === 'taskstats' || seg[0] === 'taskreports') {
+      const me = session.get();
+      if (!db.tasks) {
+        const PR = ['high', 'medium', 'urgent', 'low'];
+        db.tasks = staff.flatMap((s, i) => [
+          { id: `t${i}a`, title: ['Quarterly stock reconciliation', 'Onboard new vendor', 'Prepare payroll inputs', 'Site visit report, Ikeja'][i % 4], description: '', priority: PR[i % 4], status: 'in_progress', due_date: daysAgo(-3).slice(0, 10), assigned_to: s.id, assignee: { id: s.id, name: s.name }, created_at: daysAgo(6) },
+          { id: `t${i}b`, title: 'Weekly report', description: '', priority: 'medium', status: 'done', due_date: daysAgo(4).slice(0, 10), assigned_to: s.id, assignee: { id: s.id, name: s.name }, created_at: daysAgo(10) },
+        ]);
+        db.taskReports = staff[0] ? [{ id: 'tr1', task_id: 't0a', body: 'Counted the Ikeja store, three lines short — reconciliation sheet attached to the shared drive. Finishing Surulere tomorrow.', attachments: [], author: { id: staff[0].id, name: staff[0].name }, created_at: daysAgo(1) }] : [];
+        db.taskComments = [];
+        save();
+      }
+      const findTask = (id) => db.tasks.find((t) => t.id === id) || fail(404, 'Task not found.');
+      const applyPatch = (t) => {
+        if (body.title !== undefined) t.title = body.title;
+        if (body.description !== undefined) t.description = body.description;
+        if (body.priority !== undefined) t.priority = body.priority;
+        if (body.status !== undefined) t.status = body.status;
+        if (body.dueDate !== undefined) t.due_date = body.dueDate;
+        if (body.assignedTo !== undefined) {
+          t.assigned_to = body.assignedTo;
+          const a = staff.find((s) => s.id === body.assignedTo);
+          t.assignee = a ? { id: a.id, name: a.name } : null;
+        }
+        if (body.recur !== undefined) t.recur_every = body.recur ? body.recur.every : null;
+      };
+      if (route === 'GET /tasks') return { tasks: db.tasks };
+      if (route === 'POST /tasks') {
+        const t = { id: 'tk' + Math.random().toString(36).slice(2, 8), title: body.title, description: body.description || '', priority: body.priority || 'medium', status: body.status || 'todo', due_date: null, assigned_to: null, assignee: null, created_at: new Date().toISOString() };
+        applyPatch(t); db.tasks.unshift(t); save(); return { task: t };
+      }
+      if (method === 'PATCH' && seg[0] === 'tasks' && seg.length === 2) {
+        const t = findTask(seg[1]); applyPatch(t); save(); return { task: t };
+      }
+      if (method === 'DELETE' && seg[0] === 'tasks' && seg.length === 2) {
+        db.tasks = db.tasks.filter((t) => t.id !== seg[1]);
+        db.taskReports = db.taskReports.filter((r) => r.task_id !== seg[1]);
+        db.taskComments = db.taskComments.filter((c) => c.task_id !== seg[1]);
+        save(); return { ok: true };
+      }
+      if (seg[0] === 'tasks' && seg[2] === 'reports') {
+        if (method === 'POST') {
+          findTask(seg[1]);
+          const r = { id: 'tr' + Math.random().toString(36).slice(2, 8), task_id: seg[1], body: body.reportBody, attachments: body.attachments || [], author: { id: me.id, name: me.name }, created_at: new Date().toISOString() };
+          db.taskReports.push(r); save(); return { report: r };
+        }
+        return { reports: db.taskReports.filter((r) => r.task_id === seg[1]) };
+      }
+      if (seg[0] === 'tasks' && seg[2] === 'comments') {
+        if (method === 'POST') {
+          findTask(seg[1]);
+          const c = { id: 'tc' + Math.random().toString(36).slice(2, 8), task_id: seg[1], body: body.body, author: { id: me.id, name: me.name }, created_at: new Date().toISOString() };
+          db.taskComments.push(c); save(); return { comment: c };
+        }
+        return { comments: db.taskComments.filter((c) => c.task_id === seg[1]) };
+      }
+      if (route === 'GET /taskstats') {
+        const agg = {};
+        for (const t of db.tasks) {
+          const k = `${t.status}|${t.priority || 'medium'}`;
+          agg[k] = (agg[k] || 0) + 1;
+        }
+        return { stats: Object.entries(agg).map(([k, count]) => { const [status, priority] = k.split('|'); return { status, priority, count }; }) };
+      }
+      if (route === 'GET /taskreports') {
+        return { reports: db.taskReports.map((r) => ({ ...r, task: (() => { const t = db.tasks.find((x) => x.id === r.task_id); return t ? { id: t.id, title: t.title } : null; })() })) };
+      }
     }
     // ---- recruiting / ATS (requisitions, pipeline, interviews) ----
     if (seg[0] === 'hr' && seg[1] === 'requisitions') {

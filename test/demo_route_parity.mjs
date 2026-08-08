@@ -26,6 +26,15 @@ const REQUIRED = [
   { call: 'GET /attendance/devices', needle: "seg[1] === 'devices'" },
   { call: 'POST /attendance/device-map', needle: "seg[1] === 'device-map'" },
   { call: 'GET /trade-docs/settings', needle: '/trade-docs/settings' },
+  // The Task & Report suite loads tasks + stats in one Promise.all, so a
+  // missing /taskstats blanked the whole page (caught live 2026-08-08).
+  { call: 'GET /taskstats', needle: "route === 'GET /taskstats'" },
+  { call: 'GET /taskreports', needle: "route === 'GET /taskreports'" },
+  { call: 'POST /tasks', needle: "route === 'POST /tasks'" },
+  { call: 'PATCH /tasks/:id', needle: "method === 'PATCH' && seg[0] === 'tasks' && seg.length === 2" },
+  { call: 'DELETE /tasks/:id', needle: "method === 'DELETE' && seg[0] === 'tasks' && seg.length === 2" },
+  { call: 'GET|POST /tasks/:id/reports', needle: "seg[0] === 'tasks' && seg[2] === 'reports'" },
+  { call: 'GET|POST /tasks/:id/comments', needle: "seg[0] === 'tasks' && seg[2] === 'comments'" },
 ];
 
 let failures = 0;
