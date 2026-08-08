@@ -583,9 +583,14 @@ function StockTakeModal({ items, warehouses, onClose, onDone, flash }) {
       const diff = countedOf(it) - levelOf(it);
       if (!diff) continue;
       try {
+        // A recount is an ADJUSTMENT, not a shipment. This used to book the
+        // variance as in/out because 'adjustment' could only ever add, which
+        // left the movement ledger claiming goods had left the building every
+        // time a count came up short. The adjustment is signed now, so the
+        // ledger can say what actually happened.
         await INV.recordMovement({
-          itemId: it.id, warehouseId: wh, type: diff > 0 ? 'in' : 'out',
-          quantity: Math.abs(diff), reference: ref, notes: 'Stock take variance',
+          itemId: it.id, warehouseId: wh, type: 'adjustment',
+          quantity: diff, reference: ref, notes: 'Stock take variance',
         });
         ok++;
       } catch { failed++; }

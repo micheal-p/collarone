@@ -248,7 +248,9 @@ async function demoApiInner(path, opts = {}) {
       const it = db.invItems.find((x) => x.id === itemId); if (!it) return;
       let lvl = it.levels.find((l) => l.warehouse_id === whId);
       if (!lvl) { lvl = { warehouse_id: whId, quantity: 0 }; it.levels.push(lvl); }
-      lvl.quantity = Math.max(0, Number(lvl.quantity) + delta);
+      // No clamp: the caller refuses anything that would go negative, so a
+      // negative here would be a real bug worth seeing rather than hiding.
+      lvl.quantity = Number(lvl.quantity) + delta;
     };
 
     if (route === 'GET /inventory/items') return { items: db.invItems };
@@ -266,11 +268,23 @@ async function demoApiInner(path, opts = {}) {
     if (route === 'POST /inventory/movements') {
       const it = db.invItems.find((x) => x.id === body.itemId);
       const wh = db.invWarehouses.find((x) => x.id === body.warehouseId);
+      // Mirrors record_stock_movement: an adjustment is SIGNED (a recount can
+      // go down), everything else moves a positive amount, and nothing may take
+      // the shelf below zero. The demo teaches the real rules or it teaches the
+      // wrong ones.
       const qty = Number(body.quantity) || 0;
-      if (body.type === 'in') applyLevel(body.itemId, body.warehouseId, qty);
-      else if (body.type === 'out') applyLevel(body.itemId, body.warehouseId, -qty);
-      else if (body.type === 'transfer') { applyLevel(body.itemId, body.warehouseId, -qty); if (body.toWarehouseId) applyLevel(body.itemId, body.toWarehouseId, qty); }
-      else applyLevel(body.itemId, body.warehouseId, qty);
+      const onHand = () => Number(it?.levels?.find((l) => l.warehouse_id === body.warehouseId)?.quantity ?? 0);
+      const delta = body.type === 'in' ? qty
+        : body.type === 'out' || body.type === 'transfer' ? -Math.abs(qty)
+        : qty; // adjustment, already signed
+      if (body.type === 'adjustment' ? qty === 0 : qty <= 0) {
+        fail(400, body.type === 'adjustment' ? 'An adjustment of zero changes nothing.' : 'Quantity must be positive');
+      }
+      if (delta < 0 && onHand() + delta < 0) {
+        fail(400, `Only ${onHand()} of "${it?.name}" in stock at that location, so ${Math.abs(delta)} cannot go out. Record a stock-take adjustment first if the shelf disagrees.`);
+      }
+      applyLevel(body.itemId, body.warehouseId, delta);
+      if (body.type === 'transfer' && body.toWarehouseId) applyLevel(body.itemId, body.toWarehouseId, Math.abs(qty));
       const mv = { id: irid('mv'), item: { id: it?.id, name: it?.name }, warehouse: { id: wh?.id, name: wh?.name }, type: body.type, quantity: qty, reference: body.reference || '', notes: body.notes || '', author: { name: me.name }, created_at: iNow() };
       db.invMovements.unshift(mv); save(); return { movement: mv };
     }

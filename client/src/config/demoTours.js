@@ -19,7 +19,7 @@ export const DEMO_TOURS = {
     { title: "That's payroll", body: 'Play with it, generate a run, look at a payslip, switch a benefit off. When you exit, we\'d love two quick answers about how it felt.' },
   ],
   tasks: [
-    { title: 'Welcome to Task & Report', body: 'This is where work gets assigned and tracked, so nothing lives only in someone\'s head or a WhatsApp group. Everything here is sample data, click freely.' },
+    { title: 'Work that does not live in WhatsApp', body: 'This is where work gets assigned and tracked, so nothing lives only in someone\'s head or a WhatsApp group. Everything here is sample data, click freely.' },
     { selector: TABS, title: 'Three views, one job', body: '"Team tasks" is the work itself. "Reports" is what people wrote about their progress. "Progress" is the manager\'s summary. You will spend most of your time on the first one.' },
     { title: 'Create a task', body: 'Click "New task". You give it a title, choose who does it, set a deadline and a priority. That is the whole ceremony, because a task nobody can raise in ten seconds is a task that stays in WhatsApp.' },
     { title: 'Priority means something here', body: 'Low, Medium, High, Urgent. Urgent is not decoration, it sorts to the top of everyone\'s list. Use it sparingly or it stops working.' },
@@ -29,7 +29,7 @@ export const DEMO_TOURS = {
     { title: 'Progress, for whoever is accountable', body: 'The Progress tab counts what is open, overdue and finished, by status and by priority. It is the answer to "what is the team actually doing this week".' },
   ],
   crm: [
-    { title: 'Welcome to the CRM', body: 'CRM simply means one place to keep your customers: who they are, what they asked for, what they owe. All sample customers here; nothing is real.' },
+    { title: 'Every customer in one place', body: 'CRM simply means one place to keep your customers: who they are, what they asked for, what they owe. All sample customers here; nothing is real.' },
     { selector: TABS, title: 'Four things, one customer', body: 'Contacts are people. Deals are money you might make. Bookings are appointments. Money owed is money already earned but not yet paid. Same customer, four angles.' },
     { title: 'Start with a contact', body: 'Add a person or a company. Phone number matters most here, because in Nigeria that is the identity that actually gets used.' },
     { title: 'Log the WhatsApp conversation', body: 'Business happens on WhatsApp, so logging a chat takes one tap and stays on the contact. Six months later you can see what was actually agreed.' },
@@ -38,7 +38,7 @@ export const DEMO_TOURS = {
     { title: 'Chase without being rude', body: 'Money owed sorts most-overdue first, and each row can start a WhatsApp message to that customer. Chasing politely and early is most of collections.' },
   ],
   inventory: [
-    { title: 'Welcome to Inventory & Assets', body: 'What you sell and what your staff use, tracked separately because they behave differently. Sample stock throughout.' },
+    { title: 'What you sell, and what your staff use', body: 'What you sell and what your staff use, tracked separately because they behave differently. Sample stock throughout.' },
     { selector: TABS, title: 'Stock versus equipment', body: 'Inventory is stock that moves and gets sold. Assets are the laptops and equipment your staff sign out and bring back. Same screen, two different jobs.' },
     { title: 'Add an item', body: 'Name, unit, cost and a reorder level. The reorder level is what makes low-stock warnings mean something rather than being permanent decoration.' },
     { title: 'Stock moves, it is not edited', body: 'You record movements in and out, and the quantity is the result of those movements. That is why the count can always be explained, and why a number cannot be quietly changed.' },
@@ -47,7 +47,7 @@ export const DEMO_TOURS = {
     { title: 'Low stock, before it bites', body: 'Anything at or below its reorder level is flagged, so you order before you run out rather than after a customer asks.' },
   ],
   'trade-docs': [
-    { title: 'Welcome to Invoicing & Trade Docs', body: 'Invoices your customers can pay from a link, plus receipts, delivery notes and stock passes. Sample documents here; no real money moves.' },
+    { title: 'Invoices your customers can pay from a link', body: 'Invoices your customers can pay from a link, plus receipts, delivery notes and stock passes. Sample documents here; no real money moves.' },
     { selector: TABS, title: 'One engine, several documents', body: 'They share numbering, your letterhead and your customer list, because an invoice and a delivery note are the same document with a different job.' },
     { title: 'Set your letterhead first', body: 'Logo, address, contact details, signature, and your bank account. This goes on everything you send, so it is worth five minutes now.' },
     { title: 'Your bank account is the important field', body: 'It is what customers pay into. Only a manager can change it, and the account number must be ten digits, because a typo here goes out on a month of invoices before anyone notices.' },
@@ -57,7 +57,7 @@ export const DEMO_TOURS = {
     { title: 'The rest of the paperwork', body: 'Receipts prove payment, delivery notes travel with goods, and stock passes get things out of your gate. All from the same customer and the same numbering.' },
   ],
   hr: [
-    { title: 'Welcome to HR & Staff', body: 'Everything about each person in one place: their record, their documents, their letters, their reviews. Sample staff throughout, nothing real.' },
+    { title: 'Everything about each person, in one file', body: 'Everything about each person in one place: their record, their documents, their letters, their reviews. Sample staff throughout, nothing real.' },
     { selector: TABS, title: 'One person, many angles', body: 'Directory is everyone. Open a person and you get their whole file. The other tabs are the processes that happen to people: joining, performance, cases, leaving.' },
     { title: 'The employee record', body: 'Job title, department, who they report to, when they started, employment type. Set once, and payroll, leave and the org chart all read from it.' },
     { title: 'Letters on your letterhead', body: 'Employment letters, confirmations, references, warnings, generated on your own letterhead with your logo and signature. This is the feature people ask for most and dread doing by hand.' },
@@ -67,7 +67,7 @@ export const DEMO_TOURS = {
     { title: 'Exits', body: 'Last working day, handover, equipment returned, access revoked, final settlement. Finalising an exit disables the account and stops payroll paying them.' },
   ],
   leave: [
-    { title: 'Welcome to Leave Management', body: 'Time off, requested and approved in one place, with balances that keep themselves. Sample staff and sample requests here, so click freely.' },
+    { title: 'Time off, without the spreadsheet', body: 'Time off, requested and approved in one place, with balances that keep themselves. Sample staff and sample requests here, so click freely.' },
     { selector: TABS, title: 'Your leave and everyone\'s', body: 'Staff see their own requests and balance. Approvers get an approvals queue. Managers also get the team calendar, so two people are not off on the same critical day.' },
     { title: 'Set your leave types first', body: 'Annual, sick, maternity, compassionate, whatever your company actually offers, each with how many days a year. Do this once and the rest follows.' },
     { title: 'Working days, not calendar days', body: 'Ask for Friday to Monday and it counts two days, not four. Weekends and the public holidays you have set are skipped automatically, including the Nigerian ones.' },
@@ -76,7 +76,7 @@ export const DEMO_TOURS = {
     { title: 'Balances take care of themselves', body: 'Approved days come off the balance immediately. No spreadsheet, no arguing in December about how many days are left.' },
   ],
   visitors: [
-    { title: 'Welcome to Visitor Management', body: 'Who came in, who they came to see, and when they left. Sample visits here; nothing real.' },
+    { title: 'Who came in, and who they came to see', body: 'Who came in, who they came to see, and when they left. Sample visits here; nothing real.' },
     { selector: TABS, title: 'Reception, security and the log', body: 'Reception registers people. Security checks codes at the gate. The log is the record afterwards. Three roles, one flow.' },
     { title: 'The walk-in', body: 'Most visitors are unannounced. Name, phone, who they are here to see, and they are in. If that takes more than a few seconds, reception stops using it.' },
     { title: 'Expected visitors', body: 'Pre-register someone coming tomorrow and they arrive with a code already issued, so reception is not typing while somebody waits.' },
@@ -85,7 +85,7 @@ export const DEMO_TOURS = {
     { title: 'The visit log', body: 'Every visit, searchable, with times. When you need to know who was on site on a particular afternoon, it is already recorded.' },
   ],
   attendance: [
-    { title: 'Welcome to Time & Attendance', body: 'Who is at work, when they arrived, and how many hours that adds up to. Sample staff and sample days here; nothing is real.' },
+    { title: 'Who is at work, and since when', body: 'Who is at work, when they arrived, and how many hours that adds up to. Sample staff and sample days here; nothing is real.' },
     { selector: TABS, title: 'Today, timesheets and the rules', body: 'Today is the live board. Timesheet is the history that payroll cares about. Clock-in rules and Devices are the setup you do once.' },
     { title: 'Set your office and your hours', body: 'Give the office a name and a location, and say what time the working day starts. Everything else, including who counts as late, is measured against that.' },
     { title: 'Clocking in from a phone', body: 'Staff clock in from their own phone, and the location is always required, so "I was at the site" is a fact rather than a claim. The distance from your office is shown on every record.' },
@@ -95,7 +95,7 @@ export const DEMO_TOURS = {
     { title: 'Getting it to payroll', body: 'Export the timesheet for the period and use it as your payroll input. Attendance does not pay anyone by itself, and we would rather say so than imply otherwise.' },
   ],
   procurement: [
-    { title: 'Welcome to Buying & Procurement', body: 'Requests to buy something, approved by the right person, turned into an order. Sample requests and suppliers here.' },
+    { title: 'Nobody spends money without a yes', body: 'Requests to buy something, approved by the right person, turned into an order. Sample requests and suppliers here.' },
     { selector: TABS, title: 'Requests and suppliers', body: 'A purchase request is someone asking to spend money. Suppliers are who you buy from. The approval in between is the whole point of the module.' },
     { title: 'Raise a request', body: 'What you want, how many, the expected cost and the VAT. The total is calculated, so an approver is agreeing to a number rather than doing mental arithmetic.' },
     { title: 'Send it for approval', body: 'The request goes to whoever approves spending. Until they decide, nothing is committed and nothing is ordered.' },
@@ -104,7 +104,7 @@ export const DEMO_TOURS = {
     { title: 'Receiving closes the loop', body: 'When the goods arrive, mark them received and the stock appears in Inventory. The request, the order and the stock are the same chain rather than three disconnected records.' },
   ],
   finance: [
-    { title: 'Welcome to Finance', body: 'Expenses, budgets, bank reconciliation and a full general ledger. Sample money throughout, so nothing here affects anything real.' },
+    { title: 'From a receipt to a balance sheet', body: 'Expenses, budgets, bank reconciliation and a full general ledger. Sample money throughout, so nothing here affects anything real.' },
     { selector: TABS, title: 'From receipt to statement', body: 'Expenses are what you spend. Budgets are what you meant to spend. Reconciliation matches your bank statement. Ledger is the formal accounting record underneath it all.' },
     { title: 'Record an expense', body: 'Amount, category, vendor, and the VAT rate, which defaults to 7.5%. Attach the receipt while you still have it, because nobody ever finds it later.' },
     { title: 'Approvals', body: 'An expense starts as pending. A finance manager approves or rejects it, and only then does it count against a budget. That gap is the control.' },
@@ -115,7 +115,7 @@ export const DEMO_TOURS = {
     { title: 'Your three statements', body: 'Trial balance proves the books are consistent. Profit and loss shows whether you made money. Balance sheet shows what you own and owe. All three build themselves from the entries.' },
   ],
   projects: [
-    { title: 'Welcome to Projects', body: 'Work that runs over weeks, with milestones, a task board and billable time. Sample projects here, click freely.' },
+    { title: 'Work that runs for weeks, not hours', body: 'Work that runs over weeks, with milestones, a task board and billable time. Sample projects here, click freely.' },
     { selector: TABS, title: 'A project is a container', body: 'It holds the people, the milestones, the tasks and the hours. Everything else in this module hangs off that.' },
     { title: 'Set the default rate first', body: 'What an hour on this project is worth. Do it now, because hours logged at a rate of zero are money you can never invoice.' },
     { title: 'Milestones are the plan', body: 'The handful of dates that actually matter to the client. Not every task, just the ones you would mention on a call.' },
@@ -124,7 +124,7 @@ export const DEMO_TOURS = {
     { title: 'Turn hours into an invoice', body: 'Review the unbilled hours, then raise an invoice from them in one step. The hours are marked billed, so the same work cannot be charged twice.' },
   ],
   documents: [
-    { title: 'Welcome to Documents', body: 'Company files in one place, with control over who can see what. Sample documents here; nothing real.' },
+    { title: 'Company files, and who may see them', body: 'Company files in one place, with control over who can see what. Sample documents here; nothing real.' },
     { selector: TABS, title: 'Folders and signatures', body: 'Documents are your files. Signature requests are for the ones someone needs to sign. Most work happens in the first tab.' },
     { title: 'Upload with visibility in mind', body: 'A document is either visible to everyone in the company, or restricted to named people. Choose at upload, because the wrong default is how private files leak.' },
     { title: 'Restricted means restricted', body: 'A restricted document is only reachable by the people you grant it to, checked on the server every time it is opened, not just hidden in the interface.' },
@@ -133,7 +133,7 @@ export const DEMO_TOURS = {
     { title: 'Finding it later', body: 'Search by name, filter by folder, and every file keeps who uploaded it and when. The point of a document store is the day you need something in a hurry.' },
   ],
   automation: [
-    { title: 'Welcome to Automation', body: 'A set of checks that run daily and tell you about things you would otherwise have to remember. Sample results here.' },
+    { title: 'The things you would otherwise have to remember', body: 'A set of checks that run daily and tell you about things you would otherwise have to remember. Sample results here.' },
     { title: 'Six checks, nothing hidden', body: 'Expiring documents, overdue probations, forgotten clock-outs, overdue invoices, low stock, and pending approvals. That is the whole list, deliberately.' },
     { selector: TABS, title: 'Turn on only what you want', body: 'Every check is off until you switch it on. Software that starts nagging on day one gets switched off entirely, so the default is silence.' },
     { title: 'What an alert looks like', body: 'A banner in the workspace, and where it is genuinely someone\'s job to act, a real task assigned to the right person rather than a notification nobody owns.' },
@@ -141,7 +141,7 @@ export const DEMO_TOURS = {
     { title: 'Turning it off', body: 'Switch any check off at any time and it stops immediately. No settings maze, no partial states.' },
   ],
   compliance: [
-    { title: 'Welcome to the Compliance Calendar', body: 'The Nigerian statutory deadlines your business has to meet, in one list, with what you have already done ticked off.' },
+    { title: 'The deadlines government sets for you', body: 'The Nigerian statutory deadlines your business has to meet, in one list, with what you have already done ticked off.' },
     { title: 'Pick what applies to you', body: 'Not every business owes every one of these. Choose the rules that apply and the month you want to start tracking from, so you do not open to a wall of red for periods that predate you.' },
     { selector: TABS, title: 'Nine obligations, two owners', body: 'PAYE, pension, NHF and NSITF come out of payroll. VAT, withholding tax, company income tax and CAC annual returns are finance and company secretarial. Both live here.' },
     { title: 'Each one tells you who and when', body: 'Which authority, what the deadline is, and what the obligation actually means, in plain words rather than statute language.' },

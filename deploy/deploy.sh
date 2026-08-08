@@ -69,6 +69,20 @@ else
   echo "GATEWAY_ENC_KEY: present"
 fi
 
+# ---- automation cron secret: generate once, on the box --------------------
+# /api/automations-run FAILS CLOSED without CRON_SECRET (it used to fail OPEN,
+# which left a write endpoint public), and the daily sweep in server/index.js
+# refuses to run without it. Same pattern as GATEWAY_ENC_KEY: generate here so
+# the Automation suite works without anyone SSHing in, and so the value never
+# leaves the server. Idempotent — an existing secret is never rotated.
+if ! grep -q '^CRON_SECRET=' "${APP_DIR}/.env" 2>/dev/null; then
+  echo "CRON_SECRET=\$(openssl rand -hex 32)" >> "${APP_DIR}/.env"
+  systemctl restart collarone-api
+  echo "CRON_SECRET: generated"
+else
+  echo "CRON_SECRET: present"
+fi
+
 # ---- index.html must never be cached -------------------------------------
 # The hashed assets are immutable and cached for a year, which is right. The
 # HTML that NAMES them must be the opposite: if a browser holds an old
