@@ -294,8 +294,16 @@ async function submitPendingBatch(admin) {
 
 export default async function handler(req, res) {
   if (!SERVICE_KEY) return res.status(500).json({ error: 'Not configured' });
+  // FAIL CLOSED. This was `if (secret && ...)`, which skipped the check
+  // entirely whenever CRON_SECRET was unset — and it was never set on the box,
+  // so this write endpoint was open to anyone who knew the URL, writing tasks
+  // and notices into EVERY tenant. A missing secret is a misconfiguration, not
+  // permission: refuse, and say so distinctly so it's obvious in the logs.
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.authorization !== `Bearer ${secret}`) {
+  if (!secret) {
+    return res.status(503).json({ error: 'Automation sweep is not configured (CRON_SECRET unset).' });
+  }
+  if (req.headers.authorization !== `Bearer ${secret}`) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
