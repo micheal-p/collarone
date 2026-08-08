@@ -975,17 +975,26 @@ async function demoApiInner(path, opts = {}) {
       if (seg[1] === 'receivables') {
         if (!db.crmReceivables) {
           db.crmReceivables = [
-            { id: 'rc1', customer_name: 'Sunrise Foods Ltd', amount_naira: 450000, due_date: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10), status: 'outstanding', note: 'March supply invoice', created_at: daysAgo(20) },
-            { id: 'rc2', customer_name: 'Adaeze N.', amount_naira: 120000, due_date: new Date(Date.now() + 9 * 86400000).toISOString().slice(0, 10), status: 'part_paid', note: 'Balance on project', created_at: daysAgo(10) },
+            { id: 'rc1', customer_name: 'Sunrise Foods Ltd', amount_naira: 450000, amount_paid: 0, due_date: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10), status: 'outstanding', note: 'March supply invoice', created_at: daysAgo(20) },
+            { id: 'rc2', customer_name: 'Adaeze N.', amount_naira: 120000, amount_paid: 70000, due_date: new Date(Date.now() + 9 * 86400000).toISOString().slice(0, 10), status: 'part_paid', note: 'Balance on project', created_at: daysAgo(10) },
           ]; save();
         }
         if (method === 'POST') {
-          const r = { id: 'rc' + Math.random().toString(36).slice(2, 8), customer_name: body.customerName, amount_naira: Number(body.amountNaira), due_date: body.dueDate || null, status: 'outstanding', note: body.note || '', created_at: new Date().toISOString() };
+          const r = { id: 'rc' + Math.random().toString(36).slice(2, 8), customer_name: body.customerName, amount_naira: Number(body.amountNaira), amount_paid: 0, due_date: body.dueDate || null, status: 'outstanding', note: body.note || '', created_at: new Date().toISOString() };
           db.crmReceivables.unshift(r); save(); return { receivable: r };
         }
         if (method === 'PATCH' && seg.length === 3) {
           const r = db.crmReceivables.find((x) => x.id === seg[2]) || fail(404, 'Not found.');
-          if (body.status !== undefined) r.status = body.status;
+          if (body.amountNaira !== undefined) r.amount_naira = Number(body.amountNaira);
+          if (body.dueDate !== undefined) r.due_date = body.dueDate || null;
+          if (body.note !== undefined) r.note = body.note;
+          if (body.amountPaid !== undefined) r.amount_paid = Math.max(0, Number(body.amountPaid) || 0);
+          if (body.status === 'written_off') r.status = 'written_off';
+          // Same derivation as the database trigger: status follows the money.
+          if (r.status !== 'written_off') {
+            r.status = Number(r.amount_paid) <= 0 ? 'outstanding'
+              : Number(r.amount_paid) >= Number(r.amount_naira) ? 'paid' : 'part_paid';
+          }
           save(); return { receivable: r };
         }
         if (method === 'DELETE' && seg.length === 3) { db.crmReceivables = db.crmReceivables.filter((x) => x.id !== seg[2]); save(); return { ok: true }; }

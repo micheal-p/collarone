@@ -61,3 +61,8 @@ export const getReceivables   = () => apiGet('/crm/receivables').then((d) => d.r
 export const createReceivable = (body) => apiPost('/crm/receivables', body).then((d) => d.receivable);
 export const updateReceivable = (id, body) => apiPatch(`/crm/receivables/${id}`, body).then((d) => d.receivable);
 export const deleteReceivable = (id) => apiDelete(`/crm/receivables/${id}`);
+
+// Record money actually received against a debt. The server derives the status
+// from the amount, so callers never set both and cannot contradict themselves.
+export const recordReceivablePayment = (id, amountPaid) =>
+  apiPatch(`/crm/receivables/${id}`, { amountPaid }).then((d) => d.receivable);

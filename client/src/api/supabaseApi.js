@@ -1786,6 +1786,9 @@ export async function supabaseApi(path, opts = {}) {
       patch.settled_at = body.status === 'paid' || body.status === 'written_off' ? new Date().toISOString() : null;
     }
     if (body.amountNaira !== undefined) patch.amount_naira = Number(body.amountNaira);
+    // How much has actually been received. The database derives status from
+    // this, so the debtor total and the badge can never disagree.
+    if (body.amountPaid !== undefined) patch.amount_paid = Math.max(0, Number(body.amountPaid) || 0);
     if (body.dueDate !== undefined) patch.due_date = body.dueDate || null;
     if (body.note !== undefined) patch.note = body.note;
     const { data, error } = await supabase.from('crm_receivables').update(patch).eq('id', seg[2]).select('*').single();

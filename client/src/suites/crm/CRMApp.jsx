@@ -1005,6 +1005,10 @@ const fmtNaira = (n) => `₦${Number(n).toLocaleString('en-NG')}`;
 
 function MoneyTab({ flash }) {
   const [rows, setRows] = useState(null);
+  // Needed only for the phone number behind the chase button. Failing to load
+  // them hides that one button; it must never block the debtor list itself.
+  const [contacts, setContacts] = useState([]);
+  useEffect(() => { C.getContacts().then(setContacts).catch(() => setContacts([])); }, []);
   const [f, setF] = useState({ customerName: '', amountNaira: '', dueDate: '', note: '' });
   const [busy, setBusy] = useState(false);
   const [showSettled, setShowSettled] = useState(false);
@@ -1023,10 +1027,41 @@ function MoneyTab({ flash }) {
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
 
+  // Contacts carry the phone number; a receivable may not be linked to one, in
+  // which case there is nothing to chase with and the button simply is absent.
+  const waFor = (r) => {
+    const c = contacts?.find?.((x) => x.id === r.contact_id);
+    const digits = normalizeWa(c?.phone || '');
+    if (!digits) return null;
+    const amount = fmtNaira(Math.max(0, Number(r.amount_naira) - Number(r.amount_paid || 0)));
+    const text = `Hello ${r.customer_name}, hope you are well. This is a gentle reminder about ${amount}${r.note ? ` for ${r.note}` : ''}${r.due_date ? `, which was due ${new Date(r.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}` : ''}. Please let me know when we can expect it. Thank you.`;
+    return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
+  };
+
   const setStatus = async (r, status) => {
     try {
       const saved = await C.updateReceivable(r.id, { status });
       setRows((s) => s.map((x) => (x.id === r.id ? saved : x)));
+    } catch (e2) { flash(e2.message, true); }
+  };
+
+  const recordPayment = async (r) => {
+    const outstanding = Math.max(0, Number(r.amount_naira) - Number(r.amount_paid || 0));
+    const entered = window.prompt(
+      `How much did ${r.customer_name} pay?\n\nStill owed: ${fmtNaira(outstanding)}`,
+      String(outstanding),
+    );
+    if (entered === null) return;
+    const amt = Number(String(entered).replace(/[^0-9.]/g, ''));
+    if (!amt || amt <= 0) return flash('Enter the amount that was paid.', true);
+    const total = Number(r.amount_paid || 0) + amt;
+    if (total > Number(r.amount_naira)) {
+      return flash(`That is more than the ${fmtNaira(outstanding)} still owed. Edit the amount owed if the debt has grown.`, true);
+    }
+    try {
+      const saved = await C.recordReceivablePayment(r.id, total);
+      setRows((s) => s.map((x) => (x.id === r.id ? saved : x)));
+      flash(total >= Number(r.amount_naira) ? 'Settled in full.' : `${fmtNaira(Number(r.amount_naira) - total)} still owed.`);
     } catch (e2) { flash(e2.message, true); }
   };
 
@@ -1035,8 +1070,12 @@ function MoneyTab({ flash }) {
   const open = rows.filter((r) => r.status === 'outstanding' || r.status === 'part_paid');
   const today = todayISO();
   const overdue = open.filter((r) => r.due_date && r.due_date < today);
-  const totalOpen = open.reduce((s, r) => s + Number(r.amount_naira), 0);
-  const totalOverdue = overdue.reduce((s, r) => s + Number(r.amount_naira), 0);
+  // Outstanding, not invoiced: a ₦500,000 debt with ₦400,000 received is
+  // ₦100,000 of chasing. The old totals added the full amount regardless of
+  // what had been paid, so the number the owner chases by was always too high.
+  const owed = (r) => Math.max(0, Number(r.amount_naira) - Number(r.amount_paid || 0));
+  const totalOpen = open.reduce((s, r) => s + owed(r), 0);
+  const totalOverdue = overdue.reduce((s, r) => s + owed(r), 0);
   const visible = showSettled ? rows : open;
 
   return (
@@ -1075,15 +1114,24 @@ function MoneyTab({ flash }) {
         return (
           <div key={r.id} className="card" style={{ padding: '10px 14px', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 600 }}>{r.customer_name}</span>
-            <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtNaira(r.amount_naira)}</strong>
+            <strong style={{ fontVariantNumeric: 'tabular-nums' }}>{fmtNaira(owed(r))}</strong>
+            {Number(r.amount_paid || 0) > 0 && Number(r.amount_paid) < Number(r.amount_naira) && (
+              <span className="muted" style={{ fontSize: 12 }}>of {fmtNaira(r.amount_naira)} · {fmtNaira(r.amount_paid)} received</span>
+            )}
             <span style={{ fontSize: 11, fontWeight: 700, background: bg, color: fg, borderRadius: 100, padding: '2px 10px' }}>{label}</span>
             {r.due_date && <span className="muted" style={{ fontSize: 12.5, color: isOverdue ? '#a4262c' : undefined, fontWeight: isOverdue ? 700 : 400 }}>{isOverdue ? 'was due' : 'due'} {new Date(r.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>}
             {r.note && <span className="muted" style={{ fontSize: 12.5 }}>{r.note}</span>}
             <span style={{ flex: 1 }} />
             {(r.status === 'outstanding' || r.status === 'part_paid') && (
               <>
-                <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => setStatus(r, 'paid')}>Mark paid</button>
-                {r.status === 'outstanding' && <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => setStatus(r, 'part_paid')}>Part paid</button>}
+                {/* Collections happen on WhatsApp in Nigeria, so the chase
+                    lives on the money rather than three screens away. The
+                    message is pre-written but editable before it sends. */}
+                {waFor(r) && (
+                  <a className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }}
+                    href={waFor(r)} target="_blank" rel="noreferrer">Chase on WhatsApp</a>
+                )}
+                <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px' }} onClick={() => recordPayment(r)}>Record payment</button>
                 <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 12px', color: '#5c5f66' }} onClick={() => setStatus(r, 'written_off')}>Write off</button>
               </>
             )}

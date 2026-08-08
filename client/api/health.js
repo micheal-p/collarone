@@ -289,7 +289,7 @@ export default async function handler(req, res) {
           const { data: queued } = await admin.from('notification_outbox')
             .select('id, kind, email_to, subject, body')
             .eq('status', 'claimed')
-            .in('kind', ['task_assigned', 'leave_submitted', 'leave_decided'])
+            .in('kind', ['task_assigned', 'leave_submitted', 'leave_decided', 'visitor_arrived'])
             .limit(200);
           for (const n of queued || []) {
             if (!nOn() || !n.email_to) {
