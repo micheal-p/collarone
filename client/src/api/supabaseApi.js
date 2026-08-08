@@ -670,7 +670,7 @@ export async function supabaseApi(path, opts = {}) {
       if (error) fail(400, error.message);
       return { reports: data };
     }
-    const { data, error } = await supabase.from('tasks').select(TASK_SELECT).order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('tasks').select(TASK_SELECT).order('created_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
     return { tasks: data };
   }
@@ -1539,7 +1539,7 @@ export async function supabaseApi(path, opts = {}) {
       return { visit: data };
     }
 
-    let q = supabase.from('visits').select(VISIT_SELECT).order('expected_at', { ascending: false });
+    let q = supabase.from('visits').select(VISIT_SELECT).order('expected_at', { ascending: false }).limit(500);
     if (path.includes('mine=true')) {
       const { data: { user } } = await supabase.auth.getUser();
       q = q.or(`host_id.eq.${user.id},created_by.eq.${user.id}`);
@@ -1705,7 +1705,7 @@ export async function supabaseApi(path, opts = {}) {
 
   const ACTIVITY_SELECT = '*, contact:crm_contacts(id,name,email,phone,whatsapp), company:crm_companies(id,name), author:profiles!created_by(id,name)';
   if (head === 'GET /crm' && seg[1] === 'activities') {
-    let q = supabase.from('crm_activities').select(ACTIVITY_SELECT).order('occurred_at', { ascending: false });
+    let q = supabase.from('crm_activities').select(ACTIVITY_SELECT).order('occurred_at', { ascending: false }).limit(500);
     const contactId = (path.match(/contactId=([^&]*)/) || [])[1];
     const companyId = (path.match(/companyId=([^&]*)/) || [])[1];
     if (contactId) q = q.eq('contact_id', contactId);
@@ -1867,7 +1867,7 @@ export async function supabaseApi(path, opts = {}) {
     // closed-and-flagged before anyone reads the board. Failure is harmless —
     // the next load tries again.
     await supabase.rpc('attendance_autoclose_stale');
-    const { data, error } = await supabase.from('attendance_records').select(ATT_SELECT).order('clock_in_at', { ascending: false });
+    const { data, error } = await supabase.from('attendance_records').select(ATT_SELECT).order('clock_in_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
     return { records: data };
   }
@@ -1887,7 +1887,7 @@ export async function supabaseApi(path, opts = {}) {
   if (head === 'GET /attendance' && seg[1] === 'mine') {
     await supabase.rpc('attendance_autoclose_stale');
     const { data: { user } } = await supabase.auth.getUser();
-    const { data, error } = await supabase.from('attendance_records').select('*').eq('employee_id', user.id).order('clock_in_at', { ascending: false });
+    const { data, error } = await supabase.from('attendance_records').select('*').eq('employee_id', user.id).order('clock_in_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
     return { records: data };
   }
@@ -2231,7 +2231,7 @@ export async function supabaseApi(path, opts = {}) {
 
   const PR_SELECT = '*, requester:profiles!requested_by(id,name,email), vendor:vendors(id,name), dept:departments(id,name)';
   if (head === 'GET /procurement' && seg[1] === 'requests') {
-    const { data, error } = await supabase.from('purchase_requests').select(PR_SELECT).order('created_at', { ascending: false });
+    const { data, error } = await supabase.from('purchase_requests').select(PR_SELECT).order('created_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
     return { requests: data };
   }
@@ -2699,7 +2699,7 @@ export async function supabaseApi(path, opts = {}) {
 
   const EXPENSE_SELECT = '*, category:expense_categories(id,name), dept:departments(id,name), submitter:profiles!submitted_by(id,name,email)';
   if (head === 'GET /finance' && seg[1] === 'expenses') {
-    const { data, error } = await supabase.from('expenses').select(EXPENSE_SELECT).order('expense_date', { ascending: false });
+    const { data, error } = await supabase.from('expenses').select(EXPENSE_SELECT).order('expense_date', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
     return { expenses: data };
   }
