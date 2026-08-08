@@ -1083,8 +1083,104 @@ async function demoApiInner(path, opts = {}) {
       }
     }
 
-    // ---- finance (expenses, categories, budgets) ----
+    // ---- finance (expenses, categories, budgets, ledger) ----
     if (seg[0] === 'finance') {
+      // The ledger is a paid headline feature; a 404 here is a lost prospect.
+      if (seg[1] === 'ledger') {
+        if (!db.ledgerAccounts) {
+          const A = (code, name, type) => ({ id: `la${code}`, code, name, type, active: true });
+          db.ledgerAccounts = [
+            A('1000', 'Cash', 'asset'), A('1010', 'Bank', 'asset'), A('1200', 'Accounts receivable', 'asset'),
+            A('2000', 'Accounts payable', 'liability'), A('2100', 'VAT payable', 'liability'),
+            A('2200', 'PAYE payable', 'liability'), A('3000', "Owner's equity", 'equity'),
+            A('4000', 'Sales', 'income'), A('5000', 'Cost of sales', 'expense'),
+            A('6000', 'Salaries & wages', 'expense'), A('6100', 'Rent', 'expense'),
+            A('6200', 'Utilities & diesel', 'expense'),
+          ];
+          const line = (code, debit, credit) => {
+            const a = db.ledgerAccounts.find((x) => x.code === code);
+            return { id: 'll' + Math.random().toString(36).slice(2, 8), debit, credit, description: '', account: { code: a.code, name: a.name } };
+          };
+          db.ledgerEntries = [
+            { id: 'le1', entry_no: 1, entry_date: daysAgo(26).slice(0, 10), memo: 'Opening capital', status: 'posted', source_type: 'manual',
+              lines: [line('1010', 2500000, 0), line('3000', 0, 2500000)] },
+            { id: 'le2', entry_no: 2, entry_date: daysAgo(19).slice(0, 10), memo: 'Invoice INV-0007 — Lagoon Stores', status: 'posted', source_type: 'invoice',
+              lines: [line('1200', 1075000, 0), line('4000', 0, 1000000), line('2100', 0, 75000)] },
+            { id: 'le3', entry_no: 3, entry_date: daysAgo(12).slice(0, 10), memo: 'Payment received — Lagoon Stores', status: 'posted', source_type: 'bank',
+              lines: [line('1010', 1075000, 0), line('1200', 0, 1075000)] },
+            { id: 'le4', entry_no: 4, entry_date: daysAgo(8).slice(0, 10), memo: 'Office rent — Q3', status: 'posted', source_type: 'expense',
+              lines: [line('6100', 450000, 0), line('1010', 0, 450000)] },
+            { id: 'le5', entry_no: 5, entry_date: daysAgo(5).slice(0, 10), memo: 'Diesel & power', status: 'posted', source_type: 'expense',
+              lines: [line('6200', 128000, 0), line('1000', 0, 128000)] },
+            { id: 'le6', entry_no: 6, entry_date: daysAgo(2).slice(0, 10), memo: 'August payroll', status: 'posted', source_type: 'payroll',
+              lines: [line('6000', 1840000, 0), line('2200', 0, 214000), line('1010', 0, 1626000)] },
+          ];
+          save();
+        }
+        const agg = () => {
+          const m = {};
+          for (const e of db.ledgerEntries.filter((x) => x.status === 'posted')) {
+            for (const l of e.lines) {
+              const a = db.ledgerAccounts.find((x) => x.code === l.account.code);
+              const k = a.code;
+              m[k] = m[k] || { code: a.code, name: a.name, type: a.type, debit: 0, credit: 0 };
+              m[k].debit += Number(l.debit); m[k].credit += Number(l.credit);
+            }
+          }
+          return Object.values(m).sort((x, y) => x.code.localeCompare(y.code));
+        };
+        if (route === 'GET /finance/ledger/accounts' || (seg[2] === 'accounts' && method === 'GET')) return { accounts: db.ledgerAccounts };
+        if (seg[2] === 'accounts' && method === 'POST') {
+          const a = { id: 'la' + Math.random().toString(36).slice(2, 7), code: body.code, name: body.name, type: body.type, active: true };
+          db.ledgerAccounts.push(a); db.ledgerAccounts.sort((x, y) => x.code.localeCompare(y.code)); save();
+          return { account: a };
+        }
+        if (seg[2] === 'entries' && method === 'GET') {
+          return { entries: [...db.ledgerEntries].sort((a, b) => (b.entry_no || 0) - (a.entry_no || 0)) };
+        }
+        if (seg[2] === 'entries' && method === 'POST' && seg[4] === 'reverse') {
+          const src = db.ledgerEntries.find((x) => x.id === seg[3]) || fail(404, 'Entry not found.');
+          const rev = { id: 'le' + Math.random().toString(36).slice(2, 7),
+            entry_no: Math.max(0, ...db.ledgerEntries.map((x) => x.entry_no || 0)) + 1,
+            entry_date: new Date().toISOString().slice(0, 10),
+            memo: `Reversal of entry ${src.entry_no} — ${src.memo}`, status: 'posted', source_type: 'reversal',
+            lines: src.lines.map((l) => ({ ...l, id: 'll' + Math.random().toString(36).slice(2, 8), debit: l.credit, credit: l.debit })) };
+          src.status = 'void'; db.ledgerEntries.push(rev); save();
+          return { entryId: rev.id };
+        }
+        if (seg[2] === 'entries' && method === 'POST') {
+          const debits = (body.lines || []).reduce((t, l) => t + Number(l.debit || 0), 0);
+          const credits = (body.lines || []).reduce((t, l) => t + Number(l.credit || 0), 0);
+          // Mirror the database rule, so the demo teaches the real behaviour.
+          if (Math.round((debits - credits) * 100) !== 0) fail(400, `This entry does not balance: debits ${debits} vs credits ${credits}.`);
+          if ((body.lines || []).length < 2) fail(400, 'A journal entry needs at least two lines — one debit and one credit.');
+          const e = { id: 'le' + Math.random().toString(36).slice(2, 7),
+            entry_no: Math.max(0, ...db.ledgerEntries.map((x) => x.entry_no || 0)) + 1,
+            entry_date: body.entryDate, memo: body.memo || '', status: 'posted', source_type: 'manual',
+            lines: body.lines.map((l) => {
+              const a = db.ledgerAccounts.find((x) => x.code === l.code) || { code: l.code, name: l.code };
+              return { id: 'll' + Math.random().toString(36).slice(2, 8), debit: Number(l.debit) || 0, credit: Number(l.credit) || 0,
+                description: l.description || '', account: { code: a.code, name: a.name } };
+            }) };
+          db.ledgerEntries.push(e); save();
+          return { entryId: e.id };
+        }
+        if (seg[2] === 'trial-balance') return { rows: agg() };
+        if (seg[2] === 'pnl') {
+          return { rows: agg().filter((r) => ['income', 'expense'].includes(r.type))
+            .map((r) => ({ ...r, amount: r.type === 'income' ? r.credit - r.debit : r.debit - r.credit })) };
+        }
+        if (seg[2] === 'balance-sheet') {
+          const rows = agg();
+          const retained = rows.filter((r) => ['income', 'expense'].includes(r.type))
+            .reduce((t, r) => t + (r.type === 'income' ? r.credit - r.debit : -(r.debit - r.credit)), 0);
+          return { rows: [
+            ...rows.filter((r) => ['asset', 'liability', 'equity'].includes(r.type))
+              .map((r) => ({ ...r, amount: r.type === 'asset' ? r.debit - r.credit : r.credit - r.debit })),
+            { code: '3900*', name: 'Retained earnings (to date)', type: 'equity', amount: retained },
+          ] };
+        }
+      }
       if (!db.expenseCategories) {
         db.expenseCategories = [
           { id: 'fc1', name: 'Office Supplies', created_at: daysAgo(200) },

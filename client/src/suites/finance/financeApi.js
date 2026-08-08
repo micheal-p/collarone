@@ -30,3 +30,24 @@ export const getBankLines = () => apiGet('/finance/bank-lines').then((d) => d.li
 export const importBankLines = (rows) => apiPost('/finance/bank-lines', { rows }).then((d) => d.lines);
 export const matchBankLine = (id, body) => apiPatch(`/finance/bank-lines/${id}`, body).then((d) => d.line);
 export const getReconCandidates = () => apiGet('/finance/recon-candidates');
+
+// ---- General ledger ----------------------------------------------------------
+// Double-entry. The database refuses an unbalanced entry and freezes a posted
+// one, so these calls are thin on purpose — the rules live where they can't be
+// bypassed, not here.
+export const getLedgerAccounts = () => apiGet('/finance/ledger/accounts').then((d) => d.accounts);
+export const createLedgerAccount = (body) => apiPost('/finance/ledger/accounts', body).then((d) => d.account);
+export const getLedgerEntries = (params = '') => apiGet(`/finance/ledger/entries${params}`).then((d) => d.entries);
+export const postLedgerEntry = (body) => apiPost('/finance/ledger/entries', body).then((d) => d.entryId);
+export const reverseLedgerEntry = (id) => apiPost(`/finance/ledger/entries/${id}/reverse`, {}).then((d) => d.entryId);
+export const getTrialBalance = (from, to) => apiGet(`/finance/ledger/trial-balance?from=${from}&to=${to}`).then((d) => d.rows);
+export const getProfitAndLoss = (from, to) => apiGet(`/finance/ledger/pnl?from=${from}&to=${to}`).then((d) => d.rows);
+export const getBalanceSheet = (asAt) => apiGet(`/finance/ledger/balance-sheet?asAt=${asAt}`).then((d) => d.rows);
+
+export const ACCOUNT_TYPES = [
+  { key: 'asset',     label: 'Asset' },
+  { key: 'liability', label: 'Liability' },
+  { key: 'equity',    label: 'Equity' },
+  { key: 'income',    label: 'Income' },
+  { key: 'expense',   label: 'Expense' },
+];

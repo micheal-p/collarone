@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as F from './financeApi.js';
+import LedgerView from './LedgerView.jsx';
 import { useToast, useConfirm, Modal, EmptyState, searchMatcher, usePagedList, Paginator } from '../../components/ui.jsx';
 
 const CSS = `
@@ -212,6 +213,7 @@ export default function FinanceApp({ access }) {
         {isManager && <button className={`lv-tab ${tab === 'budgets' ? 'active' : ''}`} onClick={() => setTab('budgets')}>Budgets</button>}
         {isManager && <button className={`lv-tab ${tab === 'report' ? 'active' : ''}`} onClick={() => setTab('report')}>Report</button>}
         {isManager && <button className={`lv-tab ${tab === 'recon' ? 'active' : ''}`} onClick={() => setTab('recon')}>Reconciliation</button>}
+        <button className={`lv-tab ${tab === 'ledger' ? 'active' : ''}`} onClick={() => setTab('ledger')}>Ledger</button>
         {tab === 'expenses' && <button className="btn btn-primary lv-apply" onClick={() => setExpModal(true)}>Submit expense</button>}
         {tab === 'budgets' && isManager && (
           <>
@@ -301,6 +303,7 @@ export default function FinanceApp({ access }) {
       )}
 
       {tab === 'recon' && isManager && <ReconTab flash={flash} />}
+      {tab === 'ledger' && <LedgerView isManager={isManager} flash={flash} confirm={confirm} />}
 
       {!loading && tab === 'report' && isManager && (
         <div style={{ maxWidth: 640 }}>

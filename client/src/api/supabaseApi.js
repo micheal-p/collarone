@@ -151,6 +151,9 @@ export async function supabaseApi(path, opts = {}) {
   const body = opts.body || {};
   const seg = path.split('?')[0].split('/').filter(Boolean);
   const head = `${method} /${seg[0] || ''}`;
+  // Query string, for the handful of routes that take a date window rather
+  // than putting it in the body (the ledger reports).
+  const query = Object.fromEntries(new URLSearchParams(path.split('?')[1] || ''));
 
   // ---- auth ----
   if (head === 'POST /auth' && seg[1] === 'login') {
@@ -2490,6 +2493,62 @@ export async function supabaseApi(path, opts = {}) {
     ]);
     return { payments: pay, expenses: exp };
   }
+  // ---- general ledger --------------------------------------------------
+  // Every rule that matters (balance, immutability, permissions) is enforced
+  // in the database, so these are deliberately thin pass-throughs.
+  if (seg[0] === 'finance' && seg[1] === 'ledger') {
+    if (head === 'GET /finance' && seg[2] === 'accounts') {
+      const { data, error } = await supabase.from('ledger_accounts')
+        .select('*').eq('active', true).order('code');
+      if (error) fail(400, error.message);
+      return { accounts: data || [] };
+    }
+    if (method === 'POST' && seg[2] === 'accounts') {
+      if (!body.code?.trim() || !body.name?.trim()) fail(400, 'An account needs a code and a name.');
+      const { data, error } = await supabase.from('ledger_accounts').insert({
+        org_id: await myOrgId(), code: body.code.trim(), name: body.name.trim(),
+        type: body.type, is_system: false,
+      }).select().single();
+      if (error) fail(400, /duplicate/i.test(error.message) ? `Account code ${body.code} already exists.` : error.message);
+      return { account: data };
+    }
+    if (head === 'GET /finance' && seg[2] === 'entries') {
+      const { data, error } = await supabase.from('ledger_entries')
+        .select('*, lines:ledger_lines(id, debit, credit, description, account:ledger_accounts(code, name))')
+        .order('entry_date', { ascending: false }).order('entry_no', { ascending: false }).limit(200);
+      if (error) fail(400, error.message);
+      return { entries: data || [] };
+    }
+    if (method === 'POST' && seg[2] === 'entries' && seg[3] === undefined) {
+      const { data, error } = await supabase.rpc('ledger_post_entry', {
+        p_entry_date: body.entryDate, p_memo: body.memo || '',
+        p_lines: body.lines, p_source_type: 'manual', p_source_id: null,
+      });
+      if (error) fail(400, error.message);
+      return { entryId: data };
+    }
+    if (method === 'POST' && seg[2] === 'entries' && seg[4] === 'reverse') {
+      const { data, error } = await supabase.rpc('ledger_reverse_entry', { p_entry: seg[3], p_date: null });
+      if (error) fail(400, error.message);
+      return { entryId: data };
+    }
+    if (head === 'GET /finance' && seg[2] === 'trial-balance') {
+      const { data, error } = await supabase.rpc('ledger_trial_balance', { p_from: query.from, p_to: query.to });
+      if (error) fail(400, error.message);
+      return { rows: data || [] };
+    }
+    if (head === 'GET /finance' && seg[2] === 'pnl') {
+      const { data, error } = await supabase.rpc('ledger_profit_and_loss', { p_from: query.from, p_to: query.to });
+      if (error) fail(400, error.message);
+      return { rows: data || [] };
+    }
+    if (head === 'GET /finance' && seg[2] === 'balance-sheet') {
+      const { data, error } = await supabase.rpc('ledger_balance_sheet', { p_as_at: query.asAt });
+      if (error) fail(400, error.message);
+      return { rows: data || [] };
+    }
+  }
+
   if (head === 'GET /finance' && seg[1] === 'categories') {
     const { data, error } = await supabase.from('expense_categories').select('*').order('name');
     if (error) fail(400, error.message);

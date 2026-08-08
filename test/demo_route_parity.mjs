@@ -35,6 +35,12 @@ const REQUIRED = [
   { call: 'DELETE /tasks/:id', needle: "method === 'DELETE' && seg[0] === 'tasks' && seg.length === 2" },
   { call: 'GET|POST /tasks/:id/reports', needle: "seg[0] === 'tasks' && seg[2] === 'reports'" },
   { call: 'GET|POST /tasks/:id/comments', needle: "seg[0] === 'tasks' && seg[2] === 'comments'" },
+  // General ledger — a paid headline feature; a 404 here is a lost prospect.
+  { call: 'GET /finance/ledger/accounts', needle: "seg[1] === 'ledger'" },
+  { call: 'GET|POST /finance/ledger/entries', needle: "seg[2] === 'entries'" },
+  { call: 'GET /finance/ledger/trial-balance', needle: "seg[2] === 'trial-balance'" },
+  { call: 'GET /finance/ledger/pnl', needle: "seg[2] === 'pnl'" },
+  { call: 'GET /finance/ledger/balance-sheet', needle: "seg[2] === 'balance-sheet'" },
 ];
 
 let failures = 0;
