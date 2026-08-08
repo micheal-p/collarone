@@ -59,10 +59,15 @@ if (!url) {
       from pg_policies where schemaname='storage' and tablename='objects'`);
     for (const b of PRIVATE_BUCKETS) {
       const forBucket = rows.filter((r) => (r.using_expr + r.check_expr).includes(`'${b}'`));
+      // Direct SELECT is deliberately GONE (storage_role_scope.sql). Scoping
+      // reads by organisation alone still let any employee sign a URL for a
+      // colleague's warning letter, so reads now go through /api/doc-download,
+      // which checks the file's owning row under the caller's own session.
+      // A SELECT policy reappearing here means that hole has been reopened.
       const sel = forBucket.find((r) => r.cmd === 'SELECT');
-      if (!sel || !/foldername/.test(sel.using_expr) || !/my_org_id/.test(sel.using_expr)) {
+      if (sel) {
         failures++;
-        console.log(`✗ ${b}: SELECT policy is not org-scoped (foldername + my_org_id)`);
+        console.log(`✗ ${b}: a direct SELECT policy is back ("${sel.policyname}") — reads must go through /api/doc-download, not the bucket`);
       }
       // the old hole: an authenticated ALL/SELECT policy gated on bucket_id with no foldername
       const permissive = forBucket.find((r) =>
