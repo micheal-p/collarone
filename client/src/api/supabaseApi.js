@@ -7,6 +7,7 @@
 // ---------------------------------------------------------------------------
 import { supabase } from '../lib/supabaseClient.js';
 import { SUITES, MULTI_TENANT_SAFE_SUITES, suiteAllowedForCountry } from '../config/suites.js';
+import { todayISO } from '../lib/today.js';
 
 // Turn database noise into a sentence a customer can act on.
 //
@@ -792,7 +793,7 @@ export async function supabaseApi(path, opts = {}) {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('salary_structures').insert({
       employee_id: employeeId, basic: basic || 0, housing: housing || 0, transport: transport || 0,
-      other_allowances: otherAllowances || 0, annual_rent: annualRent || 0, effective_date: effectiveDate || new Date().toISOString().slice(0, 10), created_by: user.id, org_id: await myOrgId(),
+      other_allowances: otherAllowances || 0, annual_rent: annualRent || 0, effective_date: effectiveDate || todayISO(), created_by: user.id, org_id: await myOrgId(),
     }).select().single();
     if (error) fail(400, error.message);
     return { structure: data };
@@ -2111,7 +2112,7 @@ export async function supabaseApi(path, opts = {}) {
     if (!employeeId || !planId) fail(400, 'Employee and plan are required.');
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('employee_benefits').insert({
-      employee_id: employeeId, plan_id: planId, enrollment_date: enrollmentDate || new Date().toISOString().slice(0, 10),
+      employee_id: employeeId, plan_id: planId, enrollment_date: enrollmentDate || todayISO(),
       member_id: memberId || '', pfa_name: pfaName || '', pfa_pin: pfaPin || '', notes: notes || '',
       created_by: user.id, org_id: await myOrgId(),
     }).select(ENROLL_SELECT).single();
@@ -2709,7 +2710,7 @@ export async function supabaseApi(path, opts = {}) {
     const { data, error } = await supabase.from('expenses').insert({
       category_id: categoryId || null, department_id: departmentId || null, vendor: vendor || '',
       description: description.trim(), amount: amount || 0, vat_rate: vatRate ?? 0.075,
-      expense_date: expenseDate || new Date().toISOString().slice(0, 10), notes: notes || '',
+      expense_date: expenseDate || todayISO(), notes: notes || '',
       receipt_path: receiptPath || null, submitted_by: user.id, org_id: await myOrgId(),
     }).select(EXPENSE_SELECT).single();
     if (error) fail(400, error.message);
@@ -2840,7 +2841,7 @@ export async function supabaseApi(path, opts = {}) {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('project_time_entries').insert({
       org_id: await myOrgId(), project_id: seg[1], user_id: user.id,
-      entry_date: body.date || new Date().toISOString().slice(0, 10),
+      entry_date: body.date || todayISO(),
       hours: Number(body.hours), note: (body.note || '').slice(0, 300),
       billable: body.billable !== false, rate_naira: Math.max(0, Number(body.rate) || 0),
     }).select('*, person:profiles!user_id(id, name)').single();

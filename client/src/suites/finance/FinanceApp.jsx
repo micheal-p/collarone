@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as F from './financeApi.js';
 import LedgerView from './LedgerView.jsx';
 import { useToast, useConfirm, Modal, EmptyState, searchMatcher, usePagedList, Paginator } from '../../components/ui.jsx';
+import { todayISO } from '../../lib/today.js';
 
 const CSS = `
   .fn-badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; letter-spacing:.03em; }
@@ -50,8 +51,8 @@ function ExpenseModal({ categories, expense = null, onClose, onSaved, flash }) {
   const [f, setF] = useState(expense ? {
     categoryId: expense.category?.id || '', vendor: expense.vendor || '', description: expense.description || '',
     amount: expense.amount ?? '', vatRate: expense.vat_rate ?? 0.075,
-    expenseDate: expense.expense_date || new Date().toISOString().slice(0, 10), notes: expense.notes || '',
-  } : { categoryId: '', vendor: '', description: '', amount: '', vatRate: 0.075, expenseDate: new Date().toISOString().slice(0, 10), notes: '' });
+    expenseDate: expense.expense_date || todayISO(), notes: expense.notes || '',
+  } : { categoryId: '', vendor: '', description: '', amount: '', vatRate: 0.075, expenseDate: todayISO(), notes: '' });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const total = (Number(f.amount) || 0) * (1 + (Number(f.vatRate) || 0));

@@ -4,6 +4,7 @@
 // Enabled by default; set VITE_DEMO_MODE=false to use the real backend.
 // ---------------------------------------------------------------------------
 import { SUITES } from '../config/suites.js';
+import { todayISO } from '../lib/today.js';
 
 // Renamed from the legacy orgops_ prefix (audit finding 22): pre-pivot
 // branding in prod-origin storage read as foreign data during inspection.
@@ -515,11 +516,11 @@ async function demoApiInner(path, opts = {}) {
     if (seg[0] === 'payroll' && seg[1] === 'salary') {
       // Mutations echo a sensible structure — history itself is deterministic.
       if (method === 'PATCH' && seg.length === 3) {
-        return { structure: { id: seg[2], basic: body.basic ?? 0, housing: body.housing ?? 0, transport: body.transport ?? 0, other_allowances: body.otherAllowances ?? 0, effective_date: body.effectiveDate || new Date().toISOString().slice(0, 10) } };
+        return { structure: { id: seg[2], basic: body.basic ?? 0, housing: body.housing ?? 0, transport: body.transport ?? 0, other_allowances: body.otherAllowances ?? 0, effective_date: body.effectiveDate || todayISO() } };
       }
       if (method === 'POST') {
         if (!body.employeeId) fail(400, 'employeeId is required.');
-        return { structure: { id: 'sn' + Math.random().toString(36).slice(2, 8), employee_id: body.employeeId, basic: body.basic || 0, housing: body.housing || 0, transport: body.transport || 0, other_allowances: body.otherAllowances || 0, effective_date: body.effectiveDate || new Date().toISOString().slice(0, 10) } };
+        return { structure: { id: 'sn' + Math.random().toString(36).slice(2, 8), employee_id: body.employeeId, basic: body.basic || 0, housing: body.housing || 0, transport: body.transport || 0, other_allowances: body.otherAllowances || 0, effective_date: body.effectiveDate || todayISO() } };
       }
       const i = byIdx(seg[2]);
       const basic = 250000 + i * 90000;
@@ -1142,7 +1143,7 @@ async function demoApiInner(path, opts = {}) {
           const src = db.ledgerEntries.find((x) => x.id === seg[3]) || fail(404, 'Entry not found.');
           const rev = { id: 'le' + Math.random().toString(36).slice(2, 7),
             entry_no: Math.max(0, ...db.ledgerEntries.map((x) => x.entry_no || 0)) + 1,
-            entry_date: new Date().toISOString().slice(0, 10),
+            entry_date: todayISO(),
             memo: `Reversal of entry ${src.entry_no} — ${src.memo}`, status: 'posted', source_type: 'reversal',
             lines: src.lines.map((l) => ({ ...l, id: 'll' + Math.random().toString(36).slice(2, 8), debit: l.credit, credit: l.debit })) };
           src.status = 'void'; db.ledgerEntries.push(rev); save();

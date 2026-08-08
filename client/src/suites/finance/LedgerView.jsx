@@ -7,10 +7,7 @@
 // product, and rules enforced only in a browser are not rules.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as F from './financeApi.js';
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
-const monthStartISO = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10); };
-const yearStartISO = () => `${new Date().getFullYear()}-01-01`;
+import { todayISO, monthStartISO, yearStartISO } from '../../lib/today.js';
 
 const cell = { padding: '9px 12px', fontSize: 13, borderBottom: '1px solid var(--line)' };
 const num = { ...cell, textAlign: 'right', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' };

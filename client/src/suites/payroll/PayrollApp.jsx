@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/AuthContext.jsx';
 import { EmptyState, Modal, searchMatcher, useConfirm, useToast } from '../../components/ui.jsx';
 import CoachTour, { useCoachTour } from '../../components/CoachTour.jsx';
 import { ManagerView as BenefitsManagerView, StaffView as BenefitsStaffView } from '../benefits/BenefitsApp.jsx';
+import { todayISO } from '../../lib/today.js';
 
 const I = {
   add:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
@@ -20,7 +21,7 @@ function SalaryModal({ employee, structure = null, onClose, onSaved, onError }) 
   const { user } = useAuth();
   const [f, setF] = useState(() => structure
     ? { basic: String(structure.basic), housing: String(structure.housing), transport: String(structure.transport), otherAllowances: String(structure.other_allowances), annualRent: String(structure.annual_rent ?? 0), effectiveDate: structure.effective_date }
-    : { basic:'', housing:'', transport:'', otherAllowances:'', annualRent:'', effectiveDate: new Date().toISOString().slice(0,10) });
+    : { basic:'', housing:'', transport:'', otherAllowances:'', annualRent:'', effectiveDate: todayISO() });
   const [busy, setBusy] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const gross = ['basic','housing','transport','otherAllowances'].reduce((s, k) => s + (Number(f[k]) || 0), 0);

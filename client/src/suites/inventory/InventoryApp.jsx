@@ -6,6 +6,7 @@ import { ManagerView as AssetsManagerView, StaffView as AssetsStaffView } from '
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { getStaff } from '../tasks/taskApi.js';
 import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
+import { todayISO } from '../../lib/today.js';
 
 function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
 
@@ -577,7 +578,7 @@ function StockTakeModal({ items, warehouses, onClose, onDone, flash }) {
   const apply = async () => {
     setBusy(true);
     let ok = 0; let failed = 0;
-    const ref = `Stock take ${new Date().toISOString().slice(0, 10)}`;
+    const ref = `Stock take ${todayISO()}`;
     for (const it of changed) {
       const diff = countedOf(it) - levelOf(it);
       if (!diff) continue;

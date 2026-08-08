@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import * as C from './crmApi.js';
 import { waDigits as normalizeWa } from '../../lib/whatsapp.js';
 import { EmptyState, Modal, Paginator, searchMatcher, useConfirm, usePagedList, useToast } from '../../components/ui.jsx';
+import { todayISO } from '../../lib/today.js';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
@@ -1032,7 +1033,7 @@ function MoneyTab({ flash }) {
   if (!rows) return <div className="suite-loading"><div className="boot-spinner" /></div>;
 
   const open = rows.filter((r) => r.status === 'outstanding' || r.status === 'part_paid');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISO();
   const overdue = open.filter((r) => r.due_date && r.due_date < today);
   const totalOpen = open.reduce((s, r) => s + Number(r.amount_naira), 0);
   const totalOverdue = overdue.reduce((s, r) => s + Number(r.amount_naira), 0);

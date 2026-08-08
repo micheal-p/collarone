@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as PR from './projectsApi.js';
 import { EmptyState, useToast } from '../../components/ui.jsx';
+import { todayISO } from '../../lib/today.js';
 
 /* ===========================================================================
    ProjectReports — the four questions a project lead actually asks:
@@ -94,10 +95,8 @@ function Meter({ parts, total }) {
    the same rule the Tasks suite uses, so the two suites never disagree about
    what "overdue" means. Comparisons are string compares on YYYY-MM-DD, and the
    arithmetic parses at UTC midnight so a timezone never shifts a day. */
-const todayISO = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+// Lagos, not the viewer's device: a Nigerian company's accountant working from
+// another country must still see the same "today" as the office does.
 const asDay = (iso) => Date.parse(`${String(iso).slice(0, 10)}T00:00:00Z`);
 const dayGap = (a, b) => Math.round((asDay(a) - asDay(b)) / 86400000);
 const shiftDays = (iso, n) => new Date(asDay(iso) + n * 86400000).toISOString().slice(0, 10);

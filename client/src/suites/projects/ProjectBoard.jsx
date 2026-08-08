@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as PR from './projectsApi.js';
 import { EmptyState, Modal, useConfirm, useToast } from '../../components/ui.jsx';
+import { todayISO } from '../../lib/today.js';
 
 /* ===========================================================================
    ProjectBoard: the Kanban board, driven by the project's own statuses.
@@ -122,7 +123,7 @@ const friendly = (e, denied) => {
 };
 
 const byPosition = (a, b) => (a.position - b.position) || String(a.name).localeCompare(String(b.name));
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => todayISO();
 
 /* ---- one card ------------------------------------------------------------- */
 function TaskCard({ task, columns, column, subCount, subDone, parentTitle, lifted, onMove, onOpen, onDelete, onDragState }) {

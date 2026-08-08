@@ -6,6 +6,7 @@ import ProjectBoard from './ProjectBoard.jsx';
 import ProjectList from './ProjectList.jsx';
 import ProjectReports from './ProjectReports.jsx';
 import ProjectTaskTree from './ProjectTaskTree.jsx';
+import { todayISO } from '../../lib/today.js';
 
 const CSS = `
   .pj-badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; letter-spacing:.03em; }
@@ -143,7 +144,7 @@ function MilestoneModal({ milestone, onClose, onSaved, flash }) {
   );
 }
 
-const isOverdue = (t) => t.due_date && t.status !== 'done' && t.due_date < new Date().toISOString().slice(0, 10);
+const isOverdue = (t) => t.due_date && t.status !== 'done' && t.due_date < todayISO();
 
 function ProjectDetail({ project, onBack, onProjectUpdated, flash }) {
   const [tab, setTab] = useState('board');
@@ -488,7 +489,7 @@ export default function ProjectsApp() {
 /* ---- ProjectTime: log hours → roll up → draft a real invoice --------------- */
 function ProjectTime({ project, flash }) {
   const [entries, setEntries] = useState(null);
-  const [f, setF] = useState({ date: new Date().toISOString().slice(0, 10), hours: '', note: '', billable: true, rate: '' });
+  const [f, setF] = useState({ date: todayISO(), hours: '', note: '', billable: true, rate: '' });
   const [busy, setBusy] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const { confirm, confirmNode } = useConfirm();
@@ -531,7 +532,7 @@ function ProjectTime({ project, flash }) {
         unit_price: Number(rate),
       }));
       const { createDocument } = await import('../tradeDocs/tradeDocsApi.js');
-      const inv = await createDocument({ docType: 'invoice', partyName: '', items, vatRate: 0.075, reference: `Project: ${project.name}`, notes: `Time billed ${new Date().toISOString().slice(0, 10)}` });
+      const inv = await createDocument({ docType: 'invoice', partyName: '', items, vatRate: 0.075, reference: `Project: ${project.name}`, notes: `Time billed ${todayISO()}` });
       await PR.markTimeInvoiced(project.id, unbilled.map((e) => e.id), inv.id);
       flash(`Draft ${inv.doc_no} created in Invoicing, add the customer and send.`);
       load();

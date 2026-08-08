@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import * as V from './visitorApi.js';
 import { EmptyState, Paginator, searchMatcher, useConfirm, usePagedList, useToast } from '../../components/ui.jsx';
+import { todayISO } from '../../lib/today.js';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
@@ -718,7 +719,7 @@ function ManagementView({ flash }) {
     const url = URL.createObjectURL(new Blob([rows.map((r) => r.map(esc).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `visitor-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `visitor-log-${todayISO()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

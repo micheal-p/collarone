@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiDelete } from '../../api/client.js';
 import * as D from '../documents/documentsApi.js';
+import { todayISO } from '../../lib/today.js';
 
 export const getWarehouses  = () => apiGet('/inventory/warehouses').then((d) => d.warehouses);
 export const createWarehouse = (body) => apiPost('/inventory/warehouses', body).then((d) => d.warehouse);
@@ -102,7 +103,7 @@ const fileTakeoutDoc = async ({ kind, itemName, quantity, unit, staffId, staffNa
   const html = buildTakeoutHtml({ kind, companyName: await getOrgName(), itemName, quantity, unit, staffName, approverName, date: new Date().toLocaleDateString('en-GB'), notes });
   const folder = await findOrCreateFolder('Staff Takeouts');
   const safeName = itemName.replace(/[^a-zA-Z0-9]+/g, '-');
-  const stamp = new Date().toISOString().slice(0, 10);
+  const stamp = todayISO();
   const filename = `${kind.replace(' ', '-')}-${safeName}-${stamp}.html`;
   const file = new File([html], filename, { type: 'text/html' });
   const { path, size } = await D.uploadFile(file, 'takeouts/');
