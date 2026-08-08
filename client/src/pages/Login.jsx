@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Navigate, Link, useLocation } from 'react-router-dom';
+import { useNavigate, Navigate, Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import logo from '../assets/collarone-mark-dark.svg';
 
@@ -18,8 +18,11 @@ export default function Login() {
   const loc = useLocation();
   // ProtectedRoute has always sent the page someone was headed to — it was
   // just never read here, so deep links died at the gate (audit finding 7).
+  // ?next= is authoritative: router state dies on the sandbox-purge reload
+  // above, the URL doesn't (signed-in audit, regression of finding 7).
   // Same-origin paths only; anything else falls back to home.
-  const rawFrom = loc.state?.from;
+  const [params] = useSearchParams();
+  const rawFrom = params.get('next') || loc.state?.from;
   const from = typeof rawFrom === 'string' && rawFrom.startsWith('/') && !rawFrom.startsWith('//') ? rawFrom : null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

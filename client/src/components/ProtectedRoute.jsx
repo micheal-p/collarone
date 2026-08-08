@@ -13,7 +13,9 @@ export default function ProtectedRoute({ children, requireAdmin = false, require
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname }} />;
+  // The destination rides in ?next= (not only router state): Login's sandbox
+  // purge does a full reload, and reloads wipe state — the URL survives.
+  if (!user) return <Navigate to={`/login?next=${encodeURIComponent(loc.pathname)}`} replace state={{ from: loc.pathname }} />;
   if (user.mustChangePassword && loc.pathname !== '/change-password')
     return <Navigate to="/change-password" replace />;
   if (requireAdmin && user.role !== 'super_admin') return <Navigate to="/" replace />;
