@@ -1001,11 +1001,34 @@ export async function supabaseApi(path, opts = {}) {
 
   // ---- hr (employee directory + org structure) ----
   if (head === 'GET /hr' && seg[1] === 'staff') {
-    const { data, error } = await supabase.from('profiles')
-      .select('*, dept:departments(id,name), manager:profiles!manager_id(id,name,email,job_title)')
-      .neq('role', 'super_admin').order('name');
+    // Two fixes here.
+    //
+    // 1. The directory used to `select('*')` and return toPublic(), which
+    //    includes home address, date of birth, emergency contacts and personal
+    //    phone for EVERY colleague — to anyone holding the HR suite at any
+    //    role, not just a manager. The screen never displayed those fields, so
+    //    nobody noticed they were in the payload. Managers get the full record
+    //    (they need it); everyone else gets a directory.
+    //
+    // 2. `.neq('role','super_admin')` hid the company owner from their own
+    //    staff list, which also made every org chart rootless and undercounted
+    //    headcount everywhere it was used.
+    const me = await myProfile();
+    const isHrManager = me.role === 'super_admin'
+      || (Array.isArray(me.suites) && me.suites.some((x) => x.key === 'hr' && x.role === 'manager'));
+    const cols = isHrManager
+      ? '*, dept:departments(id,name), manager:profiles!manager_id(id,name,email,job_title)'
+      : 'id, name, email, job_title, department, department_id, role, status, avatar_url, manager_id, start_date, employment_type, dept:departments(id,name), manager:profiles!manager_id(id,name,email,job_title)';
+    const { data, error } = await supabase.from('profiles').select(cols).order('name');
     if (error) fail(400, error.message);
-    return { staff: data.map((p) => ({ ...toPublic(p), deptName: p.dept?.name || p.department || '', manager: p.manager ? { id: p.manager.id, name: p.manager.name, email: p.manager.email } : null })) };
+    const shape = (p) => (isHrManager ? toPublic(p) : {
+      id: p.id, name: p.name, email: p.email, jobTitle: p.job_title || '',
+      department: p.department || '', departmentId: p.department_id || null,
+      role: p.role, status: p.status, avatarUrl: p.avatar_url || '',
+      managerId: p.manager_id || null, startDate: p.start_date || '',
+      employmentType: p.employment_type || 'full_time',
+    });
+    return { staff: data.map((p) => ({ ...shape(p), deptName: p.dept?.name || p.department || '', manager: p.manager ? { id: p.manager.id, name: p.manager.name, email: p.manager.email } : null })) };
   }
   if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'staff' && seg.length === 3) {
     const { jobTitle, departmentId, managerId, startDate, employmentType } = body;
