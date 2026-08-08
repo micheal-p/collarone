@@ -181,6 +181,12 @@ export default function ProcurementApp({ access }) {
                     {isManager && r.status === 'approved' && <button className="iconbtn" onClick={() => decide(r, 'ordered')}>Mark ordered</button>}
                     {isManager && r.status === 'ordered' && <button className="iconbtn" onClick={() => decide(r, 'received')}>Mark received</button>}
                     {r.status === 'pending' && <button className="iconbtn" onClick={() => setEditReq(r)}>Edit</button>}
+                    {r.approver?.name && (
+                      <span className="muted" style={{ fontSize: 11.5 }}>
+                        {r.status === 'rejected' ? 'Declined' : 'Approved'} by {r.approver.name}
+                        {r.approved_at ? ` on ${new Date(r.approved_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
+                      </span>
+                    )}
                     <button className="iconbtn" onClick={() => removeRequest(r)}>Delete</button>
                   </td>
                 </tr>
@@ -215,7 +221,19 @@ export default function ProcurementApp({ access }) {
       )}
 
       {reqModal && <RequestModal vendors={vendors} onClose={() => setReqModal(false)} onSaved={load} flash={flash} />}
+      {/* The Edit button set this state and nothing ever rendered it, so
+          clicking Edit on a pending request did nothing at all. RequestModal
+          already took a `request` prop for exactly this — it was simply never
+          wired up. */}
+      {editReq && (
+        <RequestModal vendors={vendors} request={editReq}
+          onClose={() => setEditReq(null)} onSaved={() => { setEditReq(null); load(); }} flash={flash} />
+      )}
       {vendorModal && <VendorModal onClose={() => setVendorModal(false)} onSaved={load} flash={flash} />}
+      {editVendor && (
+        <VendorModal vendor={editVendor}
+          onClose={() => setEditVendor(null)} onSaved={() => { setEditVendor(null); load(); }} flash={flash} />
+      )}
       {confirmNode}
       {toastNode}
     </div>

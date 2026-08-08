@@ -327,6 +327,16 @@ function ProjectDetail({ project, onBack, onProjectUpdated, flash }) {
 
       {openTask && (
         <Modal title={openTask.title} onClose={() => setOpenTask(null)} wide>
+          {/* Opening a task from the board used to show only its subtasks, with
+              no way to change the task itself — so a typo in a title, or a
+              reassignment, meant leaving the board for the list view. The edit
+              path belongs where people actually land. */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+            <button className="btn btn-ghost" style={{ fontSize: 12.5 }}
+              onClick={() => { setTaskModal(openTask); setOpenTask(null); }}>
+              Edit this task
+            </button>
+          </div>
           <ProjectTaskTree
             task={openTask}
             projectId={project.id}
@@ -504,6 +514,13 @@ function ProjectTime({ project, flash }) {
 
   const log = async () => {
     if (!Number(f.hours)) { flash('How many hours?', true); return; }
+    // Billable hours at a rate of zero can never become an invoice, and the
+    // mistake is invisible until someone tries to bill the month. Refuse it at
+    // the point it is made, rather than discovering it at invoice time.
+    if (f.billable && !Number(f.rate)) {
+      flash('Set an hourly rate for billable time, or mark these hours non-billable. Hours logged at ₦0 can never be invoiced.', true);
+      return;
+    }
     setBusy(true);
     try {
       const entry = await PR.logTime(project.id, f);

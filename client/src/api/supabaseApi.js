@@ -2232,7 +2232,9 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
 
-  const PR_SELECT = '*, requester:profiles!requested_by(id,name,email), vendor:vendors(id,name), dept:departments(id,name)';
+  // approver was stored and never selected, so a module whose entire promise is
+  // an approval trail could not show who approved anything.
+  const PR_SELECT = '*, requester:profiles!requested_by(id,name,email), approver:profiles!approved_by(id,name), vendor:vendors(id,name), dept:departments(id,name)';
   if (head === 'GET /procurement' && seg[1] === 'requests') {
     const { data, error } = await supabase.from('purchase_requests').select(PR_SELECT).order('created_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
