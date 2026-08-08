@@ -51,6 +51,11 @@ export default async function handler(req, res) {
       const proto = req.headers['x-forwarded-proto'] || 'https';
       const host = req.headers['x-forwarded-host'] || req.headers.host;
       const reference = `CINV-${doc.doc_no}-${Date.now().toString(36).toUpperCase()}`;
+      // Record which invoice this reference belongs to BEFORE sending anyone to
+      // checkout. Verify and the merchant webhook both read it back; without it
+      // a reference is just a string the caller supplied.
+      await admin.from('trade_doc_payment_intents')
+        .insert({ reference, doc_id: doc.id, org_id: doc.org_id, amount: outstanding });
       const r = await fetch('https://api.paystack.co/transaction/initialize', {
         method: 'POST', headers,
         body: JSON.stringify({
@@ -73,10 +78,16 @@ export default async function handler(req, res) {
       const reference = String(body.reference || '');
       if (!reference) return json(res, 400, { message: 'Missing payment reference.' });
 
-      // idempotent: if this reference is already recorded, report success
+      // Idempotency is GLOBAL, not per-invoice. It used to filter on doc_id,
+      // which meant the same real reference could be replayed against a second
+      // invoice and credit it too — pay one invoice, then claim every other
+      // invoice from the same merchant with that reference. Free money.
       const { data: existing } = await admin.from('trade_doc_payments')
-        .select('id').eq('doc_id', doc.id).eq('reference', reference).eq('method', 'card').maybeSingle();
-      if (existing) return json(res, 200, { paid: true });
+        .select('id, doc_id').eq('reference', reference).eq('method', 'card').maybeSingle();
+      if (existing) {
+        // Already banked. Only the invoice it actually belongs to hears "paid".
+        return json(res, 200, { paid: existing.doc_id === doc.id });
+      }
 
       const r = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, { headers });
       const d = await r.json().catch(() => ({}));
@@ -84,6 +95,19 @@ export default async function handler(req, res) {
       const paidAmountNaira = Number(tx?.amount || 0) / 100;
       const ok = r.ok && tx?.status === 'success' && tx?.currency === 'NGN' && paidAmountNaira > 0;
       if (!ok) return json(res, 200, { paid: false });
+
+      // BIND THE TRANSACTION TO THIS INVOICE. Paystack will happily confirm any
+      // successful transaction on the merchant's account, so "it verified" only
+      // proves someone paid the merchant something — not that they paid THIS
+      // invoice.
+      if (String(tx.reference || '') !== reference) return json(res, 200, { paid: false });
+
+      // The intent is the authority: we wrote it at init, so it says which
+      // invoice this reference was raised against. A reference with no intent,
+      // or one belonging to a different invoice, is not payment for this one.
+      const { data: intent } = await admin.from('trade_doc_payment_intents')
+        .select('doc_id').eq('reference', reference).maybeSingle();
+      if (!intent || intent.doc_id !== doc.id) return json(res, 200, { paid: false });
 
       const credit = Math.min(paidAmountNaira, outstanding);
       if (credit > 0) {
