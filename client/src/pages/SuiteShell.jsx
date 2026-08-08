@@ -5,6 +5,9 @@ import { SUITE_META } from '../config/suites.js';
 import AppLayout from '../components/AppLayout.jsx';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 import SuiteFeedbackButton from '../components/SuiteFeedbackButton.jsx';
+import CoachTour from '../components/CoachTour.jsx';
+import { tourForSuite } from '../config/demoTours.js';
+import { useAuth } from '../auth/AuthContext.jsx';
 // Each suite is its own lazy chunk: opening HR downloads only HR's code, not
 // all 15 suites. This is the bulk of what used to sit in the initial bundle.
 const HRApp         = lazy(() => import('../suites/hr/HRApp.jsx'));
@@ -29,14 +32,26 @@ export const SUITE_APPS = { hr: HRApp, leave: LeaveApp, tasks: TasksApp, visitor
 export default function SuiteShell() {
   const { key } = useParams();
   const nav = useNavigate();
+  const { user } = useAuth();
   const [state, setState] = useState({ loading: true, suite: null, access: null, error: null });
+  // The guided tours existed only in the public /try demo — a paying customer
+  // opening Payroll for the first time got nothing. Same scripts, shown once
+  // per person per suite, and replayable from the header any time after.
+  const [tourOpen, setTourOpen] = useState(false);
+  const seenKey = user?.id ? `collarone_tour_seen_${user.id}_${key}` : null;
+  const markSeen = () => { try { if (seenKey) localStorage.setItem(seenKey, '1'); } catch { /* private mode */ } };
 
   useEffect(() => {
     setState({ loading: true, suite: null, access: null, error: null });
     apiGet(`/suites/${key}`)
-      .then((d) => setState({ loading: false, suite: d.suite, access: d.access, error: null }))
+      .then((d) => {
+        setState({ loading: false, suite: d.suite, access: d.access, error: null });
+        // First visit only, and never mid-task: the tour opens on arrival or
+        // not at all.
+        try { if (seenKey && !localStorage.getItem(seenKey)) setTourOpen(true); } catch { /* private mode */ }
+      })
       .catch((e) => setState({ loading: false, suite: null, access: null, error: e }));
-  }, [key]);
+  }, [key, seenKey]);
 
   const meta = SUITE_META[key] || {};
   const { loading, suite, access, error } = state;
@@ -70,6 +85,13 @@ export default function SuiteShell() {
               <h1 style={{ margin: 0 }}>{suite.name}</h1>
               <p>{suite.desc}</p>
             </div>
+            <button
+              type="button" className="btn btn-ghost suite-tour-btn"
+              onClick={() => setTourOpen(true)}
+              title={`A short walkthrough of ${suite.name}`}
+            >
+              Take the tour
+            </button>
             <SuiteFeedbackButton suiteKey={key} suiteName={suite.name} />
             <span className={`role-pill role-${['manager','receptionist','security','management'].includes(access?.role) ? 'manager' : 'staff'}`}>
               {{ manager:'Manager view', member:'Member view', receptionist:'Receptionist', security:'Security', management:'Management', staff:'Staff' }[access?.role] || 'Member view'}
@@ -98,6 +120,11 @@ export default function SuiteShell() {
           </div>
         </>
       )}
+      <CoachTour
+        steps={tourForSuite(key)}
+        open={tourOpen}
+        onClose={() => { setTourOpen(false); markSeen(); }}
+      />
     </AppLayout>
   );
 }

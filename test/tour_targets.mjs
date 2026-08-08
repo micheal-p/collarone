@@ -61,3 +61,41 @@ if (failures) {
   process.exit(1);
 }
 console.log(`All ${checked} tour steps point at a real anchor. ALL PASSED`);
+
+// ---- tours must exist for real customers, and be substantial ---------------
+// demoTours.js was imported by exactly one file — the public /try demo — so a
+// paying customer opening a suite for the first time got no guidance at all.
+// Every tour was also 3 steps except payroll's 7, and three steps cannot teach
+// a module. Both are regressions worth failing a build over.
+{
+  const { readFileSync } = await import('node:fs');
+  const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  let bad = 0;
+
+  const shell = src('../client/src/pages/SuiteShell.jsx');
+  if (!/CoachTour/.test(shell) || !/tourForSuite/.test(shell)) {
+    console.log('✗ SuiteShell.jsx no longer runs the guided tour — signed-in customers get no walkthrough'); bad++;
+  }
+  if (!/Take the tour/.test(shell)) {
+    console.log('✗ SuiteShell.jsx has no replay affordance; a tour you can only see once is a tour you cannot re-read'); bad++;
+  }
+
+  const tours = src('../client/src/config/demoTours.js');
+  const MIN = 5;
+  for (const m of tours.matchAll(/ {2}'?([\w-]+)'?: \[/g)) {
+    const key = m[1];
+    if (key === '_generic') continue;
+    let i = m.index + m[0].length, depth = 1, steps = 0;
+    while (i < tours.length && depth > 0) {
+      const c = tours[i];
+      if (c === '[') depth++;
+      else if (c === ']') depth--;
+      else if (c === '{' && depth === 1) steps++;
+      i++;
+    }
+    if (steps < MIN) { console.log(`✗ tour "${key}" has only ${steps} steps — too thin to teach the module (min ${MIN})`); bad++; }
+  }
+
+  if (bad) { console.error(`\nFAILED, ${bad} tour coverage problem(s)`); process.exit(1); }
+  console.log('Tours run in the real app and every suite has a substantial walkthrough. ALL PASSED');
+}
