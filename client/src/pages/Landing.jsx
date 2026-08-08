@@ -492,6 +492,10 @@ export default function Landing() {
         <AnimatePresence>
           {navOpen && (
             <motion.div
+              // AnimatePresence cannot track a keyless child: without this the
+              // menu mounted once and NEVER unmounted, so nothing closed it —
+              // not the burger, not a tap away (founder-reported, finding 36).
+              key="mobile-menu"
               className="cl-mobile-menu"
               initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.18 }}

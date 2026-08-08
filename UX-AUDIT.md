@@ -110,3 +110,4 @@
 
 - [x] **36. (founder-reported, fixed 2026-08-08) MEDIUM ux** — Landing page — mobile menu
   On phones the hamburger menu could only be closed by finding the burger again — tapping anywhere off the menu did nothing. Every other menu in the product (try-demo switcher, app rail drawer, account flyout) already had click-away. Added a scrim behind the open menu plus Escape-to-close.
+  ROOT CAUSE, found by live-testing the first fix (2026-08-08): the menu could not be closed AT ALL, not even by the burger. React state toggled correctly (aria-expanded flipped) but the menu's motion.div was a KEYLESS child of AnimatePresence, which tracks presence by key — so it mounted once and never unmounted. Fixed with a key; the same latent defect was found and fixed in ChatWidget (launcher + panel), and test/animatepresence_keys.mjs now fails the build on any keyless AnimatePresence child. Lesson: a UI fix that cannot be verified live is not verified.

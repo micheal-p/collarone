@@ -104,6 +104,9 @@ export default function ChatWidget({ visible = true }) {
       <AnimatePresence>
         {visible && !open && (
           <motion.button
+            // keyed so AnimatePresence can actually unmount it — see Landing's
+            // mobile menu, where a keyless child never left the DOM.
+            key="chat-launcher"
             type="button" className={`cl-wa-float${dim ? ' dim' : ''}`} aria-label="Chat with us"
             onClick={() => setOpen(true)}
             initial={{ opacity: 0, y: 16, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.9 }}
@@ -118,7 +121,7 @@ export default function ChatWidget({ visible = true }) {
       <AnimatePresence>
         {open && (
           <motion.div
-            className="clw" role="dialog" aria-label="Collarone assistant"
+            key="chat-panel" className="clw" role="dialog" aria-label="Collarone assistant"
             initial={{ opacity: 0, y: 24, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 24, scale: 0.97 }}
             transition={{ duration: 0.22, ease: [0.2, 0.7, 0.3, 1] }}
           >
