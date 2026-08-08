@@ -13,10 +13,21 @@ const clampDay = (year, monthIdx, day) => {
 };
 
 // Build the list of deadline occurrences to show: for monthly rules, the
-// obligation for month P is due on day D of month P+1 — we surface the two
-// most relevant periods (last month's obligation, due now, and this month's,
-// due next month). For annual rules, this year's occurrence.
-export function buildDeadlines(rules, prefs, marks, today = new Date()) {
+// obligation for month P is due on day D of month P+1.
+//
+// This used to look back exactly one month, which meant an unmarked period
+// silently DISAPPEARED the moment it was two months old. A business that
+// forgot April's PAYE would find, in June, that April had quietly stopped
+// existing — the one thing a compliance calendar must never do, since an
+// unremitted month is precisely the thing you need shown. Now every period
+// from the tracking start date to now is generated, and anything already
+// marked done is simply rendered as done.
+//
+// `startFrom` is the org's chosen tracking start (a YYYY-MM string, from the
+// per-rule preference or the org's first month). Without it we would generate
+// deadlines predating the customer's existence and open the module on a wall
+// of red for months they were never trading.
+export function buildDeadlines(rules, prefs, marks, today = new Date(), startFrom = null) {
   const prefBy = Object.fromEntries((prefs || []).map((p) => [p.rule_key, p]));
   const doneKey = new Set((marks || []).map((m) => `${m.rule_key}|${m.period}`));
   const markBy = Object.fromEntries((marks || []).map((m) => [`${m.rule_key}|${m.period}`, m]));
@@ -27,8 +38,18 @@ export function buildDeadlines(rules, prefs, marks, today = new Date()) {
     if (pref && pref.enabled === false) continue;
 
     if (r.frequency === 'monthly') {
-      // periods: previous month (due this month) and current month (due next)
-      for (const back of [1, 0]) {
+      // Every period from the tracking start to this month, so nothing that
+      // was never remitted can age out of view. Capped at 24 months so a badly
+      // set start date cannot render three years of rows.
+      const start = (pref?.start_period || startFrom || '').match(/^\d{4}-\d{2}$/)
+        ? (pref?.start_period || startFrom) : null;
+      let months = 1;
+      if (start) {
+        const [sy, sm] = start.split('-').map(Number);
+        months = Math.min(24, Math.max(1, (today.getFullYear() - sy) * 12 + (today.getMonth() + 1 - sm)));
+      }
+      const backs = Array.from({ length: months + 1 }, (_, i) => months - i);
+      for (const back of backs) {
         const p = new Date(today.getFullYear(), today.getMonth() - back, 1);
         const period = `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}`;
         const dueMonth = new Date(p.getFullYear(), p.getMonth() + 1, 1);

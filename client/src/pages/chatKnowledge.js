@@ -117,7 +117,7 @@ const INTENTS = [
     id: 'compliance',
     phrases: ['compliance calendar', 'statutory deadlines', 'tax deadlines', 'when is paye due', 'cac annual return'],
     keys: ['compliance', 'deadline', 'deadlines', 'firs', 'lirs', 'cac', 'remittance', 'statutory', 'filing'],
-    answer: 'The Compliance Calendar tracks Nigeria\'s statutory deadlines for you: PAYE (10th), VAT (21st), pension (7 working days after payday), NHF, NSITF, WHT monthly, plus annual PAYE returns, CAC annual returns and CIT. Each month you mark them done with a reference, so there\'s a clean history of what was filed and when. It\'s guidance, not legal advice, timelines are confirmed with your accountant, so nothing slips through again.',
+    answer: 'The Compliance Calendar tracks Nigeria\'s statutory deadlines for you: PAYE (10th), VAT (21st), pension (7 working days after payday), NHF, NSITF, WHT monthly, plus annual PAYE returns, CAC annual returns and CIT. Each month you mark them done with a reference, so there\'s a clean history of what was filed and when. It is a calendar and a checklist, not tax advice, and it does not file anything on your behalf, so keep your accountant in the loop.',
     chips: ['What suites are included?', 'What does it cost?'],
   },
   {

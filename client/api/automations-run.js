@@ -53,9 +53,14 @@ async function logRun(admin, orgId, key, count, note = '') {
   await admin.from('automation_runs').insert({ org_id: orgId, key, count, note });
 }
 
+// OFF BY DEFAULT. This used to treat a MISSING settings row as enabled, so
+// the moment a company added the Automation suite all six checks started
+// firing banners and creating tasks nobody had asked for. Software that begins
+// by nagging gets switched off wholesale, and then the checks the customer
+// actually wanted are off too. An explicit `enabled: true` is now required.
 function enabledConfig(settings, key, defaults) {
   const row = (settings || []).find((s) => s.key === key);
-  if (row && row.enabled === false) return null;
+  if (!row || row.enabled !== true) return null;
   return { ...defaults, ...(row?.config || {}) };
 }
 
@@ -161,23 +166,37 @@ async function runOrgAutomations(admin, orgId) {
   const systemUser = await findSystemUser(admin, orgId);
   const summary = {};
 
+  // A check that throws must NOT be reported as "found 0" — a broken query and
+  // a clean bill of health looked identical, which is how a silently failing
+  // automation goes unnoticed for weeks. Failures are recorded as such.
+  const guard = async (key, fn) => {
+    try { return await fn(); }
+    catch (e) {
+      summary[`${key}_error`] = String(e.message).slice(0, 200);
+      await admin.from('automation_runs')
+        .insert({ org_id: orgId, key, count: 0, note: `failed: ${String(e.message).slice(0, 200)}` })
+        .then(() => {}, () => {});
+      return null;
+    }
+  };
+
   const cLow = enabledConfig(settings, 'low_stock_alert', {});
-  if (cLow) summary.low_stock_alert = await runLowStockAlert(admin, orgId, cLow, systemUser);
+  if (cLow) summary.low_stock_alert = await guard('low_stock_alert', () => runLowStockAlert(admin, orgId, cLow, systemUser));
 
   const cInv = enabledConfig(settings, 'overdue_invoice_reminder', { graceDays: 3 });
-  if (cInv) summary.overdue_invoice_reminder = await runOverdueInvoiceReminder(admin, orgId, cInv, systemUser);
+  if (cInv) summary.overdue_invoice_reminder = await guard('overdue_invoice_reminder', () => runOverdueInvoiceReminder(admin, orgId, cInv, systemUser));
 
   const cLead = enabledConfig(settings, 'new_lead_auto_task', {});
-  if (cLead) summary.new_lead_auto_task = await runNewLeadAutoTask(admin, orgId, cLead, systemUser);
+  if (cLead) summary.new_lead_auto_task = await guard('new_lead_auto_task', () => runNewLeadAutoTask(admin, orgId, cLead, systemUser));
 
   const cTask = enabledConfig(settings, 'task_overdue_alert', {});
-  if (cTask) summary.task_overdue_alert = await runTaskOverdueAlert(admin, orgId);
+  if (cTask) summary.task_overdue_alert = await guard('task_overdue_alert', () => runTaskOverdueAlert(admin, orgId));
 
   const cLeave = enabledConfig(settings, 'leave_pending_reminder', { pendingDays: 2 });
-  if (cLeave) summary.leave_pending_reminder = await runLeavePendingReminder(admin, orgId, cLeave);
+  if (cLeave) summary.leave_pending_reminder = await guard('leave_pending_reminder', () => runLeavePendingReminder(admin, orgId, cLeave));
 
   const cBooking = enabledConfig(settings, 'stock_booking_expiry', {});
-  if (cBooking) summary.stock_booking_expiry = await runStockBookingExpiry(admin, orgId);
+  if (cBooking) summary.stock_booking_expiry = await guard('stock_booking_expiry', () => runStockBookingExpiry(admin, orgId));
 
   for (const [key, count] of Object.entries(summary)) {
     await logRun(admin, orgId, key, count);

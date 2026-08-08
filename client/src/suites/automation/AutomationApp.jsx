@@ -19,7 +19,10 @@ const RI = {
 };
 
 function AutomationCard({ def, setting, lastRun, isManager, onToggle, onConfigSave }) {
-  const enabled = setting ? setting.enabled : true;
+  // Off until switched on, matching the server (automations-run.js). The UI
+  // used to default to On with no row behind it, so every card claimed to be
+  // running a check that had never been enabled.
+  const enabled = setting ? setting.enabled === true : false;
   const meta = SUITE_META[SUITE_KEY_BY_NAME[def.suite]] || {};
   const [config, setConfig] = useState(() => {
     const base = {};

@@ -65,6 +65,7 @@ export default function ComplianceApp({ access }) {
   const [rules, setRules] = useState([]);
   const [prefs, setPrefs] = useState([]);
   const [marks, setMarks] = useState([]);
+  const [startFrom, setStartFrom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('deadlines');
   const [markModal, setMarkModal] = useState(null);
@@ -75,12 +76,12 @@ export default function ComplianceApp({ access }) {
     setLoading(true);
     try {
       const d = await C.getCompliance();
-      setRules(d.rules || []); setPrefs(d.prefs || []); setMarks(d.marks || []);
+      setRules(d.rules || []); setPrefs(d.prefs || []); setMarks(d.marks || []); setStartFrom(d.startFrom || null);
     } catch (e) { flash(e.message, true); } finally { setLoading(false); }
   }, [flash]);
   useEffect(() => { load(); }, [load]);
 
-  const deadlines = useMemo(() => C.buildDeadlines(rules, prefs, marks), [rules, prefs, marks]);
+  const deadlines = useMemo(() => C.buildDeadlines(rules, prefs, marks, new Date(), startFrom), [rules, prefs, marks, startFrom]);
   const openCount = deadlines.filter((d) => !d.done).length;
   const overdueCount = deadlines.filter((d) => !d.done && d.due && C.daysUntil(d.due) < 0).length;
 

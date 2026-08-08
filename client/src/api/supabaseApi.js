@@ -2505,7 +2505,11 @@ export async function supabaseApi(path, opts = {}) {
     if (rules.error) fail(400, rules.error.message);
     if (prefs.error) fail(400, prefs.error.message);
     if (marks.error) fail(400, marks.error.message);
-    return { rules: rules.data, prefs: prefs.data, marks: marks.data };
+    // The org's own start month, so the calendar shows every unremitted period
+    // back to when they began — and none from before they existed.
+    const { data: org } = await supabase.from('organizations').select('created_at').eq('id', await myOrgId()).maybeSingle();
+    const startFrom = org?.created_at ? String(org.created_at).slice(0, 7) : null;
+    return { rules: rules.data, prefs: prefs.data, marks: marks.data, startFrom };
   }
   if (head === 'POST /compliance' && seg[1] === 'prefs') {
     const { ruleKey, enabled, annualMonth, annualDay, note } = body;

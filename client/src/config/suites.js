@@ -23,7 +23,7 @@ export const SUITES = [
   { key: 'documents',   name: 'Documents',          tier: 'extended', status: 'live', desc: 'Keep files safe, track changes, and control who sees what.' },
   { key: 'trade-docs',  name: 'Invoicing & Trade Docs', tier: 'extended', status: 'live', desc: 'Invoices customers pay from a link, plus receipts, money owed, delivery notes and stock passes.' },
   { key: 'automation',  name: 'Automation',         tier: 'extended', status: 'live', desc: 'Rules that run your busywork, auto-assign tasks, approvals, reminders and alerts.' },
-  { key: 'compliance',  name: 'Compliance Calendar', tier: 'extended', status: 'live', desc: 'Nigerian government deadlines, PAYE, VAT, pension, NHF, CAC, tracked per month, never missed.' },
+  { key: 'compliance',  name: 'Compliance Calendar', tier: 'extended', status: 'live', desc: 'Nigerian statutory deadlines — PAYE, VAT, pension, NHF, CAC — listed per month with what you have already remitted ticked off.' },
 ];
 
 // Tools every workspace gets for free, deliberately OUTSIDE the SUITES catalog.

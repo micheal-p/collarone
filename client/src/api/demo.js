@@ -1519,7 +1519,13 @@ async function demoApiInner(path, opts = {}) {
         { key: 'cac_annual', title: 'CAC annual returns', authority: 'CAC', description: 'File the company annual return with the CAC, set the month that matches your incorporation anniversary.', frequency: 'annual', due_day: 30, default_month: null, info_url: '', sort_order: 80 },
         { key: 'cit', title: 'Companies Income Tax', authority: 'FIRS', description: 'File CIT self-assessment within 6 months of your financial year end.', frequency: 'annual', due_day: 30, default_month: 6, info_url: '', sort_order: 90 },
       ];
-      if (route === 'GET /compliance') return { rules: RULES, prefs: db.compliancePrefs, marks: db.complianceMarks };
+      if (route === 'GET /compliance') {
+        // Six months back, so the demo shows the "older unremitted period is
+        // still here" behaviour rather than only the current two.
+        const back = new Date(); back.setMonth(back.getMonth() - 6);
+        const startFrom = `${back.getFullYear()}-${String(back.getMonth() + 1).padStart(2, '0')}`;
+        return { rules: RULES, prefs: db.compliancePrefs, marks: db.complianceMarks, startFrom };
+      }
       if (route === 'POST /compliance/prefs') {
         db.compliancePrefs = db.compliancePrefs.filter((p) => p.rule_key !== body.ruleKey);
         const pref = { rule_key: body.ruleKey, enabled: body.enabled !== false, annual_month: body.annualMonth ?? null, annual_day: body.annualDay ?? null, note: body.note || '' };
