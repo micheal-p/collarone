@@ -413,6 +413,13 @@ export default function Landing() {
   const heroItemVariants = reduce ? {} : { variants: heroItem };
   const [pastHero, setPastHero] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  // Escape closes the mobile menu too — the scrim covers taps, this covers keys.
+  useEffect(() => {
+    if (!navOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setNavOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navOpen]);
   const [faqCat, setFaqCat] = useState('All');
   const [faqAll, setFaqAll] = useState(false);
   const visibleFaqs = faqCat === 'All' ? faqs : faqs.filter((f) => f.cat === faqCat);
@@ -474,6 +481,14 @@ export default function Landing() {
             </button>
           </div>
         </div>
+        <AnimatePresence>
+          {navOpen && (
+            <motion.div
+              key="scrim" className="cl-nav-scrim" aria-hidden="true" onClick={() => setNavOpen(false)}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.18 }}
+            />
+          )}
+        </AnimatePresence>
         <AnimatePresence>
           {navOpen && (
             <motion.div

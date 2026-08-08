@@ -107,3 +107,6 @@
 
 - [x] **35. (found + fixed during the 2026-08-08 verification pass) HIGH bug** — Live demo — Task & Report suite
   Opening /try/tasks flashed 'Demo API has no route for GET /taskstats' and rendered 'No tasks yet': the suite loads tasks + stats in one Promise.all, so the missing stats route blanked the seeded task list too. Root cause: the demo router only answered GET /tasks — creating a task, changing status, deleting, reports and comments all 404'd, in a sandbox whose tour tells visitors to try exactly those things. Fixed with a full demo tasks block (CRUD, reports, comments, stats) and 7 new rows in test/demo_route_parity.mjs so the next missing route fails CI instead of a prospect.
+
+- [x] **36. (founder-reported, fixed 2026-08-08) MEDIUM ux** — Landing page — mobile menu
+  On phones the hamburger menu could only be closed by finding the burger again — tapping anywhere off the menu did nothing. Every other menu in the product (try-demo switcher, app rail drawer, account flyout) already had click-away. Added a scrim behind the open menu plus Escape-to-close.

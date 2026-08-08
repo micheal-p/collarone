@@ -15,7 +15,7 @@
 import { createClient } from '@supabase/supabase-js';
 // One shared sender/template for every email the platform sends — the
 // automated billing notices (_lib/billingNotify.js) use the same path.
-import { emailEnabled, sendResend, wrap, esc, naira, nairaN, FROM_ADDR } from './_lib/email.js';
+import { emailEnabled, sendMail, wrap, esc, naira, nairaN, FROM_ADDR } from './_lib/email.js';
 import { buildInvoicePdf, fileIntoDocuments } from './invoice-pdf.js';
 import { invoiceFilename } from './_lib/invoicePdf.js';
 
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
         await fileIntoDocuments({ admin, doc, pdf, callerId: caller.id ?? user.id }).catch(() => {});
       } catch { attachments = undefined; }
 
-      await sendResend({
+      await sendMail({
         to: doc.party_email,
         attachments,
         from: `${orgName} via Collarone <${FROM_ADDR}>`,
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
 
       const proto = req.headers['x-forwarded-proto'] || 'https';
       const host = req.headers['x-forwarded-host'] || req.headers.host;
-      await sendResend({
+      await sendMail({
         to: owner.email,
         from: `Collarone <${FROM_ADDR}>`,
         subject: `Your Collarone payment is pending${tx ? ` — ${naira(tx.amount_kobo)}` : ''}`,

@@ -13,7 +13,7 @@
 //
 // Never throws — billing reminders must never break the caller (health checks,
 // webhooks). Returns { skipped } or { sent, emailed, error? }.
-import { emailEnabled, sendResend, wrap, esc, FROM_ADDR } from './email.js';
+import { emailEnabled, sendMail, wrap, esc, FROM_ADDR } from './email.js';
 import { emitOrgEvent } from './events.js';
 
 export async function sendBillingNotice(admin, {
@@ -58,7 +58,7 @@ export async function sendBillingNotice(admin, {
       if (owner?.email) {
         ownerEmail = owner.email;
         try {
-          await sendResend({
+          await sendMail({
             to: owner.email,
             from: `Collarone <${FROM_ADDR}>`,
             subject,

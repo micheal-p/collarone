@@ -58,6 +58,13 @@
 .cl-nav-ondark .cl-burger { background: rgba(244,241,234,0.08); border-color: rgba(244,241,234,0.25); color: var(--paper); }
 @media (max-width: 780px) { .cl-burger { display: inline-flex; } }
 .cl-mobile-menu { display: none; }
+/* Tapping anywhere off the open menu closes it — without this scrim the only
+   way out was finding the burger again (audit finding 36). Sits under the nav
+   (z-index 30) so the menu itself stays live. */
+.cl-nav-scrim { display: none; }
+@media (max-width: 780px) {
+  .cl-nav-scrim { display: block; position: fixed; inset: 0; z-index: 29; background: rgba(10,14,26,0.32); }
+}
 @media (max-width: 780px) {
   .cl-mobile-menu { display: block; background: #fff; border-bottom: 1px solid var(--line);
     box-shadow: var(--shadow-md); padding: 8px 20px 18px; }

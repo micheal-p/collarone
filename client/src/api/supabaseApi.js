@@ -1866,12 +1866,12 @@ export async function supabaseApi(path, opts = {}) {
       ticket_id: seg[2], author_id: p.id, is_platform: Boolean(body.asPlatform), body: body.body.trim(),
     }).select().single();
     if (error) fail(400, error.message);
-    if (!body.asPlatform) {
-      fetch('/api/support-notify', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticketId: seg[2], kind: 'reply' }),
-      }).catch(() => {});
-    }
+    // Both directions get a nudge: a customer reply pings the team, a
+    // Collarone reply pings the customer so they don't have to keep checking.
+    fetch('/api/support-notify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketId: seg[2], kind: body.asPlatform ? 'platform_reply' : 'reply' }),
+    }).catch(() => {});
     return { message: data };
   }
   if (method === 'PATCH' && seg[0] === 'support' && seg[1] === 'tickets' && seg.length === 3) {
@@ -1879,6 +1879,12 @@ export async function supabaseApi(path, opts = {}) {
     if (body.status !== undefined) patch.status = body.status;
     const { data, error } = await supabase.from('support_tickets').update(patch).eq('id', seg[2]).select().single();
     if (error) fail(400, error.message);
+    if (patch.status === 'resolved') {
+      fetch('/api/support-notify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId: seg[2], kind: 'resolved' }),
+      }).catch(() => {});
+    }
     return { ticket: data };
   }
 

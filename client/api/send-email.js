@@ -1,6 +1,8 @@
 // Vercel serverless function — candidate email (ATS Phase 4, channel: email).
 //
-// Sends via Resend from Collarone's domain; the sending identity is
+// Sends through the shared provider-agnostic sender (_lib/email.js:
+// Twilio SendGrid when SENDGRID_API_KEY is set, else Resend) from Collarone's
+// own domain; the sending identity is
 // "<Org name> via Collarone <notify@collarone.app>" with Reply-To set to the
 // org's own contact email, so replies go straight to the company.
 //
@@ -9,8 +11,8 @@
 // the application's candidate (looked up server-side) — the client can only
 // choose subject/body.
 //
-// Env: RESEND_API_KEY (+ optional EMAIL_FROM, default notify@collarone.app).
-// Until the key is set, 'status' reports disabled and the UI hides email.
+// Env: SENDGRID_API_KEY or RESEND_API_KEY (+ optional EMAIL_FROM, default
+// notify@collarone.app). Until a key is set, 'status' reports disabled and the UI hides email.
 //
 //   POST { action: 'status' } → { enabled }
 //   POST { action: 'send', applicationId, subject, body } (Bearer token)
@@ -19,7 +21,6 @@ import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const RESEND_KEY = process.env.RESEND_API_KEY;
 const FROM_ADDR = process.env.EMAIL_FROM || 'notify@collarone.app';
 
 const json = (res, status, obj) => res.status(status).json(obj);
@@ -29,8 +30,9 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { message: 'Method not allowed' });
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
 
-  if (body.action === 'status') return json(res, 200, { enabled: Boolean(RESEND_KEY) });
-  if (!RESEND_KEY) return json(res, 400, { message: 'Email is not switched on yet.' });
+  const { emailEnabled } = await import('./_lib/email.js');
+  if (body.action === 'status') return json(res, 200, { enabled: emailEnabled() });
+  if (!emailEnabled()) return json(res, 400, { message: 'Email is not switched on yet.' });
   if (!SERVICE_KEY) return json(res, 500, { message: 'Server not configured.' });
 
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
@@ -70,22 +72,20 @@ export default async function handler(req, res) {
     <p style="font-size:12px;color:#8A8D95">Sent by ${esc(org?.name || 'the hiring team')} via Collarone.</p>
   </div>`;
 
-  const r = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  try {
+    const { sendMail } = await import('./_lib/email.js');
+    await sendMail({
       // each org sends from its own handle on our domain (handle uniqueness is
       // already guaranteed by the signup availability check); send-only — no
       // mailbox exists behind it, replies flow to the org via Reply-To
       from: `${(org?.name || 'Collarone').replace(/[<>@"]/g, '')} via Collarone <${org?.slug ? `${org.slug}@collarone.app` : FROM_ADDR}>`,
-      to: [candidate.email],
-      ...(site?.contact_email ? { reply_to: site.contact_email } : {}),
+      to: candidate.email,
+      replyTo: site?.contact_email || undefined,
       subject: subject.trim(),
       html,
-      text,
-    }),
-  });
-  const d = await r.json().catch(() => ({}));
-  if (!r.ok) return json(res, 502, { message: d?.message || 'The email could not be sent.' });
+    });
+  } catch (e) {
+    return json(res, 502, { message: e.message || 'The email could not be sent.' });
+  }
   return json(res, 200, { ok: true });
 }

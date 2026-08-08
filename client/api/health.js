@@ -281,7 +281,7 @@ export default async function handler(req, res) {
         // shared sender. Marks messages notified either way so the queue
         // drains — a mention from before the key existed is stale news.
         try {
-          const { emailEnabled: chatMailOn, sendResend: chatSend, wrap: chatWrap, esc: chatEsc, FROM_ADDR: chatFrom } = await import('./_lib/email.js');
+          const { emailEnabled: chatMailOn, sendMail: chatSend, wrap: chatWrap, esc: chatEsc, FROM_ADDR: chatFrom } = await import('./_lib/email.js');
           const { data: pending } = await admin.from('org_chat_messages')
             .select('id, org_id, room, body, mentions, author:profiles!author_id(name)')
             .eq('notified', false).not('mentions', 'eq', '{}').limit(20);
