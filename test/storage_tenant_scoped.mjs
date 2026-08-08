@@ -78,3 +78,32 @@ if (!url) {
 
 if (failures) { console.error(`\nFAILED: ${failures} storage-isolation check(s)`); process.exit(1); }
 console.log('\nStorage is tenant-isolated. ALL PASSED');
+
+// ---- role scoping, not just tenant scoping ---------------------------------
+// Company-only scoping meant any employee could sign a URL for a colleague's
+// warning letter. Reads now go exclusively through /api/doc-download, which
+// checks the file's owning row under the caller's own session.
+{
+  const { readFileSync } = await import('node:fs');
+  const src = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
+  let bad = 0;
+  const scope = src('../supabase/storage_role_scope.sql');
+  if (!/drop policy if exists %I on storage\.objects/.test(scope) || !/_read/.test(scope)) {
+    console.log('✗ storage_role_scope.sql no longer drops the org-wide read policies'); bad++;
+  }
+  const route = src('../client/api/doc-download.js');
+  if (!/PROBES\[bucket\]/.test(route) || !/asUser/.test(route)) {
+    console.log('✗ doc-download.js does not authorise through the caller session'); bad++;
+  }
+  if (/SERVICE_KEY[\s\S]{0,400}PROBES\[bucket\]\(admin/.test(route)) {
+    console.log('✗ doc-download.js probes with the service role — that bypasses the very rules it should enforce'); bad++;
+  }
+  // No client may sign its own URL for a private bucket any more.
+  for (const f of ['../client/src/suites/tasks/taskApi.js', '../client/src/suites/documents/documentsApi.js',
+                   '../client/src/suites/hr/complianceApi.js', '../client/src/suites/hr/lettersApi.js',
+                   '../client/src/suites/hr/lifecycleApi.js']) {
+    if (/createSignedUrl/.test(src(f))) { console.log(`✗ ${f} still signs its own download URL`); bad++; }
+  }
+  if (bad) { console.error(`\nFAILED, ${bad} storage role-scoping gap(s)`); process.exit(1); }
+  console.log('Private files are role-scoped via the authorised route. ALL PASSED');
+}
