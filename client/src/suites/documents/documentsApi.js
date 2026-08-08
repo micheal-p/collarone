@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from '../../api/client.js';
 import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
+import { privateFileUrl } from '../../lib/privateFile.js';
 
 export const getFolders  = () => apiGet('/docfolders').then((d) => d.folders);
 export const createFolder = (body) => apiPost('/docfolders', body).then((d) => d.folder);
@@ -50,9 +51,9 @@ export const uploadFile = async (file, prefix = '') => {
 };
 
 export const getDownloadUrl = async (path) => {
-  const { data, error } = await supabase.storage.from('org-documents').createSignedUrl(path, 3600);
-  if (error) throw new Error(error.message);
-  return data.signedUrl;
+  // Authorised server-side: the bucket policy only knows your company,
+  // not whether this particular file is yours to read.
+  return privateFileUrl('org-documents', path);
 };
 
 export const fmtBytes = (n) => {

@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from '../../api/client.js';
 import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
+import { privateFileUrl } from '../../lib/privateFile.js';
 
 export const getDocuments = (employeeId) => apiGet(`/hr/documents${employeeId ? `?employeeId=${employeeId}` : ''}`).then((d) => d.documents);
 export const createDocument = (body) => apiPost('/hr/documents', body).then((d) => d.document);
@@ -13,9 +14,9 @@ export const uploadDocument = async (employeeId, file) => {
   return path;
 };
 export const getDocumentUrl = async (path) => {
-  const { data, error } = await supabase.storage.from('employee-documents').createSignedUrl(path, 3600);
-  if (error) throw new Error(error.message);
-  return data.signedUrl;
+  // Authorised server-side: the bucket policy only knows your company,
+  // not whether this particular file is yours to read.
+  return privateFileUrl('employee-documents', path);
 };
 
 export const getCases = () => apiGet('/hr/cases').then((d) => d.cases);

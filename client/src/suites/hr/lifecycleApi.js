@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from '../../api/client.js';
 import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
+import { privateFileUrl } from '../../lib/privateFile.js';
 
 export const getStaff = () => apiGet('/staff').then((d) => d.staff);
 
@@ -38,9 +39,9 @@ export const uploadResume = async (candidateId, file) => {
   return path;
 };
 export const getResumeUrl = async (path) => {
-  const { data, error } = await supabase.storage.from('candidate-resumes').createSignedUrl(path, 3600);
-  if (error) throw new Error(error.message);
-  return data.signedUrl;
+  // Authorised server-side: the bucket policy only knows your company,
+  // not whether this particular file is yours to read.
+  return privateFileUrl('candidate-resumes', path);
 };
 
 /* ---- Interviews --------------------------------------------------------------- */

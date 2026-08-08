@@ -1,5 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from '../../api/client.js';
 import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
+import { privateFileUrl } from '../../lib/privateFile.js';
 
 export const getTasks    = ()        => apiGet('/tasks').then((d) => d.tasks);
 export const createTask  = (body)    => apiPost('/tasks', body).then((d) => d.task);
@@ -24,9 +25,9 @@ export const uploadAttachment = async (taskId, file) => {
 
 // Generate a short-lived signed download URL
 export const getDownloadUrl = async (path) => {
-  const { data, error } = await supabase.storage.from('task-attachments').createSignedUrl(path, 3600);
-  if (error) throw new Error(error.message);
-  return data.signedUrl;
+  // Authorised server-side: the bucket policy only knows your company,
+  // not whether this particular file is yours to read.
+  return privateFileUrl('task-attachments', path);
 };
 
 export const PRIORITY = {

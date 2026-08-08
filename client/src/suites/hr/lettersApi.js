@@ -1,6 +1,7 @@
 import { apiGet, apiPost, apiPatch, apiDelete, DEMO } from '../../api/client.js';
 import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
 import { LETTER_TYPES } from './letterheadTemplates.js';
+import { privateFileUrl } from '../../lib/privateFile.js';
 
 export const getLetters = () => apiGet('/hr/letters').then((d) => d.letters);
 export const requestLetter = (body) => apiPost('/hr/letters', body).then((d) => d.letter);
@@ -67,9 +68,9 @@ export const uploadLetter = async (letterId, file) => {
   return path;
 };
 export const getLetterUrl = async (path) => {
-  const { data, error } = await supabase.storage.from('hr-letters').createSignedUrl(path, 3600);
-  if (error) throw new Error(error.message);
-  return data.signedUrl;
+  // Authorised server-side: the bucket policy only knows your company,
+  // not whether this particular file is yours to read.
+  return privateFileUrl('hr-letters', path);
 };
 
 export const LETTER_TYPE = { employment_verification: 'Employment verification', reference: 'Reference letter', other: 'Other' };
