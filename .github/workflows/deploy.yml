@@ -85,6 +85,9 @@ jobs:
       - name: Suite tile colours stay distinct and readable
         run: node test/suite_palette.mjs
 
+      - name: Confirm-by-typing gates accept what they told you to type
+        run: node test/destructive_confirm.mjs
+
       - name: Cross-tenant RLS probe + payroll golden + support read-only (live DB)
         if: env.DATABASE_URL != ''
         run: |
