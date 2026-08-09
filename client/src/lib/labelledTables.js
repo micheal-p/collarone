@@ -65,7 +65,13 @@ export function installLabelledTables() {
   const schedule = () => {
     if (queued) return;
     queued = true;
-    requestAnimationFrame(run);
+    // setTimeout, NOT requestAnimationFrame. rAF is throttled or suspended
+    // whenever the content is not actively painting — a background tab, an
+    // offscreen frame, a phone with the screen off during load — and when it
+    // never fires the labels never appear. Verified: in a frame where rAF was
+    // suspended, this code was correct and completely dead. A timer always
+    // runs, and a frame of delay is invisible for stamping attributes.
+    setTimeout(run, 0);
   };
 
   const start = () => {
