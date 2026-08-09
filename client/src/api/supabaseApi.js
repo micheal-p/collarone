@@ -1038,6 +1038,22 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { actions: data };
   }
+  // Which bank layout this org exports in, and which layouts someone has
+  // checked against their bank's actual template. Absent row = never set, so
+  // fall back to the neutral layout with nothing confirmed.
+  if (head === 'GET /payroll' && seg[1] === 'export-prefs') {
+    const { data, error } = await supabase.from('payroll_export_prefs').select('*').maybeSingle();
+    if (error) fail(400, error.message);
+    return { prefs: data || { default_format_id: 'generic', verified_formats: [] } };
+  }
+  if (method === 'PATCH' && seg[0] === 'payroll' && seg[1] === 'export-prefs') {
+    const { data, error } = await supabase.rpc('set_payroll_export_prefs', {
+      p_default_format_id: body.defaultFormatId,
+      p_verified_formats: body.verifiedFormats,
+    });
+    if (error) fail(400, error.message);
+    return { prefs: data };
+  }
   if (method === 'PATCH' && seg[0] === 'payroll' && seg[1] === 'bankwall' && seg.length === 3) {
     const { data, error } = await supabase.rpc('mark_bank_action', { p_id: seg[2], p_status: body.status });
     if (error) fail(400, error.message);

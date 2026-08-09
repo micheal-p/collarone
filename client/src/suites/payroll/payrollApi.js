@@ -4,6 +4,12 @@ import * as D from '../documents/documentsApi.js';
 export const getBankWall = () => apiGet('/payroll/bankwall').then((d) => d.actions);
 export const markBankAction = (id, status) => apiPatch(`/payroll/bankwall/${id}`, { status }).then((d) => d.action);
 
+// Which layout this org's bank wants, and which layouts a payroll manager has
+// checked against the template their bank actually gave them.
+export const getExportPrefs = () => apiGet('/payroll/export-prefs').then((d) => d.prefs);
+export const setExportPrefs = (defaultFormatId, verifiedFormats) =>
+  apiPatch('/payroll/export-prefs', { defaultFormatId, verifiedFormats }).then((d) => d.prefs);
+
 export const getEmployees = () => apiGet('/payroll/employees').then((d) => d.employees);
 export const setEmployeeState = (employeeId, state) => apiPatch(`/payroll/employees/${employeeId}/state`, { state });
 
@@ -109,27 +115,15 @@ export const generateContractDocument = async ({ employeeId, employeeName, compa
 
 // Client-side bank disbursement export — this app never moves money, it only
 // produces the instruction the partner bank's own payroll wall executes.
-export const exportBankCsv = (run, lines) => {
-  const rows = [
-    ['Account Name', 'Account Number', 'Bank Name', 'Bank Code', 'Amount', 'Narration'],
-    ...lines.map((l) => [
-      l.bank_snapshot?.accountName || l.employee?.name || '',
-      l.bank_snapshot?.accountNumber || '',
-      l.bank_snapshot?.bankName || '',
-      l.bank_snapshot?.bankCode || '',
-      Number(l.net).toFixed(2),
-      `Salary ${MONTHS[run.period_month - 1]} ${run.period_year}`,
-    ]),
-  ];
-  const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `payroll-${run.period_year}-${String(run.period_month).padStart(2, '0')}-disbursement.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-};
+// The disbursement file. Layouts, pre-flight checks and rendering live in
+// bankFormats.js; this just re-exports the download helper so callers keep
+// importing everything payroll-related from one place.
+//
+// The previous exportBankCsv() lived here: one hard-coded column order, its
+// own copy of CSV escaping, and no check that any row would be accepted. It
+// is gone rather than kept as a fallback — two exporters means the untested
+// one eventually gets used on a payday.
+export { downloadFile as downloadBankFile } from './bankFormats.js';
 
 // ---- Statutory remittance schedule -----------------------------------------
 // Turns a run's statutory columns into the compliance to-do: who to pay, how

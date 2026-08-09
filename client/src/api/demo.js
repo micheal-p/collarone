@@ -379,6 +379,7 @@ async function demoApiInner(path, opts = {}) {
       { id: prid('bw'), action_type: 'new_employee', employee: { name: active[2]?.name || 'New staff' }, status: 'pending', created_at: pNow() },
       { id: prid('bw'), action_type: 'account_changed', employee: { name: active[0]?.name || 'Staff' }, status: 'pending', created_at: pNow() },
     ];
+    db.exportPrefs = db.exportPrefs || { default_format_id: 'generic', verified_formats: [] };
 
     if (route === 'GET /payroll/rates') return { deductionRates: db.payrollRates.deductionRates, payeBands: db.payrollRates.payeBands };
     if (method === 'PATCH' && seg[1] === 'rates' && seg.length === 3) {
@@ -473,6 +474,17 @@ async function demoApiInner(path, opts = {}) {
       return { payslips: out };
     }
     if (route === 'GET /payroll/bankwall') return { actions: db.bankWall };
+    // The demo starts on the neutral layout with nothing confirmed, so a
+    // visitor sees the same "check this against your bank's template" gate a
+    // real payroll manager does — that gate IS the feature.
+    if (route === 'GET /payroll/export-prefs') return { prefs: db.exportPrefs };
+    if (route === 'PATCH /payroll/export-prefs') {
+      db.exportPrefs = {
+        default_format_id: body.defaultFormatId ?? db.exportPrefs.default_format_id,
+        verified_formats: body.verifiedFormats ?? db.exportPrefs.verified_formats,
+      };
+      return { prefs: db.exportPrefs };
+    }
     if (method === 'PATCH' && seg[1] === 'bankwall' && seg.length === 3) {
       const a = db.bankWall.find((x) => x.id === seg[2]);
       if (a) { a.status = body.status || a.status; a.actionedBy = meR; a.actioned_at = pNow(); save(); }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as P from './payrollApi.js';
+import BankExportModal from './BankExportModal.jsx';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { EmptyState, Modal, searchMatcher, useConfirm, useToast } from '../../components/ui.jsx';
 import CoachTour, { useCoachTour } from '../../components/CoachTour.jsx';
@@ -433,6 +434,7 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
     catch (e) { flash(e.message, true); setBusy(false); }
   };
 
+  const [exporting, setExporting] = useState(false);
   const st = P.RUN_STATUS[run.status];
   const editable = isPayrollManager && (run.status === 'draft' || run.status === 'review');
   const missingBank = lines?.filter((l) => !l.bank_snapshot?.accountNumber) || [];
@@ -465,7 +467,7 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
             <button className="btn btn-primary" disabled={busy} onClick={disburseRun}>Mark disbursed</button>
           )}
           {isPayrollManager && (run.status === 'approved' || run.status === 'released' || run.status === 'disbursed') && lines?.length > 0 && (
-            <button className="btn btn-ghost" onClick={() => P.exportBankCsv(run, lines)}>{I.download} Export bank CSV</button>
+            <button className="btn btn-ghost" onClick={() => setExporting(true)}>{I.download} Send to the bank</button>
           )}
           {isPayrollManager && run.status !== 'draft' && run.status !== 'disbursed' && (
             <button className="btn btn-ghost" disabled={busy} onClick={reopenRun}>Reopen</button>
@@ -532,6 +534,9 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
         </div>
       )}
       {confirmNode}
+      {exporting && (
+        <BankExportModal run={run} lines={lines || []} flash={flash} onClose={() => setExporting(false)} />
+      )}
     </div>
   );
 }
@@ -585,12 +590,16 @@ function BankWallTab({ flash }) {
 
   // The wall hands the liaison the actual thing the bank needs — the same
   // schedule the run-detail export produces, one click from the queue.
+  // The wall opens the same export screen the run detail does, rather than
+  // downloading blind — the pre-flight checks matter most here, because this
+  // is the one-click path a liaison uses on payday without opening the run.
   const [downloading, setDownloading] = useState(null);
-  const downloadSchedule = async (a) => {
+  const [exportFor, setExportFor] = useState(null);
+  const openExport = async (a) => {
     setDownloading(a.id);
     try {
       const lines = await P.getRunLines(a.run.id);
-      P.exportBankCsv(a.run, lines);
+      setExportFor({ run: a.run, lines });
     } catch (e) { flash(e.message, true); } finally { setDownloading(null); }
   };
 
@@ -628,8 +637,8 @@ function BankWallTab({ flash }) {
                   </td>
                   <td style={{ display:'flex', gap:8, alignItems:'center' }}>
                     {a.action_type === 'run_approved' && a.run?.id && (
-                      <button className="iconbtn" disabled={downloading === a.id} onClick={() => downloadSchedule(a)}>
-                        {downloading === a.id ? 'Preparing…' : 'Download bank schedule'}
+                      <button className="iconbtn" disabled={downloading === a.id} onClick={() => openExport(a)}>
+                        {downloading === a.id ? 'Preparing…' : 'Send to the bank'}
                       </button>
                     )}
                     {a.status === 'pending'
@@ -641,6 +650,9 @@ function BankWallTab({ flash }) {
             </tbody>
           </table>
         </div>
+      )}
+      {exportFor && (
+        <BankExportModal run={exportFor.run} lines={exportFor.lines} flash={flash} onClose={() => setExportFor(null)} />
       )}
     </>
   );

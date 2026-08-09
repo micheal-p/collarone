@@ -88,6 +88,9 @@ jobs:
       - name: Confirm-by-typing gates accept what they told you to type
         run: node test/destructive_confirm.mjs
 
+      - name: Bank disbursement files are byte-for-byte what we pinned
+        run: node test/bank_export_formats.mjs
+
       - name: Cross-tenant RLS probe + payroll golden + support read-only (live DB)
         if: env.DATABASE_URL != ''
         run: |
