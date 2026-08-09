@@ -169,7 +169,12 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
     const locked = suites.filter((s) => s.status === 'live' && !s.granted).length;
     setUpsell((u) => ({ ...u, locked }));
     // Both are nice-to-have: a failure here must never disturb the sidebar.
-    apiGet('/billing/balance').then((d) => setUpsell((u) => ({ ...u, credits: d.balance ?? 0 })), () => {});
+    // Swallowing this hid a real failure once already: the stat simply never
+    // appeared and nothing said why. Still non-fatal, but now it says so.
+    apiGet('/billing/balance').then(
+      (d) => setUpsell((u) => ({ ...u, credits: Number(d.balance ?? 0) })),
+      (e) => { console.warn('[rail] credit balance unavailable:', e.message); },
+    );
     apiGet('/users').then(
       (d) => setUpsell((u) => ({ ...u, staff: (d.users || []).filter((x) => x.status === 'active').length })),
       () => {},
