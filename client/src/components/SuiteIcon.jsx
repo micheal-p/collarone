@@ -7,7 +7,16 @@ const PATHS = {
   laptop: <><rect x="4" y="5" width="16" height="10" rx="1.5" /><path d="M2.5 19h19l-1.5-3.5h-16z" /></>,
   cart: <><circle cx="9.5" cy="19" r="1.4" /><circle cx="17" cy="19" r="1.4" /><path d="M3 4h2l2 11h11l2-8H6" /></>,
   box: <><path d="M12 3l8 4.2v9.6L12 21l-8-4.2V7.2z" /><path d="M4 7.2l8 4.2 8-4.2M12 11.4V21" /></>,
-  coins: <><ellipse cx="9" cy="7" rx="5.5" ry="2.6" /><path d="M3.5 7v5c0 1.4 2.5 2.6 5.5 2.6s5.5-1.2 5.5-2.6V7" /><path d="M14.5 12.5c2.6.2 5 1.3 5 2.8 0 1.4-2.5 2.6-5.5 2.6-1.4 0-2.7-.3-3.6-.7" /></>,
+  // Finance. Was a small lopsided cylinder with a second coin drawn as a broken
+  // arc trailing off it, which at 26px read as a stray squiggle rather than a
+  // coin. A plain stacked-cylinder replacement was legible but is the universal
+  // DATABASE icon — wrong meaning on the Finance tile. A naira mark on a coin
+  // is unambiguous at every size and says what the suite is about in a product
+  // whose prices, payslips and invoices are all in naira.
+  //
+  // The one trade-off: it is currency-specific. Revisit if Collarone ever sells
+  // outside Nigeria, since only payroll is country-locked today.
+  coins: <><circle cx="12" cy="12" r="8.5" /><path d="M9 16V8l6 8V8" /><path d="M8 11h8M8 13.5h8" /></>,
   // The card marks were drawn twice: three zero-length segments (M6.2 8h0),
   // which round line caps turn into dots, sitting on top of three short lines
   // covering the same spots. At tile size that read as uneven smudges rather
@@ -19,7 +28,10 @@ const PATHS = {
   home: <><path d="M4 10.5L12 4l8 6.5" /><path d="M6 9.5V20h12V9.5" /><path d="M10 20v-5h4v5" /></>,
   shield: <><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z" /><path d="M9 12l2 2 4-4" /></>,
   lock: <><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
-  building: <><rect x="3" y="8" width="18" height="13" rx="1.5" /><path d="M8 21V8M16 21V8M3 13h18M3 17h18" /><path d="M9 4h6v4H9z" /></>,
+  // Two full-width verticals crossing two full-width horizontals made a 3x3
+  // mesh that read as a spreadsheet, not a building. Windows are separate
+  // marks now, and a door at the base gives it a ground floor.
+  building: <><rect x="4" y="7" width="16" height="14" rx="1.5" /><path d="M9 4h6v3" /><path d="M8 11h3M13 11h3M8 15h3M13 15h3" /><path d="M10.5 21v-3h3v3" /></>,
   wallet: <><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5h11A2.5 2.5 0 0 1 19 7.5V8H5.5A2.5 2.5 0 0 1 3 5.5" /><rect x="3" y="8" width="18" height="11" rx="2" /><circle cx="16" cy="13.5" r="1.4" /></>,
   clock: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3.2 2" /></>,
   heart: <><path d="M12 20s-7.5-4.6-9.7-9.3C.7 6.9 3 3.6 6.4 3.6c2 0 3.5 1.2 5.6 3.8 2.1-2.6 3.6-3.8 5.6-3.8 3.4 0 5.7 3.3 4.1 7.1C19.5 15.4 12 20 12 20z" /></>,
