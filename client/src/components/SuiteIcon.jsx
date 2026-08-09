@@ -8,7 +8,12 @@ const PATHS = {
   cart: <><circle cx="9.5" cy="19" r="1.4" /><circle cx="17" cy="19" r="1.4" /><path d="M3 4h2l2 11h11l2-8H6" /></>,
   box: <><path d="M12 3l8 4.2v9.6L12 21l-8-4.2V7.2z" /><path d="M4 7.2l8 4.2 8-4.2M12 11.4V21" /></>,
   coins: <><ellipse cx="9" cy="7" rx="5.5" ry="2.6" /><path d="M3.5 7v5c0 1.4 2.5 2.6 5.5 2.6s5.5-1.2 5.5-2.6V7" /><path d="M14.5 12.5c2.6.2 5 1.3 5 2.8 0 1.4-2.5 2.6-5.5 2.6-1.4 0-2.7-.3-3.6-.7" /></>,
-  kanban: <><rect x="3.5" y="4" width="17" height="16" rx="2" /><path d="M9 4v16M15 4v16M6.2 8h0M12 8h0M12 12h0" /><path d="M5.5 8h1.5M11 8h2M11 12h2" /></>,
+  // The card marks were drawn twice: three zero-length segments (M6.2 8h0),
+  // which round line caps turn into dots, sitting on top of three short lines
+  // covering the same spots. At tile size that read as uneven smudges rather
+  // than cards. One mark per card, one card per column, plus a second in the
+  // first column so the board looks in progress.
+  kanban: <><rect x="3.5" y="4" width="17" height="16" rx="2" /><path d="M9 4v16M15 4v16" /><path d="M5.5 8h2M11 8h2M16.5 8h2M5.5 12h2" /></>,
   doc: <><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4M9 12h6M9 16h6" /></>,
   grid: <><rect x="3.5" y="3.5" width="7" height="7" rx="1.4" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.4" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.4" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.4" /></>,
   home: <><path d="M4 10.5L12 4l8 6.5" /><path d="M6 9.5V20h12V9.5" /><path d="M10 20v-5h4v5" /></>,
