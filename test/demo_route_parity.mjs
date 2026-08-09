@@ -41,6 +41,9 @@ const REQUIRED = [
   { call: 'GET /finance/ledger/trial-balance', needle: "seg[2] === 'trial-balance'" },
   { call: 'GET /finance/ledger/pnl', needle: "seg[2] === 'pnl'" },
   { call: 'GET /finance/ledger/balance-sheet', needle: "seg[2] === 'balance-sheet'" },
+  // Read by the sidebar footer on every page in the app.
+  { call: 'GET /billing/balance', needle: "route === 'GET /billing/balance'" },
+  { call: 'GET /billing/transactions', needle: "route === 'GET /billing/transactions'" },
 ];
 
 let failures = 0;

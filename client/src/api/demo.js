@@ -1623,6 +1623,11 @@ async function demoApiInner(path, opts = {}) {
   // "no runs yet" state instead of a route-missing toast.
   // Billing renewals — demo has no real subscription to extend
   if (route === 'POST /billing/renew') return fail(400, 'Renewals are disabled in demo mode.');
+  // The sidebar footer reads these on every page. Missing, they threw into a
+  // catch and the stat just never appeared — the exact silent-gap class the
+  // route-parity test exists to prevent.
+  if (route === 'GET /billing/balance') return { balance: 24 };
+  if (route === 'GET /billing/transactions') return { transactions: [] };
 
   // storefront funnel — demo-safe stubs so a prospect clicking through a
   // demo store gets believable behaviour instead of a 404
