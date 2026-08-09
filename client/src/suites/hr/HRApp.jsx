@@ -3,6 +3,7 @@ import ProductTour, { tourSeen } from '../../components/ProductTour.jsx';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { apiGet } from '../../api/client.js';
 import { useToast, Modal, EmptyState, searchMatcher } from '../../components/ui.jsx';
+import { toCsv, downloadCsv, csvDate, csvStamp } from '../../lib/csv.js';
 import * as H from './hrApi.js';
 import RecruitingApp, { MyInterviewsView } from './RecruitingApp.jsx';
 import EmployeeRecord from './EmployeeRecord.jsx';
@@ -229,6 +230,25 @@ export default function HRApp({ access }) {
     return list;
   }, [staff, q, deptFilter]);
 
+  // Manager-only columns: a non-manager's directory payload deliberately has no
+  // personal data (see the /hr/staff handler), so exporting it would produce a
+  // file of empty columns and look broken.
+  const exportStaffCsv = () => {
+    const headers = isHrManager
+      ? ['Name', 'Email', 'Job title', 'Department', 'Manager', 'Employment type', 'Start date', 'Phone', 'State of residence', 'Status']
+      : ['Name', 'Email', 'Job title', 'Department', 'Manager', 'Employment type', 'Start date', 'Status'];
+    const rows = view.map((s2) => {
+      const base = [s2.name, s2.email, s2.jobTitle || '', s2.deptName || '', s2.manager?.name || '',
+        s2.employmentType || '', csvDate(s2.startDate)];
+      const tail = [s2.status || ''];
+      return isHrManager
+        ? [...base, s2.phone || '', s2.stateOfResidence || '', ...tail]
+        : [...base, ...tail];
+    });
+    downloadCsv(toCsv(headers, rows), `staff-${csvStamp()}.csv`);
+    flash(`${rows.length} staff exported.`);
+  };
+
   const onSaved = (updated) => {
     const merge = (s) => ({ ...s, ...updated, deptName: departments.find((d) => d.id === updated.departmentId)?.name || s.deptName, manager: staff.find((m) => m.id === updated.managerId) ? { id: updated.managerId, name: staff.find((m) => m.id === updated.managerId).name } : null });
     setStaff((l) => l.map((s) => (s.id === updated.id ? merge(s) : s)));
@@ -315,6 +335,13 @@ export default function HRApp({ access }) {
         {TABS.map((t) => (
           <button key={t.key} data-tour={`hr-tab-${t.key}`} className={`lv-tab ${tab === t.key && !recordEmp ? 'active' : ''}`} onClick={() => { setRecordEmp(null); setTab(t.key); }}>{t.label}</button>
         ))}
+        {/* Auditors, banks and pension administrators all ask for the staff
+            schedule as a spreadsheet. Without this the answer was "you can't",
+            and the manager retyped it by hand. Exports what is on screen, so
+            a filtered or searched list exports as filtered. */}
+        {tab === 'directory' && !recordEmp && view.length > 0 && (
+          <button className="btn btn-ghost lv-apply" onClick={exportStaffCsv}>Export CSV</button>
+        )}
       </div>
 
       {loading ? <div className="suite-loading"><div className="boot-spinner" /></div> : recordEmp ? (
