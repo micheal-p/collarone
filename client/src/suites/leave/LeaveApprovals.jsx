@@ -62,7 +62,62 @@ export default function LeaveApprovals({ flash }) {
         </div>
         <span className="count">{rows.length} request{rows.length === 1 ? '' : 's'}</span>
       </div>
-      <div className="table-wrap">
+      {/* Phones get cards, not a seven-column table.
+          chatKnowledge sells "approve leave from your phone", and the way to do
+          it was a sideways scroll with the Approve button parked off-screen to
+          the right — so the one action the screen exists for was the hardest
+          thing on it. Same data, stacked, decision buttons full-width and
+          thumb-reachable. The table is unchanged above 720px. */}
+      <div className="lv-appr-cards">
+        {loading && <div className="muted" style={{ padding: 16 }}>Loading…</div>}
+        {!loading && rows.length === 0 && (
+          <EmptyState
+            title="No requests"
+            hint={filter === 'all' ? 'No leave requests have been submitted yet.' : `There are no ${filter} requests right now.`}
+          />
+        )}
+        {!loading && rows.map((r) => {
+          const c = conflictsFor(r);
+          return (
+            <div key={r.id} className="lv-appr-card">
+              <div className="lv-appr-head">
+                <span className="avatar sm">{initials(r.applicant?.name)}</span>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div className="cu-name">{r.applicant?.name}</div>
+                  <div className="cu-mail">{r.applicant?.department || r.applicant?.email}</div>
+                </div>
+                <span className={`lv-status ${STATUS[r.status]}`}>{r.status[0].toUpperCase() + r.status.slice(1)}</span>
+              </div>
+              <div className="lv-appr-row">
+                <span className="lv-dot" style={{ background: r.leave_types?.color }} />
+                <strong>{r.leave_types?.name}</strong>
+                <span className="muted">· {r.working_days} day{Number(r.working_days) === 1 ? '' : 's'}</span>
+              </div>
+              <div className="lv-appr-row">
+                {fmt(r.start_date)}{r.end_date !== r.start_date && ` – ${fmt(r.end_date)}`}{r.half_day && ' ½'}
+              </div>
+              {r.reason && <div className="lv-appr-row muted">{r.reason}</div>}
+              {c.length > 0 && (
+                <div className="lv-conflict">
+                  {c.length === 1 ? `${c[0].person.split(' ')[0]} is` : `${c.length} from ${r.applicant.department} are`} also away then
+                </div>
+              )}
+              {r.status === 'pending' ? (
+                <div className="lv-appr-actions">
+                  <button className="btn btn-primary" disabled={busyId === r.id} onClick={() => decide(r, 'approved')}>Approve</button>
+                  <button className="btn btn-danger" disabled={busyId === r.id} onClick={() => decide(r, 'rejected')}>Decline</button>
+                </div>
+              ) : (
+                r.decision_comment
+                  ? <div className="lv-appr-row muted" style={{ fontStyle: 'italic' }}>“{r.decision_comment}”</div>
+                  : null
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="table-wrap lv-appr-table">
         <table className="table">
           <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Reason</th><th>Status</th><th className="ta-r">Action</th></tr></thead>
           <tbody>
