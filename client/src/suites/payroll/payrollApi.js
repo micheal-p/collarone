@@ -189,3 +189,18 @@ export const exportRemittanceCsv = (run, lines) => {
   a.click();
   URL.revokeObjectURL(url);
 };
+
+// ---- one-off earnings (bonus, arrears, commission, reimbursement) ---------
+// Only on a draft run — adding a bonus to a run that has been paid would
+// change a payslip the employee has already seen.
+export const getEarnings = (runId) => apiGet(`/payroll/runs/${runId}/earnings`).then((d) => d.earnings);
+export const addEarning = (runId, body) => apiPost(`/payroll/runs/${runId}/earnings`, body).then((d) => d.earning);
+export const removeEarning = (runId, id) => apiDelete(`/payroll/runs/${runId}/earnings/${id}`);
+
+export const EARNING_KINDS = [
+  { key: 'bonus', label: 'Bonus', taxable: true },
+  { key: 'commission', label: 'Commission', taxable: true },
+  { key: 'arrears', label: 'Arrears (backdated pay)', taxable: true },
+  { key: 'reimbursement', label: 'Reimbursement', taxable: false },
+  { key: 'other', label: 'Other', taxable: true },
+];

@@ -955,6 +955,37 @@ export async function supabaseApi(path, opts = {}) {
     if (!removed?.length) fail(403, 'That could not be deleted. It may already be gone, or you may not have permission to remove it.');
     return { ok: true };
   }
+  // ---- one-off earnings on a draft run ----------------------------------
+  if (seg[0] === 'payroll' && seg[1] === 'runs' && seg[3] === 'earnings') {
+    if (method === 'GET') {
+      const { data, error } = await supabase.from('payroll_line_earnings')
+        .select('*, employee:profiles!employee_id(id,name)').eq('run_id', seg[2]).order('created_at');
+      if (error) fail(400, error.message);
+      return { earnings: data || [] };
+    }
+    if (method === 'POST') {
+      if (!body.employeeId || !(Number(body.amount) > 0)) fail(400, 'Choose a person and an amount above zero.');
+      const kind = ['bonus', 'arrears', 'commission', 'reimbursement', 'other'].includes(body.kind) ? body.kind : 'other';
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data, error } = await supabase.from('payroll_line_earnings').insert({
+        org_id: await myOrgId(), run_id: seg[2], employee_id: body.employeeId,
+        kind, label: (body.label || '').slice(0, 120), amount: Number(body.amount),
+        // A reimbursement repays money already spent, so it is not income.
+        // Everything else is earned pay and must be taxed.
+        taxable: body.taxable !== undefined ? Boolean(body.taxable) : kind !== 'reimbursement',
+        created_by: user.id,
+      }).select('*, employee:profiles!employee_id(id,name)').single();
+      if (error) fail(400, error.message);
+      return { earning: data };
+    }
+    if (method === 'DELETE' && seg[4]) {
+      const { data: removed, error } = await supabase.from('payroll_line_earnings').delete().eq('id', seg[4]).select('id');
+      if (error) fail(400, error.message);
+      if (!removed?.length) fail(403, 'That could not be removed. The run may no longer be a draft.');
+      return { ok: true };
+    }
+  }
+
   if (head === 'GET /payroll' && seg[1] === 'mypayslips') {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('payroll_lines')

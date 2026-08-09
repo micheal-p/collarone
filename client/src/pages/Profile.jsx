@@ -245,15 +245,67 @@ function MyPayslips() {
             <span style={{ fontSize: 13.5, fontWeight: 600 }}>{P.money(p.net)}</span>
             <button className="btn btn-ghost" style={{ fontSize: 12, padding: '3px 12px' }} onClick={() => setPrintSlip(p)}>View / print</button>
           </div>
-          {open === p.id && (
-            <div style={{ fontSize: 12.5, color: 'var(--text-2)', marginTop: 8, lineHeight: 1.8 }}>
-              Gross {P.money(p.gross)} · Pension {P.money(p.pension_employee)} · NHF {P.money(p.nhf)} · PAYE {P.money(p.paye)}
-              {p.other_deductions > 0 && <> · Other deductions {P.money(p.other_deductions)}</>}
-            </div>
-          )}
+          {open === p.id && <PayComputation slip={p} />}
         </div>
       ))}
       {printSlip && <PayslipPrint slip={printSlip} user={user} onClose={() => setPrintSlip(null)} />}
+    </div>
+  );
+}
+
+// "How this was computed" — the line-by-line walk from gross to net.
+//
+// A payslip that states a number without showing the arithmetic invites the
+// question everyone actually asks: "why is my tax that much?". The answer used
+// to be a one-line summary that restated the figures without explaining any of
+// them, so the question came to HR instead. Every value here comes off the
+// payslip row itself; nothing is recalculated in the browser, so this can never
+// disagree with what was paid.
+function PayComputation({ slip }) {
+  const n = (v) => Number(v || 0);
+  const base = n(slip.basic) + n(slip.housing) + n(slip.transport) + n(slip.other_allowances);
+  const days = slip.days_worked && slip.days_in_month && n(slip.days_worked) < n(slip.days_in_month);
+  const line = (label, value, opts = {}) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '3px 0',
+      fontWeight: opts.strong ? 700 : 400, color: opts.muted ? 'var(--text-3)' : undefined }}>
+      <span>{label}</span>
+      <span style={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+        {opts.minus ? '− ' : ''}{P.money(Math.abs(n(value)))}
+      </span>
+    </div>
+  );
+  return (
+    <div style={{ fontSize: 12.5, color: 'var(--text-2)', marginTop: 10, lineHeight: 1.6,
+      background: 'var(--surface-2, #faf9f7)', borderRadius: 10, padding: '10px 12px' }}>
+      <div style={{ fontWeight: 700, fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>
+        How this was worked out
+      </div>
+      {line('Basic', slip.basic)}
+      {n(slip.housing) > 0 && line('Housing', slip.housing)}
+      {n(slip.transport) > 0 && line('Transport', slip.transport)}
+      {n(slip.other_allowances) > 0 && line('Other allowances', slip.other_allowances)}
+      {n(slip.taxable_earnings) > 0 && line('Bonus / commission / arrears', slip.taxable_earnings)}
+      {line('Gross pay', slip.gross, { strong: true })}
+      {days && (
+        <div style={{ fontSize: 11.5, color: 'var(--text-3)', padding: '2px 0 6px' }}>
+          Prorated for {slip.days_worked} of {slip.days_in_month} days — you were not employed for the whole month.
+        </div>
+      )}
+      <div style={{ borderTop: '1px solid var(--line)', margin: '6px 0' }} />
+      {line('Pension (your 8%)', slip.pension_employee, { minus: true })}
+      {n(slip.nhf) > 0 && line('NHF (2.5% of basic)', slip.nhf, { minus: true })}
+      {line('PAYE tax', slip.paye, { minus: true })}
+      {n(slip.loan_deductions) > 0 && line('Loan / advance repayment', slip.loan_deductions, { minus: true })}
+      {n(slip.manual_deductions) > 0 && line('Other deductions', slip.manual_deductions, { minus: true })}
+      {n(slip.late_deduction) > 0 && line('Lateness', slip.late_deduction, { minus: true })}
+      {n(slip.nontaxable_earnings) > 0 && line('Reimbursement (not taxed)', slip.nontaxable_earnings)}
+      <div style={{ borderTop: '1px solid var(--line)', margin: '6px 0' }} />
+      {line('Take-home', slip.net, { strong: true })}
+      <p style={{ fontSize: 11, color: 'var(--text-3)', margin: '8px 0 0', lineHeight: 1.5 }}>
+        PAYE is worked out on your yearly pay under the 2026 Tax Act — your salary is annualised, the
+        relief and your pension and NHF are taken off, the tax bands are applied, and the result is
+        divided by twelve. That is why it is not a flat percentage of this month.
+      </p>
     </div>
   );
 }

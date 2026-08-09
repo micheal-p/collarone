@@ -62,6 +62,7 @@ const REQUIRED = [
   // Documents is sold on e-signing; neither request nor sign worked.
   { call: 'GET/POST /documents/:id/signatures', needle: "seg[0] === 'documents' && seg[2] === 'signatures'" },
   { call: 'POST /signatures/:id/sign', needle: "seg[0] === 'signatures' && seg[2] === 'sign'" },
+  { call: 'GET/POST/DELETE /payroll/runs/:id/earnings', needle: "seg[1] === 'runs' && seg[3] === 'earnings'" },
 ];
 
 let failures = 0;

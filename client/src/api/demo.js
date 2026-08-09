@@ -445,6 +445,24 @@ async function demoApiInner(path, opts = {}) {
       }
       fail(404, 'Line not found');
     }
+    // One-off earnings on a draft run — kept demo-local.
+    if (seg[0] === 'payroll' && seg[1] === 'runs' && seg[3] === 'earnings') {
+      db.payrollEarnings = db.payrollEarnings || {};
+      const list = db.payrollEarnings[seg[2]] = db.payrollEarnings[seg[2]] || [];
+      if (method === 'POST') {
+        const kind = body.kind || 'other';
+        const u = db.users.find((x) => x.id === body.employeeId);
+        const e = { id: 'pe' + Math.random().toString(36).slice(2, 7), run_id: seg[2], employee_id: body.employeeId,
+          employee: u ? { id: u.id, name: u.name } : null, kind, label: body.label || '',
+          amount: Number(body.amount) || 0, taxable: body.taxable !== undefined ? !!body.taxable : kind !== 'reimbursement',
+          created_at: new Date().toISOString() };
+        list.unshift(e); save(); return { earning: e };
+      }
+      if (method === 'DELETE' && seg[4]) {
+        db.payrollEarnings[seg[2]] = list.filter((x) => x.id !== seg[4]); save(); return { ok: true };
+      }
+      return { earnings: list };
+    }
     if (route === 'GET /payroll/mypayslips') {
       const out = [];
       for (const r of db.payrollRuns.filter((x) => x.released_at)) {
