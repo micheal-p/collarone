@@ -8,6 +8,9 @@ on:
       attempt:
         description: 'Auto-reroll attempt counter (leave as 1 for manual runs)'
         default: '1'
+      override_freeze:
+        description: 'Ship during payroll week (25th to month end). Only for fixes that cannot wait.'
+        default: 'false'
 
 concurrency:
   group: production-deploy
@@ -104,8 +107,60 @@ jobs:
           DB_URL="$DATABASE_URL" node test/definer_org_scope.mjs
           DB_URL="$DATABASE_URL" node test/migrations_rerunnable.mjs
 
+  # ---- payroll week ---------------------------------------------------------
+  # Nigerian salaries are paid at the end of the month, and the days around
+  # that are when payroll is generated, approved and handed to the bank. A
+  # deploy that breaks something on the 27th does not cost a page view, it
+  # costs somebody their salary arriving on time — and it lands on the days
+  # when the people who could fix it are busiest.
+  #
+  # Not a hard block: an override exists, because a security fix during payroll
+  # week must still ship. It is a speed bump that makes shipping during that
+  # window a decision somebody made on purpose.
+  payroll-freeze:
+    runs-on: ubuntu-latest
+    outputs:
+      frozen: ${{ steps.check.outputs.frozen }}
+    steps:
+      - id: check
+        env:
+          OVERRIDE: ${{ github.event.inputs.override_freeze || 'false' }}
+        run: |
+          # Lagos, not UTC. On the 25th at 23:30 WAT it is still the 25th here
+          # and already the 25th in UTC, but at 00:30 WAT on the 26th UTC still
+          # reads the 25th — the window has to follow the working day of the
+          # people running payroll.
+          DAY=$(TZ=Africa/Lagos date +%-d)
+          LAST=$(TZ=Africa/Lagos date -d "$(TZ=Africa/Lagos date +%Y-%m-01) +1 month -1 day" +%-d)
+          echo "Lagos day-of-month: $DAY (month has $LAST days)"
+          if [ "$OVERRIDE" = "true" ]; then
+            echo "Override set — shipping during payroll week deliberately."
+            echo "frozen=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # From the 25th to the end of the month.
+          if [ "$DAY" -ge 25 ]; then
+            echo "::warning::Payroll week (day $DAY). Deploy is frozen."
+            # A skipped job does not fail the workflow, so without this a push
+            # during payroll week would show a green tick and quietly not ship.
+            # The summary is the first thing shown on the run page.
+            {
+              echo "## Not deployed — payroll week"
+              echo
+              echo "It is the **${DAY}th** in Lagos. Deploys are frozen from the 25th to the end of the month,"
+              echo "because that is when payroll is generated, approved and handed to the bank."
+              echo
+              echo "**This commit is on main but is NOT running in production.**"
+              echo
+              echo "To ship it anyway: Actions → Deploy to VPS → Run workflow → set \`override_freeze\` to \`true\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "frozen=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "frozen=false" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy:
-    needs: [typecheck, tests]
+    needs: [typecheck, tests, payroll-freeze]
+    if: ${{ needs.payroll-freeze.outputs.frozen != 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

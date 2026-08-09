@@ -14,6 +14,32 @@ REMOTE_USER="${REMOTE_USER:-root}"
 APP_DIR="${APP_DIR:-/opt/collarone/app}"
 SSH="ssh ${REMOTE_USER}@${REMOTE_HOST}"
 
+# ---- snapshot the running app, so a bad deploy can be undone --------------
+# rsync --delete below overwrites the live directory in place. Until now a
+# build that started but did not work — a broken bundle, a service that exits
+# on boot, a migration the code needs that has not been applied — stayed
+# broken until someone noticed and pushed a fix, which is another full deploy
+# cycle on a site that is already down.
+#
+# --link-dest hardlinks unchanged files instead of copying them, so this
+# snapshot of a directory containing node_modules takes about a second and
+# almost no disk. node_modules is included deliberately: a rollback has to
+# restore a state that RUNS, and re-running npm ci during an outage is the
+# slowest possible moment to do it.
+echo "==> Snapshotting the current deployment for rollback"
+$SSH bash -s <<SNAP
+set -uo pipefail
+if [ -d "${APP_DIR}" ]; then
+  rm -rf "${APP_DIR}.rollback.tmp"
+  rsync -a --delete --link-dest="${APP_DIR}/" "${APP_DIR}/" "${APP_DIR}.rollback.tmp/" 2>/dev/null || true
+  rm -rf "${APP_DIR}.rollback"
+  mv "${APP_DIR}.rollback.tmp" "${APP_DIR}.rollback" 2>/dev/null || true
+  echo "snapshot: \$(du -sh --apparent-size "${APP_DIR}.rollback" 2>/dev/null | cut -f1 || echo '?')"
+else
+  echo "snapshot: no existing deployment, nothing to roll back to"
+fi
+SNAP
+
 echo "==> Syncing code to ${REMOTE_HOST}:${APP_DIR}"
 rsync -az --delete \
   --exclude '.git' \
@@ -224,5 +250,148 @@ set -e   # errexit back on for the rest of the script
 
 echo "Deployed \$(git -C "${APP_DIR}" rev-parse --short HEAD 2>/dev/null || echo 'n/a') at \$(date -u +%FT%TZ)"
 EOF
+
+# ---- did it actually come up? ----------------------------------------------
+# A deploy that finishes is not a deploy that works. This asks the box the same
+# question an outside monitor would, and puts the previous version back if the
+# answer is wrong — while the operator is still here, rather than after a
+# customer finds it.
+#
+# The check runs ON the server against localhost, so it tests the application
+# rather than DNS, Cloudflare or nginx, and cannot be fooled by an edge cache
+# still serving the old page.
+# ---- install the nightly offsite backup -------------------------------------
+echo "==> Installing the offsite database backup"
+scp -q deploy/backup-db.sh "${REMOTE_USER}@${REMOTE_HOST}:/usr/local/bin/collarone-backup-db" 2>/dev/null || \
+  echo "    (could not copy the backup script; continuing — the deploy matters more)"
+$SSH "APP_DIR='${APP_DIR}' bash -s" <<'BACKUP'
+set -uo pipefail
+: "${APP_DIR:=/opt/collarone/app}"
+chmod 700 /usr/local/bin/collarone-backup-db 2>/dev/null || true
+
+# A systemd timer rather than cron: it survives a reboot mid-window
+# (Persistent=true runs a missed backup on the next boot), and the run's output
+# lands in the journal instead of a mail spool nobody reads.
+cat > /etc/systemd/system/collarone-backup.service <<'UNIT'
+[Unit]
+Description=Collarone offsite database backup
+After=network-online.target
+
+[Service]
+Type=oneshot
+# EnvironmentFile supplies BACKUP_DB_URL. The dash means "carry on if the file
+# is missing" — the script itself reports the missing configuration clearly.
+EnvironmentFile=-/opt/collarone/app/.env
+ExecStart=/usr/local/bin/collarone-backup-db
+UNIT
+
+cat > /etc/systemd/system/collarone-backup.timer <<'UNIT'
+[Unit]
+Description=Nightly Collarone database backup
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+# Every VPS on the internet backing up at exactly 02:30 is a thundering herd
+# against the same pooler; a few minutes of jitter costs nothing.
+RandomizedDelaySec=900
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+UNIT
+
+systemctl daemon-reload 2>/dev/null || true
+systemctl enable --now collarone-backup.timer 2>/dev/null || true
+if grep -q '^BACKUP_DB_URL=' "${APP_DIR}/.env" 2>/dev/null; then
+  echo "backup: timer installed, BACKUP_DB_URL present"
+else
+  echo "backup: timer installed, but BACKUP_DB_URL is NOT set in .env — no dump will be taken"
+fi
+BACKUP
+
+echo "==> Health-gating the new build"
+$SSH "APP_DIR='${APP_DIR}' bash -s" <<'GATE'
+set -uo pipefail
+: "${APP_DIR:=/opt/collarone/app}"
+# server/index.js defaults to 4000, not 3000. Getting this wrong would mean
+# the gate never reaches a perfectly healthy service and rolls back a good
+# deploy every time — so the port is discovered rather than assumed.
+PORT="$(grep -oP '^PORT=\K[0-9]+' "$APP_DIR/.env" 2>/dev/null || true)"
+if [ -z "${PORT:-}" ]; then
+  for candidate in 4000 3000 8080; do
+    if curl -s -o /dev/null --max-time 4 "http://127.0.0.1:${candidate}/api/health" 2>/dev/null; then
+      PORT="$candidate"; break
+    fi
+  done
+fi
+PORT="${PORT:-4000}"
+echo "health gate: probing 127.0.0.1:${PORT}"
+WANT="$(cat "$APP_DIR/BUILD_ID" 2>/dev/null || echo unknown)"
+
+healthy() {
+  body=$(curl -s --max-time 8 "http://127.0.0.1:${PORT}/api/health" 2>/dev/null || true)
+  [ -n "$body" ] || return 1
+  printf '%s' "$body" | grep -q '"apiOk":true' || return 1
+  printf '%s' "$body" | grep -q '"dbOk":true'  || return 1
+  # It must be the build we just shipped. An old process that survived the
+  # restart answers happily and would otherwise pass this gate.
+  printf '%s' "$body" | grep -qF "$WANT" || return 1
+  return 0
+}
+
+# systemd needs a moment, and the first request warms a cold Node process.
+ok=0
+for i in $(seq 1 20); do
+  if healthy; then ok=1; break; fi
+  sleep 3
+done
+
+if [ "$ok" = "1" ]; then
+  echo "health gate: PASS (build $WANT)"
+  exit 0
+fi
+
+# Distinguish "unhealthy" from "I could not tell". Rolling back because the
+# check itself could not reach anything would turn a scripting mistake into an
+# outage — the one thing a safety net must never do.
+REACHED=0
+curl -s -o /dev/null --max-time 6 "http://127.0.0.1:${PORT}/api/health" 2>/dev/null && REACHED=1
+
+if [ "$REACHED" = "0" ]; then
+  echo "health gate: INCONCLUSIVE — nothing answered on 127.0.0.1:${PORT}." >&2
+  echo "Not rolling back: the check could not reach the service, which may be the check's fault." >&2
+  systemctl --no-pager --lines=25 status collarone-api >&2 2>&1 || true
+  exit 1
+fi
+
+echo "health gate: FAIL — the new build did not become healthy in 60s" >&2
+curl -s --max-time 8 "http://127.0.0.1:${PORT}/api/health" 2>&1 | head -c 400 >&2 || true
+echo >&2
+systemctl --no-pager --lines=25 status collarone-api >&2 2>&1 || true
+
+if [ ! -d "${APP_DIR}.rollback" ]; then
+  echo "NO ROLLBACK AVAILABLE — leaving the new build in place so it can be inspected." >&2
+  exit 1
+fi
+
+echo "==> Rolling back to the previous deployment" >&2
+rsync -a --delete --exclude ".env" --exclude "**/.env" "${APP_DIR}.rollback/" "${APP_DIR}/" || {
+  echo "ROLLBACK FAILED. The box needs a human." >&2; exit 1; }
+chown -R collarone:collarone "${APP_DIR}" || true
+systemctl restart collarone-api
+
+# Liveness only from here. healthy() insists on the build id we just tried to
+# ship, which is precisely the build we are removing.
+for i in $(seq 1 15); do
+  body=$(curl -s --max-time 8 "http://127.0.0.1:${PORT}/api/health" 2>/dev/null || true)
+  if printf '%s' "$body" | grep -q '"apiOk":true'; then
+    echo "rollback: the previous build is serving again ($(cat "$APP_DIR/BUILD_ID" 2>/dev/null))" >&2
+    exit 1     # still a failed DEPLOY, even though the site is up
+  fi
+  sleep 3
+done
+echo "ROLLBACK DID NOT RECOVER THE SITE. The box needs a human." >&2
+exit 1
+GATE
 
 echo "==> Done"

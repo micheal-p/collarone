@@ -170,7 +170,11 @@ export default async function handler(req, res) {
       const { data: last } = await admin.from('status_checks').select('checked_at').order('checked_at', { ascending: false }).limit(1).maybeSingle();
       const dueForCheck = !last || Date.now() - new Date(last.checked_at).getTime() > THROTTLE_MS;
       if (dueForCheck) {
-        await admin.from('status_checks').insert({ api_ok: apiOk, db_ok: dbOk, response_ms: responseMs });
+        // Which deployment answered. Production and a stale Vercel build both
+        // write here, and without this the status page credited pings to the
+        // stale one as uptime for the live product.
+        const host = String(req.headers['x-forwarded-host'] || req.headers.host || 'unknown').split(',')[0].trim().toLowerCase();
+        await admin.from('status_checks').insert({ api_ok: apiOk, db_ok: dbOk, response_ms: responseMs, host });
         // Piggyback on the same throttle: promo-trial expiry. An org whose
         // trial window has lapsed gets suspended (blocks login with the
         // pay-to-continue message) and a payment-reminder banner queued for

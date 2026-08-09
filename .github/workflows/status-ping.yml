@@ -1,18 +1,32 @@
 name: Status check
 
-# Pings the health endpoint every 10 minutes so the public /status page builds
-# a real, fine-grained uptime history. Vercel's Hobby cron only fires once a
-# day (see vercel.json), which is too sparse to catch a same-day blip — this
-# fills the gap. /api/health self-throttles its DB writes to one per 5 minutes,
-# so a 10-minute ping never over-records. No secrets needed: the endpoint is
-# a public GET.
+# An outside opinion on whether the product is up.
+#
+# This runs on GitHub's infrastructure, not the VPS, which is the whole point:
+# the in-process watchdog cannot report that the process it lives in has died,
+# and nginx cannot tell you it is not answering. Something off the box has to
+# ask.
+#
+# It was doing neither of the two things it needed to do:
+#
+#   1. It pinged collarone.vercel.app. Production moved to the VPS behind
+#      collarone.app, and the Vercel deployment went stale — it still answers
+#      /api/health, still reports "operational", and still reports build "dev".
+#      Both write to the same database, so every tick was recorded as uptime
+#      for a host no customer uses. The status page would have drawn a green
+#      line straight through a real outage.
+#
+#   2. It ended with `exit 0` no matter what came back. A workflow that cannot
+#      fail cannot notify anybody, so a genuine outage produced a green tick.
+#
+# Now it checks the host customers actually use, verifies the response is
+# really the live application rather than a parked page, and fails loudly.
 
 on:
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch: {}
 
-# Never pile up overlapping runs if a tick is delayed under load.
 concurrency:
   group: status-ping
   cancel-in-progress: true
@@ -20,12 +34,50 @@ concurrency:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
-      - name: Hit /api/health
+      - name: Ask collarone.app whether it is alive
+        id: check
         run: |
-          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 https://collarone.vercel.app/api/health)
-          echo "health returned HTTP $code"
-          # A non-2xx just means this particular check saw the site down; that's
-          # data for the status page, not a reason to fail the workflow.
-          exit 0
+          set -uo pipefail
+          HOST=https://collarone.app
+
+          # Two attempts, twenty seconds apart. One dropped request is a blip,
+          # not an outage, and waking someone for a blip is how alerts get
+          # ignored. Two failures in a row is a signal.
+          for attempt in 1 2; do
+            body=$(curl -s --max-time 25 "$HOST/api/health" || true)
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "$HOST/api/health" || echo 000)
+            echo "attempt $attempt: HTTP $code"
+            echo "$body" | head -c 400; echo
+
+            ok=1
+            [ "$code" = "200" ] || ok=0
+            echo "$body" | grep -q '"apiOk":true' || ok=0
+            echo "$body" | grep -q '"dbOk":true'  || ok=0
+            # A stale deployment answers this endpoint too and reports
+            # build "dev". Production stamps a real short sha, so anything
+            # unstamped means we are talking to the wrong thing — which is
+            # exactly the failure this workflow existed inside of.
+            echo "$body" | grep -q '"build":"dev"' && ok=0
+
+            if [ "$ok" = "1" ]; then
+              echo "healthy=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            [ "$attempt" = "1" ] && sleep 20
+          done
+
+          echo "healthy=false" >> "$GITHUB_OUTPUT"
+          echo "::error::collarone.app failed two consecutive health checks"
+          exit 1
+
+      - name: Record the outage where the team already looks
+        if: ${{ failure() }}
+        run: |
+          # The app-errors inbox is checked; a red workflow in a list is not
+          # always. Best-effort — if the site is down this may not land, and
+          # the failed workflow is still the primary signal.
+          curl -s -m 10 -X POST https://collarone.app/api/track \
+            -H 'Content-Type: application/json' \
+            -d '{"message":"external health check failed twice from GitHub Actions","path":"/status-ping"}' || true
