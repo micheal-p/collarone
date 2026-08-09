@@ -775,26 +775,143 @@ async function demoApiInner(path, opts = {}) {
     }
     if (seg[0] === 'hr' && seg[1] === 'myinterviews') return { interviews: db.atsIvs || [] };
 
+    // ---- HR performance / documents / cases: REAL collections -------------
+    // These were read-only stubs computed on the fly, so every write fell
+    // through to the 404 below: a prospect clicking "Add goal", "Log training",
+    // "Open a case" or "Upload document" in the demo got an error toast on the
+    // flagship suite. Backed by db now, so the demo behaves like the product.
+    if (!db.hrGoals) {
+      db.hrGoals = staff.slice(0, 3).map((s, i) => ({
+        id: 'g' + i + s.id, employee_id: s.id, employee: { id: s.id, name: s.name },
+        title: ['Close Q3 objectives at 90%+', 'Cut delivery turnaround to 48h', 'Complete safety certification'][i % 3],
+        status: 'in_progress', target_date: daysAgo(-45).slice(0, 10), created_at: daysAgo(30),
+      }));
+      db.hrReviews = staff.slice(0, 2).map((s, i) => ({
+        id: 'r' + i + s.id, employee_id: s.id, employee: { id: s.id, name: s.name },
+        reviewer: { id: db.users[0].id, name: db.users[0].name }, cycle_label: 'H1 2026',
+        rating: 4, status: 'submitted', notes: '', created_at: daysAgo(30),
+      }));
+      db.hrTrainings = staff.slice(0, 2).map((s, i) => ({
+        id: 'tr' + i + s.id, employee_id: s.id, employee: { id: s.id, name: s.name },
+        title: ['Fire safety refresher', 'Customer service basics'][i % 2],
+        provider: 'In-house', completed_on: daysAgo(60).slice(0, 10), expires_on: daysAgo(-300).slice(0, 10),
+      }));
+      db.hrDocs = staff.flatMap((s, i) => [
+        { id: 'd' + i + 'a', employee: { id: s.id, name: s.name }, employee_id: s.id, title: 'Employment contract', category: 'contract', expiry_date: null, file_path: 'demo', created_at: daysAgo(300) },
+        { id: 'd' + i + 'b', employee: { id: s.id, name: s.name }, employee_id: s.id, title: 'Means of ID (NIN slip)', category: 'id', expiry_date: daysAgo(-200).slice(0, 10), file_path: 'demo', created_at: daysAgo(290) },
+      ]);
+      db.hrCases = [];
+      db.hrExits = [];
+      save();
+    }
+    const who = (uid) => { const p = staff.find((x) => x.id === uid) || staff[0]; return p ? { id: p.id, name: p.name } : null; };
+    const nid = (pfx) => pfx + Math.random().toString(36).slice(2, 8);
+
     if (seg[0] === 'hr' && seg[1] === 'goals') {
+      if (method === 'POST') {
+        const g = { id: nid('g'), employee_id: body.employeeId, employee: who(body.employeeId), title: body.title, status: body.status || 'not_started', target_date: body.targetDate || null, created_at: new Date().toISOString() };
+        db.hrGoals.unshift(g); save(); return { goal: g };
+      }
+      if (method === 'PATCH' && seg.length === 3) {
+        const g = db.hrGoals.find((x) => x.id === seg[2]) || fail(404, 'Goal not found.');
+        if (body.title !== undefined) g.title = body.title;
+        if (body.status !== undefined) g.status = body.status;
+        if (body.targetDate !== undefined) g.target_date = body.targetDate;
+        save(); return { goal: g };
+      }
+      if (method === 'DELETE' && seg.length === 3) { db.hrGoals = db.hrGoals.filter((x) => x.id !== seg[2]); save(); return { ok: true }; }
       const id = empId(null);
-      const mine = staff.filter((s) => !id || s.id === id);
-      return { goals: mine.map((s, i) => ({ id: 'g' + i + s.id, employee_id: s.id, employee: { id: s.id, name: s.name }, title: 'Close Q3 objectives at 90%+', status: 'in_progress', target_date: daysAgo(-45).slice(0, 10) })) };
+      return { goals: id ? db.hrGoals.filter((g) => g.employee_id === id) : db.hrGoals };
     }
     if (seg[0] === 'hr' && seg[1] === 'reviews') {
+      if (method === 'POST' && seg.length === 2) {
+        const r = { id: nid('r'), employee_id: body.employeeId, employee: who(body.employeeId), reviewer: { id: me.id, name: me.name }, cycle_label: body.cycleLabel || 'H2 2026', rating: body.rating ?? null, status: 'submitted', notes: body.notes || '', created_at: new Date().toISOString() };
+        db.hrReviews.unshift(r); save(); return { review: r };
+      }
+      if (method === 'POST' && seg[3] === 'acknowledge') {
+        const r = db.hrReviews.find((x) => x.id === seg[2]) || fail(404, 'Review not found.');
+        r.status = 'acknowledged'; r.acknowledged_at = new Date().toISOString(); save(); return { review: r };
+      }
+      if (method === 'PATCH' && seg.length === 3) {
+        const r = db.hrReviews.find((x) => x.id === seg[2]) || fail(404, 'Review not found.');
+        Object.assign(r, { rating: body.rating ?? r.rating, notes: body.notes ?? r.notes, status: body.status ?? r.status });
+        save(); return { review: r };
+      }
       const id = empId(null);
-      const mine = staff.filter((s) => !id || s.id === id);
-      return { reviews: mine.map((s, i) => ({ id: 'r' + i + s.id, employee_id: s.id, employee: { id: s.id, name: s.name }, reviewer: { id: db.users[0].id, name: db.users[0].name }, cycle_label: 'H1 2026', rating: 4, status: 'submitted', created_at: daysAgo(30) })) };
+      return { reviews: id ? db.hrReviews.filter((r) => r.employee_id === id) : db.hrReviews };
     }
-    if (seg[0] === 'hr' && seg[1] === 'trainings') return { trainings: [] };
+    if (seg[0] === 'hr' && seg[1] === 'trainings') {
+      if (method === 'POST') {
+        const t = { id: nid('tr'), employee_id: body.employeeId, employee: who(body.employeeId), title: body.title, provider: body.provider || '', completed_on: body.completedOn || null, expires_on: body.expiresOn || null };
+        db.hrTrainings.unshift(t); save(); return { training: t };
+      }
+      if (method === 'DELETE' && seg.length === 3) { db.hrTrainings = db.hrTrainings.filter((x) => x.id !== seg[2]); save(); return { ok: true }; }
+      const id = empId(null);
+      return { trainings: id ? db.hrTrainings.filter((t) => t.employee_id === id) : db.hrTrainings };
+    }
     if (seg[0] === 'hr' && seg[1] === 'documents') {
+      if (method === 'POST') {
+        const d = { id: nid('d'), employee_id: body.employeeId, employee: who(body.employeeId), title: body.title, category: body.category || 'other', expiry_date: body.expiryDate || null, file_path: 'demo', created_at: new Date().toISOString() };
+        db.hrDocs.unshift(d); save(); return { document: d };
+      }
+      if (method === 'DELETE' && seg.length === 3) { db.hrDocs = db.hrDocs.filter((x) => x.id !== seg[2]); save(); return { ok: true }; }
       const id = empId(null);
-      const mine = staff.filter((s) => !id || s.id === id);
-      return { documents: mine.flatMap((s, i) => [
-        { id: 'd' + i + 'a', employee: { id: s.id, name: s.name }, title: 'Employment contract', category: 'contract', expiry_date: null, file_path: 'demo', created_at: daysAgo(300) },
-        { id: 'd' + i + 'b', employee: { id: s.id, name: s.name }, title: 'Means of ID (NIN slip)', category: 'id', expiry_date: daysAgo(-200).slice(0, 10), file_path: 'demo', created_at: daysAgo(290) },
-      ]) };
+      return { documents: id ? db.hrDocs.filter((d) => d.employee_id === id) : db.hrDocs };
     }
-    if (seg[0] === 'hr' && seg[1] === 'cases') return { cases: [] };  // no seeded cases; the filter is a no-op either way
+    if (seg[0] === 'hr' && seg[1] === 'cases') {
+      if (method === 'POST') {
+        const c = { id: nid('c'), employee_id: body.employeeId, employee: who(body.employeeId), openedBy: { id: me.id, name: me.name }, category: body.category || 'other', description: body.description || '', status: 'open', resolution_notes: '', created_at: new Date().toISOString() };
+        db.hrCases.unshift(c); save(); return { case: c };
+      }
+      if (method === 'PATCH' && seg.length === 3) {
+        const c = db.hrCases.find((x) => x.id === seg[2]) || fail(404, 'Case not found.');
+        Object.assign(c, {
+          status: body.status ?? c.status,
+          resolution_notes: body.resolutionNotes ?? c.resolution_notes,
+          response_note: body.responseNote ?? c.response_note,
+        });
+        if (c.status === 'resolved') c.resolved_at = new Date().toISOString();
+        save(); return { case: c };
+      }
+      const id = empId(null);
+      return { cases: id ? db.hrCases.filter((c) => c.employee_id === id) : db.hrCases };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'exits') {
+      if (method === 'POST' && seg.length === 2) {
+        const e = { id: nid('x'), employee_id: body.employeeId, employee: who(body.employeeId), reason: body.reason || 'resignation', reason_notes: body.reasonNotes || '', last_working_day: body.lastWorkingDay, status: 'initiated', unused_leave_days: body.unusedLeaveDays || 0, created_at: new Date().toISOString() };
+        db.hrExits.unshift(e); save(); return { exit: e };
+      }
+      if (method === 'POST' && seg[3] === 'finalize') {
+        const e = db.hrExits.find((x) => x.id === seg[2]) || fail(404, 'Exit not found.');
+        e.status = 'completed'; e.completed_at = new Date().toISOString(); save(); return { exit: e };
+      }
+      if (method === 'PATCH' && seg.length === 3) {
+        const e = db.hrExits.find((x) => x.id === seg[2]) || fail(404, 'Exit not found.');
+        Object.assign(e, { status: body.status ?? e.status, exit_interview_notes: body.exitInterviewNotes ?? e.exit_interview_notes, rehire_eligible: body.rehireEligible ?? e.rehire_eligible });
+        save(); return { exit: e };
+      }
+      return { exits: db.hrExits };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'staff' && method === 'PATCH' && seg.length === 3) {
+      const u = db.users.find((x) => x.id === seg[2]) || fail(404, 'Employee not found.');
+      if (body.jobTitle !== undefined) u.jobTitle = body.jobTitle;
+      if (body.employmentType !== undefined) u.employmentType = body.employmentType;
+      save(); return { employee: { ...u, jobTitle: u.jobTitle } };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'employees' && seg[3] === 'probation' && method === 'PATCH') {
+      return { employee: { id: seg[2], probation_end_date: body.probationEndDate || null } };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'employees' && seg[3] === 'confirm' && method === 'POST') {
+      return { employee: { id: seg[2], confirmed_at: new Date().toISOString() } };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'onboarding' && seg[2] === 'generate' && method === 'POST') {
+      return { created: 8 };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'lifecycle-tasks') {
+      if (method === 'PATCH' && seg.length === 3) return { task: { id: seg[2], status: body.status || 'done', done_at: new Date().toISOString() } };
+      return { tasks: [] };
+    }
+    if (seg[0] === 'hr' && seg[1] === 'templates') return { templates: [] };
 
     // ---- letters engine (requests, letterheads, issued register) ----
     if (!db.letterRequests) {
@@ -843,7 +960,7 @@ async function demoApiInner(path, opts = {}) {
   // demo mutations survive a reload. Ids deliberately avoid a leading 'u'
   // (the route-normalization regex above rewrites /u…/ segments to /:id), so
   // PATCH/DELETE handlers match on seg, not `route`.
-  if (['staff', 'benefits', 'procurement', 'crm', 'finance', 'documents', 'docfolders', 'projects', 'itassets', 'trade-docs', 'automation', 'compliance'].includes(seg[0])) {
+  if (['staff', 'benefits', 'procurement', 'crm', 'finance', 'documents', 'docfolders', 'signatures', 'projects', 'itassets', 'trade-docs', 'automation', 'compliance'].includes(seg[0])) {
     const me = requireAuth();
     const meRef = { id: me.id, name: me.name, email: me.email };
     const now = () => new Date().toISOString();
@@ -934,16 +1051,21 @@ async function demoApiInner(path, opts = {}) {
       if (method === 'DELETE' && seg[1] === 'vendors' && seg.length === 3) {
         db.vendors = db.vendors.filter((x) => x.id !== seg[2]); save(); return { ok: true };
       }
-      if (route === 'GET /procurement/requests') return { requests: db.purchaseRequests };
+      // total_cost is a GENERATED column in Postgres (quantity * unit_cost *
+      // (1 + vat_rate)). The demo never derived it, so every naira figure on a
+      // paid suite showed "—" to prospects. Computed on read so seeded rows and
+      // newly created ones both carry it.
+      const withTotal = (r) => ({ ...r, total_cost: Number(r.quantity || 0) * Number(r.unit_cost || 0) * (1 + Number(r.vat_rate || 0)) });
+      if (route === 'GET /procurement/requests') return { requests: db.purchaseRequests.map(withTotal) };
       if (route === 'POST /procurement/requests') {
         if (!body.itemDescription?.trim()) fail(400, 'Item description is required.');
         const v = db.vendors.find((x) => x.id === body.vendorId) || null;
         const r = { id: rid('pq'), requested_by: me.id, requester: meRef, vendor_id: v?.id || null, vendor: v ? { id: v.id, name: v.name } : null, department_id: body.departmentId || null, dept: null, item_description: body.itemDescription.trim(), quantity: body.quantity || 1, unit_cost: body.unitCost || 0, vat_rate: body.vatRate ?? 0.075, notes: body.notes || '', status: 'pending', created_at: now(), decided_at: null };
-        db.purchaseRequests.unshift(r); save(); return { request: r };
+        db.purchaseRequests.unshift(r); save(); return { request: withTotal(r) };
       }
       if (method === 'PATCH' && seg[1] === 'requests' && seg.length === 3) {
         const r = db.purchaseRequests.find((x) => x.id === seg[2]) || fail(404, 'Request not found.');
-        if (body.action) { r.status = body.action; r.decided_at = now(); }
+        if (body.action) { r.status = body.action; r.decided_at = now(); r.approved_at = now(); r.approver = { id: me.id, name: me.name }; }
         else {
           [['itemDescription', 'item_description'], ['quantity', 'quantity'], ['unitCost', 'unit_cost'], ['vatRate', 'vat_rate'], ['notes', 'notes']].forEach(([k, col]) => { if (body[k] !== undefined) r[col] = body[k]; });
           if (body.vendorId !== undefined) {
@@ -951,7 +1073,7 @@ async function demoApiInner(path, opts = {}) {
             r.vendor_id = v?.id || null; r.vendor = v ? { id: v.id, name: v.name } : null;
           }
         }
-        save(); return { request: r };
+        save(); return { request: withTotal(r) };
       }
       if (method === 'DELETE' && seg[1] === 'requests' && seg.length === 3) {
         db.purchaseRequests = db.purchaseRequests.filter((x) => x.id !== seg[2]); save(); return { ok: true };
@@ -1118,6 +1240,32 @@ async function demoApiInner(path, opts = {}) {
 
     // ---- finance (expenses, categories, budgets, ledger) ----
     if (seg[0] === 'finance') {
+      // Bank reconciliation — Finance's flagship feature, and the demo returned
+      // a raw developer error on it. Seeded so the matching flow can be tried.
+      if (seg[1] === 'bank-lines') {
+        if (!db.bankLines) {
+          db.bankLines = [
+            { id: 'bl1', line_date: daysAgo(3).slice(0, 10), description: 'TRF FRM LAGOON STORES', amount_in: 1075000, amount_out: 0, reference: 'FT2608A991', matched_type: null, matched_id: null, import_batch: 'demo-1' },
+            { id: 'bl2', line_date: daysAgo(5).slice(0, 10), description: 'POS PURCHASE FUEL', amount_in: 0, amount_out: 128000, reference: 'POS7741', matched_type: null, matched_id: null, import_batch: 'demo-1' },
+            { id: 'bl3', line_date: daysAgo(8).slice(0, 10), description: 'RENT Q3 PAYMENT', amount_in: 0, amount_out: 450000, reference: 'FT2608B233', matched_type: 'expense', matched_id: 'fe1', import_batch: 'demo-1' },
+          ];
+          save();
+        }
+        if (method === 'POST') { return { lines: db.bankLines }; }
+        if (method === 'PATCH' && seg.length === 3) {
+          const l = db.bankLines.find((x) => x.id === seg[2]) || fail(404, 'Bank line not found.');
+          l.matched_type = body.matchedType ?? null;
+          l.matched_id = body.matchedId ?? null;
+          save(); return { line: l };
+        }
+        return { lines: db.bankLines };
+      }
+      if (seg[1] === 'recon-candidates') {
+        return {
+          payments: [{ id: 'tp1', amount: 1075000, paid_at: daysAgo(3), reference: 'FT2608A991', doc: { doc_no: 'INV-0007', party_name: 'Lagoon Stores' } }],
+          expenses: (db.expenses || []).slice(0, 5).map((e) => ({ id: e.id, total_amount: e.total_amount, expense_date: e.expense_date, vendor: e.vendor, description: e.description, status: e.status })),
+        };
+      }
       // The ledger is a paid headline feature; a 404 here is a lost prospect.
       if (seg[1] === 'ledger') {
         if (!db.ledgerAccounts) {
@@ -1271,7 +1419,7 @@ async function demoApiInner(path, opts = {}) {
     }
 
     // ---- documents (files metadata + folders; storage itself is disabled) ----
-    if (seg[0] === 'docfolders' || seg[0] === 'documents') {
+    if (seg[0] === 'docfolders' || seg[0] === 'documents' || seg[0] === 'signatures') {
       if (!db.docFolders) {
         db.docFolders = [
           { id: 'fd1', name: 'Company Policies', parent_folder_id: null, created_at: daysAgo(120) },
@@ -1295,6 +1443,32 @@ async function demoApiInner(path, opts = {}) {
         save(); return { ok: true };
       }
       if (route === 'GET /documents') return { documents: db.documents };
+      // Signature requests: the flow the Documents suite is sold on, and the
+      // demo answered none of it — "Request signature" and "Sign" both threw.
+      if (seg[0] === 'documents' && seg[2] === 'signatures') {
+        if (!db.docSignatures) {
+          const d0 = db.documents[0];
+          db.docSignatures = d0 ? [
+            { id: 'sg1', document_id: d0.id, requested_of: db.users[1]?.id || me.id, requestedOf: { id: db.users[1]?.id || me.id, name: db.users[1]?.name || me.name }, requested_by: me.id, requestedBy: { id: me.id, name: me.name }, signed_at: daysAgo(2), signature_name: db.users[1]?.name || me.name, signature_style: 'typed', created_at: daysAgo(4) },
+            { id: 'sg2', document_id: d0.id, requested_of: me.id, requestedOf: { id: me.id, name: me.name }, requested_by: db.users[0].id, requestedBy: { id: db.users[0].id, name: db.users[0].name }, signed_at: null, signature_name: null, signature_style: null, created_at: daysAgo(1) },
+          ] : [];
+          save();
+        }
+        if (method === 'POST') {
+          const sg = { id: 'sg' + Math.random().toString(36).slice(2, 7), document_id: seg[1], requested_of: body.requestedOf, requestedOf: (() => { const u = db.users.find((x) => x.id === body.requestedOf); return u ? { id: u.id, name: u.name } : null; })(), requested_by: me.id, requestedBy: { id: me.id, name: me.name }, signed_at: null, signature_name: null, signature_style: null, created_at: new Date().toISOString() };
+          db.docSignatures.unshift(sg); save(); return { signature: sg };
+        }
+        return { signatures: db.docSignatures.filter((x) => x.document_id === seg[1]) };
+      }
+      if (seg[0] === 'signatures' && seg[2] === 'sign' && method === 'POST') {
+        const sg = (db.docSignatures || []).find((x) => x.id === seg[1]) || fail(404, 'Signature request not found.');
+        sg.signed_at = new Date().toISOString();
+        sg.signature_name = body.name || me.name;
+        sg.signature_style = body.style || 'typed';
+        save(); return { signature: sg };
+      }
+      if (seg[0] === 'documents' && seg[2] === 'permissions' && method === 'GET') return { permissions: [] };
+      if (seg[0] === 'documents' && seg[2] === 'versions' && method === 'GET') return { versions: [] };
       // storage-backed calls fail gracefully in demo
       if (method === 'POST' && seg[0] === 'documents' && (seg.length === 1 || seg[2] === 'versions')) fail(400, 'Uploads are disabled in demo mode.');
       if (method === 'PATCH' && seg[0] === 'documents' && seg.length === 2) {

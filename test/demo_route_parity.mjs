@@ -44,6 +44,24 @@ const REQUIRED = [
   // Read by the sidebar footer on every page in the app.
   { call: 'GET /billing/balance', needle: "route === 'GET /billing/balance'" },
   { call: 'GET /billing/transactions', needle: "route === 'GET /billing/transactions'" },
+  // HR is the flagship suite and the demo 404'd on every WRITE: adding a goal,
+  // logging training, opening a case, uploading a document, starting an exit,
+  // editing employment — all error toasts in front of a prospect.
+  { call: 'POST/PATCH/DELETE /hr/goals', needle: "seg[0] === 'hr' && seg[1] === 'goals'" },
+  { call: 'POST/PATCH /hr/reviews', needle: "seg[0] === 'hr' && seg[1] === 'reviews'" },
+  { call: 'POST/DELETE /hr/trainings', needle: "seg[0] === 'hr' && seg[1] === 'trainings'" },
+  { call: 'POST/DELETE /hr/documents', needle: "seg[0] === 'hr' && seg[1] === 'documents'" },
+  { call: 'POST/PATCH /hr/cases', needle: "seg[0] === 'hr' && seg[1] === 'cases'" },
+  { call: 'POST/PATCH /hr/exits', needle: "seg[0] === 'hr' && seg[1] === 'exits'" },
+  { call: 'PATCH /hr/staff/:id', needle: "seg[0] === 'hr' && seg[1] === 'staff' && method === 'PATCH'" },
+  { call: 'POST /hr/onboarding/generate', needle: "seg[1] === 'onboarding' && seg[2] === 'generate'" },
+  { call: 'PATCH /hr/lifecycle-tasks/:id', needle: "seg[0] === 'hr' && seg[1] === 'lifecycle-tasks'" },
+  // Finance's flagship feature returned a raw developer error in the demo.
+  { call: 'GET/POST/PATCH /finance/bank-lines', needle: "seg[1] === 'bank-lines'" },
+  { call: 'GET /finance/recon-candidates', needle: "seg[1] === 'recon-candidates'" },
+  // Documents is sold on e-signing; neither request nor sign worked.
+  { call: 'GET/POST /documents/:id/signatures', needle: "seg[0] === 'documents' && seg[2] === 'signatures'" },
+  { call: 'POST /signatures/:id/sign', needle: "seg[0] === 'signatures' && seg[2] === 'sign'" },
 ];
 
 let failures = 0;
