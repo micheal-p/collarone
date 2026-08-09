@@ -15,7 +15,7 @@ export const SUITES = [
   { key: 'visitors',    name: 'Visitor Management', tier: 'core',     status: 'live', desc: 'Front-desk check-in, host alerts, visitor logs.' },
   { key: 'payroll',     name: 'Payroll & Benefits', tier: 'core',     status: 'live', desc: '2026 Tax Act payroll runs, payslips, staff loans, plus HMO, pension/PFA and custom benefits, set differently for each staff member.', requires: ['hr'] },
   { key: 'crm',         name: 'Customers (CRM)',    tier: 'core',     status: 'live', desc: 'Contacts, deals, bookings and money owed, WhatsApp-first.' },
-  { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'live', desc: 'Clock in and out with location, track hours and overtime.', requires: ['hr'] },
+  { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'live', desc: 'Clock in and out with location, from a phone or a wall device, with timesheets you export for payroll.', requires: ['hr'] },
   { key: 'procurement', name: 'Buying (Procurement)', tier: 'extended', status: 'live', desc: 'Ask to buy things, track suppliers, and get approvals.' },
   { key: 'inventory',   name: 'Inventory & Assets', tier: 'extended', status: 'live', desc: 'Track what you sell and the equipment your staff use, stock counts, sign-outs and returns.' },
   { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'live', desc: 'Expenses with receipts, budgets, bank statement import and reconciliation, and a full double-entry ledger with trial balance, profit & loss and balance sheet.' },

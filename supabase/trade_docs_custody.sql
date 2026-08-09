@@ -10,13 +10,19 @@
 -- assignments generate the same documents a GRN or invoice does.
 -- ============================================================================
 
+-- 'quote' is included because trade_docs_quotes.sql added it AFTER this file
+-- was written. Re-running this migration with the original list would have
+-- silently dropped it and made every existing quote violate its own table's
+-- constraint. Checked against the LIVE definition rather than restated from
+-- memory — test/migrations_rerunnable.mjs now fails the build on any migration
+-- that would narrow a live CHECK list.
 alter table public.trade_doc_counters drop constraint if exists trade_doc_counters_doc_type_check;
 alter table public.trade_doc_counters add constraint trade_doc_counters_doc_type_check
-  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note'));
+  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note','quote'));
 
 alter table public.trade_documents drop constraint if exists trade_documents_doc_type_check;
 alter table public.trade_documents add constraint trade_documents_doc_type_check
-  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note'));
+  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note','quote'));
 
 -- create_trade_document: same body as trade_documents.sql, with the two
 -- custody types in the allowed list and prefix map. (Stock linkage stays

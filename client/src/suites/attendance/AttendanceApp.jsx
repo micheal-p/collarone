@@ -754,7 +754,7 @@ const TOUR_STEPS = [
   { target: '[data-tour="att-tab-today"]', title: 'Today',
     body: 'Who is in, who is late, who has not arrived, as it happens.' },
   { target: '[data-tour="att-tab-timesheet"]', title: 'Timesheet',
-    body: 'Hours per person over a period, including overtime, which is what flows into a payroll run.' },
+    body: 'Hours per person over a period, which you export as the input to a payroll run.' },
   { target: '[data-tour="att-tab-shifts"]', title: 'Shifts',
     body: 'Different start times for different people. Lateness is judged against a person\'s own shift, so a night-shift worker is not marked late at nine in the morning.' },
 ];
