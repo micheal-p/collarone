@@ -3,6 +3,7 @@
 // Same philosophy as Trade Documents' invoice templates: pure CSS on a shared
 // HTML skeleton, so previews are live and printing needs no server.
 // ============================================================================
+import { safeImageSrc } from '../../lib/safeUrl.js';
 
 export const LETTERHEAD_TEMPLATES = {
   classic:   { label: 'Classic',   hint: 'Serif, centered, the traditional Nigerian business letterhead' },
@@ -162,7 +163,8 @@ export function letterHeadHtml(letterhead, { forPrint = false } = {}) {
   const contact = [d.address, d.phone, d.email].filter(Boolean).join(' · ');
   // headerStyle: 'name' (default) | 'logo' (logo only) | 'logo-name' (both)
   const style = d.logo ? (d.headerStyle || 'logo-name') : 'name';
-  const logoImg = d.logo && style !== 'name' ? `<img class="lh-logo" src="${d.logo}" alt="${esc(d.companyName || 'Company logo')}"/>` : '';
+  const logoSrc = safeImageSrc(d.logo);
+  const logoImg = logoSrc && style !== 'name' ? `<img class="lh-logo" src="${esc(logoSrc)}" alt="${esc(d.companyName || 'Company logo')}"/>` : '';
   const nameBlock = style === 'logo' ? '' : `<div class="lh-name">${esc(d.companyName || 'Your Company Ltd')}</div>`;
   return `
     <div class="lh-page lh-${esc(key)}" style="--accent: ${esc(d.accent || '#0A0E1A')}; ${forPrint ? 'padding:0; min-height:auto;' : ''}">
@@ -185,7 +187,7 @@ export function letterBodyHtml({ date, reference, body, signerName, signerRole, 
     ${reference ? `<div class="lh-ref">Our ref: ${esc(reference)}</div>` : ''}
     <div class="lh-body">${esc(body)}</div>
     <div class="lh-sig">
-      ${signature ? `<img class="lh-sig-img" src="${signature}" alt="Signature"/>` : ''}
+      ${safeImageSrc(signature) ? `<img class="lh-sig-img" src="${esc(safeImageSrc(signature))}" alt="Signature"/>` : ''}
       <div class="lh-sig-name">${esc(signerName || '')}</div>
       <div class="lh-sig-role">${esc(signerRole || '')}</div>
     </div>`;
@@ -198,7 +200,7 @@ export function buildLetterDocument({ letterhead, title, date, reference, body, 
     ${reference ? `<div class="lh-ref">Our ref: ${esc(reference)}</div>` : ''}
     <div class="lh-body">${esc(body)}</div>
     <div class="lh-sig">
-      ${signature ? `<img class="lh-sig-img" src="${signature}" alt="Signature"/>` : ''}
+      ${safeImageSrc(signature) ? `<img class="lh-sig-img" src="${esc(safeImageSrc(signature))}" alt="Signature"/>` : ''}
       <div class="lh-sig-name">${esc(signerName || '')}</div>
       <div class="lh-sig-role">${esc(signerRole || '')}</div>
     </div>`;

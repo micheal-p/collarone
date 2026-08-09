@@ -7,7 +7,7 @@
 //
 // Run:  node test/safe_url.mjs
 import { readFileSync } from 'node:fs';
-import { safeExternalUrl, safeLinkOrEmpty } from '../client/src/lib/safeUrl.js';
+import { safeExternalUrl, safeLinkOrEmpty, safeImageSrc } from '../client/src/lib/safeUrl.js';
 
 let failures = 0;
 
@@ -79,3 +79,33 @@ for (const [file, field, rawPattern] of SITES) {
 
 if (failures) { console.error(`\nFAILED: ${failures} safe-URL check(s)`); process.exit(1); }
 console.log('User URLs are sanitised before they become links. ALL PASSED');
+
+// ---- <img src> from user-supplied letterhead settings ----------------------
+// letterheadTemplates.js built `<img src="${d.logo}">` by concatenation and
+// rendered it via dangerouslySetInnerHTML — the one interpolation in that file
+// that skipped esc(). `details` is arbitrary jsonb, so a quote in the value
+// broke out of the attribute and injected markup into a letter that is then
+// filed to Documents and downloaded as HTML.
+//
+// Logos and signatures are legitimately data: URLs (compressLogo and
+// compressSignature both produce canvas.toDataURL), so a blanket http(s)-only
+// rule would silently blank every signature. Allow those two shapes, nothing
+// else.
+{
+  let bad = 0;
+  const allow = (v, why) => { if (safeImageSrc(v) === null) { bad++; console.log(`✗ image src wrongly rejected (${why}): ${v.slice(0, 40)}`); } };
+  const reject = (v, why) => { if (safeImageSrc(v) !== null) { bad++; console.log(`✗ image src wrongly allowed (${why}): ${v.slice(0, 40)}`); } };
+
+  allow('data:image/png;base64,iVBORw0KGgo=', 'drawn or compressed signature');
+  allow('data:image/jpeg;base64,/9j/4AAQ', 'compressed logo');
+  allow('https://x.supabase.co/storage/v1/logo.png', 'uploaded logo URL');
+
+  reject('x" onerror="alert(1)', 'attribute breakout — the actual vulnerability');
+  reject('javascript:alert(1)', 'javascript scheme');
+  reject('data:text/html;base64,PHNjcmlwdD4=', 'html masquerading as an image');
+  reject('data:image/svg+xml;base64,PHN2Zz4=', 'svg can carry script');
+  reject('//evil.com/x.png', 'protocol-relative');
+
+  if (bad) { console.error(`\nFAILED, ${bad} image-src problem(s)`); process.exit(1); }
+  console.log('Letterhead image sources are sanitised. ALL PASSED');
+}

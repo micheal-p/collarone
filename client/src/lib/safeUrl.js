@@ -43,3 +43,25 @@ export function safeLinkOrEmpty(raw) {
   if (/^(mailto:|tel:)/i.test(s)) return s;
   return safeExternalUrl(s) || '';                       // http(s)/bare-domain, else drop
 }
+
+// For a user-supplied value that goes into an <img src>.
+//
+// letterheadTemplates.js built `<img src="${d.logo}">` by string concatenation
+// and rendered it through dangerouslySetInnerHTML — the one interpolation in
+// that file that skipped esc(). `details` is arbitrary jsonb from the
+// letterhead settings, so a value containing a quote broke out of the
+// attribute and injected markup into a letter that then gets filed to
+// Documents and downloaded as HTML.
+//
+// safeExternalUrl() is too strict here: logos and signatures are legitimately
+// either a storage URL or a drawn `data:image/...`. So allow both, and nothing
+// else. SVG is excluded on purpose — it can carry script, and no signature pad
+// or logo uploader in this product produces one.
+const DATA_IMAGE = /^data:image\/(png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$/i;
+
+export function safeImageSrc(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  if (DATA_IMAGE.test(s)) return s;
+  return safeExternalUrl(s);   // http(s) only; javascript:, //host etc. rejected
+}
