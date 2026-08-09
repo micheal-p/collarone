@@ -1,3 +1,5 @@
+import { todayISO } from './today.js';
+
 // Quote-aware CSV parser — tiny and dependency-free on purpose. Handles
 // quoted fields, escaped quotes ("") and \n / \r\n line endings. Shared by
 // the staff bulk import and the bank statement reconciliation.
@@ -59,4 +61,7 @@ export const downloadCsv = (csv, filename) => {
 export const csvDate = (d) => (d ? String(d).slice(0, 10) : '');
 
 // Stamped into filenames so two exports never overwrite each other in Downloads.
-export const csvStamp = () => new Date().toISOString().slice(0, 10);
+// Lagos, not UTC — an export taken at 00:30 in Lagos would otherwise be filed
+// under yesterday's date, which is confusing on precisely the file someone is
+// about to send to an auditor.
+export const csvStamp = () => todayISO();
