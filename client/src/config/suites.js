@@ -18,7 +18,7 @@ export const SUITES = [
   { key: 'attendance',  name: 'Time & Attendance',  tier: 'extended', status: 'live', desc: 'Clock in and out with location, track hours and overtime.', requires: ['hr'] },
   { key: 'procurement', name: 'Buying (Procurement)', tier: 'extended', status: 'live', desc: 'Ask to buy things, track suppliers, and get approvals.' },
   { key: 'inventory',   name: 'Inventory & Assets', tier: 'extended', status: 'live', desc: 'Track what you sell and the equipment your staff use, stock counts, sign-outs and returns.' },
-  { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'live', desc: 'Expenses, budgets and financial reports.' },
+  { key: 'finance',     name: 'Finance',            tier: 'extended', status: 'live', desc: 'Expenses with receipts, budgets, bank statement import and reconciliation, and a full double-entry ledger with trial balance, profit & loss and balance sheet.' },
   { key: 'projects',    name: 'Projects',           tier: 'extended', status: 'live', desc: 'Plan jobs in stages, track them on a board, work as a team.' },
   { key: 'documents',   name: 'Documents',          tier: 'extended', status: 'live', desc: 'Keep files safe, track changes, and control who sees what.' },
   { key: 'trade-docs',  name: 'Invoicing & Trade Docs', tier: 'extended', status: 'live', desc: 'Invoices customers pay from a link, plus receipts, money owed, delivery notes and stock passes.' },

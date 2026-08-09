@@ -114,6 +114,13 @@ const INTENTS = [
     chips: ['How do card payments work?', 'What does it cost?'],
   },
   {
+    id: 'finance',
+    phrases: ['what does finance do', 'bookkeeping', 'accounting', 'general ledger', 'balance sheet', 'bank reconciliation'],
+    keys: ['finance', 'ledger', 'accounting', 'bookkeeping', 'reconcile', 'reconciliation', 'balance sheet', 'profit and loss', 'trial balance', 'expenses', 'budget'],
+    answer: 'Finance covers day-to-day money and the books behind it. Record expenses with the receipt attached and a VAT rate, set budgets and see what you have spent against them, and import your bank statement as a CSV to reconcile against what you already recorded — re-importing the same file never duplicates anything. Underneath is a real double-entry ledger: a chart of accounts sized for a Nigerian SME, journal entries that are refused unless they balance, and trial balance, profit & loss and balance sheet built from them. A posted entry can never be edited or deleted, only reversed, which is what makes the numbers trustworthy to an accountant. It is bookkeeping, not tax filing — your accountant still files.',
+    chips: ['What suites are included?', 'What does it cost?'],
+  },
+  {
     id: 'compliance',
     phrases: ['compliance calendar', 'statutory deadlines', 'tax deadlines', 'when is paye due', 'cac annual return'],
     keys: ['compliance', 'deadline', 'deadlines', 'firs', 'lirs', 'cac', 'remittance', 'statutory', 'filing'],

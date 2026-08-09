@@ -1,4 +1,6 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from '../../api/client.js';
+import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
+import { privateFileUrl } from '../../lib/privateFile.js';
 
 export const getCategories  = () => apiGet('/finance/categories').then((d) => d.categories);
 export const createCategory = (body) => apiPost('/finance/categories', body).then((d) => d.category);
@@ -51,3 +53,20 @@ export const ACCOUNT_TYPES = [
   { key: 'income',    label: 'Income' },
   { key: 'expense',   label: 'Expense' },
 ];
+
+// ---- receipts -----------------------------------------------------------
+// The bucket, the org-scoped storage policies and expenses.receipt_path have
+// all existed since the Finance suite shipped; nothing ever uploaded to them.
+// Path is org-prefixed because every private bucket's policy checks the first
+// folder against your organisation — a file written anywhere else is one its
+// own uploader cannot read back.
+export const uploadReceipt = async (file) => {
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path = `${await currentOrgId()}/${Date.now()}-${safe}`;
+  const { error } = await supabase.storage.from('finance-receipts').upload(path, file);
+  if (error) throw new Error(error.message);
+  return path;
+};
+
+// Reads go through the authorised route, like every other private file.
+export const receiptUrl = (path) => privateFileUrl('finance-receipts', path);

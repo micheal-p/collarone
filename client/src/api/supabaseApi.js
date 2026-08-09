@@ -2652,9 +2652,16 @@ export async function supabaseApi(path, opts = {}) {
       reference: (r.reference || '').slice(0, 120), amount: Number(r.amount) || 0, created_by: user.id,
     })).filter((r) => r.line_date && r.amount !== 0);
     if (!rows.length) fail(400, 'No usable lines, check the column mapping.');
-    const { data, error } = await supabase.from('bank_statement_lines').insert(rows).select();
+    // Idempotent on the statement's natural key (see bank_lines_dedupe.sql), so
+    // re-uploading the same file adds nothing. Accidental double-imports are
+    // common — a tab left open, an upload that looked like it failed — and the
+    // phantom lines they create never match anything during reconciliation.
+    const { data, error } = await supabase.from('bank_statement_lines')
+      .upsert(rows, { onConflict: 'org_id,line_date,amount,reference,description', ignoreDuplicates: true })
+      .select();
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
-    return { lines: data, batch };
+    const added = (data || []).length;
+    return { lines: data, batch, added, skipped: rows.length - added };
   }
   if (method === 'PATCH' && seg[0] === 'finance' && seg[1] === 'bank-lines' && seg.length === 3) {
     const { data: { user } } = await supabase.auth.getUser();
@@ -2774,8 +2781,11 @@ export async function supabaseApi(path, opts = {}) {
       return { expense: full };
     }
     const patch = {};
-    ['vendor','description','amount','vatRate','notes','expenseDate'].forEach((k) => {
-      const col = { vatRate: 'vat_rate', expenseDate: 'expense_date' }[k] || k;
+    // receiptPath included so an expense saved without a receipt can have one
+    // attached afterwards — the common case, since people photograph the slip
+    // after they have already recorded the spend.
+    ['vendor','description','amount','vatRate','notes','expenseDate','receiptPath'].forEach((k) => {
+      const col = { vatRate: 'vat_rate', expenseDate: 'expense_date', receiptPath: 'receipt_path' }[k] || k;
       if (body[k] !== undefined) patch[col] = body[k];
     });
     if (body.categoryId !== undefined) patch.category_id = body.categoryId || null;

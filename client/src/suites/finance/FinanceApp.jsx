@@ -54,15 +54,27 @@ function ExpenseModal({ categories, expense = null, onClose, onSaved, flash }) {
     expenseDate: expense.expense_date || todayISO(), notes: expense.notes || '',
   } : { categoryId: '', vendor: '', description: '', amount: '', vatRate: 0.075, expenseDate: todayISO(), notes: '' });
   const [busy, setBusy] = useState(false);
+  const [receiptPath, setReceiptPath] = useState(expense?.receipt_path || null);
+  const [uploading, setUploading] = useState(false);
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
   const total = (Number(f.amount) || 0) * (1 + (Number(f.vatRate) || 0));
+
+  // Attach it now, while it is still in your hand. Nobody ever finds the
+  // receipt later, which is why the field existed for months and stayed empty.
+  const pickReceipt = async (file) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return flash('That file is over 5MB. Photograph it at a lower resolution.', true);
+    setUploading(true);
+    try { setReceiptPath(await F.uploadReceipt(file)); flash('Receipt attached.'); }
+    catch (e) { flash(e.message, true); } finally { setUploading(false); }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     if (!f.description.trim()) return flash('Description is required.', true);
     setBusy(true);
     try {
-      const saved = expense ? await F.updateExpense(expense.id, f) : await F.createExpense(f);
+      const saved = expense ? await F.updateExpense(expense.id, { ...f, receiptPath }) : await F.createExpense({ ...f, receiptPath });
       flash(expense ? 'Expense updated.' : 'Expense submitted.'); onSaved(saved); onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
@@ -84,6 +96,20 @@ function ExpenseModal({ categories, expense = null, onClose, onSaved, flash }) {
           <Field label="Expense date"><input className="input" type="date" value={f.expenseDate} onChange={(e) => set('expenseDate', e.target.value)} /></Field>
         </div>
         <p style={{ fontSize: 13, margin: '0 0 12px' }}>Total (incl. VAT): <strong>{F.money(total)}</strong></p>
+        <Field label="Receipt">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <input type="file" accept="image/*,application/pdf" disabled={uploading}
+              onChange={(e) => pickReceipt(e.target.files?.[0])} style={{ fontSize: 13 }} />
+            {uploading && <span className="muted" style={{ fontSize: 12.5 }}>Uploading…</span>}
+            {receiptPath && !uploading && (
+              <span style={{ fontSize: 12.5, color: '#1a6a1a', fontWeight: 600 }}>Attached</span>
+            )}
+            {receiptPath && !uploading && (
+              <button type="button" className="btn btn-ghost" style={{ fontSize: 12, padding: '3px 10px' }}
+                onClick={() => setReceiptPath(null)}>Remove</button>
+            )}
+          </div>
+        </Field>
         <Field label="Notes"><textarea className="input" rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
@@ -192,17 +218,29 @@ export default function FinanceApp({ access }) {
   const paged = usePagedList(filteredExpenses, 25);
 
   const report = useMemo(() => {
-    const thisYear = new Date().getFullYear();
+    // Year from the stored string, not new Date(...): 'YYYY-MM-DD' parses as
+    // UTC midnight, so on 1 January a Lagos user saw the previous year.
+    const thisYear = Number(todayISO().slice(0, 4));
+    const counted = expenses.filter((e) =>
+      (e.status === 'approved' || e.status === 'paid')
+      && Number(String(e.expense_date).slice(0, 4)) === thisYear);
+
     const spentByCategory = {};
-    expenses.filter((e) => (e.status === 'approved' || e.status === 'paid') && new Date(e.expense_date).getFullYear() === thisYear)
-      .forEach((e) => {
-        const key = e.category?.id || 'uncategorised';
-        spentByCategory[key] = (spentByCategory[key] || 0) + Number(e.total_amount);
-      });
+    let spentTotal = 0;
+    counted.forEach((e) => {
+      const key = e.category?.id || 'uncategorised';
+      spentByCategory[key] = (spentByCategory[key] || 0) + Number(e.total_amount);
+      spentTotal += Number(e.total_amount);
+    });
+
     return budgets.filter((b) => b.period_year === thisYear && !b.period_month).map((b) => ({
       label: b.category?.name || 'All categories',
       budget: Number(b.amount),
-      spent: spentByCategory[b.category?.id || 'uncategorised'] || 0,
+      // A budget with no category is the WHOLE company's budget — the row even
+      // says "All categories". It used to be compared against uncategorised
+      // spend only, so an org-wide budget always looked almost untouched while
+      // the company was over it.
+      spent: b.category?.id ? (spentByCategory[b.category.id] || 0) : spentTotal,
     }));
   }, [expenses, budgets]);
 
@@ -261,6 +299,17 @@ export default function FinanceApp({ access }) {
                   <td className="muted" style={{ fontSize: 13 }}>{F.money(e.total_amount)}</td>
                   <td><StatusBadge status={e.status} /></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
+                    {/* An attached receipt is worth nothing if nobody can open
+                        it — this is what an auditor asks for. */}
+                    {e.receipt_path && (
+                      <button className="iconbtn" title="View receipt" aria-label="View receipt"
+                        onClick={async () => {
+                          try { window.open(await F.receiptUrl(e.receipt_path), '_blank', 'noopener'); }
+                          catch (err) { flash(err.message, true); }
+                        }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 3h11l5 5v13H4z" /><path d="M15 3v5h5" /></svg>
+                      </button>
+                    )}
                     {isManager && e.status === 'pending' && (
                       <>
                         <button className="iconbtn" onClick={() => decide(e, 'approved')}>Approve</button>
@@ -386,6 +435,26 @@ function ReconTab({ flash }) {
     return null;
   };
 
+  // Rows as we actually parsed them, so the mapping can be checked BEFORE
+  // anything is written. Getting "which column is the date" wrong silently
+  // imports a month of garbage, and the only way to know was to import it.
+  const parsedRows = useMemo(() => {
+    if (!csv) return [];
+    return csv.slice(1).map((r) => {
+      const amount = map.amount >= 0
+        ? parseAmount(r[map.amount])
+        : parseAmount(r[map.credit]) - parseAmount(r[map.debit]);
+      return {
+        date: map.date >= 0 ? parseDate(r[map.date]) : null,
+        description: map.description >= 0 ? r[map.description] : '',
+        reference: map.reference >= 0 ? r[map.reference] : '',
+        amount,
+      };
+    });
+  }, [csv, map]);
+  const usableRows = parsedRows.filter((r) => r.date && r.amount !== 0);
+  const skippedRows = parsedRows.length - usableRows.length;
+
   const doImport = async () => {
     setBusy(true);
     try {
@@ -401,8 +470,14 @@ function ReconTab({ flash }) {
         };
       }).filter((r) => r.date && r.amount !== 0);
       if (!rows.length) { flash('No usable lines, check the column mapping.', true); return; }
-      await F.importBankLines(rows);
-      flash(`${rows.length} statement line${rows.length === 1 ? '' : 's'} imported.`);
+      const imported = await F.importBankLines(rows);
+      // Say what actually happened. "24 imported" when 20 were duplicates is
+      // the kind of small lie that makes someone stop trusting the totals.
+      const added = Array.isArray(imported) ? imported.length : rows.length;
+      const dupes = rows.length - added;
+      flash(dupes > 0
+        ? `${added} new line${added === 1 ? '' : 's'} imported, ${dupes} already on file.`
+        : `${added} statement line${added === 1 ? '' : 's'} imported.`);
       setMapOpen(false); setCsv(null); load();
     } catch (e) { flash(e.message, true); } finally { setBusy(false); }
   };
@@ -509,10 +584,41 @@ function ReconTab({ flash }) {
               </select>
             </div>
           ))}
+          {/* Preview: the first five rows EXACTLY as we parsed them. Reading
+              your own statement back is the only way to catch a wrong column
+              before a month of nonsense is in the books. */}
+          {map.date >= 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', color: 'var(--text-2)', marginBottom: 6 }}>
+                How we read your file
+              </div>
+              <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 10 }}>
+                <table className="table" style={{ fontSize: 12.5, minWidth: 420 }}>
+                  <thead><tr><th>Date</th><th>Description</th><th className="ta-r">Amount</th></tr></thead>
+                  <tbody>
+                    {usableRows.slice(0, 5).map((r, i) => (
+                      <tr key={i}>
+                        <td>{r.date}</td>
+                        <td className="muted">{String(r.description).slice(0, 40) || '—'}</td>
+                        <td className="ta-r" style={{ color: r.amount < 0 ? '#a4262c' : '#1a6a1a', fontVariantNumeric: 'tabular-nums' }}>
+                          {F.money(r.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                {usableRows.length} line{usableRows.length === 1 ? '' : 's'} will be imported
+                {skippedRows > 0 && `, ${skippedRows} skipped (no readable date or a zero amount)`}.
+                {' '}Re-importing the same file will not duplicate anything.
+              </p>
+            </div>
+          )}
           <div className="modal-actions">
             <button className="btn btn-ghost" onClick={() => { setMapOpen(false); setCsv(null); }}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy || map.date < 0 || (map.amount < 0 && map.debit < 0 && map.credit < 0)} onClick={doImport}>
-              {busy ? <span className="spinner" /> : `Import ${csv.length - 1} lines`}
+            <button className="btn btn-primary" disabled={busy || !usableRows.length || map.date < 0 || (map.amount < 0 && map.debit < 0 && map.credit < 0)} onClick={doImport}>
+              {busy ? <span className="spinner" /> : `Import ${usableRows.length} line${usableRows.length === 1 ? '' : 's'}`}
             </button>
           </div>
         </Modal>
