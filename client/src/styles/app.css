@@ -159,7 +159,10 @@
 .group-head h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); margin: 0; }
 .group-line { flex: 1; height: 1px; background: var(--line); }
 
-.tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  /* Every row the same height. Without this each row sizes to its own
+     tallest tile, so a grid of 15 tiles steps up and down the page. */
+  grid-auto-rows: 1fr; }
 .tile { display: flex; flex-direction: column; gap: 12px; padding: 18px; min-height: 148px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); cursor: pointer; text-align: left; transition: box-shadow .15s, transform .12s, border-color .15s; }
 .tile:not(:disabled):hover { box-shadow: var(--shadow-16); transform: translateY(-2px); border-color: var(--line-strong); }
 .tile:disabled { cursor: default; }
@@ -768,7 +771,10 @@ textarea.input { padding: 12px 14px; }
 .tile:not(:disabled):hover::after { color: var(--brand); transform: translate(2px,-2px); }
 .tile-icon { width: 54px; height: 54px; border-radius: 15px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), 0 9px 20px rgba(10,14,26,.14); }
 .tile-name { font-size: 17px; letter-spacing: -.02em; }
-.tile-desc { max-width: 26ch; line-height: 1.5; }
+.tile-desc { max-width: 26ch; line-height: 1.5;
+  /* Belt and braces behind the short card lines: a description written
+     later without this constraint in mind cannot re-rag the grid. */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .setup-card { border-radius: 22px; border-color: rgba(255,91,31,.16); box-shadow: 0 18px 42px rgba(10,14,26,.06); }
 
 /* Every suite starts with a branded cover and a clean working stage. */

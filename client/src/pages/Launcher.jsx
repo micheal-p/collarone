@@ -205,19 +205,23 @@ function PinnedTile({ t, onOpen, index, reduce }) {
       transition={{ duration: 0.45, delay: index * 0.04, ease: [0.2, 0.7, 0.3, 1] }}
       whileHover={reduce ? undefined : { y: -5, transition: { duration: 0.2 } }}
       whileTap={{ scale: 0.97 }}
-      onClick={() => onOpen(t)} title={`Open ${t.name}`}>
+      onClick={() => onOpen(t)}>
       <span className="tile-icon" style={{ background: t.tint || 'var(--brand)' }}>
         <SuiteIcon name={t.icon || 'grid'} size={26} color="#fff" />
       </span>
       <span className="tile-body">
         <span className="tile-name">{t.name}</span>
-        <span className="tile-desc">{t.desc}</span>
+        <span className="tile-desc">{t.short || t.desc}</span>
       </span>
       <span className="tile-foot"><span className="badge badge-core">Included</span></span>
     </motion.button>
   );
 }
 
+// A tooltip only where it says something the tile doesn't: why a disabled tile
+// is disabled. "Open Payroll & Benefits" hovering over a tile already labelled
+// "Payroll & Benefits" was pure noise, and the native tooltip rendered on top
+// of the neighbouring tile's icon.
 function SuiteTile({ s, onOpen, index, reduce }) {
   const meta = SUITE_META[s.key] || {};
   // A coming-soon suite reads "Coming soon" for everyone — access hasn't
@@ -233,13 +237,13 @@ function SuiteTile({ s, onOpen, index, reduce }) {
       whileHover={s.openable && !reduce ? { y: -5, transition: { duration: 0.2 } } : undefined}
       whileTap={s.openable ? { scale: 0.97 } : undefined}
       onClick={() => s.openable && onOpen(s)} disabled={!s.openable}
-      title={locked ? 'You have not been granted access to this suite' : soon ? 'Coming soon' : `Open ${s.name}`}>
+      title={locked ? 'You have not been granted access to this suite' : soon ? 'Coming soon' : undefined}>
       <span className="tile-icon" style={{ background: locked ? 'rgba(10,14,26,0.28)' : meta.tint || 'var(--brand)' }}>
         <SuiteIcon name={locked ? 'lock' : meta.icon || 'grid'} size={26} color="#fff" />
       </span>
       <span className="tile-body">
         <span className="tile-name">{s.name}</span>
-        <span className="tile-desc">{s.desc}</span>
+        <span className="tile-desc">{s.short || s.desc}</span>
       </span>
       <span className="tile-foot">
         {locked && <span className="badge badge-soon">No access</span>}

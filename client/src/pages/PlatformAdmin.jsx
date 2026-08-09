@@ -548,6 +548,18 @@ function PromoCodesPanel({ flash }) {
 
 function DeleteOrgModal({ org, onClose, onConfirm, busy }) {
   const [text, setText] = useState('');
+  // The label sat in a .pc-field span, which the stylesheet renders
+  // UPPERCASE — so a slug of "hdh" was displayed as "HDH" while the check
+  // demanded the lowercase original. Typing exactly what the screen said also
+  // failed, and the only feedback was a button that stayed grey. Someone
+  // reasonably concluded delete was broken.
+  //
+  // Two fixes: the token is rendered in its real case outside that span, and
+  // the comparison ignores case and surrounding spaces — a confirm-by-typing
+  // box exists to prove intent, not to test your shift key.
+  const typed = text.trim().toLowerCase();
+  const target = String(org.slug || '').trim().toLowerCase();
+  const matches = typed === target;
   return (
     <div className="pc-scrim" onMouseDown={onClose}>
       <div className="pc-modal" onMouseDown={(e) => e.stopPropagation()}>
@@ -555,14 +567,26 @@ function DeleteOrgModal({ org, onClose, onConfirm, busy }) {
         <p style={{ fontSize: 13, color: 'var(--dim)', lineHeight: 1.6, margin: 0 }}>
           This permanently deletes {org.name}, every staff account, the organization record, and its billing history. This cannot be undone.
         </p>
-        <label className="pc-field" style={{ margin: '16px 0 0' }}>
-          <span>Type “{org.slug}” to confirm</span>
-          <input className="pc-input" value={text} onChange={(e) => setText(e.target.value)} placeholder={org.slug} />
-        </label>
+        <div className="pc-field" style={{ margin: '16px 0 0' }}>
+          <span>Confirm by typing the workspace address</span>
+          <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--dim)' }}>
+            Type <code style={{ fontFamily: 'var(--mono)', fontSize: 13, background: 'rgba(0,0,0,.06)', padding: '1px 6px', borderRadius: 5, color: 'var(--text)' }}>{org.slug}</code> below.
+          </p>
+          <input className="pc-input" value={text} autoFocus autoCapitalize="off" autoCorrect="off" spellCheck={false}
+            onChange={(e) => setText(e.target.value)} placeholder={org.slug}
+            onKeyDown={(e) => { if (e.key === 'Enter' && matches && !busy) onConfirm(); }} />
+          {/* A disabled button must say why. */}
+          {text.trim() !== '' && !matches && (
+            <span style={{ textTransform: 'none', letterSpacing: 0, fontFamily: 'inherit', fontSize: 12.5, color: 'var(--err)' }}>
+              That doesn’t match “{org.slug}” yet.
+            </span>
+          )}
+        </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
           <button className="pc-btn" onClick={onClose}>Cancel</button>
-          <button className="pc-btn danger" disabled={text !== org.slug || busy} onClick={onConfirm}
-            style={text === org.slug ? { color: 'var(--err)', borderColor: 'rgba(248,81,73,0.5)' } : undefined}>
+          <button className="pc-btn danger" disabled={!matches || busy} onClick={onConfirm}
+            title={matches ? 'This cannot be undone' : `Type “${org.slug}” to enable this`}
+            style={matches ? { color: 'var(--err)', borderColor: 'rgba(248,81,73,0.5)' } : undefined}>
             {busy ? '…' : 'Delete permanently'}
           </button>
         </div>

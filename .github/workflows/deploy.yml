@@ -82,6 +82,9 @@ jobs:
       - name: User-supplied URLs are sanitised before becoming links
         run: node test/safe_url.mjs
 
+      - name: Suite tile colours stay distinct and readable
+        run: node test/suite_palette.mjs
+
       - name: Cross-tenant RLS probe + payroll golden + support read-only (live DB)
         if: env.DATABASE_URL != ''
         run: |
