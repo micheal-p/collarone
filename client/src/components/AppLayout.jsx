@@ -37,7 +37,16 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
   const { user, logout } = useAuth();
   const nav = useNavigate();
   const loc = useLocation();
-  const [railOpen, setRailOpen] = useState(true);
+  // Remembered, like the group state below. Someone who works in the narrow
+  // icon rail had it spring back to full width on every page load, which is
+  // the kind of small daily friction people stop reporting and start resenting.
+  const RAIL_KEY = 'collarone_rail_open';
+  const [railOpen, setRailOpen] = useState(() => {
+    try { return localStorage.getItem(RAIL_KEY) !== '0'; } catch { return true; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(RAIL_KEY, railOpen ? '1' : '0'); } catch { /* private mode */ }
+  }, [railOpen]);
   const [drawer, setDrawer] = useState(false);
   const [waffle, setWaffle] = useState(false);
   const [menu, setMenu] = useState(false);
