@@ -98,6 +98,12 @@ export default async function handler(req, res) {
       const { count } = await admin.from('client_errors')
         .select('id', { count: 'exact', head: true })
         .is('resolved_at', null)   // acknowledged noise stops counting
+        // Errors thrown by somebody else's script inside our page (tagged in
+        // track.js) must not move OUR status. Cloudflare's analytics beacon
+        // failing on an old browser is not a Collarone outage, and telling
+        // customers it is would be the false alarm that teaches them to
+        // ignore the status page.
+        .not('message', 'like', '[third-party]%')
         .gte('occurred_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
       clientErrorsLastHour = count || 0;
     } catch { /* counting must never break the health check itself */ }

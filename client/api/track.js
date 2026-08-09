@@ -26,9 +26,26 @@ export default async function handler(req, res) {
     if (body.type === 'client_error') {
       // a real crash in someone's browser — the uptime checks can't see these,
       // so this is the only record that it happened
+      const stack = String(body.stack || '').slice(0, 3000);
+
+      // Third-party scripts crash in our page and we cannot fix them. Cloudflare's
+      // own analytics beacon, injected automatically because the domain is
+      // proxied, throws `t.entries.at is not a function` on browsers too old for
+      // Array.prototype.at. Nothing of ours is broken, but the row still landed
+      // in the inbox AND counted toward the ten-an-hour threshold that flips the
+      // PUBLIC status page to degraded — so somebody else's bug, on somebody
+      // else's script, could tell your customers you were having an outage.
+      //
+      // Tagged rather than dropped: still visible to us (a third-party script
+      // breaking for real users is worth knowing), but excluded from the health
+      // threshold in client/api/health.js, which cannot count what it cannot fix.
+      const THIRD_PARTY = /cloudflareinsights\.com|googletagmanager\.com|google-analytics\.com|hotjar\.com|facebook\.net|clarity\.ms/i;
+      const isOurs = !stack || /collarone\.app|\/assets\//.test(stack);
+      const thirdParty = THIRD_PARTY.test(stack) && !isOurs;
+
       await admin.from('client_errors').insert({
-        message: String(body.message || 'Unknown error').slice(0, 500),
-        stack: String(body.stack || '').slice(0, 3000) || null,
+        message: (thirdParty ? '[third-party] ' : '') + String(body.message || 'Unknown error').slice(0, 480),
+        stack: stack || null,
         path,
         user_agent: String(req.headers['user-agent'] || '').slice(0, 300),
       });

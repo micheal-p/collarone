@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet, apiPost } from '../api/client.js';
 import { supabase } from '../lib/supabaseClient.js';
-import { SUITE_META, PINNED_TOOLS } from '../config/suites.js';
+import { SUITE_META, PINNED_TOOLS, FAMILIES, SUITE_FAMILY } from '../config/suites.js';
 import SuiteIcon from './SuiteIcon.jsx';
 import NotificationBell from './NotificationBell.jsx';
 import logoMark from '../assets/collarone-mark.svg';
@@ -36,6 +36,7 @@ const GUEST_TTL_MS = 60 * 60 * 1000; // guest sessions hard-expire after 1 hour
 export default function AppLayout({ breadcrumb = [], title, commandBar, children }) {
   const { user, logout } = useAuth();
   const nav = useNavigate();
+  const loc = useLocation();
   const [railOpen, setRailOpen] = useState(true);
   const [drawer, setDrawer] = useState(false);
   const [waffle, setWaffle] = useState(false);
@@ -148,6 +149,30 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
 
   const isAdmin = user?.role === 'super_admin';
   const openable = suites.filter((s) => s.openable);
+
+  // Suites arranged into the same families the signup cart uses, in the same
+  // order. Only families the org actually holds are rendered.
+  const suiteGroups = useMemo(() => FAMILIES
+    .map((family) => ({ family, items: openable.filter((s) => SUITE_FAMILY[s.key] === family.key) }))
+    .filter((g) => g.items.length > 0), [openable]);
+
+  // Which families the person has collapsed. Remembered, because someone who
+  // only ever opens Payroll should not re-collapse four groups every morning.
+  const FAM_KEY = user?.id ? `collarone_rail_fams_${user.id}` : null;
+  const [collapsedFams, setCollapsedFams] = useState(() => {
+    try { return FAM_KEY ? JSON.parse(localStorage.getItem(FAM_KEY) || '{}') : {}; } catch { return {}; }
+  });
+  const toggleFam = (key) => setCollapsedFams((c) => {
+    const next = { ...c, [key]: !c[key] };
+    try { if (FAM_KEY) localStorage.setItem(FAM_KEY, JSON.stringify(next)); } catch { /* private mode */ }
+    return next;
+  });
+  // A collapsed group must never hide the page you are looking at.
+  const activeSuite = loc.pathname.startsWith('/suite/') ? loc.pathname.split('/')[2] : null;
+  useEffect(() => {
+    const fam = activeSuite && SUITE_FAMILY[activeSuite];
+    if (fam) setCollapsedFams((c) => (c[fam] ? { ...c, [fam]: false } : c));
+  }, [activeSuite]);
 
   // Debounced people search (admin only)
   useEffect(() => {
@@ -383,9 +408,35 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
         <nav className={`rail ${railOpen ? '' : 'rail-collapsed'} ${drawer ? 'rail-drawer' : ''}`}>
           <RailItem to="/" icon="home" label="Home" end onClick={() => setDrawer(false)} />
 
-          {openable.length > 0 && <div className="rail-group">Suites</div>}
-          {openable.map((s) => (
+          {/* Grouped by what the work IS, not alphabetically: a fifteen-item
+              flat list makes someone read every label to find Payroll. The
+              families already existed in config/suites.js (they drive the
+              signup cart) and are ordered most-used first — People, Sales &
+              money, Stock & buying, Work, Front desk — so the sidebar now uses
+              the same vocabulary the customer met when they signed up.
+              Collapsed rail stays flat: there is no room for headings, and
+              icons are the whole point of that mode. */}
+          {openable.length > 0 && !railOpen && openable.map((s) => (
             <RailItem key={s.key} to={`/suite/${s.key}`} suiteKey={s.key} label={s.name} onClick={() => setDrawer(false)} />
+          ))}
+          {openable.length > 0 && railOpen && suiteGroups.map(({ family, items }) => (
+            <div key={family.key} className="rail-fam">
+              <button
+                type="button"
+                className={`rail-group rail-fam-head${collapsedFams[family.key] ? ' is-closed' : ''}`}
+                aria-expanded={!collapsedFams[family.key]}
+                onClick={() => toggleFam(family.key)}
+              >
+                <span>{family.shortLabel}</span>
+                <svg className="rail-fam-chev" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              {!collapsedFams[family.key] && items.map((s) => (
+                <RailItem key={s.key} to={`/suite/${s.key}`} suiteKey={s.key} label={s.name} onClick={() => setDrawer(false)} />
+              ))}
+            </div>
           ))}
 
           {isAdmin && (
