@@ -330,6 +330,19 @@
     padding: 12px 14px; position: relative;
   }
   .table tbody td { display: block; padding: 3px 0; border: 0; font-size: 13px; }
+  /* The column name, put back. Without it a stacked row is a list of bare
+     values and nobody can tell gross from net. data-label is stamped at
+     runtime by lib/labelledTables.js, so this works on every table including
+     ones added later. */
+  .table tbody td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--text-3); font-weight: 600; font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: .03em;
+    margin-right: 6px;
+  }
+  /* The first cell is the row's identity (a name, an invoice number) and the
+     action cell holds buttons — both read fine without a prefix. */
+  .table tbody td:first-child { font-weight: 650; font-size: 14px; margin-bottom: 4px; }
   /* hide checkbox col + standalone email col (email is inside cell-user).
      Scoped to .col-check — a bare td:first-child rule was amputating the
      identity column (visitor name, SKU, employee…) of every suite table. */

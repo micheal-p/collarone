@@ -5,6 +5,7 @@ import { AuthProvider } from './auth/AuthContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { installCrashReporter } from './lib/crashReporter.js';
 import { installStaleBuildRecovery, cleanRecoveryUrl } from './lib/staleBuild.js';
+import { installLabelledTables } from './lib/labelledTables.js';
 import App from './App.jsx';
 import './styles/global.css';
 import './styles/app.css';
@@ -13,6 +14,8 @@ import './styles/app.css';
 // them into noise. They aren't bugs — they're a tab outliving its deploy.
 installStaleBuildRecovery();
 installCrashReporter();
+// Puts column names back on stacked table rows below 640px. No-op on desktop.
+installLabelledTables();
 // We got here, so this build's entry chunk loaded fine. This only tidies the
 // cache-busting query out of the URL — it deliberately does NOT clear the
 // one-reload guard, which is what turned this into a reload loop.
