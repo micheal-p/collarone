@@ -178,6 +178,13 @@ jobs:
       # fail2ban timer. Fail fast; the reroll job below re-dispatches on a FRESH
       # runner (fresh IP), which is what actually gets through.
       - name: Deploy
+        env:
+          # Seeds BACKUP_DB_URL onto the box for the nightly dump. Reuses the
+          # secret CI already holds rather than minting a second credential,
+          # and the box already carries SUPABASE_SERVICE_KEY, which grants at
+          # least as much. Empty when the secret is absent, and the deploy
+          # simply skips the seeding.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: ./deploy/deploy.sh
 
   # A failed deploy tells the platform about itself — the row lands in

@@ -264,10 +264,19 @@ EOF
 echo "==> Installing the offsite database backup"
 scp -q deploy/backup-db.sh "${REMOTE_USER}@${REMOTE_HOST}:/usr/local/bin/collarone-backup-db" 2>/dev/null || \
   echo "    (could not copy the backup script; continuing — the deploy matters more)"
-$SSH "APP_DIR='${APP_DIR}' bash -s" <<'BACKUP'
+$SSH "APP_DIR='${APP_DIR}' SEED_BACKUP_URL='${DATABASE_URL:-}' bash -s" <<'BACKUP'
 set -uo pipefail
 : "${APP_DIR:=/opt/collarone/app}"
 chmod 700 /usr/local/bin/collarone-backup-db 2>/dev/null || true
+
+# Seed BACKUP_DB_URL once, from the credential CI already holds. Written only
+# if absent: if someone has since pointed backups at a different database or a
+# read replica, a deploy must not quietly drag it back.
+if [ -n "${SEED_BACKUP_URL:-}" ] && ! grep -q '^BACKUP_DB_URL=' "${APP_DIR}/.env" 2>/dev/null; then
+  printf 'BACKUP_DB_URL=%s\n' "$SEED_BACKUP_URL" >> "${APP_DIR}/.env"
+  chmod 600 "${APP_DIR}/.env" 2>/dev/null || true
+  echo "backup: BACKUP_DB_URL seeded from CI"
+fi
 
 # A systemd timer rather than cron: it survives a reboot mid-window
 # (Persistent=true runs a missed backup on the next boot), and the run's output
