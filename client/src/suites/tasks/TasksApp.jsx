@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiGet } from '../../api/client.js';
 import * as T from './taskApi.js';
-import { EmptyState, Modal, searchMatcher, useConfirm, useToast } from '../../components/ui.jsx';
+import { EmptyState, Modal, searchMatcher, useConfirm, useToast , TruncationNotice } from '../../components/ui.jsx';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
@@ -431,6 +431,7 @@ export default function TasksApp({ access }) {
   const [locked,   setLocked]   = useState(true); // protects tasks not assigned to you
 
   const { flash, toastNode } = useToast();
+  const [truncated, setTruncated] = useState(false);
   const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
@@ -442,6 +443,7 @@ export default function TasksApp({ access }) {
         apiGet('/me').then((d) => d.user),
       ]);
       setTasks(t);
+      setTruncated(Boolean(T.getTasks.truncated));
       setStats(s);
       setMyId(me.id);
       setMyDeptId(me.departmentId);
@@ -573,6 +575,9 @@ export default function TasksApp({ access }) {
                 </div>
                 <span className="count">{view.length} task{view.length === 1 ? '' : 's'}</span>
               </div>
+              {/* Above the scroll container, not inside it — a notice that
+                  scrolls sideways with the table is a notice nobody reads. */}
+              <TruncationNotice shown={truncated} what="tasks" hint="Use search or the status filter to find older ones." />
               <div className="table-wrap">
                 <table className="table">
                   <thead>

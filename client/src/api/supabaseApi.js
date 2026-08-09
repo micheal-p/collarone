@@ -59,6 +59,13 @@ export const humanizeDbError = (message) => {
   return raw;
 };
 
+// A list that hit its cap is not "all of it", and silently pretending otherwise
+// is how a count quietly becomes wrong. Every bounded read returns this marker
+// so the screen can say "showing the most recent 500" instead of implying the
+// company only has 500 tasks.
+const LIST_CAP = 500;
+const capped = (data) => (data || []).length >= LIST_CAP;
+
 const fail = (status, message) => {
   const e = new Error(humanizeDbError(message)); e.status = status; e.code = 'supabase'; throw e;
 };
@@ -677,7 +684,7 @@ export async function supabaseApi(path, opts = {}) {
     if (query.assignedTo) tq = tq.eq('assigned_to', query.assignedTo);
     const { data, error } = await tq.order('created_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
-    return { tasks: data };
+    return { tasks: data, truncated: capped(data) };
   }
   if (head === 'POST /tasks') {
     // POST /tasks/:id/reports
@@ -1473,7 +1480,7 @@ export async function supabaseApi(path, opts = {}) {
     if (phase) q = q.eq('phase', phase);
     const { data, error } = await q;
     if (error) fail(400, error.message);
-    return { tasks: data };
+    return { tasks: data, truncated: capped(data) };
   }
   if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'lifecycle-tasks' && seg.length === 3) {
     const { data: { user } } = await supabase.auth.getUser();
@@ -1502,7 +1509,7 @@ export async function supabaseApi(path, opts = {}) {
     });
     const { data, error } = await supabase.from('lifecycle_tasks').insert(rows).select('*, completedBy:profiles!completed_by(id,name)');
     if (error) fail(400, error.message);
-    return { tasks: data };
+    return { tasks: data, truncated: capped(data) };
   }
   if (method === 'PATCH' && seg[0] === 'hr' && seg[1] === 'employees' && seg[3] === 'probation') {
     const { data, error } = await supabase.rpc('hr_set_probation', { p_employee_id: seg[2], p_probation_end_date: body.probationEndDate || null });
@@ -1620,7 +1627,7 @@ export async function supabaseApi(path, opts = {}) {
     }
     const { data, error } = await q;
     if (error) fail(400, error.message);
-    return { visits: data };
+    return { visits: data, truncated: capped(data) };
   }
 
   if (head === 'POST /visits') {
@@ -1778,7 +1785,7 @@ export async function supabaseApi(path, opts = {}) {
     if (companyId) q = q.eq('company_id', companyId);
     const { data, error } = await q;
     if (error) fail(400, error.message);
-    return { activities: data };
+    return { activities: data, truncated: capped(data) };
   }
   if (method === 'PATCH' && seg[0] === 'crm' && seg[1] === 'activities' && seg[2]) {
     const patch = {};
@@ -1941,7 +1948,7 @@ export async function supabaseApi(path, opts = {}) {
     if (query.from) attQ = attQ.gte('clock_in_at', query.from);
     const { data, error } = await attQ.order('clock_in_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
-    return { records: data };
+    return { records: data, truncated: capped(data) };
   }
   // Manager correction of a shift — RLS already allows managers to update
   // records; this closes the "forgot to clock out" dead end.
@@ -1961,7 +1968,7 @@ export async function supabaseApi(path, opts = {}) {
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('attendance_records').select('*').eq('employee_id', user.id).order('clock_in_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
-    return { records: data };
+    return { records: data, truncated: capped(data) };
   }
   // Clock-in rules: office pin, geofence radius, work times, grace.
   //
@@ -2311,7 +2318,7 @@ export async function supabaseApi(path, opts = {}) {
   if (head === 'GET /procurement' && seg[1] === 'requests') {
     const { data, error } = await supabase.from('purchase_requests').select(PR_SELECT).order('created_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
-    return { requests: data };
+    return { requests: data, truncated: capped(data) };
   }
   if (head === 'POST /procurement' && seg[1] === 'requests') {
     const { departmentId, vendorId, itemDescription, quantity, unitCost, vatRate, notes } = body;
@@ -2790,7 +2797,7 @@ export async function supabaseApi(path, opts = {}) {
   if (head === 'GET /finance' && seg[1] === 'expenses') {
     const { data, error } = await supabase.from('expenses').select(EXPENSE_SELECT).order('expense_date', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
-    return { expenses: data };
+    return { expenses: data, truncated: capped(data) };
   }
   if (head === 'POST /finance' && seg[1] === 'expenses') {
     const { categoryId, departmentId, vendor, description, amount, vatRate, expenseDate, notes, receiptPath } = body;
@@ -3101,7 +3108,7 @@ export async function supabaseApi(path, opts = {}) {
   if (head === 'GET /projects' && seg[2] === 'tasks') {
     const { data, error } = await supabase.from('project_tasks').select(PTASK_SELECT).eq('project_id', seg[1]).order('created_at', { ascending: false });
     if (error) fail(400, error.message);
-    return { tasks: data };
+    return { tasks: data, truncated: capped(data) };
   }
   if (head === 'POST /projects' && seg[2] === 'tasks') {
     const { title, description, milestoneId, assignedTo, priority, dueDate } = body;

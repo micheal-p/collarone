@@ -142,6 +142,24 @@ export function Paginator({ page, pages, onPage, total = null }) {
 }
 
 /* ---- empty state ----------------------------------------------------------- */
+// Says plainly when a list has been capped.
+//
+// Long lists are bounded at 500 rows so one company's history cannot take the
+// page down. Without saying so, a capped list looks like the whole truth — and
+// the counts drawn from it are simply wrong, with nothing on screen to suggest
+// it. That is worse than being slow.
+export function TruncationNotice({ shown, total = 500, what = 'records', hint = 'Narrow the date range or use search to find older ones.' }) {
+  if (!shown) return null;
+  return (
+    <div style={{
+      margin: '10px 0', padding: '8px 12px', borderRadius: 10, fontSize: 12.5, lineHeight: 1.5,
+      background: '#fff4ce', color: '#7a5200', border: '1px solid #f0e0a8',
+    }}>
+      Showing the most recent {total} {what}. {hint}
+    </div>
+  );
+}
+
 export function EmptyState({ icon = null, title, hint, action = null }) {
   return (
     <div className="empty-state">

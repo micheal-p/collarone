@@ -2,7 +2,9 @@ import { apiGet, apiPost, apiPatch, apiDelete } from '../../api/client.js';
 import { supabase, currentOrgId } from '../../lib/supabaseClient.js';
 import { privateFileUrl } from '../../lib/privateFile.js';
 
-export const getTasks    = ()        => apiGet('/tasks').then((d) => d.tasks);
+// Returns the rows, and remembers whether the server capped them so the screen
+// can say so (see TruncationNotice).
+export const getTasks    = ()        => apiGet('/tasks').then((d) => { getTasks.truncated = Boolean(d.truncated); return d.tasks; });
 export const createTask  = (body)    => apiPost('/tasks', body).then((d) => d.task);
 export const updateTask  = (id, p)   => apiPatch(`/tasks/${id}`, p).then((d) => d.task);
 export const deleteTask  = (id)      => apiDelete(`/tasks/${id}`);
