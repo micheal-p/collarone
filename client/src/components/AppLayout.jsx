@@ -160,14 +160,23 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
   // only ever opens Payroll should not re-collapse four groups every morning.
   const FAM_KEY = user?.id ? `collarone_rail_fams_${user.id}` : null;
   const [collapsedFams, setCollapsedFams] = useState(() => {
-    try { return FAM_KEY ? JSON.parse(localStorage.getItem(FAM_KEY) || '{}') : {}; } catch { return {}; }
+    try {
+      const raw = FAM_KEY ? localStorage.getItem(FAM_KEY) : null;
+      if (raw) return JSON.parse(raw);
+    } catch { /* private mode */ }
+    // CLOSED by default. The rail should read as a short menu of five choices,
+    // not fifteen links you have to scan past. You open the one you want.
+    return Object.fromEntries(FAMILIES.map((f) => [f.key, true]));
   });
   const toggleFam = (key) => setCollapsedFams((c) => {
     const next = { ...c, [key]: !c[key] };
     try { if (FAM_KEY) localStorage.setItem(FAM_KEY, JSON.stringify(next)); } catch { /* private mode */ }
     return next;
   });
-  // A collapsed group must never hide the page you are looking at.
+  // A collapsed group must never hide the page you are looking at. This opening
+  // is deliberately NOT persisted: leaving the suite lets the group close again,
+  // so the rail returns to its five-line resting state instead of slowly
+  // accumulating every group you have ever visited.
   const activeSuite = loc.pathname.startsWith('/suite/') ? loc.pathname.split('/')[2] : null;
   useEffect(() => {
     const fam = activeSuite && SUITE_FAMILY[activeSuite];
