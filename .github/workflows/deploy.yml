@@ -97,6 +97,12 @@ jobs:
       - name: Money is right-aligned, focus is visible, empty states explain themselves
         run: node test/ui_quality.mjs
 
+      - name: Nobody is credited on a commit who did not write it
+        # Needs the full history, not the default shallow clone of one commit.
+        run: |
+          git fetch --unshallow --quiet 2>/dev/null || true
+          node test/commit_authorship.mjs
+
       - name: Cross-tenant RLS probe + payroll golden + support read-only (live DB)
         if: env.DATABASE_URL != ''
         run: |
