@@ -61,10 +61,22 @@ if ! gzip -t "$OUT" 2>/dev/null; then
   log "Dump does not decompress cleanly. Failing."
   exit 1
 fi
-if ! zcat "$OUT" | head -n 400 | grep -q 'CREATE TABLE'; then
-  log "Dump contains no CREATE TABLE in its first 400 lines. Failing rather than trusting it."
+# Scan the whole dump, not the first N lines. The first version looked at 400
+# lines and failed a perfectly good backup: a Supabase dump opens with hundreds
+# of lines of SET statements, extensions, types and functions before the first
+# table appears. grep -m1 stops at the first hit, so this costs almost nothing.
+if ! zcat "$OUT" | grep -qm1 'CREATE TABLE'; then
+  log "Dump contains no CREATE TABLE anywhere. Failing rather than trusting it."
   exit 1
 fi
+# And prove it is OUR database rather than an empty one that happens to have a
+# schema — organizations is the root of every tenant's data.
+if ! zcat "$OUT" | grep -qm1 'CREATE TABLE public.organizations'; then
+  log "Dump has no public.organizations table. This is not the Collarone database. Failing."
+  exit 1
+fi
+ORGS=$(zcat "$OUT" | grep -c '^COPY public\.organizations' || true)
+log "Contains the organizations table (${ORGS} COPY block(s))"
 
 log "OK: ${OUT} ($(numfmt --to=iec "$SIZE" 2>/dev/null || echo "$SIZE bytes"))"
 
