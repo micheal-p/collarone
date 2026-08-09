@@ -348,6 +348,11 @@ function RequestsTab({ requests, flash, onCompose, onDecided, confirm }) {
 
 /* ---- Issued register ------------------------------------------------------------ */
 function IssuedTab({ issued, letterheads, flash }) {
+  const openPdf = async (l) => {
+    try { await L.openLetterPdf(l.id); }
+    catch (e) { flash(e.message, true); }
+  };
+
   const open = async (l) => {
     try {
       if (l.file_path) { window.open(await L.getLetterUrl(l.file_path), '_blank'); return; }
@@ -370,7 +375,12 @@ function IssuedTab({ issued, letterheads, flash }) {
               <td><span className="st-pill st-info">{LETTER_TYPES[l.letter_type]?.label || l.letter_type}</span></td>
               <td className="muted" style={{ fontSize: 13 }}>{l.issuedBy?.name || '—'}</td>
               <td className="muted" style={{ fontSize: 13 }}>{L.fmtDate(l.issued_at)}</td>
-              <td className="ta-r"><button className="btn btn-ghost btn-sm" onClick={() => open(l)}>{IC.down} Open</button></td>
+              <td className="ta-r" style={{ whiteSpace: 'nowrap' }}>
+                {/* PDF is what anyone outside the company will actually accept;
+                    the HTML original stays available for the exact template. */}
+                <button className="btn btn-ghost btn-sm" onClick={() => openPdf(l)}>PDF</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => open(l)}>{IC.down} Open</button>
+              </td>
             </tr>
           ))}
         </tbody>

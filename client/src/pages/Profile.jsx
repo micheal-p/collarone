@@ -235,6 +235,8 @@ function MyLetters() {
 
   const open = async (l) => {
     try {
+      // A real PDF first — this is the file a bank or embassy will accept.
+      try { await L.openLetterPdf(l.id); return; } catch { /* fall back below */ }
       if (l.file_path) {
         window.open(await privateFileUrl('hr-letters', l.file_path), '_blank', 'noopener');
         return;
@@ -274,7 +276,7 @@ function MyLetters() {
         </div>
       ))}
       <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
-        Use your browser's print dialog to save any of these as a PDF.
+        These open as PDFs, ready to send to a bank, an embassy or a landlord.
       </p>
     </div>
   );

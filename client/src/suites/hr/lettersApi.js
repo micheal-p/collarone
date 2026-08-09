@@ -81,3 +81,26 @@ export const LETTER_STATUS = {
 };
 
 export const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+
+// A letter as a real PDF, built server-side.
+//
+// Banks, embassies and landlords ask for PDFs. Until now a letter existed only
+// as HTML — fine on a laptop, useless forwarded from a phone. Opened in a new
+// tab so the browser's own viewer handles saving and printing.
+export async function openLetterPdf(letterId) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('Please sign in again.');
+  const res = await fetch('/api/letter-pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ letterId }),
+  });
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.message || 'Could not build the PDF.');
+  }
+  const url = URL.createObjectURL(await res.blob());
+  window.open(url, '_blank', 'noopener');
+  // Revoked on a delay: revoking immediately can beat the new tab to the blob.
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
