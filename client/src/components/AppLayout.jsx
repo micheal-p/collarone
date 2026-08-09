@@ -159,6 +159,23 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
   const isAdmin = user?.role === 'super_admin';
   const openable = suites.filter((s) => s.openable);
 
+  // What the owner could still add, plus the two numbers they check often.
+  // `granted` is false for anything outside the plan, so the gap between the
+  // live catalogue and what they hold IS the upsell — no separate price list
+  // to drift out of sync.
+  const [upsell, setUpsell] = useState({ locked: 0, credits: null, staff: null });
+  useEffect(() => {
+    if (!isAdmin || !suites.length) return;
+    const locked = suites.filter((s) => s.status === 'live' && !s.granted).length;
+    setUpsell((u) => ({ ...u, locked }));
+    // Both are nice-to-have: a failure here must never disturb the sidebar.
+    apiGet('/billing/balance').then((d) => setUpsell((u) => ({ ...u, credits: d.balance ?? 0 })), () => {});
+    apiGet('/users').then(
+      (d) => setUpsell((u) => ({ ...u, staff: (d.users || []).filter((x) => x.status === 'active').length })),
+      () => {},
+    );
+  }, [isAdmin, suites]);
+
   // Suites arranged into the same families the signup cart uses, in the same
   // order. Only families the org actually holds are rendered.
   const suiteGroups = useMemo(() => FAMILIES
@@ -475,6 +492,14 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
               <RailItem to="/platform-admin" icon="shield" label="Platform Admin" onClick={() => setDrawer(false)} />
             </>
           )}
+
+          {/* Suites you have not bought are hidden entirely, which is right for
+              day-to-day use but leaves no way to discover the rest of the
+              product. This is that path — plus the two numbers an owner checks
+              often enough to deserve a permanent home: seat credits and how
+              many staff they have. Owners only; staff cannot buy anything and
+              should not be nudged to. */}
+          {railOpen && isAdmin && <RailFooter upsell={upsell} onGo={() => setDrawer(false)} />}
         </nav>
 
         <main className="content">
@@ -494,6 +519,45 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
             {children}
           </div>
         </main>
+      </div>
+    </div>
+  );
+}
+
+// Sidebar footer: the upgrade path, and the two numbers an owner watches.
+function RailFooter({ upsell, onGo }) {
+  const { locked, credits, staff } = upsell;
+  const allIn = locked === 0;
+  return (
+    <div className="rail-foot">
+      <Link to="/admin/billing" className={`rail-foot-card${allIn ? ' is-complete' : ''}`} onClick={onGo}>
+        {allIn ? (
+          <>
+            <div className="rail-foot-title">All caught up</div>
+            <div className="rail-foot-sub">Every suite is switched on for your business.</div>
+          </>
+        ) : (
+          <>
+            <div className="rail-foot-title">Add more to your workspace</div>
+            <div className="rail-foot-sub">
+              {locked} more {locked === 1 ? 'suite' : 'suites'} you can switch on.
+            </div>
+          </>
+        )}
+      </Link>
+      <div className="rail-foot-stats">
+        {/* Rendered only once loaded: a flashing 0 on a credit balance is
+            alarming in a way a brief blank space is not. */}
+        {credits !== null && (
+          <span className="rail-foot-stat" title="Seat credits — one is used each time you create a staff account">
+            <strong>{credits}</strong> {credits === 1 ? 'credit' : 'credits'}
+          </span>
+        )}
+        {staff !== null && (
+          <span className="rail-foot-stat" title="Active staff accounts">
+            <strong>{staff}</strong> {staff === 1 ? 'person' : 'people'}
+          </span>
+        )}
       </div>
     </div>
   );

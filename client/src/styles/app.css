@@ -994,3 +994,22 @@ textarea.input { padding: 12px 14px; }
 .rail-fam-chev { flex: none; transition: transform .18s ease; opacity: .85; }
 .rail-fam-head.is-closed .rail-fam-chev { transform: rotate(-90deg); }
 @media (prefers-reduced-motion: reduce) { .rail-fam-chev { transition: none; } }
+
+/* ---- rail footer: upgrade path + the two numbers an owner watches ---------
+   Suites outside the plan are hidden entirely, so without this there is no
+   way to discover the rest of the product from inside it. */
+.rail-foot { margin-top: 18px; padding: 12px 8px 18px; }
+.rail-foot-card {
+  display: block; text-decoration: none; border-radius: 12px; padding: 12px 13px;
+  background: linear-gradient(180deg, rgba(255,91,31,.16), rgba(255,91,31,.07));
+  border: 1px solid rgba(255,91,31,.32);
+}
+.rail-foot-card:hover { background: linear-gradient(180deg, rgba(255,91,31,.24), rgba(255,91,31,.11)); }
+.rail-foot-card.is-complete {
+  background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.14);
+}
+.rail-foot-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 3px; }
+.rail-foot-sub { font-size: 11.5px; line-height: 1.45; color: rgba(255,255,255,.62); }
+.rail-foot-stats { display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 4px 0; }
+.rail-foot-stat { font-size: 11.5px; color: rgba(255,255,255,.5); }
+.rail-foot-stat strong { color: rgba(255,255,255,.86); font-weight: 700; }
