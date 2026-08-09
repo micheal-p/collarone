@@ -316,6 +316,30 @@ if grep -q '^BACKUP_DB_URL=' "${APP_DIR}/.env" 2>/dev/null; then
 else
   echo "backup: timer installed, but BACKUP_DB_URL is NOT set in .env — no dump will be taken"
 fi
+
+# ---- prove it works, once ---------------------------------------------------
+# A timer that fires at 02:30 and fails is indistinguishable from a timer that
+# fires at 02:30 and works, until the day the backup is needed. Two failures
+# are near-certain on a fresh box and both are silent: pg_dump not installed at
+# all, and pg_dump older than the server, which refuses with "server version
+# mismatch" rather than producing a smaller dump. Run it once now, while
+# somebody is watching the deploy log.
+if [ ! -f /var/backups/collarone/.verified ] && grep -q '^BACKUP_DB_URL=' "${APP_DIR}/.env" 2>/dev/null; then
+  echo "backup: no dump has ever been verified — taking one now"
+  # postgresql-client is cheap and the mismatch failure is not obvious, so
+  # make sure a recent pg_dump exists before blaming the credentials.
+  if ! command -v pg_dump >/dev/null 2>&1; then
+    echo "backup: pg_dump missing, installing postgresql-client"
+    (apt-get update -qq && apt-get install -y -qq postgresql-client >/dev/null 2>&1) || true
+  fi
+  set -a; . "${APP_DIR}/.env"; set +a
+  if /usr/local/bin/collarone-backup-db 2>&1 | sed 's/^/    /'; then
+    mkdir -p /var/backups/collarone && touch /var/backups/collarone/.verified
+    echo "backup: VERIFIED — a real dump was written and checked"
+  else
+    echo "backup: FIRST DUMP FAILED (see above). The timer is installed but is not producing backups." >&2
+  fi
+fi
 BACKUP
 
 echo "==> Health-gating the new build"
