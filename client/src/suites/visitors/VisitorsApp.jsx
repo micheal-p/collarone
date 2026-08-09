@@ -161,7 +161,12 @@ function VisitorResultCard({ visit, canAct, onRefresh, flash }) {
 }
 
 /* ---- CodeLookupWidget ----------------------------------------------------- */
-function CodeLookupWidget({ canAct = false, flash, hero = false }) {
+// onRefresh: the gate screen passes `load` so a check-in updates the board
+// behind the widget. It was passed at the call site and NOT declared here, so
+// React dropped it: the guard checked someone in, the card cleared, and the
+// "who is on site" list behind it still showed them as expected. The guard
+// then had no way to tell whether the check-in had registered.
+function CodeLookupWidget({ canAct = false, flash, hero = false, onRefresh = null }) {
   const [code, setCode]     = useState('');
   const [result, setResult] = useState(null); // null | 'not_found' | visit object
   const [busy, setBusy]     = useState(false);
@@ -202,7 +207,8 @@ function CodeLookupWidget({ canAct = false, flash, hero = false }) {
         <div className="vs-not-found">No active visit found for code <strong>{code}</strong>. It may have expired or already checked out.</div>
       )}
       {result && result !== 'not_found' && (
-        <VisitorResultCard visit={result} canAct={canAct} flash={flash} onRefresh={() => { setCode(''); setRev((r) => r + 1); }} />
+        <VisitorResultCard visit={result} canAct={canAct} flash={flash}
+          onRefresh={() => { setCode(''); setRev((r) => r + 1); onRefresh?.(); }} />
       )}
     </div>
   );
