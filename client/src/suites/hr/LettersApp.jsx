@@ -168,8 +168,17 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
         try { await C.updateCase(f.caseId, { [f.caseField]: saved.id }); } catch { /* case link is best-effort */ }
       }
       downloadHtml(html, `${title.replace(/[^a-zA-Z0-9]+/g, '-')}.html`);
-      fileToDocuments({ html, title: `${title} · ${f.reference}`, employeeId: emp.id, folderName: f.folderName }).catch(() => {});
-      flash(`Letter issued, filing to "${f.folderName}" in the background.`);
+      // Say what actually happened. This used to fire-and-forget with an empty
+      // catch and then claim the letter was filing — so when filing failed, the
+      // company record silently had no copy of a warning letter it believed was
+      // on file. The letter itself is already issued and downloaded either way;
+      // only the filing is in question, so the message says exactly that.
+      try {
+        await fileToDocuments({ html, title: `${title} · ${f.reference}`, employeeId: emp.id, folderName: f.folderName });
+        flash(`Letter issued and filed to "${f.folderName}".`);
+      } catch (fileErr) {
+        flash(`Letter issued and downloaded, but filing to "${f.folderName}" failed: ${fileErr.message}. The copy on your computer is the only one.`, true);
+      }
       onIssued(saved);
       setF((s) => ({ ...s, body: '', instructions: '', requestId: null, caseId: null, caseField: null, refTouched: false, reference: suggestReference(s.letterType, [saved, ...(issued || [])]) }));
     } catch (e) { flash(e.message, true); }

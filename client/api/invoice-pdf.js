@@ -118,10 +118,24 @@ export async function fileIntoDocuments({ admin, doc, pdf, callerId }) {
     return existing.id;
   }
 
+  // RESTRICTED, not org-wide. `visibility` defaults to 'org', so every invoice
+  // filed automatically became readable by everyone in the company — customer
+  // names, what they were charged, and what they still owe, visible to any
+  // employee who opened Documents. Nobody chose that; it was the default
+  // winning because this insert never set the field.
   const { data: made, error } = await admin.from('documents').insert({
     org_id: doc.org_id, folder_id: folder.id, name: invoiceFilename(doc),
     file_path: path, file_size: pdf.length, created_by: callerId,
+    visibility: 'restricted',
   }).select('id').single();
   if (error) throw new Error(error.message);
+
+  // A restricted document with no grants is readable by nobody but a documents
+  // manager, so the person who filed it would lose their own invoice.
+  if (callerId) {
+    await admin.from('document_permissions').insert({
+      org_id: doc.org_id, document_id: made.id, user_id: callerId, granted_by: callerId,
+    }).then(() => {}, () => {});
+  }
   return made.id;
 }

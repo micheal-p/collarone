@@ -219,6 +219,12 @@ function VisitModal({ onClose, onSaved, flash, showHostPicker = false, staff = [
 
   const [vis, setVis] = useState({ name:'', company:'', phone:'', email:'' });
   const [vst, setVst] = useState({ purpose:'', notes:'', expectedAt:'', accessPoint: V.ACCESS_POINTS[0], hostId:'' });
+  // Most visitors are standing at the desk RIGHT NOW. The button has always
+  // said "Walk-in", and the form then demanded an expected arrival date and
+  // time — so reception had to type today's date and the current time to
+  // register somebody in front of them. Default to now; pre-booking is the
+  // exception and gets a checkbox.
+  const [hereNow, setHereNow] = useState(true);
 
   const setV = (k, v) => setVis((s) => ({ ...s, [k]: v }));
   const setW = (k, v) => setVst((s) => ({ ...s, [k]: v }));
@@ -247,17 +253,24 @@ function VisitModal({ onClose, onSaved, flash, showHostPicker = false, staff = [
     if (!vis.name.trim())     return flash('Visitor name is required.', true);
     if (!vis.phone.trim())    return flash('Visitor phone is required.', true);
     if (!vst.purpose.trim())  return flash('Purpose is required.', true);
-    if (!vst.expectedAt)      return flash('Expected arrival date/time is required.', true);
+    if (!hereNow && !vst.expectedAt) return flash('Expected arrival date and time is required for a pre-booked visit.', true);
     setBusy(true);
     try {
+      const arriving = hereNow ? new Date().toISOString() : vst.expectedAt;
       const result = await V.createVisit({
         visitorId:      foundVisitor?.id || null,
         visitorName:    vis.name, visitorCompany: vis.company,
         visitorPhone:   vis.phone, visitorEmail: vis.email,
         purpose:   vst.purpose, notes: vst.notes,
-        expectedAt: vst.expectedAt, accessPoint: vst.accessPoint,
+        expectedAt: arriving, accessPoint: vst.accessPoint,
         hostId:    vst.hostId || null,
       });
+      // Standing here means checked in. Registering someone at the desk and
+      // then having to find them in a list to check them in is two steps for
+      // one event, and the second one gets forgotten.
+      if (hereNow) {
+        try { await V.updateVisit(result.id, { status: 'checked_in' }); } catch { /* the visit exists either way */ }
+      }
       setAccessCode(result.access_code);
       setStep('success');
       onSaved(result);
@@ -266,7 +279,7 @@ function VisitModal({ onClose, onSaved, flash, showHostPicker = false, staff = [
 
   if (step === 'success') {
     const waText = encodeURIComponent(
-      `Hi ${vis.name.split(' ')[0]}, your visit is booked.\n\nShow this code at ${vst.accessPoint || 'the entrance'}: ${accessCode}\nWhen: ${new Date(vst.expectedAt).toLocaleString('en-NG', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}\n\nSee you soon.`
+      `Hi ${vis.name.split(' ')[0]}, your visit is booked.\n\nShow this code at ${vst.accessPoint || 'the entrance'}: ${accessCode}\nWhen: ${hereNow ? 'now' : new Date(vst.expectedAt).toLocaleString('en-NG', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}\n\nSee you soon.`
     );
     return (
       <div className="modal-overlay" onMouseDown={onClose}>
@@ -354,8 +367,19 @@ function VisitModal({ onClose, onSaved, flash, showHostPicker = false, staff = [
               <input className="input" value={vst.purpose} onChange={(e) => setW('purpose', e.target.value)} required />
             </div>
             <div className="form-grid">
-              <div className="field"><label>Expected arrival *</label>
-                <input className="input" type="datetime-local" value={vst.expectedAt} onChange={(e) => setW('expectedAt', e.target.value)} required />
+              <div className="field">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input type="checkbox" checked={hereNow} onChange={(e) => setHereNow(e.target.checked)} />
+                  <span>They are here now</span>
+                </label>
+                {hereNow
+                  ? <p className="muted" style={{ fontSize: 12.5, margin: '4px 0 0' }}>
+                      They will be registered and checked in straight away.
+                    </p>
+                  : <>
+                      <label style={{ marginTop: 8 }}>Expected arrival *</label>
+                      <input className="input" type="datetime-local" value={vst.expectedAt} onChange={(e) => setW('expectedAt', e.target.value)} required />
+                    </>}
               </div>
               <div className="field"><label>Access point</label>
                 <select className="select" value={vst.accessPoint} onChange={(e) => setW('accessPoint', e.target.value)}>

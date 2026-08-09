@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
-import { apiPatch } from '../api/client.js';
+import { apiGet, apiPatch } from '../api/client.js';
 import { supabase } from '../lib/supabaseClient.js';
+import { privateFileUrl } from '../lib/privateFile.js';
 import AppLayout from '../components/AppLayout.jsx';
 import * as P from '../suites/payroll/payrollApi.js';
 import * as PF from '../suites/hr/performanceApi.js';
@@ -204,6 +205,7 @@ export default function Profile() {
         </div>
 
         <MyPayslips />
+        <MyLetters />
         <MyGoals />
         <MyReviews />
         <LetterRequests />
@@ -217,6 +219,64 @@ export default function Profile() {
 
       {toast && <div className={`toast ${toast.isErr ? 'error' : ''}`}>{toast.msg}</div>}
     </AppLayout>
+  );
+}
+
+// An employee's own letters. The RLS policy on hr_letters has always allowed
+// this (`employee_id = auth.uid()`) — there was simply no screen, so the way to
+// get a copy of your own confirmation letter was to email HR and wait. Banks
+// and embassies ask for these at short notice, which is exactly when nobody
+// wants to be waiting on somebody else's inbox.
+function MyLetters() {
+  const [letters, setLetters] = useState(null);
+  useEffect(() => {
+    apiGet('/hr/issued-letters').then((d) => setLetters(d.letters || []), () => setLetters([]));
+  }, []);
+
+  const open = async (l) => {
+    try {
+      if (l.file_path) {
+        window.open(await privateFileUrl('hr-letters', l.file_path), '_blank', 'noopener');
+        return;
+      }
+      // Older letters were stored as text with no rendered file. Print the body
+      // rather than tell the employee their letter is unavailable.
+      const w = window.open('', '_blank', 'noopener,width=820,height=900');
+      if (!w) return;
+      const esc = (t) => String(t ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      w.document.write(`<title>${esc(l.title)}</title><body style="font:14px/1.7 Georgia,serif;max-width:640px;margin:40px auto;white-space:pre-wrap">${esc(l.body)}</body>`);
+      w.document.close();
+    } catch (e) { /* the button simply does nothing rather than break the page */ }
+  };
+
+  if (letters === null || letters.length === 0) return null;
+  const LABEL = {
+    confirmation: 'Confirmation', promotion: 'Promotion', introduction: 'Introduction',
+    employment_verification: 'Employment verification', query: 'Query', warning: 'Warning', custom: 'Letter',
+  };
+
+  return (
+    <div className="card" style={{ padding: 24, marginBottom: 20 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 14 }}>
+        My letters
+      </div>
+      {letters.map((l) => (
+        <div key={l.id} style={{ borderTop: '1px solid var(--line)', padding: '10px 0', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 500 }}>{l.title}</div>
+            <div className="muted" style={{ fontSize: 12 }}>
+              {LABEL[l.letter_type] || 'Letter'} · {new Date(l.issued_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+          </div>
+          <button className="btn btn-ghost" style={{ fontSize: 12, padding: '3px 12px' }} onClick={() => open(l)}>
+            View / print
+          </button>
+        </div>
+      ))}
+      <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
+        Use your browser's print dialog to save any of these as a PDF.
+      </p>
+    </div>
   );
 }
 

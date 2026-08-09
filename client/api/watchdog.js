@@ -58,6 +58,14 @@ export default async function handler(req, res) {
     if ((closed || 0) > 0) findings.push({ kind: 'shifts_autoclosed', count: closed, detail: `${closed} forgotten shift${closed > 1 ? 's' : ''} auto-closed for review` });
   } catch { /* independent */ }
 
+  // 5b. Same for visitors nobody signed out. "Who is still in the building"
+  // is a fire-safety answer, and it was wrong for every visit since launch
+  // because reception never closes them at the end of the day.
+  try {
+    const { data: out } = await admin.rpc('visitors_autoclose_all');
+    if ((out || 0) > 0) findings.push({ kind: 'visits_autoclosed', count: out, detail: `${out} visitor${out > 1 ? 's' : ''} signed out automatically after 12 hours` });
+  } catch { /* independent */ }
+
   // 6. Deploy failures reported by the pipeline in the last 6 hours.
   try {
     const { count } = await admin.from('client_errors')
