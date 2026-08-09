@@ -127,6 +127,12 @@
 .cmd .ci { color: var(--brand); display: flex; }
 .cmd-divider { width: 1px; height: 22px; background: var(--line); margin: 0 6px; }
 .cmd-search { margin-left: auto; display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 4px; height: 32px; padding: 0 10px; min-width: 240px; }
+/* The input clears its own outline, so the visible focus has to come from the
+   container — exactly as .sb-search already does. Without this, a keyboard
+   user tabbing to the product's main search box got no indication at all that
+   they had landed on it: `.cmd-search input` (0,1,1) outranks the global
+   `:focus-visible` (0,1,0), so the shared ring never applied here. */
+.cmd-search:focus-within { border-color: rgba(255,91,31,0.7); box-shadow: 0 0 0 3px rgba(255,91,31,0.14); }
 .cmd-search input { border: 0; outline: none; width: 100%; font-size: 13.5px; background: transparent; }
 
 /* ---- Flyouts ---- */
@@ -216,6 +222,29 @@
 .col-check { width: 44px; }
 .cbx { width: 16px; height: 16px; accent-color: var(--brand); cursor: pointer; }
 .ta-r { text-align: right; }
+
+/* Numbers in a table.
+   Two separate problems, one rule.
+
+   Alignment: money read down a column is being compared — is this row bigger
+   than that one — and left-aligned amounts make that impossible, because
+   ₦9,500.00 and ₦12,000,000.00 start at the same x and end nowhere near each
+   other. 32 of the 33 money cells in the suites were left-aligned.
+
+   Digit width: the UI font gives '1' a narrower advance than '8', so a column
+   of figures visibly jitters and totals do not line up under the values that
+   make them. tabular-nums forces one width for every digit.
+
+   Deliberately NOT .ta-r, which already means something else: below 640px a
+   row becomes a card and .ta-r is absolutely positioned to the top-right for
+   the kebab cell. Reusing it for money would stack every amount at the same
+   coordinates, and labelledTables.js also skips .ta-r cells when stamping
+   mobile labels — so the amount would lose the header telling you what it is.
+   .num keeps its place in the stacked card and keeps its label. */
+.table td.num, .table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Every other figure in a table still stops jittering, without moving. */
+.table td, .table th { font-variant-numeric: tabular-nums; }
 .td-empty { text-align: center; color: var(--text-3); padding: 30px; }
 .cell-user { display: flex; align-items: center; gap: 10px; }
 .cu-name { font-weight: 600; }

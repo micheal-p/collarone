@@ -419,14 +419,14 @@ function ProductsTab({ orgId, flash }) {
       </div>
       <div className="table-wrap">
         <table className="table">
-          <thead><tr><th></th><th>Name</th><th>Price</th><th></th></tr></thead>
+          <thead><tr><th></th><th>Name</th><th className="num">Price</th><th></th></tr></thead>
           <tbody>
             {products.length === 0 && <tr><td colSpan={4} className="td-empty">No products yet, add your catalog here, it renders on your Shop page automatically.</td></tr>}
             {products.map((p) => (
               <tr key={p.id}>
                 <td>{p.image_url ? <img src={p.image_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover' }} /> : '—'}</td>
                 <td style={{ fontWeight: 500 }}>{p.name}</td>
-                <td className="muted" style={{ fontSize: 13 }}>{W.money(p.price)}</td>
+                <td className="muted num" style={{ fontSize: 13 }}>{W.money(p.price)}</td>
                 <td><button className="iconbtn" onClick={() => setModal(p)}>Edit</button><button className="iconbtn" onClick={() => remove(p)}>Delete</button></td>
               </tr>
             ))}

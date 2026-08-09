@@ -282,7 +282,7 @@ export default function FinanceApp({ access }) {
         </div>
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Description</th><th>Category</th><th>Date</th><th>Submitted by</th><th>Total</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Description</th><th>Category</th><th>Date</th><th>Submitted by</th><th className="num">Total</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {filteredExpenses.length === 0 && (
                 <tr><td colSpan={7} style={{ padding: 0 }}>
@@ -296,7 +296,7 @@ export default function FinanceApp({ access }) {
                   <td className="muted" style={{ fontSize: 13 }}>{e.category?.name || '—'}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{F.fmtDate(e.expense_date)}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{e.submitter?.name}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{F.money(e.total_amount)}</td>
+                  <td className="muted num" style={{ fontSize: 13 }}>{F.money(e.total_amount)}</td>
                   <td><StatusBadge status={e.status} /></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     {/* An attached receipt is worth nothing if nobody can open
@@ -336,14 +336,14 @@ export default function FinanceApp({ access }) {
       {!loading && tab === 'budgets' && isManager && (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Category</th><th>Period</th><th>Amount</th><th></th></tr></thead>
+            <thead><tr><th>Category</th><th>Period</th><th className="num">Amount</th><th></th></tr></thead>
             <tbody>
               {budgets.length === 0 && <tr><td colSpan={4} className="td-empty">No budgets yet.</td></tr>}
               {budgets.map((b) => (
                 <tr key={b.id}>
                   <td style={{ fontWeight: 500 }}>{b.category?.name || 'All categories'}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{b.period_month ? `${b.period_month}/${b.period_year}` : `${b.period_year} (annual)`}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{F.money(b.amount)}</td>
+                  <td className="muted num" style={{ fontSize: 13 }}>{F.money(b.amount)}</td>
                   <td><button className="iconbtn" onClick={() => removeBudget(b)}>Delete</button></td>
                 </tr>
               ))}

@@ -156,7 +156,7 @@ export default function ProcurementApp({ access }) {
       {!loading && tab === 'requests' && (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Item</th><th>Vendor</th><th>Requested by</th><th>Requested</th><th>Total</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Item</th><th>Vendor</th><th>Requested by</th><th>Requested</th><th className="num">Total</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {requests.length === 0 && (
                 <tr><td colSpan={7} style={{ padding: 0 }}>
@@ -169,7 +169,7 @@ export default function ProcurementApp({ access }) {
                   <td className="muted" style={{ fontSize: 13 }}>{r.vendor?.name || '—'}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{r.requester?.name}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{P.fmtDt(r.created_at)}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{P.money(r.total_cost)}</td>
+                  <td className="muted num" style={{ fontSize: 13 }}>{P.money(r.total_cost)}</td>
                   <td><StatusBadge status={r.status} /></td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     {isManager && r.status === 'pending' && (

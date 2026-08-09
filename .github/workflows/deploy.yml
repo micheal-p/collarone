@@ -91,6 +91,9 @@ jobs:
       - name: Bank disbursement files are byte-for-byte what we pinned
         run: node test/bank_export_formats.mjs
 
+      - name: Money is right-aligned, focus is visible, empty states explain themselves
+        run: node test/ui_quality.mjs
+
       - name: Cross-tenant RLS probe + payroll golden + support read-only (live DB)
         if: env.DATABASE_URL != ''
         run: |

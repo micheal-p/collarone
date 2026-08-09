@@ -241,7 +241,7 @@ export function ManagerView({ flash }) {
       {!loading && (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Tag</th><th>Name</th><th>Category</th><th>Cost</th><th>Purchased</th><th>Status</th><th>Assigned to</th><th></th></tr></thead>
+            <thead><tr><th>Tag</th><th>Name</th><th>Category</th><th className="num">Cost</th><th>Purchased</th><th>Status</th><th>Assigned to</th><th></th></tr></thead>
             <tbody>
               {shown.length === 0 && (
                 <tr><td colSpan={8} style={{ padding: 0 }}>
@@ -255,7 +255,7 @@ export function ManagerView({ flash }) {
                   <td className="muted" style={{ fontSize: 13, fontFamily: 'monospace' }}>{a.asset_tag}</td>
                   <td style={{ fontWeight: 500 }}>{a.name}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{IA.CATEGORIES[a.category]}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{IA.money(a.purchase_cost)}</td>
+                  <td className="muted num" style={{ fontSize: 13 }}>{IA.money(a.purchase_cost)}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{IA.fmtDate(a.purchase_date)}</td>
                   <td><StatusBadge status={a.status} /></td>
                   <td className="muted" style={{ fontSize: 13 }}>{a.employee?.name || '—'}</td>

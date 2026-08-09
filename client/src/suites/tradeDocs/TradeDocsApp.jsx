@@ -84,7 +84,7 @@ function LineItems({ type, items, setItems, stockItems, vatRate = 0 }) {
               <th>{isStock ? 'Item' : 'Description'}</th>
               <th style={{ width: 90 }}>Qty</th>
               {!isStock && <th style={{ width: 130 }}>Unit price</th>}
-              {!isStock && <th style={{ width: 120 }}>Amount</th>}
+              {!isStock && <th style={{ width: 120 }} className="num">Amount</th>}
               <th style={{ width: 40 }}></th>
             </tr>
           </thead>
@@ -109,7 +109,7 @@ function LineItems({ type, items, setItems, stockItems, vatRate = 0 }) {
                 </td>
                 <td><input className="input" type="number" min="0" step="0.01" value={row.qty} onChange={(e) => setRow(i, { qty: e.target.value })} /></td>
                 {!isStock && <td><input className="input" type="number" min="0" step="0.01" value={row.unit_price} onChange={(e) => setRow(i, { unit_price: e.target.value })} /></td>}
-                {!isStock && <td className="muted" style={{ fontSize: 13 }}>{TD.money((Number(row.qty) || 0) * (Number(row.unit_price) || 0))}</td>}
+                {!isStock && <td className="muted num" style={{ fontSize: 13 }}>{TD.money((Number(row.qty) || 0) * (Number(row.unit_price) || 0))}</td>}
                 <td><button type="button" className="iconbtn" aria-label="Remove line" onClick={() => removeRow(i)}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button></td>
               </tr>
             ))}
@@ -1056,7 +1056,7 @@ export default function TradeDocsApp({ access }) {
             <thead>
               <tr>
                 <th>Doc No.</th><th>Party</th>
-                {meta.hasVat && <th>Total</th>}
+                {meta.hasVat && <th className="num">Total</th>}
                 {(tab === 'invoice' || tab === 'receivables') && <th>Owed</th>}
                 {tab === 'receivables' && <th>Due</th>}
                 {meta.hasStatus && tab !== 'receivables' && <th>Status</th>}
@@ -1087,7 +1087,7 @@ export default function TradeDocsApp({ access }) {
                       {d.recur_source_id && <span title="Generated automatically from a repeating invoice" style={{ marginLeft: 5, fontSize: 10.5, fontWeight: 700, background: 'var(--brand-100, rgba(255,91,31,0.12))', color: 'var(--brand)', borderRadius: 100, padding: '1px 7px', verticalAlign: 'middle' }}>auto</span>}
                     </td>
                     <td style={{ fontWeight: 500 }}>{d.party_name || '—'}</td>
-                    {meta.hasVat && <td className="muted" style={{ fontSize: 13 }}>{TD.money(d.total)}</td>}
+                    {meta.hasVat && <td className="muted num" style={{ fontSize: 13 }}>{TD.money(d.total)}</td>}
                     {(tab === 'invoice' || tab === 'receivables') && (
                       <td style={{ fontSize: 13, fontWeight: bal > 0 ? 650 : 400, color: bal > 0 ? (overdue ? '#a4262c' : 'inherit') : 'var(--text-2)' }}>
                         {bal > 0 ? TD.money(bal) : '—'}

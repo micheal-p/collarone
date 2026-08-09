@@ -496,16 +496,16 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
       {lines === null ? <div className="suite-loading"><div className="boot-spinner" /></div> : (
         <div className="table-wrap">
           <table className="table">
-            <thead><tr><th>Employee</th><th>Gross</th><th>Pension</th><th>NHF</th><th>PAYE</th><th>Other ded.</th><th>Net</th>{payable && <th>Payment</th>}</tr></thead>
+            <thead><tr><th>Employee</th><th className="num">Gross</th><th className="num">Pension</th><th className="num">NHF</th><th className="num">PAYE</th><th>Other ded.</th><th className="num">Net</th>{payable && <th>Payment</th>}</tr></thead>
             <tbody>
               {lines.length === 0 && <tr><td colSpan={payable ? 8 : 7} className="td-empty">No lines, every active employee is missing a salary structure.</td></tr>}
               {lines.map((l) => (
                 <tr key={l.id}>
                   <td>{l.employee?.name}</td>
-                  <td className="muted" style={{ fontSize:13 }}>{P.money(l.gross)}</td>
-                  <td className="muted" style={{ fontSize:13 }}>{P.money(l.pension_employee)}</td>
-                  <td className="muted" style={{ fontSize:13 }}>{P.money(l.nhf)}</td>
-                  <td className="muted" style={{ fontSize:13 }}>{P.money(l.paye)}</td>
+                  <td className="muted num" style={{ fontSize:13 }}>{P.money(l.gross)}</td>
+                  <td className="muted num" style={{ fontSize:13 }}>{P.money(l.pension_employee)}</td>
+                  <td className="muted num" style={{ fontSize:13 }}>{P.money(l.nhf)}</td>
+                  <td className="muted num" style={{ fontSize:13 }}>{P.money(l.paye)}</td>
                   <td>
                     {editable ? (
                       <input className="input" type="number" min="0" defaultValue={l.other_deductions}
@@ -513,7 +513,7 @@ function RunDetail({ run, onBack, onUpdated, onDeleted, flash, isPayrollManager 
                         style={{ width:100, fontSize:13, padding:'3px 8px', height:'auto' }} />
                     ) : P.money(l.other_deductions)}
                   </td>
-                  <td style={{ fontWeight:600 }}>{P.money(l.net)}</td>
+                  <td style={{ fontWeight:600 }} className="num">{P.money(l.net)}</td>
                   {payable && (
                     <td>
                       {l.payment_status === 'paid' && <span style={{ fontSize:11, fontWeight:700, background:'#dff6dd', color:'#1a6a1a', borderRadius:100, padding:'2px 10px' }}>PAID</span>}
@@ -622,7 +622,15 @@ function BankWallTab({ flash }) {
           <table className="table">
             <thead><tr><th>Type</th><th>Who / What</th><th>Logged</th><th>Status</th><th></th></tr></thead>
             <tbody>
-              {view.length === 0 && <tr><td colSpan={5} className="td-empty">Nothing here.</td></tr>}
+              {view.length === 0 && (
+                <tr><td colSpan={5} className="td-empty">
+                  {filter === 'pending'
+                    ? 'Nothing waiting for the bank. New staff, changed account details and approved runs land here automatically.'
+                    : filter === 'actioned'
+                      ? 'Nothing marked as actioned yet.'
+                      : 'Nothing here yet. New staff, changed account details and approved runs land here automatically.'}
+                </td></tr>
+              )}
               {view.map((a) => (
                 <tr key={a.id}>
                   <td>{{ new_employee: 'New payroll addition', account_changed: 'Bank account changed', run_approved: 'Run approved' }[a.action_type] || a.action_type}</td>
@@ -755,7 +763,7 @@ function LoansTab({ flash, isPayrollManager }) {
       </div>
       <div className="table-wrap">
         <table className="table">
-          <thead><tr><th>Employee</th><th>Type</th><th>Amount</th><th>Monthly</th><th>Balance</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Employee</th><th>Type</th><th className="num">Amount</th><th className="num">Monthly</th><th>Balance</th><th>Status</th><th></th></tr></thead>
           <tbody>
             {loans.length === 0 && (
               <tr><td colSpan={7} style={{ padding: 0 }}>
@@ -768,8 +776,8 @@ function LoansTab({ flash, isPayrollManager }) {
                 <tr key={l.id}>
                   <td style={{ fontWeight: 500 }}>{l.employee?.name || '—'}</td>
                   <td className="muted" style={{ fontSize: 13 }}>{l.loan_type === 'advance' ? 'Advance' : 'Loan'}</td>
-                  <td style={{ fontSize: 13 }}>{P.money(l.principal)}</td>
-                  <td className="muted" style={{ fontSize: 13 }}>{P.money(l.monthly_installment)}</td>
+                  <td style={{ fontSize: 13 }} className="num">{P.money(l.principal)}</td>
+                  <td className="muted num" style={{ fontSize: 13 }}>{P.money(l.monthly_installment)}</td>
                   <td style={{ fontSize: 13, fontWeight: l.status === 'active' ? 650 : 400 }}>{['active', 'closed'].includes(l.status) ? P.money(P.loanBalance(l)) : '—'}</td>
                   <td><span className={`lc-badge ${st.cls}`}>{st.label}</span></td>
                   <td style={{ display: 'flex', gap: 6 }}>

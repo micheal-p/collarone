@@ -584,6 +584,12 @@
 .cl-calc-save { color: var(--accent-ink); font-weight: 600; }
 .cl-calc-slider-label { display: block; font-size: 13px; color: var(--text-soft); margin-bottom: 8px; width: 100%; }
 .cl-calc-slider { width: 100%; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 100px; background: linear-gradient(to right, var(--accent) var(--fill, 0%), var(--line) var(--fill, 0%)); outline: none; cursor: pointer; }
+/* The slider and the stepper both clear their own outline, and both are
+   keyboard-reachable controls on a public pricing page — without a
+   replacement, someone tabbing through has no idea which one they are about
+   to change. */
+.cl-calc-slider:focus-visible { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 28%, transparent); }
+.cl-calc-step:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
 .cl-calc-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 2.5px solid var(--accent); box-shadow: 0 2px 8px rgba(10,14,26,0.2); cursor: grab; }
 .cl-calc-slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2.5px solid var(--accent); box-shadow: 0 2px 8px rgba(10,14,26,0.2); cursor: grab; }
 .cl-calc-meter { font-size: 12.5px; font-weight: 600; color: var(--text-faint); border: 1px solid var(--line); border-radius: 100px; padding: 4px 13px; white-space: nowrap; transition: all .15s ease; }

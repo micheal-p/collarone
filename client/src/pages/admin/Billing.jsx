@@ -139,7 +139,7 @@ export default function AdminBilling() {
           <button className="btn btn-ghost" disabled={!transactions.length} onClick={() => downloadCsv(transactions)}>Download CSV</button>
         </div>
         <table className="table">
-          <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Type</th><th>Reference</th><th className="num">Amount</th><th>Status</th><th></th></tr></thead>
           <tbody>
             {loading && <tr><td colSpan={5} className="td-empty">Loading…</td></tr>}
             {!loading && transactions.length === 0 && <tr><td colSpan={5} className="td-empty">No transactions yet.</td></tr>}
@@ -148,7 +148,7 @@ export default function AdminBilling() {
                 <td>{fmtDate(t.created_at)}</td>
                 <td>{TYPE_LABEL[t.type] || t.type}</td>
                 <td style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12.5 }}>{t.reference}</td>
-                <td>{naira(t.amount_kobo)}</td>
+                <td className="num">{naira(t.amount_kobo)}</td>
                 <td><span className={`status-dot ${t.status === 'confirmed' ? 'active' : 'disabled'}`} />{STATUS_LABEL[t.status] || t.status}</td>
                 <td style={{ display: 'flex', gap: 6 }}>
                   {t.status === 'pending' && payOnline && (
