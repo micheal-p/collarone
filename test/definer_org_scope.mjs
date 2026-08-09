@@ -67,7 +67,13 @@ for (const { proname, src, authed, anon } of rows) {
   if (PUBLIC_BY_DESIGN.has(proname)) continue;
   if (REVIEWED_SAFE.has(proname)) continue;
   const orgScoped = /my_org_id\(\)|same_org\(/i.test(src);
-  const selfScoped = /=\s*auth\.uid\(\)/.test(src);
+  // Self-scoping means auth.uid() appears in a PREDICATE, not an assignment.
+  // decide_leave_request slipped through this audit because it contains
+  // `decided_by = auth.uid()` in a SET clause — the function was writing the
+  // caller's id, not restricting to it, and could edit another company's rows.
+  // Strip SET clauses before looking.
+  const withoutSets = src.replace(/\bset\b[\s\S]*?(?=\bwhere\b|\breturning\b|;)/gi, ' ');
+  const selfScoped = /(where|and|or)[\s\S]{0,80}?=\s*auth\.uid\(\)/i.test(withoutSets);
   const platformOnly = /is_platform_admin\(\)|platform_admins/i.test(src);
   if (orgScoped || selfScoped || platformOnly) continue;
   offenders.push(proname);
