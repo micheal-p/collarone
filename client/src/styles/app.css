@@ -978,14 +978,19 @@ textarea.input { padding: 12px 14px; }
    Fifteen suites in one flat list means reading every label to find Payroll.
    Grouping uses the same families (and order) the customer met on the signup
    cart, so the vocabulary is consistent from first contact onward. */
+/* The rail is dark, but --text-3 is a LIGHT-theme token: near-black at 44%
+   opacity on a near-black rail, which rendered the headings invisible. It went
+   unnoticed while there was one ("Suites"); with five carrying the navigation
+   structure it had to be fixed. Explicit light values, not theme tokens. */
+.rail-group { color: rgba(255, 255, 255, 0.46); }
 .rail-fam-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; background: none; border: 0; cursor: pointer; text-align: left;
-  font: inherit; font-size: 11px; font-weight: 700; color: var(--text-3);
+  font: inherit; font-size: 11px; font-weight: 700; color: rgba(255, 255, 255, 0.46);
   padding: 16px 12px 6px; text-transform: uppercase; letter-spacing: .06em;
 }
-.rail-fam-head:hover { color: var(--text-2); }
+.rail-fam-head:hover { color: rgba(255, 255, 255, 0.82); }
 .rail-fam-head:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: 6px; }
-.rail-fam-chev { flex: none; transition: transform .18s ease; opacity: .75; }
+.rail-fam-chev { flex: none; transition: transform .18s ease; opacity: .85; }
 .rail-fam-head.is-closed .rail-fam-chev { transform: rotate(-90deg); }
 @media (prefers-reduced-motion: reduce) { .rail-fam-chev { transition: none; } }
