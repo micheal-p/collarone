@@ -634,7 +634,10 @@ async function demoApiInner(path, opts = {}) {
         save(); return { record: rec };
       }
       if (seg[1] === 'mine') return { records: [...db.attShifts.filter((r) => r.employee_id === me.id), ...gen.filter((r) => r.employee_id === me.id)] };
-      return { records: [...db.attShifts, ...gen] };
+      // Employee 360 asks for one person; the board asks for everyone.
+      const who = (path.match(/employeeId=([^&]*)/) || [])[1];
+      const all = [...db.attShifts, ...gen];
+      return { records: who ? all.filter((r) => (r.employee?.id || r.employee_id) === who) : all };
     }
     // ---- tasks (full CRUD + reports + comments + stats) --------------------
     // The tour literally tells visitors to open a task and add a report, so
@@ -666,7 +669,10 @@ async function demoApiInner(path, opts = {}) {
         }
         if (body.recur !== undefined) t.recur_every = body.recur ? body.recur.every : null;
       };
-      if (route === 'GET /tasks') return { tasks: db.tasks };
+      if (seg[0] === 'tasks' && method === 'GET' && seg.length === 1) {
+        const who = (path.match(/assignedTo=([^&]*)/) || [])[1];
+        return { tasks: who ? db.tasks.filter((t) => (t.assignee?.id || t.assigned_to) === who) : db.tasks };
+      }
       if (route === 'POST /tasks') {
         const t = { id: 'tk' + Math.random().toString(36).slice(2, 8), title: body.title, description: body.description || '', priority: body.priority || 'medium', status: body.status || 'todo', due_date: null, assigned_to: null, assignee: null, created_at: new Date().toISOString() };
         applyPatch(t); db.tasks.unshift(t); save(); return { task: t };
@@ -788,7 +794,7 @@ async function demoApiInner(path, opts = {}) {
         { id: 'd' + i + 'b', employee: { id: s.id, name: s.name }, title: 'Means of ID (NIN slip)', category: 'id', expiry_date: daysAgo(-200).slice(0, 10), file_path: 'demo', created_at: daysAgo(290) },
       ]) };
     }
-    if (seg[0] === 'hr' && seg[1] === 'cases') return { cases: [] };
+    if (seg[0] === 'hr' && seg[1] === 'cases') return { cases: [] };  // no seeded cases; the filter is a no-op either way
 
     // ---- letters engine (requests, letterheads, issued register) ----
     if (!db.letterRequests) {
@@ -877,7 +883,10 @@ async function demoApiInner(path, opts = {}) {
       if (method === 'DELETE' && seg[1] === 'plans' && seg.length === 3) {
         db.benefitPlans = db.benefitPlans.filter((x) => x.id !== seg[2]); save(); return { ok: true };
       }
-      if (route === 'GET /benefits/enrollments') return { enrollments: db.benefitEnrollments };
+      if (seg[0] === 'benefits' && seg[1] === 'enrollments' && method === 'GET') {
+        const who = (path.match(/employeeId=([^&]*)/) || [])[1];
+        return { enrollments: who ? db.benefitEnrollments.filter((e) => (e.employee?.id || e.employee_id) === who) : db.benefitEnrollments };
+      }
       if (route === 'GET /benefits/mine') return { enrollments: db.benefitEnrollments.filter((e) => e.employee_id === me.id) };
       if (route === 'POST /benefits/enrollments') {
         if (!body.employeeId || !body.planId) fail(400, 'Employee and plan are required.');
@@ -1483,7 +1492,10 @@ async function demoApiInner(path, opts = {}) {
         ]);
         save();
       }
-      if (route === 'GET /itassets/assets') return { assets: db.itAssets };
+      if (seg[0] === 'itassets' && seg[1] === 'assets' && method === 'GET' && seg.length === 2) {
+        const who = (path.match(/employeeId=([^&]*)/) || [])[1];
+        return { assets: who ? db.itAssets.filter((a) => (a.employee?.id || a.assigned_to) === who) : db.itAssets };
+      }
       if (method === 'GET' && seg[1] === 'history' && seg.length === 3) return { history: db.itHistory.filter((h) => h.asset_id === seg[2]) };
       if (route === 'POST /itassets/assets') {
         if (!body.assetTag?.trim() || !body.name?.trim()) fail(400, 'Asset tag and name are required.');

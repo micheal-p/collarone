@@ -670,7 +670,9 @@ export async function supabaseApi(path, opts = {}) {
       if (error) fail(400, error.message);
       return { reports: data };
     }
-    const { data, error } = await supabase.from('tasks').select(TASK_SELECT).order('created_at', { ascending: false }).limit(500);
+    let tq = supabase.from('tasks').select(TASK_SELECT);
+    if (query.assignedTo) tq = tq.eq('assigned_to', query.assignedTo);
+    const { data, error } = await tq.order('created_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
     return { tasks: data };
   }
@@ -1296,7 +1298,12 @@ export async function supabaseApi(path, opts = {}) {
   }
 
   if (head === 'GET /hr' && seg[1] === 'cases') {
-    const { data, error } = await supabase.from('disciplinary_cases').select('*, employee:profiles!employee_id(id,name), openedBy:profiles!opened_by(id,name)').order('created_at', { ascending: false });
+    // ?employeeId= filters in the DATABASE. Employee 360 used to pull every
+    // case in the company and filter in the browser, so past the row cap its
+    // numbers were quietly wrong rather than slow.
+    let q = supabase.from('disciplinary_cases').select('*, employee:profiles!employee_id(id,name), openedBy:profiles!opened_by(id,name)');
+    if (query.employeeId) q = q.eq('employee_id', query.employeeId);
+    const { data, error } = await q.order('created_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
     return { cases: data };
   }
@@ -1893,7 +1900,10 @@ export async function supabaseApi(path, opts = {}) {
     // closed-and-flagged before anyone reads the board. Failure is harmless —
     // the next load tries again.
     await supabase.rpc('attendance_autoclose_stale');
-    const { data, error } = await supabase.from('attendance_records').select(ATT_SELECT).order('clock_in_at', { ascending: false }).limit(500);
+    let attQ = supabase.from('attendance_records').select(ATT_SELECT);
+    if (query.employeeId) attQ = attQ.eq('employee_id', query.employeeId);
+    if (query.from) attQ = attQ.gte('clock_in_at', query.from);
+    const { data, error } = await attQ.order('clock_in_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
     return { records: data };
   }
@@ -2123,7 +2133,9 @@ export async function supabaseApi(path, opts = {}) {
 
   const ENROLL_SELECT = '*, employee:profiles!employee_id(id,name,email), plan:benefit_plans(id,name,type,provider)';
   if (head === 'GET /benefits' && seg[1] === 'enrollments') {
-    const { data, error } = await supabase.from('employee_benefits').select(ENROLL_SELECT).order('created_at', { ascending: false });
+    let q = supabase.from('employee_benefits').select(ENROLL_SELECT);
+    if (query.employeeId) q = q.eq('employee_id', query.employeeId);
+    const { data, error } = await q.order('created_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
     return { enrollments: data };
   }
@@ -2167,7 +2179,9 @@ export async function supabaseApi(path, opts = {}) {
   // ---- it-assets ----
   const ASSET_SELECT = '*, employee:profiles!assigned_to(id,name,email)';
   if (head === 'GET /itassets' && seg[1] === 'assets') {
-    const { data, error } = await supabase.from('it_assets').select(ASSET_SELECT).order('created_at', { ascending: false });
+    let q = supabase.from('it_assets').select(ASSET_SELECT);
+    if (query.employeeId) q = q.eq('assigned_to', query.employeeId);
+    const { data, error } = await q.order('created_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);
     return { assets: data };
   }

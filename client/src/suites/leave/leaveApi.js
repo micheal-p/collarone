@@ -39,13 +39,16 @@ export async function getMyOverrides(year) {
   return data || [];
 }
 
-export async function getAllRequests({ status } = {}) {
+export async function getAllRequests({ status, userId } = {}) {
   let q = supabase
     .from('leave_requests')
     .select('*, applicant:profiles!leave_requests_user_id_fkey(name,email,department), leave_types(name,color,key)')
     .order('created_at', { ascending: false });
   if (status) q = q.eq('status', status);
-  const { data, error } = await q;
+  // Employee 360 wants one person's history, not the company's. Filtering here
+  // rather than in the caller keeps it inside the row cap.
+  if (userId) q = q.eq('user_id', userId);
+  const { data, error } = await q.limit(500);
   if (error) throw error;
   return data;
 }

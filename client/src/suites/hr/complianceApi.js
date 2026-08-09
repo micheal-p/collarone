@@ -19,7 +19,7 @@ export const getDocumentUrl = async (path) => {
   return privateFileUrl('employee-documents', path);
 };
 
-export const getCases = () => apiGet('/hr/cases').then((d) => d.cases);
+export const getCases = ({ employeeId } = {}) => apiGet(`/hr/cases${employeeId ? `?employeeId=${employeeId}` : ''}`).then((d) => d.cases);
 export const createCase = (body) => apiPost('/hr/cases', body).then((d) => d.case);
 export const updateCase = (id, body) => apiPatch(`/hr/cases/${id}`, body).then((d) => d.case);
 

@@ -71,16 +71,21 @@ export default function EmployeeRecord({ emp, isHrManager, onBack, onEdit }) {
   const id = emp.id;
   const year = new Date().getFullYear();
 
+  // Each panel asks the server for THIS employee's rows. It used to fetch the
+  // whole org's attendance, tasks, assets, benefits, cases and leave and filter
+  // in the browser — so once a company grew past the row cap the lists silently
+  // truncated and the counts on this page were simply wrong, with nothing to
+  // indicate it.
   const salary  = useSection(() => apiGet(`/payroll/salary/${id}`).then((d) => d.history), [id]);
   const bank    = useSection(() => apiGet(`/payroll/bank/${id}`).then((d) => d.accounts), [id]);
-  const leave   = useSection(() => L.getAllRequests({}).then((rs) => rs.filter((r) => r.user_id === id)), [id]);
-  const attend  = useSection(() => apiGet('/attendance/records').then((d) => (d.records || []).filter((r) => (r.employee?.id || r.employee_id) === id)), [id]);
-  const assets  = useSection(() => apiGet('/itassets/assets').then((d) => (d.assets || []).filter((a) => (a.employee?.id || a.assigned_to) === id)), [id]);
-  const benefit = useSection(() => apiGet('/benefits/enrollments').then((d) => (d.enrollments || []).filter((e) => (e.employee?.id || e.employee_id) === id)), [id]);
+  const leave   = useSection(() => L.getAllRequests({ userId: id }), [id]);
+  const attend  = useSection(() => apiGet(`/attendance/records?employeeId=${id}`).then((d) => d.records || []), [id]);
+  const assets  = useSection(() => apiGet(`/itassets/assets?employeeId=${id}`).then((d) => d.assets || []), [id]);
+  const benefit = useSection(() => apiGet(`/benefits/enrollments?employeeId=${id}`).then((d) => d.enrollments || []), [id]);
   const perf    = useSection(() => Promise.all([PERF.getGoals(id), PERF.getReviews(id), PERF.getTrainings(id)]).then(([goals, reviews, trainings]) => ({ goals, reviews, trainings })), [id]);
   const docs    = useSection(() => C.getDocuments(id), [id]);
-  const cases   = useSection(() => C.getCases().then((cs) => cs.filter((c) => c.employee?.id === id)), [id]);
-  const tasks   = useSection(() => apiGet('/tasks').then((d) => (d.tasks || []).filter((t) => (t.assignee?.id || t.assigned_to) === id)), [id]);
+  const cases   = useSection(() => C.getCases({ employeeId: id }), [id]);
+  const tasks   = useSection(() => apiGet(`/tasks?assignedTo=${id}`).then((d) => d.tasks || []), [id]);
 
   const latestSalary = salary.data?.[0];
   const gross = latestSalary
