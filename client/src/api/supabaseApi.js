@@ -305,7 +305,9 @@ export async function supabaseApi(path, opts = {}) {
     return { notices: data };
   }
   if (method === 'POST' && seg[0] === 'notices' && seg[2] === 'dismiss') {
-    const { error } = await supabase.from('org_notices').update({ dismissed_at: new Date().toISOString() }).eq('id', seg[1]);
+    const { data: dismissed, error } = await supabase.from('org_notices')
+      .update({ dismissed_at: new Date().toISOString() }).eq('id', seg[1]).select('id');
+    if (!error && !dismissed?.length) fail(403, 'That notice could not be dismissed.');
     if (error) fail(400, error.message);
     return { ok: true };
   }
@@ -472,6 +474,7 @@ export async function supabaseApi(path, opts = {}) {
     if (!body.message) fail(400, 'Which error group?');
     const { error } = await supabase.from('client_errors')
       .update({ resolved_at: new Date().toISOString(), resolved_by: user?.id || null })
+      .select('id')
       .eq('message', body.message).is('resolved_at', null);
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { ok: true };
@@ -2946,10 +2949,21 @@ export async function supabaseApi(path, opts = {}) {
     return { ok: true };
   }
   if (method === 'POST' && seg[0] === 'projects' && seg[2] === 'time' && seg[3] === 'mark-invoiced') {
-    const { error } = await supabase.from('project_time_entries')
-      .update({ invoiced_doc_id: body.docId }).in('id', body.ids || []).is('invoiced_doc_id', null);
+    // `.is('invoiced_doc_id', null)` is the guard against billing the same
+    // hours twice — and the result was never checked. If a colleague invoiced
+    // them a moment earlier the update matched nothing, returned no error, and
+    // this reported success: the customer gets a second invoice for work they
+    // have already been billed for. Report exactly how many were claimed.
+    const ids = body.ids || [];
+    const { data: marked, error } = await supabase.from('project_time_entries')
+      .update({ invoiced_doc_id: body.docId }).in('id', ids).is('invoiced_doc_id', null)
+      .select('id');
     if (error) fail(400, error.message);
-    return { ok: true };
+    const claimed = (marked || []).length;
+    if (ids.length && claimed === 0) {
+      fail(409, 'Those hours have already been invoiced by someone else. Refresh and check before invoicing again.');
+    }
+    return { ok: true, claimed, alreadyInvoiced: ids.length - claimed };
   }
   if (head === 'GET /projects' && seg[2] === 'milestones') {
     const { data, error } = await supabase.from('milestones').select('*').eq('project_id', seg[1]).order('sort_order');

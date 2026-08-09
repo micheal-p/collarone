@@ -282,6 +282,11 @@ export default async function handler(req, res) {
           }
         } catch { /* never break health */ }
 
+        // Dates arriving cannot be triggers, so the sweep queues them first and
+        // the drain below sends them in the same pass. Deduped on the date, so
+        // running daily does not nag daily.
+        try { await admin.rpc('queue_expiry_reminders'); } catch { /* never break health */ }
+
         // Drain the "someone is waiting on you" queue: task assigned, leave
         // submitted, leave decided. Triggers write the rows (notify_events.sql);
         // this sends them through the shared sender.
@@ -295,7 +300,7 @@ export default async function handler(req, res) {
           const { data: queued } = await admin.from('notification_outbox')
             .select('id, kind, email_to, subject, body')
             .eq('status', 'claimed')
-            .in('kind', ['task_assigned', 'leave_submitted', 'leave_decided', 'visitor_arrived'])
+            .in('kind', ['task_assigned', 'leave_submitted', 'leave_decided', 'visitor_arrived', 'document_expiring', 'certificate_expiring', 'probation_due', 'purchase_decided'])
             .limit(200);
           for (const n of queued || []) {
             if (!nOn() || !n.email_to) {
