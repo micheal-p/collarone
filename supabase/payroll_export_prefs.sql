@@ -96,3 +96,19 @@ end $$;
 revoke all on function public.set_payroll_export_prefs(text, text[]) from public;
 revoke all on function public.set_payroll_export_prefs(text, text[]) from anon;
 grant execute on function public.set_payroll_export_prefs(text, text[]) to authenticated;
+
+-- ---- support sessions stay read-only ---------------------------------------
+-- Every tenant table carries the a_block_support_writes trigger, so a support
+-- session (guest mode, which impersonates a tenant super_admin) can look but
+-- not touch. support_readonly_enforcement.sql attaches it to every table in
+-- the schema and is meant to be re-run whenever one is added — which is
+-- exactly the step that gets forgotten. It was forgotten here, and CI caught
+-- it: "tenant tables missing the support-write block: payroll_export_prefs".
+--
+-- Attaching it in the same migration that creates the table means this file is
+-- correct on its own, rather than correct only if someone remembers to run a
+-- second one afterwards.
+drop trigger if exists a_block_support_writes on public.payroll_export_prefs;
+create trigger a_block_support_writes
+  before insert or update or delete on public.payroll_export_prefs
+  for each row execute function public.block_support_writes();
