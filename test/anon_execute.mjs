@@ -40,6 +40,26 @@ const PUBLIC_API = new Set([
   'public_submit_lead',
 ]);
 
+// Functions no browser calls: cron sweeps, platform administration, and
+// helpers invoked from inside other functions. They reach the database under
+// the service key, so `authenticated` must NOT hold them — and this list
+// exists because the first version of the revoke migration granted
+// authenticated to everything it touched, handing every logged-in user
+// platform_delete_org among others. Keep it in step with the server_only array
+// in supabase/revoke_anon_execute.sql.
+const SERVER_ONLY = new Set([
+  'advance_billing_lifecycle',
+  'apply_confirmed_renewal',
+  'attendance_apply_punch',
+  'generate_recurring_invoices',
+  'platform_delete_org',
+  'queue_notification',
+  'seed_ledger_accounts',
+  'seed_org_leave_defaults',
+  'visitors_autoclose_all',
+  'watchdog_autoclose_all',
+]);
+
 const client = new pg.Client({ connectionString: DB_URL, ssl: { rejectUnauthorized: false } });
 await client.connect();
 
@@ -85,6 +105,18 @@ const { rows: publicApi } = await client.query(`
   join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname = any($1)`, [[...PUBLIC_API]]);
 
+// Which privileged functions authenticated CAN execute — needed to catch a
+// server-only one drifting back into reach.
+const { rows: authedRows } = await client.query(`
+  select p.proname
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public'
+    and p.prosecdef and p.provolatile = 'v'
+    and p.prorettype <> 'trigger'::regtype::oid
+    and has_function_privilege('authenticated', p.oid, 'execute')`);
+const exposedToAuthed = new Set(authedRows.map((r) => r.proname));
+
 await client.end();
 
 const problems = [];
@@ -94,7 +126,16 @@ for (const { proname, args } of exposed) {
   problems.push(`${proname}(${args}) is callable by anon.\n      It bypasses RLS and changes data, and anyone with the publishable key can reach it.\n      Add to supabase/revoke_anon_execute.sql's loop (re-running it is enough), or if it is genuinely meant to be public, add it to PUBLIC_API here and say why.`);
 }
 for (const { proname } of brokenForUsers) {
+  // Server-only functions are SUPPOSED to be out of reach of authenticated.
+  if (SERVER_ONLY.has(proname)) continue;
   problems.push(`${proname} is not executable by 'authenticated' — signed-in users cannot call it.\n      Revoking from PUBLIC removes it from everyone; the revoke migration must grant it back to authenticated.`);
+}
+// And the inverse, which is the mistake that actually happened: a server-only
+// function quietly becoming callable by every logged-in user.
+for (const name of SERVER_ONLY) {
+  if (!brokenForUsers.some((r) => r.proname === name) && exposedToAuthed.has(name)) {
+    problems.push(`${name} is callable by 'authenticated'. It runs under the service key from a cron sweep or a platform-admin route, so no ordinary logged-in user should reach it.`);
+  }
 }
 for (const { proname, anon_ok: anonOk } of publicApi) {
   if (!anonOk) {
