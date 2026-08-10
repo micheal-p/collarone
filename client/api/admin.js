@@ -360,6 +360,24 @@ export default async function handler(req, res) {
       const { data: org } = await admin.from('organizations').select('name, slug').eq('id', orgId).maybeSingle();
       if (!org) return json(res, 404, { message: 'Organization not found.' });
 
+      // Never support-session into your OWN workspace.
+      //
+      // A support session is deliberately crippled: it carries a read-only
+      // claim and every tenant table refuses its writes at the database level.
+      // Pointed at the organisation the admin actually belongs to, that locks
+      // them out of their own account — which is what happened. An invoice
+      // would not delete, and the reason was invisible, because everything
+      // looked normal apart from the writes silently failing.
+      //
+      // The button for this is hidden in the UI, but hiding a button is not a
+      // rule. This is the rule.
+      const { data: me } = await admin.from('profiles').select('org_id').eq('id', user.id).maybeSingle();
+      if (me?.org_id && me.org_id === orgId) {
+        return json(res, 400, {
+          message: 'This is your own workspace — open it normally instead. Support mode is read-only and is only for looking at another organization.',
+        });
+      }
+
       // Never mint a tenant session. The support session keeps the admin's OWN
       // identity and carries a short-lived, read-only claim (see
       // custom_access_token_hook + my_org_id + the block_support_writes trigger).

@@ -1071,7 +1071,17 @@ export default function PlatformAdmin() {
                   <Fragment key={o.id}>
                     <tr>
                       <td>
-                        <div style={{ fontWeight: 550 }}>{o.name}</div>
+                        <div style={{ fontWeight: 550, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {o.name}
+                          {/* Say which row is yours. Without it the list reads
+                              as a wall of customers and your own workspace is
+                              indistinguishable from one — which is how it ended
+                              up being entered as if it belonged to someone
+                              else. */}
+                          {myOrgId && o.id === myOrgId && (
+                            <span className="badge badge-core" style={{ height: 18, fontSize: 10 }}>Yours</span>
+                          )}
+                        </div>
                         <div className="pc-mono pc-faint" style={{ fontSize: 11 }}>{o.slug}</div>
                       </td>
                       <td><span className="pc-badge" title={COUNTRY_NAME[o.country] || o.country}>{o.country || '—'}</span></td>
