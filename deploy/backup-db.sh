@@ -105,6 +105,46 @@ if [ "${ORG_ROWS:-0}" -lt 1 ]; then
   exit 1
 fi
 
+# ---- is it COMPLETE, not merely well-formed? -------------------------------
+# Everything above proves the file is a real dump. None of it proves the dump
+# holds everything the database holds. A dump taken by a role that cannot see
+# some tables, or interrupted after the schema but during the data, passes
+# every check so far and is still useless on the day it is needed.
+#
+# So the dump is compared against the source it came from: same number of
+# tables, and the same number of rows in the tables that would hurt most to
+# lose. Row counts are allowed to drift a little — the database is live and
+# people are using it while pg_dump runs — but a table that is full in
+# production and empty here is not drift.
+if command -v psql >/dev/null 2>&1; then
+  LIVE_TABLES=$(psql "$BACKUP_DB_URL" -tAc \
+    "select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'" 2>/dev/null || echo '')
+  if [ -n "$LIVE_TABLES" ]; then
+    if [ "$TABLE_COUNT" -lt "$LIVE_TABLES" ]; then
+      log "INCOMPLETE: production has ${LIVE_TABLES} tables, the dump has ${TABLE_COUNT}. Failing."
+      exit 1
+    fi
+    log "Table count matches production (${LIVE_TABLES})"
+  fi
+
+  for tbl in organizations profiles payroll_runs; do
+    LIVE=$(psql "$BACKUP_DB_URL" -tAc "select count(*) from public.${tbl}" 2>/dev/null || echo '')
+    [ -n "$LIVE" ] || continue
+    DUMPED=$(gzip -dc "$OUT" | awk -v t="$tbl" '
+      $0 ~ "^COPY public\\." t " " { inside = 1; next }
+      inside && /^\\\.$/            { inside = 0 }
+      inside                        { n++ }
+      END { print n+0 }')
+    if [ "$LIVE" -gt 0 ] && [ "$DUMPED" -eq 0 ]; then
+      log "INCOMPLETE: public.${tbl} has ${LIVE} rows in production and 0 in the dump. Failing."
+      exit 1
+    fi
+    log "  public.${tbl}: ${DUMPED} rows dumped, ${LIVE} live"
+  done
+else
+  log "psql unavailable — could not compare the dump against production."
+fi
+
 log "OK: ${OUT} ($(numfmt --to=iec "$SIZE" 2>/dev/null || echo "$SIZE bytes"))"
 
 # ---- retention --------------------------------------------------------------
