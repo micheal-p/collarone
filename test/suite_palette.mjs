@@ -8,16 +8,21 @@
 //
 // Colour on the launcher carries meaning: it encodes which family a suite
 // belongs to, matching the sidebar groups. That only works while the families
-// are visibly distinct from each other, so all three rules below are enforced:
+// are visibly distinct from each other, so all four rules below are enforced:
 //
 //   1. no two suites share a hex;
 //   2. the white glyph on the tint clears 3:1 (WCAG non-text contrast);
 //   3. two suites from DIFFERENT families are clearly distinguishable, and no
 //      tint sits near the grey a locked tile uses — a live suite that looks
-//      locked is worse than an ugly colour.
+//      locked is worse than an ugly colour;
+//   4. two suites from the SAME family are still told apart.
 //
-// Rule 3 deliberately does NOT apply within a family. Four similar greens for
-// the four people-and-pay suites is the design, not a defect.
+// Rule 4 was added after the launcher was looked at rather than reasoned
+// about. The original note here said same-family similarity was "the design,
+// not a defect" — and that was too generous by half. HR and Payroll sat 40
+// apart, Trade Docs and Finance 40, Inventory and Procurement 43, and at tile
+// size each pair read as one colour. Related is the goal; identical is a bug.
+// The floor is 65 and the closest pair now sits at 74.
 //
 // Run:  node test/suite_palette.mjs
 import { readFileSync } from 'node:fs';
@@ -72,6 +77,10 @@ const distance = (a, b) => {
 const LOCKED_GREY = '#babdc4';
 const MIN_CONTRAST = 3;      // WCAG 2.1 non-text contrast
 const MIN_CROSS_FAMILY = 70; // measured: the shipped palette sits at 79
+// Same-family colours are meant to be RELATED, not interchangeable. Three
+// pairs were close enough to read as one colour on the launcher — that is what
+// "the cards all look the same" turned out to mean.
+const MIN_WITHIN_FAMILY = 65; // measured: the closest pair sits at 74
 const MIN_VS_LOCKED = 150;
 
 const problems = [];
@@ -106,8 +115,13 @@ for (const key of keys) {
 for (let i = 0; i < keys.length; i++) {
   for (let j = i + 1; j < keys.length; j++) {
     const a = keys[i]; const b = keys[j];
-    if (FAMILY[a] === FAMILY[b]) continue; // same family = similar on purpose
     const d = distance(tints.get(a), tints.get(b));
+    if (FAMILY[a] === FAMILY[b]) {
+      if (d < MIN_WITHIN_FAMILY) {
+        problems.push(`${a} (${tints.get(a)}) and ${b} (${tints.get(b)}) are both ${FAMILY[a]} and only ${d.toFixed(0)} apart, below ${MIN_WITHIN_FAMILY} — same family should read as related, not identical`);
+      }
+      continue;
+    }
     if (d < MIN_CROSS_FAMILY) {
       problems.push(`${a} (${FAMILY[a]}, ${tints.get(a)}) and ${b} (${FAMILY[b]}, ${tints.get(b)}) are only ${d.toFixed(0)} apart, below ${MIN_CROSS_FAMILY} — different families must look different`);
     }

@@ -66,19 +66,25 @@ export const PINNED_TOOLS = [
 //   - no two suites share a hex;
 //   - white glyph on the tint stays above 3:1;
 //   - a pair from DIFFERENT families must be clearly distinguishable, well
-//     clear of the light grey a locked tile uses.
-// test/suite_palette.mjs enforces all three.
+//     clear of the light grey a locked tile uses;
+//   - and a pair from the SAME family must still be told apart. Belonging to
+//     one family means related, not interchangeable. Three pairs were close
+//     enough to read as one colour on the launcher — HR and Payroll at 40,
+//     Trade Docs and Finance at 40, Inventory and Procurement at 43 — which is
+//     what "the cards all look the same" actually meant. The floor is now 65
+//     and the closest pair sits at 74.
+// test/suite_palette.mjs enforces all four.
 export const SUITE_META = {
   hr:          { icon: 'people',    tint: '#065f46' },
   leave:       { icon: 'calendar',  tint: '#059669' },
   tasks:       { icon: 'check',      tint: '#4f46e5' },
   visitors:    { icon: 'badge',      tint: '#be185d' },
-  payroll:     { icon: 'wallet',     tint: '#166534' },
+  payroll:     { icon: 'wallet',     tint: '#2f855a' },
   crm:         { icon: 'contacts',   tint: '#1d4ed8' },
   attendance:  { icon: 'clock',      tint: '#4d7c0f' },
-  procurement: { icon: 'cart',       tint: '#a16207' },
+  procurement: { icon: 'cart',       tint: '#854d0e' },
   inventory:   { icon: 'box',        tint: '#b45309' },
-  finance:     { icon: 'coins',      tint: '#0e7490' },
+  finance:     { icon: 'coins',      tint: '#155e75' },
   projects:    { icon: 'kanban',     tint: '#7e22ce' },
   documents:   { icon: 'doc',        tint: '#3730a3' },
   'trade-docs':{ icon: 'receipt',    tint: '#0369a1' },

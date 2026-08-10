@@ -222,7 +222,15 @@ function PinnedTile({ t, onOpen, index, reduce }) {
 // is disabled. "Open Payroll & Benefits" hovering over a tile already labelled
 // "Payroll & Benefits" was pure noise, and the native tooltip rendered on top
 // of the neighbouring tile's icon.
-function SuiteTile({ s, onOpen, index, reduce }) {
+//
+// `commonRole` is the role this person holds on most of their suites. The role
+// chip only renders when a tile DIFFERS from it. An owner who manages
+// everything saw the same MANAGER pill fifteen times — the loudest element on
+// each card after the icon, repeated down the page, telling them nothing. A
+// label identical on every card is not a label. Now it appears exactly where
+// it is news: the one suite you only have member access to, or the one you
+// manage when you are a member everywhere else.
+function SuiteTile({ s, onOpen, index, reduce, commonRole }) {
   const meta = SUITE_META[s.key] || {};
   // A coming-soon suite reads "Coming soon" for everyone — access hasn't
   // been granted to anyone because there's nothing to grant yet.
@@ -245,12 +253,16 @@ function SuiteTile({ s, onOpen, index, reduce }) {
         <span className="tile-name">{s.name}</span>
         <span className="tile-desc">{s.short || s.desc}</span>
       </span>
-      <span className="tile-foot">
-        {locked && <span className="badge badge-soon">No access</span>}
-        {soon && <span className="badge badge-soon">Coming soon</span>}
-        {s.openable && s.suiteRole === 'manager' && <span className="badge badge-core">Manager</span>}
-        {s.openable && s.suiteRole === 'member' && <span className="badge badge-admin">Member</span>}
-      </span>
+      {/* Only rendered when it has something to say, so most tiles end at the
+          description and the grid reads as names rather than badges. */}
+      {(locked || soon || (s.openable && s.suiteRole && s.suiteRole !== commonRole)) && (
+        <span className="tile-foot">
+          {locked && <span className="badge badge-soon">No access</span>}
+          {soon && <span className="badge badge-soon">Coming soon</span>}
+          {s.openable && s.suiteRole === 'manager' && s.suiteRole !== commonRole && <span className="badge badge-core">You manage this</span>}
+          {s.openable && s.suiteRole === 'member' && s.suiteRole !== commonRole && <span className="badge badge-admin">Member access</span>}
+        </span>
+      )}
     </motion.button>
   );
 }
@@ -293,6 +305,15 @@ export default function Launcher() {
     { title: 'That\'s the basics', body: 'Explore any suite, everything is built to be self-explanatory from here. Replay this tour anytime from the Help page.' },
   ];
 
+  // The role held on the most openable suites. Anything matching it is the
+  // norm and not worth a chip; anything differing is worth pointing out.
+  const commonRole = (() => {
+    const tally = {};
+    for (const s of suites) if (s.openable && s.suiteRole) tally[s.suiteRole] = (tally[s.suiteRole] || 0) + 1;
+    const [top] = Object.entries(tally).sort((a2, b2) => b2[1] - a2[1]);
+    return top ? top[0] : null;
+  })();
+
   const core = suites.filter((s) => s.tier === 'core');
   const extended = suites.filter((s) => s.tier === 'extended');
   const grantedCount = suites.filter((s) => s.granted).length;
@@ -333,11 +354,11 @@ export default function Launcher() {
         <>
           <div className="suite-group">
             <div className="group-head"><h2>{tierLabel.core}</h2><span className="group-line" /></div>
-            <div className="tile-grid" data-tour="tiles">{core.map((s, i) => <SuiteTile key={s.key} s={s} index={i} reduce={reduce} onOpen={(x) => { localStorage.setItem(`co-setup-opened:${user?.org?.id}`, '1'); nav(`/suite/${x.key}`); }} />)}</div>
+            <div className="tile-grid" data-tour="tiles">{core.map((s, i) => <SuiteTile key={s.key} s={s} index={i} reduce={reduce} commonRole={commonRole} onOpen={(x) => { localStorage.setItem(`co-setup-opened:${user?.org?.id}`, '1'); nav(`/suite/${x.key}`); }} />)}</div>
           </div>
           <div className="suite-group">
             <div className="group-head"><h2>{tierLabel.extended}</h2><span className="group-line" /></div>
-            <div className="tile-grid">{extended.map((s, i) => <SuiteTile key={s.key} s={s} index={core.length + i} reduce={reduce} onOpen={(x) => nav(`/suite/${x.key}`)} />)}</div>
+            <div className="tile-grid">{extended.map((s, i) => <SuiteTile key={s.key} s={s} index={core.length + i} reduce={reduce} commonRole={commonRole} onOpen={(x) => nav(`/suite/${x.key}`)} />)}</div>
           </div>
           <div className="suite-group">
             <div className="group-head"><h2>Included with every workspace</h2><span className="group-line" /></div>

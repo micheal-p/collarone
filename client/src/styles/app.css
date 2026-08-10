@@ -178,7 +178,9 @@
 .tile-body { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .tile-name { font-size: 16px; font-weight: 700; color: var(--text); }
 .tile-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.4; }
-.tile-foot { display: flex; }
+/* Optional now — most tiles have nothing to put here. It must not reserve
+   height when empty, or removing the badge would have changed nothing. */
+.tile-foot { display: flex; min-height: 0; }
 .tile-skeleton { min-height: 148px; background: linear-gradient(90deg,var(--surface-2),#FAF8F3,var(--surface-2)); background-size: 200% 100%; animation: sk 1.3s infinite; border: 0; }
 .badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
 .badge-core { background: var(--brand-100); color: var(--brand-ink); }
@@ -788,16 +790,22 @@ textarea.input { padding: 12px 14px; }
 .tile-grid { gap: 16px; }
 .tile {
   position: relative;
-  min-height: 178px;
-  padding: 21px;
-  gap: 15px;
+  /* Was 178px for one line of title and two of description, which left a void
+     with the footer floating at the bottom of it. The grid still equalises row
+     heights, so this is the floor, not the height. */
+  min-height: 152px;
+  padding: 20px;
+  gap: 13px;
   overflow: hidden;
   border-radius: 20px;
   box-shadow: 0 1px 2px rgba(10,14,26,.03), 0 12px 34px rgba(10,14,26,.04);
 }
-.tile::after { content: '↗'; position: absolute; right: 18px; top: 18px; color: rgba(10,14,26,.18); font-size: 19px; transition: color .18s, transform .18s; }
+/* The arrow only ever meant "this is clickable", which a card already means,
+   and at full strength on fifteen tiles it was fifteen more marks competing
+   with the names. Barely there at rest, unmistakable on hover. */
+.tile::after { content: '↗'; position: absolute; right: 18px; top: 18px; color: rgba(10,14,26,.10); font-size: 18px; opacity: .55; transition: color .18s, transform .18s, opacity .18s; }
 .tile:not(:disabled):hover { border-color: rgba(255,91,31,.32); box-shadow: 0 22px 46px rgba(10,14,26,.11); transform: translateY(-5px); }
-.tile:not(:disabled):hover::after { color: var(--brand); transform: translate(2px,-2px); }
+.tile:not(:disabled):hover::after { color: var(--brand); opacity: 1; transform: translate(2px,-2px); }
 .tile-icon { width: 54px; height: 54px; border-radius: 15px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), 0 9px 20px rgba(10,14,26,.14); }
 .tile-name { font-size: 17px; letter-spacing: -.02em; }
 .tile-desc { max-width: 26ch; line-height: 1.5;
