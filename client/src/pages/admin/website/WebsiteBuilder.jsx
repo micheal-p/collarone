@@ -24,7 +24,10 @@ const CATEGORY_COVER = {
 const CATEGORY_ICON = {
   ecommerce: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /><path d="M2.5 3.5h3l2.6 12h10.4l2-8.5H6.2" /></svg>,
   landing: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><path d="M13 2 4 14h6l-1 8 9-12h-6z" /></svg>,
-  company: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><rect x="3" y="8" width="18" height="13" rx="1.5" /><path d="M8 21V8M16 21V8M3 13h18" /><path d="M9 4h6v4H9z" /></svg>,
+  // Kept in step with the shared set in SuiteIcon.jsx: the old drawing crossed
+  // two full-width verticals with a full-width horizontal, which reads as a
+  // spreadsheet grid rather than a building. Separate window marks and a door.
+  company: <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="7" width="16" height="14" rx="1.5" /><path d="M9 4h6v3" /><path d="M8 11h3M13 11h3M8 15h3M13 15h3" /><path d="M10.5 21v-3h3v3" /></svg>,
 };
 const LinkIcon = <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>;
 const SWATCHES = ['#FF5B1F', '#C2410C', '#0F766E', '#1D4ED8', '#7C3AED', '#BE185D', '#0A0E1A', '#166534'];

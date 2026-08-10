@@ -61,22 +61,49 @@ if ! gzip -t "$OUT" 2>/dev/null; then
   log "Dump does not decompress cleanly. Failing."
   exit 1
 fi
-# Scan the whole dump, not the first N lines. The first version looked at 400
-# lines and failed a perfectly good backup: a Supabase dump opens with hundreds
-# of lines of SET statements, extensions, types and functions before the first
-# table appears. grep -m1 stops at the first hit, so this costs almost nothing.
-if ! zcat "$OUT" | grep -qm1 'CREATE TABLE'; then
-  log "Dump contains no CREATE TABLE anywhere. Failing rather than trusting it."
+# ---- what is actually inside the dump --------------------------------------
+# ONE pass with awk, and deliberately NOT `gzip -dc … | grep -qm1 …`.
+#
+# That pipeline threw away two perfectly good backups. grep -q exits the moment
+# it matches — which is the whole point of the flag — but gzip is still pushing
+# a large stream into a pipe with no reader, so the kernel kills it with
+# SIGPIPE, exit 141. `set -o pipefail` then reports the pipeline by its worst
+# member, so a SUCCESSFUL match came back as failure and this script announced
+# "Dump contains no CREATE TABLE" about a dump that contained plenty.
+#
+# Every piece of that was individually correct: pipefail is good practice,
+# grep -q is the right flag, gzip -dc is right. They are only wrong together.
+# It also only reproduces on a LARGE file — with a small one gzip finishes
+# before grep exits and there is no SIGPIPE, which is exactly why a quick test
+# said the check was fine. Reproduced deliberately before fixing: exit 141.
+#
+# awk reads to end-of-file, so nothing is left unread and there is no signal to
+# trip over. One decompress instead of three, and it answers both questions.
+read -r TABLE_COUNT HAS_ORGS ORG_ROWS <<EOF
+$(gzip -dc "$OUT" | awk '
+  /^CREATE TABLE /                        { tables++ }
+  /^CREATE TABLE public\.organizations/   { orgs = 1 }
+  /^COPY public\.organizations /          { inorg = 1; next }
+  inorg && /^\\\.$/                        { inorg = 0 }
+  inorg                                   { orgrows++ }
+  END { printf "%d %d %d", tables+0, orgs+0, orgrows+0 }')
+EOF
+
+if [ "${TABLE_COUNT:-0}" -lt 1 ]; then
+  log "Dump contains no CREATE TABLE at all. Failing rather than trusting it."
   exit 1
 fi
-# And prove it is OUR database rather than an empty one that happens to have a
-# schema — organizations is the root of every tenant's data.
-if ! zcat "$OUT" | grep -qm1 'CREATE TABLE public.organizations'; then
+# Prove it is OUR database and not an empty one that happens to have a schema.
+if [ "${HAS_ORGS:-0}" != "1" ]; then
   log "Dump has no public.organizations table. This is not the Collarone database. Failing."
   exit 1
 fi
-ORGS=$(zcat "$OUT" | grep -c '^COPY public\.organizations' || true)
-log "Contains the organizations table (${ORGS} COPY block(s))"
+log "Contains ${TABLE_COUNT} tables, including public.organizations with ${ORG_ROWS} row(s)"
+# An organizations table with no rows means the dump ran but captured nothing.
+if [ "${ORG_ROWS:-0}" -lt 1 ]; then
+  log "organizations is EMPTY. A dump with no tenants in it is not a backup. Failing."
+  exit 1
+fi
 
 log "OK: ${OUT} ($(numfmt --to=iec "$SIZE" 2>/dev/null || echo "$SIZE bytes"))"
 
