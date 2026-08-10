@@ -338,6 +338,7 @@ const TEMPLATE_CSS = `
 .tdt-band { display: none; }
 .tdt-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
 .tdt-logo { max-height: 54px; max-width: 190px; object-fit: contain; margin-bottom: 8px; display: block; }
+.tdt-wordmark { font-size: 21px; font-weight: 750; letter-spacing: -.02em; line-height: 1; margin-bottom: 8px; color: var(--accent); }
 .tdt-company { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
 .tdt-tagline { font-size: 11.5px; color: #6b7280; margin-top: 2px; }
 .tdt-contactline { font-size: 10.5px; color: #8b8578; margin-top: 6px; line-height: 1.6; max-width: 46ch; }
@@ -648,8 +649,19 @@ function DocPreviewBody({ doc, settings, warehouseName = '' }) {
       )}
       <div className="tdt-header">
         <div className="tdt-headleft">
-          {s.logo_url && <img className="tdt-logo" src={s.logo_url} alt="" />}
-          <div className="tdt-company">{s.company_name || 'Your company'}</div>
+          {/* With a logo: the mark, then the company name under it. Without
+              one: the name set as the mark itself. Not both — the first version
+              of this printed the company name twice. A blank corner where a
+              logo belongs looks broken; a wordmark looks deliberate. The nudge
+              to upload one belongs in the app, not on the customer's copy. */}
+          {s.logo_url ? (
+            <>
+              <img className="tdt-logo" src={s.logo_url} alt="" />
+              <div className="tdt-company">{s.company_name || 'Your company'}</div>
+            </>
+          ) : (
+            <div className="tdt-wordmark">{s.company_name || 'Your company'}</div>
+          )}
           {s.tagline && <div className="tdt-tagline">{s.tagline}</div>}
           {(s.address || s.phone || s.email) && (
             <div className="tdt-contactline">{[s.address, s.phone, s.email].filter(Boolean).join(' · ')}</div>
@@ -1048,6 +1060,24 @@ export default function TradeDocsApp({ access }) {
           Nudge here until connected; once ON this renders nothing. */}
       {!loading && (tab === 'invoice' || tab === 'receivables') && (
         <PaystackConnect flash={flash} isAdmin={user?.role === 'super_admin'} nudge />
+      )}
+
+      {/* A missing logo is invisible until a document is already with the
+          customer — the template just renders without one. Say so here, where
+          there is still time, and only to someone who can fix it. */}
+      {!loading && isManager && settings && !settings.logo_url && docs.length > 0 && (
+        <div className="td-nudge" style={{
+          display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+          padding: '10px 14px', margin: '0 0 12px', borderRadius: 10,
+          background: 'var(--surface-2)', border: '1px solid var(--line)',
+        }}>
+          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>
+            Your documents are going out without a logo — they show your company name instead.
+          </span>
+          <button className="btn btn-ghost" style={{ marginLeft: 'auto' }} onClick={() => setSettingsOpen(true)}>
+            Add a logo
+          </button>
+        </div>
       )}
 
       {!loading && (

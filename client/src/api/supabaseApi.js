@@ -2555,7 +2555,22 @@ export async function supabaseApi(path, opts = {}) {
   if (head === 'GET /trade-docs' && seg[1] === 'settings') {
     const { data, error } = await supabase.from('trade_doc_settings').select('*').maybeSingle();
     if (error) fail(400, error.message);
-    return { settings: data };
+    // Fall back to a logo and name the workspace ALREADY has.
+    //
+    // Letterhead settings are their own row, so an organisation that uploaded
+    // a logo in the website builder — or set one when it signed up — still got
+    // a blank invoice, because trade documents only ever read their own field.
+    // Nobody expects to upload the same logo twice, and the failure is silent:
+    // the invoice simply renders without it, which is how one went out with no
+    // logo on it at all.
+    //
+    // Trade-doc settings still win when set; this only fills what is missing.
+    const { data: org } = await supabase.from('organizations').select('name, logo_url').maybeSingle();
+    const { data: site } = await supabase.from('org_sites').select('logo_url, site_name').maybeSingle();
+    const merged = { ...(data || {}) };
+    if (!merged.logo_url) merged.logo_url = org?.logo_url || site?.logo_url || '';
+    if (!merged.company_name) merged.company_name = org?.name || site?.site_name || '';
+    return { settings: merged };
   }
   if (head === 'POST /trade-docs' && seg[1] === 'settings') {
     const { companyName, address, tagline, phone, email, logoUrl, accentColor, signatureName, signatureTitle, signatureUrl, templateKey,

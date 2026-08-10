@@ -1,4 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet, apiPost, apiPatch, getAccessToken } from '../api/client.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { waLink } from '../lib/whatsapp.js';
@@ -770,6 +772,11 @@ function JobPostersPanel({ flash }) {
 }
 
 export default function PlatformAdmin() {
+  const nav = useNavigate();
+  // The org this platform admin actually belongs to. Support mode is for
+  // looking at someone ELSE's workspace; their own needs no impersonation.
+  const { user } = useAuth();
+  const myOrgId = user?.org?.id || null;
   const [orgs, setOrgs] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [transactions, setTransactions] = useState([]);
@@ -1083,10 +1090,24 @@ export default function PlatformAdmin() {
                           <button className="pc-btn sm" onClick={() => testSuites(o)} disabled={testingOrg === o.id || o.status !== 'active'}>
                             {testingOrg === o.id ? '…' : 'Test suites'}
                           </button>
+                          {/* Your OWN workspace is not somebody else's to guest
+                              into. Support mode exists to look at a CUSTOMER's
+                              data with an audit trail and a database-level
+                              write block — pointing it at the org you are a
+                              super_admin of just locks you out of your own
+                              account, which is exactly what happened: an
+                              invoice would not delete because the session was
+                              read-only. Open it normally instead. */}
                           {o.status === 'active' && (
-                            <button className="pc-btn sm" onClick={() => guestIntoOrg(o)} disabled={guestingOrg === o.id}>
-                              {guestingOrg === o.id ? '…' : 'Guest in'}
-                            </button>
+                            myOrgId && o.id === myOrgId ? (
+                              <button className="pc-btn sm" onClick={() => nav('/workspace')} title="This is your own workspace — opens with your normal access">
+                                Open workspace
+                              </button>
+                            ) : (
+                              <button className="pc-btn sm" onClick={() => guestIntoOrg(o)} disabled={guestingOrg === o.id}>
+                                {guestingOrg === o.id ? '…' : 'Guest in'}
+                              </button>
+                            )
                           )}
                           {o.status === 'active' && siteByOrg[o.id] && (
                             <button className="pc-btn sm" onClick={() => setGatewayOrg(o)}>Card payments</button>
