@@ -14,6 +14,32 @@ export default defineConfig({
     // deploy/deploy.sh prunes anything older than 7 days so this can't grow
     // without limit.
     emptyOutDir: false,
+
+    // Split the vendor libraries out of the app chunk.
+    //
+    // Everything used to land in one 1.45MB index chunk, which is the whole
+    // download before a Nigerian SME on mobile data sees anything. Two
+    // separate problems in that number: the app code (fixed by lazy routes in
+    // App.jsx) and the libraries, fixed here.
+    //
+    // Libraries change on the order of once a quarter; app code changes
+    // several times a day. Bundled together, every deploy invalidates the
+    // React runtime as well, so a returning visitor re-downloads ~200KB of
+    // framework that has not changed. Split, those chunks stay in the browser
+    // cache across deploys.
+    //
+    // framer-motion and supabase are separated for a second reason: the
+    // published tenant sites and the public invoice page need neither, so on
+    // those routes they are never requested at all.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+        },
+      },
+    },
   },
   server: {
     port: 5173,

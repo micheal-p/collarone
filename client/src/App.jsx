@@ -1,45 +1,62 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './auth/AuthContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import Login from './pages/Login.jsx';
 import Landing from './pages/Landing.jsx';
-import ChangePassword from './pages/ChangePassword.jsx';
-import ForgotPassword from './pages/ForgotPassword.jsx';
-import ResetPassword from './pages/ResetPassword.jsx';
-import Launcher from './pages/Launcher.jsx';
-import SuiteShell from './pages/SuiteShell.jsx';
-import AdminUsers from './pages/admin/Users.jsx';
-import AdminDepartments from './pages/admin/Departments.jsx';
-import AdminBilling from './pages/admin/Billing.jsx';
-import AdminWebsite from './pages/admin/website/WebsiteBuilder.jsx';
-import PlatformAdmin from './pages/PlatformAdmin.jsx';
-import PlatformAnalytics from './pages/PlatformAnalytics.jsx';
-import PlatformSupport from './pages/PlatformSupport.jsx';
-import PublicSite from './pages/site/PublicSite.jsx';
+
 import { tenantSlug } from './lib/subdomain.js';
-import PublicInvoice from './pages/PublicInvoice.jsx';
-import TryDemo from './pages/TryDemo.jsx';
-import TryChooser from './pages/TryChooser.jsx';
-import Profile from './pages/Profile.jsx';
-import CareersIndex from './pages/careers/CareersIndex.jsx';
-import JobsBoard from './pages/careers/JobsBoard.jsx';
-import PostJob from './pages/careers/PostJob.jsx';
-import JobShare from './pages/careers/JobShare.jsx';
-import CareersApply from './pages/careers/CareersApply.jsx';
-import Terms from './pages/Terms.jsx';
-import DeviceGuide from './pages/DeviceGuide.jsx';
-import Privacy from './pages/Privacy.jsx';
-import Contact from './pages/Contact.jsx';
-import OfferPage from './pages/OfferPage.jsx';
-import PayThanks from './pages/PayThanks.jsx';
-import TeamChat from './pages/TeamChat.jsx';
-import Signup from './pages/Signup.jsx';
-import Status from './pages/Status.jsx';
-import EmbedContactForm from './pages/embed/EmbedContactForm.jsx';
-import Help from './pages/Help.jsx';
-import Support from './pages/Support.jsx';
-import PublicThemes from './pages/PublicThemes.jsx';
+
+// ---------------------------------------------------------------------------
+// Every page below is loaded ON DEMAND.
+//
+// They were all imported statically, so one 1.45MB JavaScript file had to
+// arrive before anything rendered — and it contained the platform console, the
+// website builder and every admin screen for a visitor who only wanted to read
+// the landing page. On mobile data that is the difference between a site that
+// feels instant and one that feels broken.
+//
+// Login and Landing stay eager: they are the first paint for the two audiences
+// that actually arrive cold (a signed-out visitor and someone signing in), and
+// putting a spinner in front of those would trade one delay for another.
+// Everything else is reached by a deliberate click, where a brief load is
+// invisible against the navigation itself.
+// ---------------------------------------------------------------------------
+const AdminBilling = lazy(() => import('./pages/admin/Billing.jsx'));
+const AdminDepartments = lazy(() => import('./pages/admin/Departments.jsx'));
+const AdminUsers = lazy(() => import('./pages/admin/Users.jsx'));
+const AdminWebsite = lazy(() => import('./pages/admin/website/WebsiteBuilder.jsx'));
+const CareersApply = lazy(() => import('./pages/careers/CareersApply.jsx'));
+const CareersIndex = lazy(() => import('./pages/careers/CareersIndex.jsx'));
+const ChangePassword = lazy(() => import('./pages/ChangePassword.jsx'));
+const Contact = lazy(() => import('./pages/Contact.jsx'));
+const DeviceGuide = lazy(() => import('./pages/DeviceGuide.jsx'));
+const EmbedContactForm = lazy(() => import('./pages/embed/EmbedContactForm.jsx'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword.jsx'));
+const Help = lazy(() => import('./pages/Help.jsx'));
+const JobShare = lazy(() => import('./pages/careers/JobShare.jsx'));
+const JobsBoard = lazy(() => import('./pages/careers/JobsBoard.jsx'));
+const Launcher = lazy(() => import('./pages/Launcher.jsx'));
+const OfferPage = lazy(() => import('./pages/OfferPage.jsx'));
+const PayThanks = lazy(() => import('./pages/PayThanks.jsx'));
+const PlatformAdmin = lazy(() => import('./pages/PlatformAdmin.jsx'));
+const PlatformAnalytics = lazy(() => import('./pages/PlatformAnalytics.jsx'));
+const PlatformSupport = lazy(() => import('./pages/PlatformSupport.jsx'));
+const PostJob = lazy(() => import('./pages/careers/PostJob.jsx'));
+const Privacy = lazy(() => import('./pages/Privacy.jsx'));
+const Profile = lazy(() => import('./pages/Profile.jsx'));
+const PublicInvoice = lazy(() => import('./pages/PublicInvoice.jsx'));
+const PublicSite = lazy(() => import('./pages/site/PublicSite.jsx'));
+const PublicThemes = lazy(() => import('./pages/PublicThemes.jsx'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
+const Signup = lazy(() => import('./pages/Signup.jsx'));
+const Status = lazy(() => import('./pages/Status.jsx'));
+const SuiteShell = lazy(() => import('./pages/SuiteShell.jsx'));
+const Support = lazy(() => import('./pages/Support.jsx'));
+const TeamChat = lazy(() => import('./pages/TeamChat.jsx'));
+const Terms = lazy(() => import('./pages/Terms.jsx'));
+const TryChooser = lazy(() => import('./pages/TryChooser.jsx'));
+const TryDemo = lazy(() => import('./pages/TryDemo.jsx'));
 
 // "/" is the public marketing page for a signed-out visitor, and the app
 // launcher for a signed-in one — same route, different audience. A platform
@@ -94,15 +111,40 @@ function WorkspaceRoute() {
   return <Launcher />;
 }
 
+// Shown while a route's code arrives. Deliberately understated: a big spinner
+// flashing between two screens reads like the app restarted. A calm centred
+// mark for the fraction of a second a chunk takes on a decent connection, and
+// something honest to look at on a slow one.
+function PageLoading() {
+  return (
+    <div style={{ minHeight: '60vh', display: 'grid', placeItems: 'center' }} aria-live="polite" aria-busy="true">
+      <span className="boot-spinner" />
+      <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>Loading</span>
+    </div>
+  );
+}
+
 export default function App() {
   usePageViewTracking();
   // On a tenant subdomain (acme.collarone.app) the whole host IS that
   // customer's published site — render it for every path.
   const siteSlug = tenantSlug();
-  if (siteSlug) return <PublicSite slugProp={siteSlug} />;
+  // PublicSite is lazy too, and it renders OUTSIDE <Routes> — so it needs its
+  // own boundary. Without one this path throws "A component suspended while
+  // responding to synchronous input", and every tenant's published site is a
+  // blank page. The one place a missed Suspense would have cost customers
+  // their websites rather than merely showing a spinner.
+  if (siteSlug) {
+    return (
+      <Suspense fallback={<PageLoading />}>
+        <PublicSite slugProp={siteSlug} />
+      </Suspense>
+    );
+  }
   return (
     <>
     <TitleManager />
+    <Suspense fallback={<PageLoading />}>
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -261,6 +303,7 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
     </>
   );
 }
