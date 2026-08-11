@@ -8,9 +8,9 @@ import { api, setAccessToken } from '../api/client.js';
 //
 //   intent 'signup' → keep the session, carry them into the signup form which
 //                     attaches a new org to this already-verified Google user.
-//   intent 'login'  → if they have a workspace, log them in; if not, the orphan
-//                     Google user Supabase just created is deleted server-side
-//                     and they are sent to sign up with a plain explanation.
+//   intent 'login'  → if they have a workspace, log them in; if not, they are
+//                     carried into signup with their Google session intact and
+//                     prefilled — no dead-end, no orphan-deletion dance.
 //
 // Returns a route string for the caller to navigate to, and sets the user on
 // success. Never throws — any failure resolves to the signup page rather than
@@ -28,39 +28,18 @@ export async function resolveGoogleSession({ session, intent, setUser }) {
     }
   } catch { /* no profile — fall through */ }
 
-  if (intent === 'signup') {
-    // Expected. The signup form reads email + name from the live session and
-    // attaches the workspace to this user on submit.
-    return '/signup?oauth=1';
-  }
-
-  // login intent, no workspace. Let the server confirm and delete the orphan,
-  // then send them to sign up knowing which email they used.
-  let email = session.user?.email || '';
-  try {
-    const r = await fetch('/api/oauth-resolve', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    });
-    const d = await r.json().catch(() => ({}));
-    if (d.hasAccount) {
-      // A race — the profile appeared. Treat as a normal login.
-      try {
-        const { user: profile } = await api('/me');
-        setAccessToken(session.access_token);
-        setUser(profile);
-        return '/';
-      } catch { /* fall through to signup */ }
-    }
-    if (d.email) email = d.email;
-  } catch { /* the redirect below still happens */ }
-
-  // Drop the orphaned local session so the app isn't half-signed-in.
-  try {
-    const { supabase } = await import('./supabaseClient.js');
-    await supabase.auth.signOut();
-  } catch { /* ignore */ }
-  setAccessToken(null);
-  setUser(null);
-  return `/signup?noaccount=1${email ? `&email=${encodeURIComponent(email)}` : ''}`;
+  // No workspace — for EITHER intent. Keep the Google session and carry them
+  // into the signup form, prefilled. This is the conversion path the founder
+  // cares about, and it fixes the trap where a login with no account showed a
+  // "no workspace linked" dead-end next to a "Sign in as you" button that just
+  // looped. `from=login` lets signup explain why they're there.
+  //
+  // The session is deliberately NOT torn down and the Google user NOT deleted:
+  // that same user becomes their real account the moment they finish signup,
+  // and repeated Google sign-ins return the same user (Supabase dedupes by
+  // provider identity) so orphans don't multiply. A user who abandons signup
+  // leaves one dangling profile-less auth row — harmless, and the right place
+  // to reap it is a periodic sweep, not the middle of a hopeful signup.
+  return `/signup?oauth=1${intent === 'login' ? '&from=login' : ''}`;
 }
+

@@ -98,6 +98,7 @@ export default function Signup() {
       setNoAccountNotice(`No Collarone workspace is linked to ${email0}. Create one below, or ask your admin to add you with this email.`);
     }
     if (params.get('oauth') === '1') {
+      const fromLogin = params.get('from') === 'login';
       supabase.auth.getSession().then(({ data: { session } }) => {
         const u = session?.user;
         if (!u?.email) return;               // session gone — fall back to normal signup
@@ -105,6 +106,11 @@ export default function Signup() {
         setEmail(u.email);
         const nm = u.user_metadata?.full_name || u.user_metadata?.name || '';
         if (nm) setOwnerName(nm);
+        // Explain why a login landed on signup — but warmly, and without
+        // contradicting the Google badge that says who they are.
+        if (fromLogin) {
+          setNoAccountNotice(`You don't have a workspace yet — let's create one. You're signed in with Google as ${u.email}.`);
+        }
       });
     }
   }, []); // eslint-disable-line
