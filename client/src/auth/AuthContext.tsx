@@ -97,7 +97,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // OAuth-style redirect landing, so re-adding a provider later is just a
   // button + signInWithOAuth call.
 
-  // Continue with Google. `intent` rides through the redirect so the landing
+  // Redirect-based Google sign-in — kept as a FALLBACK only. The primary path
+  // is now the ID-token flow in GoogleButton, which shows collarone.app on the
+  // Google screen instead of the Supabase project host. This still works and is
+  // wired to the same /auth/callback landing; left in place so a redirect
+  // provider can be re-enabled without rebuilding the flow.
+  // `intent` rides through the redirect so the landing
   // page (AuthCallback) knows whether a session with no workspace means "send
   // them to sign up" (signup) or "no account exists, clean up and send them to
   // sign up with a message" (login). Both end at signup, but only the login

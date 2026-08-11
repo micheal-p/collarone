@@ -1096,17 +1096,14 @@ textarea.input { padding: 12px 14px; }
    One button shared by the login and signup pages. Neutral surface, real
    Google mark, full width so it reads as a peer of the primary action rather
    than an afterthought. */
-.google-btn {
-  width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
-  height: 44px; padding: 0 16px; border-radius: 10px;
-  background: #fff; color: #1f2328; font-size: 14px; font-weight: 600;
-  border: 1px solid var(--line-strong); cursor: pointer;
-  transition: background .12s, box-shadow .12s, border-color .12s;
-}
-.google-btn:hover:not(:disabled) { background: #f7f8fa; box-shadow: var(--shadow-2); }
-.google-btn:disabled { opacity: .65; cursor: default; }
-:root[data-theme="dark"] .google-btn { background: #1a1f2e; color: #e8eaed; border-color: rgba(255,255,255,.16); }
-:root[data-theme="dark"] .google-btn:hover:not(:disabled) { background: #222838; }
+/* Google renders its own official button inside .google-signin-holder. We
+   don't style the button itself (it's an iframe from accounts.google.com), only
+   the container: full width, centred, with a reserved height so the layout
+   doesn't jump while the script loads. */
+.google-signin { width: 100%; }
+.google-signin-holder { min-height: 44px; display: flex; justify-content: center; }
+.google-signin-holder > div { width: 100% !important; }
+.google-signin-busy { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--text-2); }
 
 /* "or" rule between the email form and the Google button. */
 .oauth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--text-3); font-size: 12px; }
