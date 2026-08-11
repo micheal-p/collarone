@@ -1091,3 +1091,35 @@ textarea.input { padding: 12px 14px; }
 .lv-appr-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 /* 44px so it is a real touch target, not a mouse one shrunk down. */
 .lv-appr-actions .btn { min-height: 44px; font-size: 14px; }
+
+/* ---- Google sign-in ------------------------------------------------------
+   One button shared by the login and signup pages. Neutral surface, real
+   Google mark, full width so it reads as a peer of the primary action rather
+   than an afterthought. */
+.google-btn {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+  height: 44px; padding: 0 16px; border-radius: 10px;
+  background: #fff; color: #1f2328; font-size: 14px; font-weight: 600;
+  border: 1px solid var(--line-strong); cursor: pointer;
+  transition: background .12s, box-shadow .12s, border-color .12s;
+}
+.google-btn:hover:not(:disabled) { background: #f7f8fa; box-shadow: var(--shadow-2); }
+.google-btn:disabled { opacity: .65; cursor: default; }
+:root[data-theme="dark"] .google-btn { background: #1a1f2e; color: #e8eaed; border-color: rgba(255,255,255,.16); }
+:root[data-theme="dark"] .google-btn:hover:not(:disabled) { background: #222838; }
+
+/* "or" rule between the email form and the Google button. */
+.oauth-divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--text-3); font-size: 12px; }
+.oauth-divider::before, .oauth-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+
+/* Signup: "no workspace linked to this email" explanation, and the
+   already-signed-in-with-Google confirmation. */
+.su-notice {
+  padding: 11px 14px; margin: 0 0 16px; border-radius: 10px; font-size: 13px; line-height: 1.5;
+  background: var(--brand-100); color: var(--brand-ink); border: 1px solid rgba(255,91,31,.22);
+}
+.su-google-badge {
+  display: inline-flex; align-items: center; gap: 8px; margin: 0 0 16px;
+  padding: 8px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  background: var(--surface-2); color: var(--text-2); border: 1px solid var(--line);
+}

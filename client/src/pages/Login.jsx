@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Navigate, Link, useLocation, useSearchParams } from 'react-router-dom';
+import GoogleButton from '../components/GoogleButton.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
 import logo from '../assets/collarone-mark-dark.svg';
 
@@ -63,6 +64,9 @@ export default function Login() {
           </div>
         </div>
 
+        {params.get('oauth_error') === '1' && step === 'email' && (
+          <div className="su-notice" role="status" style={{ marginBottom: 16 }}>Google sign-in didn't complete. Please try again, or sign in with your email.</div>
+        )}
         {step === 'email' && (
           <form onSubmit={next} className="login-form">
             <h1 className="login-h">Sign in</h1>
@@ -80,6 +84,8 @@ export default function Login() {
               <button className="btn btn-primary" type="submit">Next</button>
             </div>
             <p className="login-note">Staff accounts are created by your administrator — sign in with the details you were given. <Link to="/forgot-password">Forgot your password?</Link></p>
+            <div className="oauth-divider"><span>or</span></div>
+            <GoogleButton intent="login" />
           </form>
         )}
 

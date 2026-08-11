@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient.js';
+import GoogleButton from '../components/GoogleButton.jsx';
 import logo from '../assets/collarone-mark.svg';
 import './Signup.css';
 
@@ -87,6 +88,26 @@ export default function Signup() {
   const lockedKeys = new Set();
   for (const k of suites) for (const dep of requiresOf(k)) lockedKeys.add(dep);
   useEffect(() => { setPlanTier(best.key); }, [best.key]);
+
+  // Pick up a Google arrival. ?oauth=1 means a live Google session is present
+  // (the callback kept it); ?noaccount=1&email= means a login found no account.
+  useEffect(() => {
+    const email0 = params.get('email');
+    if (params.get('noaccount') === '1' && email0) {
+      setEmail(email0);
+      setNoAccountNotice(`No Collarone workspace is linked to ${email0}. Create one below, or ask your admin to add you with this email.`);
+    }
+    if (params.get('oauth') === '1') {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        const u = session?.user;
+        if (!u?.email) return;               // session gone — fall back to normal signup
+        setGoogleEmail(u.email);
+        setEmail(u.email);
+        const nm = u.user_metadata?.full_name || u.user_metadata?.name || '';
+        if (nm) setOwnerName(nm);
+      });
+    }
+  }, []); // eslint-disable-line
   const toggleSuite = (key) => setSuites((s) => {
     const next = new Set(s);
     if (next.has(key)) { if ([...next].some((k) => k !== key && requiresOf(k).includes(key))) return next; next.delete(key); }
@@ -108,6 +129,12 @@ export default function Signup() {
   const [logoUploading, setLogoUploading] = useState(false);
   const fileRef = useRef(null);
 
+  // Set when the visitor arrived signed in with Google (?oauth=1) or was
+  // bounced here from a login with no account (?noaccount=1). In the first case
+  // there is no password to collect and the email is fixed to the verified
+  // Google address; in the second we just prefill the email and explain.
+  const [googleEmail, setGoogleEmail] = useState('');
+  const [noAccountNotice, setNoAccountNotice] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -221,14 +248,17 @@ export default function Signup() {
     setErr('');
     if (!ownerName.trim()) return setErr('Your name is required.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setErr('Enter a valid work email.');
-    if (password.length < 8) return setErr('Password must be at least 8 characters.');
+    // A Google signup has no password — Supabase already verified this user.
+    // callSignup() sends the Google session token, and signup.js attaches the
+    // workspace to that existing user instead of demanding a password.
+    if (!googleEmail && password.length < 8) return setErr('Password must be at least 8 characters.');
     setBusy(true);
     try {
       const d = await callSignup('create', {
         planTier: best.key, suites: [...suites], orgName: orgName.trim(), orgSlug, themeColor,
         websiteType: hasWebsite ? 'none' : websiteType, logoUrl, country,
         externalWebsiteUrl: hasWebsite ? (/^https?:\/\//i.test(externalUrl.trim()) ? externalUrl.trim() : `https://${externalUrl.trim()}`) : '',
-        ownerName: ownerName.trim(), email, password, promoCode: promoStatus.state === 'ok' ? promoCode.trim() : '',
+        ownerName: ownerName.trim(), email, password: googleEmail ? '' : password, promoCode: promoStatus.state === 'ok' ? promoCode.trim() : '',
       });
       setResult(d);
       setStepIdx(STEPS.indexOf('payment'));
@@ -262,6 +292,9 @@ export default function Signup() {
       <Link className="su-back" to="/">← Back to homepage</Link>
 
       <div className={`su-card${step === 'plan' ? ' su-card-wide' : ''}`}>
+        {noAccountNotice && (
+          <div className="su-notice" role="status" style={{ marginBottom: 18 }}>{noAccountNotice}</div>
+        )}
         <div className="su-steps">
           {STEPS.filter((s) => s !== 'payment').map((s, i) => (
             <div key={s} className={`su-step-dot ${i < stepIdx ? 'done' : i === stepIdx ? 'active' : ''}`} />
@@ -275,6 +308,16 @@ export default function Signup() {
             <p className="su-kicker">Step 1 of 4</p>
             <h1 className="su-h">Build your workspace</h1>
             <p className="su-sub">Pick the suites you need, we automatically put you on the cheapest plan for them. Add more anytime; your rate locks in today and never goes up.</p>
+            {/* Fast start. Signing up with Google skips creating a password;
+                they still pick their suites and name their workspace, then land
+                on the account step already verified. Hidden once they've come
+                back from Google (googleEmail set) — the offer is spent. */}
+            {!googleEmail && (
+              <div style={{ maxWidth: 340, margin: '0 0 20px' }}>
+                <GoogleButton intent="signup" label="Sign up with Google" />
+                <div className="oauth-divider"><span>or set up with an email</span></div>
+              </div>
+            )}
 
             <AiSuitePicker onPick={(keys) => setSuites(new Set(requiredFoundations(keys)))} />
 
@@ -434,19 +477,27 @@ export default function Signup() {
             <p className="su-kicker">Step 4 of 4</p>
             <h1 className="su-h">Create your admin account</h1>
             <p className="su-sub">You'll be the administrator for {orgName || 'your workspace'}, you can add staff once your space is active.</p>
+            {googleEmail && (
+              <div className="su-google-badge">
+                <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.47.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+                Signed in with Google — no password needed.
+              </div>
+            )}
             <div className="su-field">
               <label>Your name</label>
               <input className="su-input" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} autoFocus />
             </div>
             <div className="su-field">
               <label>Email address</label>
-              <input className="su-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
-              <p style={{ fontSize: 12, margin: '6px 0 0', opacity: 0.6, lineHeight: 1.5 }}>This is what you'll sign in with, any email works.</p>
+              <input className="su-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" readOnly={!!googleEmail} style={googleEmail ? { opacity: 0.7 } : undefined} />
+              <p style={{ fontSize: 12, margin: '6px 0 0', opacity: 0.6, lineHeight: 1.5 }}>{googleEmail ? 'From your Google account.' : "This is what you'll sign in with, any email works."}</p>
             </div>
-            <div className="su-field">
-              <label>Password</label>
-              <input className="su-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 8 characters" />
-            </div>
+            {!googleEmail && (
+              <div className="su-field">
+                <label>Password</label>
+                <input className="su-input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min 8 characters" />
+              </div>
+            )}
             <div className="su-field">
               <label>Promo code <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional)</span></label>
               <input className="su-input" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} placeholder="Got a code? Enter it here" style={{ textTransform: 'uppercase' }} />

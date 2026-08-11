@@ -173,13 +173,43 @@ export default async function handler(req, res) {
       if (!SLUG_RE.test(slug)) return json(res, 400, { message: 'Company handle must be 3–40 lowercase letters, numbers or hyphens.' });
       if (!ownerName?.trim()) return json(res, 400, { message: 'Your name is required.' });
       if (!EMAIL_RE.test(email || '')) return json(res, 400, { message: 'Enter a valid work email.' });
-      if (!password || password.length < 8) return json(res, 400, { message: 'Password must be at least 8 characters.' });
+
+      // Two ways to prove who you are. Either you set a password, OR you arrive
+      // already signed in with Google — in which case Supabase has created the
+      // auth user and verified the email, and there is no password to set.
+      // Detect that here so the whole block below can attach an org to the
+      // existing Google user instead of trying to create a second one with the
+      // same email (which would fail as "already registered").
+      const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+      let googleUser = null;
+      if (bearer && !password) {
+        const { data: tok } = await admin.auth.getUser(bearer);
+        // Only treat it as a Google signup if the token's email matches what the
+        // form submitted — never let a token for one account create an org
+        // under a different email.
+        if (tok?.user && (tok.user.email || '').toLowerCase() === (email || '').toLowerCase()) {
+          googleUser = tok.user;
+        }
+      }
+      if (!googleUser && (!password || password.length < 8)) {
+        return json(res, 400, { message: 'Password must be at least 8 characters.' });
+      }
 
       const { data: existingSlug } = await admin.from('organizations').select('id').eq('slug', slug).maybeSingle();
       if (existingSlug) return json(res, 409, { message: 'That company handle is already taken.' });
 
       const cleanEmail = email.toLowerCase().trim();
       let userId;
+
+      // ---- signed in with Google: attach to the existing verified user -------
+      if (googleUser) {
+        // Refuse if this Google user already owns a workspace — sending them to
+        // sign up again would be the wrong door, and creating a second org
+        // under one identity is exactly the mess to avoid.
+        const { data: already } = await admin.from('profiles').select('id, org_id').eq('id', googleUser.id).maybeSingle();
+        if (already?.org_id) return json(res, 409, { message: 'This Google account already has a workspace. Please log in instead.' });
+        userId = googleUser.id;
+      } else {
       // Transient auth-service hiccups (the raw-'{}' class) mostly succeed on
       // a second try — one retry with a short pause turns a lost prospect
       // into a signup nobody knew was ever at risk. Only retried when the
@@ -233,6 +263,7 @@ export default async function handler(req, res) {
       } else {
         userId = created.user.id;
       }
+      } // end of the password-based creation branch
 
       // Don't rely on the on_auth_user_created trigger reading this request's
       // metadata reliably at insert time for admin-created users — write the

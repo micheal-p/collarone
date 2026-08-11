@@ -50,6 +50,7 @@ const PublicSite = lazy(() => import('./pages/site/PublicSite.jsx'));
 const PublicThemes = lazy(() => import('./pages/PublicThemes.jsx'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword.jsx'));
 const Signup = lazy(() => import('./pages/Signup.jsx'));
+const AuthCallback = lazy(() => import('./pages/AuthCallback.jsx'));
 const Status = lazy(() => import('./pages/Status.jsx'));
 const SuiteShell = lazy(() => import('./pages/SuiteShell.jsx'));
 const Support = lazy(() => import('./pages/Support.jsx'));
@@ -147,6 +148,7 @@ export default function App() {
     <Suspense fallback={<PageLoading />}>
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/signup" element={<Signup />} />

@@ -11,6 +11,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<User>;
+  signInWithGoogle: (intent: 'login' | 'signup') => Promise<void>;
 }
 
 const AuthCtx = createContext<AuthContextValue | null>(null);
@@ -96,6 +97,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // OAuth-style redirect landing, so re-adding a provider later is just a
   // button + signInWithOAuth call.
 
+  // Continue with Google. `intent` rides through the redirect so the landing
+  // page (AuthCallback) knows whether a session with no workspace means "send
+  // them to sign up" (signup) or "no account exists, clean up and send them to
+  // sign up with a message" (login). Both end at signup, but only the login
+  // path deletes the orphan Google user Supabase just created — see
+  // client/api/oauth-resolve.js for why that matters.
+  const signInWithGoogle = useCallback(async (intent: 'login' | 'signup') => {
+    const { supabase } = await import('../lib/supabaseClient.js');
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?intent=${intent}`,
+        // Only ever email + basic profile. Collarone has no reason to read
+        // anyone's Gmail or Drive, and asking for less keeps the consent screen
+        // honest and the verification requirements light.
+        scopes: 'email profile',
+      },
+    });
+    if (error) throw new Error(error.message);
+  }, []);
+
   const logout = useCallback(async () => {
     try { await apiPost('/auth/logout'); } catch { /* ignore */ }
     // The guest marker's life is bound to the session — any teardown removes
@@ -114,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthCtx.Provider value={{ user, setUser, booting, login, logout, refreshUser }}>
+    <AuthCtx.Provider value={{ user, setUser, booting, login, logout, refreshUser, signInWithGoogle }}>
       {children}
     </AuthCtx.Provider>
   );
