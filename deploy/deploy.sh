@@ -126,15 +126,54 @@ fi
 # error, unrelated to config) can abort the deploy and throw away a good build.
 set +e
 mkdir -p /etc/nginx/snippets
+
+# ---- security headers ------------------------------------------------------
+# Written as its own snippet so it can be re-included inside any location that
+# sets its own add_header — nginx drops ALL inherited add_headers the moment a
+# location declares even one, so the cache locations below must pull these back
+# in or they'd ship the JS/HTML with no security headers at all.
+#
+# CSP is deliberately Report-Only for now. A wrong CSP silently blocks Supabase
+# (no data), Google sign-in, Paystack (no payments) or the Unsplash theme
+# previews — and a live card transaction cannot be tested from here. Report-Only
+# ships the real policy, logs what it WOULD block, and breaks nothing; it gets
+# promoted to enforcing once the browser console shows a clean run through
+# login, a data page, checkout and a theme preview.
+cat > /etc/nginx/snippets/collarone-security.conf <<'NGINX'
+# managed by deploy/deploy.sh — edit there, not here
+add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+add_header X-Content-Type-Options "nosniff" always;
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(self)" always;
+add_header X-Frame-Options "SAMEORIGIN" always;
+add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://js.paystack.co https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://dxekronjsvnwmnbanlqh.supabase.co wss://dxekronjsvnwmnbanlqh.supabase.co https://accounts.google.com https://api.paystack.co https://checkout.paystack.com https://images.unsplash.com; frame-src 'self' https://accounts.google.com https://checkout.paystack.com https://js.paystack.co https://challenges.cloudflare.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https://checkout.paystack.com; object-src 'none'" always;
+NGINX
+
 cat > /etc/nginx/snippets/collarone-cache.conf <<'NGINX'
 # managed by deploy/deploy.sh — edit there, not here
+include snippets/collarone-security.conf;
+
 location = /index.html {
+    include snippets/collarone-security.conf;
     add_header Cache-Control "no-cache, must-revalidate" always;
     expires -1;
 }
 location = /service-worker.js {
+    include snippets/collarone-security.conf;
     add_header Cache-Control "no-cache, must-revalidate" always;
     expires -1;
+}
+
+# The embeddable lead form is MEANT to live in an <iframe> on a customer's own
+# website, so it must not carry X-Frame-Options and its CSP must allow any
+# framer. It still gets every other header.
+location ^~ /embed/ {
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://dxekronjsvnwmnbanlqh.supabase.co https://challenges.cloudflare.com; frame-ancestors *" always;
+    try_files $uri /index.html;
 }
 NGINX
 
