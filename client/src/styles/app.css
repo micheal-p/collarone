@@ -169,19 +169,85 @@
   /* Every row the same height. Without this each row sizes to its own
      tallest tile, so a grid of 15 tiles steps up and down the page. */
   grid-auto-rows: 1fr; }
-.tile { display: flex; flex-direction: column; gap: 12px; padding: 18px; min-height: 148px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); cursor: pointer; text-align: left; transition: box-shadow .15s, transform .12s, border-color .15s; }
-.tile:not(:disabled):hover { box-shadow: var(--shadow-16); transform: translateY(-2px); border-color: var(--line-strong); }
+/* ---- Suite tiles ---------------------------------------------------------
+   Each tile carries its suite's family colour as --tint, set inline in
+   Launcher.jsx. Colour is used with restraint — a soft wash from the icon
+   corner, the icon's own gradient and glow, and the hover ring — never a full
+   flood, so fifteen tiles read as a calm grid rather than a paint chart.
+   color-mix keeps every tint derived from the one source colour, so a new
+   suite themes correctly from a single hex with no extra CSS. */
+.tile {
+  --tint: var(--brand);
+  position: relative;
+  display: flex; flex-direction: column; gap: 13px;
+  padding: 20px;
+  min-height: 156px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(10,14,26,.04);
+  cursor: pointer; text-align: left; overflow: hidden;
+  transition: transform .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s, border-color .2s;
+}
+/* the tint wash — strongest at the icon corner, gone by mid-card */
+.tile::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(135% 100% at 0% 0%,
+              color-mix(in srgb, var(--tint) 10%, transparent) 0%, transparent 52%);
+  transition: opacity .2s;
+}
+/* the ↗ — quiet at rest, tinted in a soft chip on hover */
+.tile::after {
+  content: '↗'; position: absolute; top: 15px; right: 15px;
+  width: 28px; height: 28px; display: grid; place-items: center;
+  border-radius: 9px; font-size: 15px; line-height: 1;
+  color: color-mix(in srgb, var(--tint) 45%, var(--text-3));
+  opacity: .5; transition: opacity .18s, color .18s, background .18s, transform .18s;
+}
+.tile:not(:disabled):hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--tint) 42%, transparent);
+  box-shadow: 0 20px 44px color-mix(in srgb, var(--tint) 16%, rgba(10,14,26,.05));
+}
+.tile:not(:disabled):hover::after {
+  opacity: 1; color: var(--tint);
+  background: color-mix(in srgb, var(--tint) 12%, transparent);
+  transform: translate(1px, -1px);
+}
+.tile:not(:disabled):active { transform: translateY(-1px); }
 .tile:disabled { cursor: default; }
-.tile-locked { background: #FBF9F5; }
+
+.tile-icon {
+  position: relative; z-index: 1;
+  display: grid; place-items: center; flex: none;
+  width: 52px; height: 52px; border-radius: 14px;
+  background: linear-gradient(150deg,
+              color-mix(in srgb, var(--tint) 82%, #fff) 0%, var(--tint) 78%);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--tint) 30%, transparent),
+              inset 0 1px 0 rgba(255,255,255,.28);
+}
+.tile-body { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.tile-name { font-size: 16.5px; font-weight: 700; letter-spacing: -.015em; color: var(--text); }
+.tile-desc {
+  font-size: 12.5px; line-height: 1.5; color: var(--text-2); max-width: 30ch;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* locked / coming-soon: clearly dimmed but still legible, so it reads as
+   "unlock this", not "broken". No tint wash, no arrow, grey icon, no lift. */
+.tile-locked, .tile-soon { background: color-mix(in srgb, var(--line) 22%, #fff); box-shadow: none; }
+.tile-locked::before, .tile-soon::before,
+.tile-locked::after, .tile-soon::after { display: none; }
+.tile-locked .tile-icon, .tile-soon .tile-icon {
+  background: linear-gradient(150deg, #cbd0d8, #aeb4be);
+  box-shadow: 0 4px 10px rgba(10,14,26,.07), inset 0 1px 0 rgba(255,255,255,.3);
+}
 .tile-locked .tile-name, .tile-soon .tile-name { color: var(--text-2); }
-.tile-icon { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 12px; flex: none; }
-.tile-body { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-.tile-name { font-size: 16px; font-weight: 700; color: var(--text); }
-.tile-desc { font-size: 12.5px; color: var(--text-2); line-height: 1.4; }
+.tile-locked .tile-desc, .tile-soon .tile-desc { color: var(--text-3); }
 /* Optional now — most tiles have nothing to put here. It must not reserve
    height when empty, or removing the badge would have changed nothing. */
-.tile-foot { display: flex; min-height: 0; }
-.tile-skeleton { min-height: 148px; background: linear-gradient(90deg,var(--surface-2),#FAF8F3,var(--surface-2)); background-size: 200% 100%; animation: sk 1.3s infinite; border: 0; }
+.tile-foot { position: relative; z-index: 1; display: flex; min-height: 0; }
+.tile-skeleton { min-height: 156px; border-radius: 18px; background: linear-gradient(90deg,var(--surface-2),#FAF8F3,var(--surface-2)); background-size: 200% 100%; animation: sk 1.3s infinite; border: 0; }
 .badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
 .badge-core { background: var(--brand-100); color: var(--brand-ink); }
 .badge-soon { background: var(--surface-2); color: var(--text-3); }
@@ -788,30 +854,6 @@ textarea.input { padding: 12px 14px; }
 .group-head h2 { color: rgba(10,14,26,.58); font-size: 10.5px; letter-spacing: .12em; }
 .group-line { background: linear-gradient(90deg, var(--line), transparent); }
 .tile-grid { gap: 16px; }
-.tile {
-  position: relative;
-  /* Was 178px for one line of title and two of description, which left a void
-     with the footer floating at the bottom of it. The grid still equalises row
-     heights, so this is the floor, not the height. */
-  min-height: 152px;
-  padding: 20px;
-  gap: 13px;
-  overflow: hidden;
-  border-radius: 20px;
-  box-shadow: 0 1px 2px rgba(10,14,26,.03), 0 12px 34px rgba(10,14,26,.04);
-}
-/* The arrow only ever meant "this is clickable", which a card already means,
-   and at full strength on fifteen tiles it was fifteen more marks competing
-   with the names. Barely there at rest, unmistakable on hover. */
-.tile::after { content: '↗'; position: absolute; right: 18px; top: 18px; color: rgba(10,14,26,.10); font-size: 18px; opacity: .55; transition: color .18s, transform .18s, opacity .18s; }
-.tile:not(:disabled):hover { border-color: rgba(255,91,31,.32); box-shadow: 0 22px 46px rgba(10,14,26,.11); transform: translateY(-5px); }
-.tile:not(:disabled):hover::after { color: var(--brand); opacity: 1; transform: translate(2px,-2px); }
-.tile-icon { width: 54px; height: 54px; border-radius: 15px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), 0 9px 20px rgba(10,14,26,.14); }
-.tile-name { font-size: 17px; letter-spacing: -.02em; }
-.tile-desc { max-width: 26ch; line-height: 1.5;
-  /* Belt and braces behind the short card lines: a description written
-     later without this constraint in mind cannot re-rag the grid. */
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .setup-card { border-radius: 22px; border-color: rgba(255,91,31,.16); box-shadow: 0 18px 42px rgba(10,14,26,.06); }
 
 /* Every suite starts with a branded cover and a clean working stage. */
