@@ -165,9 +165,16 @@
 .group-head h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); margin: 0; }
 .group-line { flex: 1; height: 1px; background: var(--line); }
 
-.tile-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+.tile-grid { display: grid;
+  /* Auto-fill at a fixed minimum, not a fixed column count. With the tiles now
+     35% smaller, four fixed columns left them wide and short (letterbox); this
+     packs as many compact ~210px cards per row as the width allows — five or
+     six on a desktop — so the box shrinks in BOTH dimensions and the grid reads
+     dense and app-like rather than a row of stretched banners. */
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 12px;
   /* Every row the same height. Without this each row sizes to its own
-     tallest tile, so a grid of 15 tiles steps up and down the page. */
+     tallest tile, so a grid of tiles steps up and down the page. */
   grid-auto-rows: 1fr; }
 /* ---- Suite tiles ---------------------------------------------------------
    Each tile carries its suite's family colour as --tint, set inline in
@@ -179,12 +186,12 @@
 .tile {
   --tint: var(--brand);
   position: relative;
-  display: flex; flex-direction: column; gap: 13px;
-  padding: 20px;
-  min-height: 156px;
+  display: flex; flex-direction: column; gap: 9px;
+  padding: 14px;
+  min-height: 104px;
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: 13px;
   box-shadow: 0 1px 2px rgba(10,14,26,.04);
   cursor: pointer; text-align: left; overflow: hidden;
   transition: transform .2s cubic-bezier(.2,.7,.3,1), box-shadow .2s, border-color .2s;
@@ -198,16 +205,16 @@
 }
 /* the ↗ — quiet at rest, tinted in a soft chip on hover */
 .tile::after {
-  content: '↗'; position: absolute; top: 15px; right: 15px;
-  width: 28px; height: 28px; display: grid; place-items: center;
-  border-radius: 9px; font-size: 15px; line-height: 1;
+  content: '↗'; position: absolute; top: 11px; right: 11px;
+  width: 22px; height: 22px; display: grid; place-items: center;
+  border-radius: 7px; font-size: 12.5px; line-height: 1;
   color: color-mix(in srgb, var(--tint) 45%, var(--text-3));
   opacity: .5; transition: opacity .18s, color .18s, background .18s, transform .18s;
 }
 .tile:not(:disabled):hover {
-  transform: translateY(-4px);
+  transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--tint) 42%, transparent);
-  box-shadow: 0 20px 44px color-mix(in srgb, var(--tint) 16%, rgba(10,14,26,.05));
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--tint) 16%, rgba(10,14,26,.05));
 }
 .tile:not(:disabled):hover::after {
   opacity: 1; color: var(--tint);
@@ -220,20 +227,20 @@
 .tile-icon {
   position: relative; z-index: 1;
   display: grid; place-items: center; flex: none;
-  width: 54px; height: 54px; border-radius: 15px;
+  width: 35px; height: 35px; border-radius: 10px;
   background: linear-gradient(150deg,
               color-mix(in srgb, var(--tint) 82%, #fff) 0%, var(--tint) 78%);
-  box-shadow: 0 9px 20px color-mix(in srgb, var(--tint) 32%, transparent),
+  box-shadow: 0 6px 13px color-mix(in srgb, var(--tint) 30%, transparent),
               inset 0 1px 0 rgba(255,255,255,.30), inset 0 0 0 1px rgba(255,255,255,.08);
 }
 /* Depth on the glyph itself — the single biggest lift from "line icon" to
    "designed icon". A soft dark emboss beneath the white stroke makes it sit ON
    the chip rather than float flatly over it. */
-.tile-icon svg { filter: drop-shadow(0 1.5px 1.2px rgba(10,14,26,.26)); }
-.tile-body { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 5px; flex: 1; }
-.tile-name { font-size: 16.5px; font-weight: 700; letter-spacing: -.015em; color: var(--text); }
+.tile-icon svg { filter: drop-shadow(0 1px 0.8px rgba(10,14,26,.24)); }
+.tile-body { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.tile-name { font-size: 14px; font-weight: 700; letter-spacing: -.015em; color: var(--text); }
 .tile-desc {
-  font-size: 12.5px; line-height: 1.5; color: var(--text-2); max-width: 30ch;
+  font-size: 11.5px; line-height: 1.45; color: var(--text-2); max-width: 30ch;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 
@@ -244,14 +251,14 @@
 .tile-locked::after, .tile-soon::after { display: none; }
 .tile-locked .tile-icon, .tile-soon .tile-icon {
   background: linear-gradient(150deg, #cbd0d8, #aeb4be);
-  box-shadow: 0 4px 10px rgba(10,14,26,.07), inset 0 1px 0 rgba(255,255,255,.3);
+  box-shadow: 0 3px 7px rgba(10,14,26,.07), inset 0 1px 0 rgba(255,255,255,.3);
 }
 .tile-locked .tile-name, .tile-soon .tile-name { color: var(--text-2); }
 .tile-locked .tile-desc, .tile-soon .tile-desc { color: var(--text-3); }
 /* Optional now — most tiles have nothing to put here. It must not reserve
    height when empty, or removing the badge would have changed nothing. */
 .tile-foot { position: relative; z-index: 1; display: flex; min-height: 0; }
-.tile-skeleton { min-height: 156px; border-radius: 18px; background: linear-gradient(90deg,var(--surface-2),#FAF8F3,var(--surface-2)); background-size: 200% 100%; animation: sk 1.3s infinite; border: 0; }
+.tile-skeleton { min-height: 104px; border-radius: 13px; background: linear-gradient(90deg,var(--surface-2),#FAF8F3,var(--surface-2)); background-size: 200% 100%; animation: sk 1.3s infinite; border: 0; }
 .badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
 .badge-core { background: var(--brand-100); color: var(--brand-ink); }
 .badge-soon { background: var(--surface-2); color: var(--text-3); }
@@ -385,7 +392,6 @@
 .boot-spinner { width: 34px; height: 34px; border: 3px solid var(--line); border-top-color: var(--brand); border-radius: 50%; animation: spin .8s linear infinite; }
 
 /* ============ Responsive ============ */
-@media (max-width: 1024px) { .tile-grid { grid-template-columns: repeat(3, 1fr); } }
 
 /* ---- Tablet / large mobile (≤820px) ---- */
 @media (max-width: 820px) {
@@ -857,7 +863,6 @@ textarea.input { padding: 12px 14px; }
 .group-head { margin-bottom: 17px; }
 .group-head h2 { color: rgba(10,14,26,.58); font-size: 10.5px; letter-spacing: .12em; }
 .group-line { background: linear-gradient(90deg, var(--line), transparent); }
-.tile-grid { gap: 16px; }
 .setup-card { border-radius: 22px; border-color: rgba(255,91,31,.16); box-shadow: 0 18px 42px rgba(10,14,26,.06); }
 
 /* Every suite starts with a branded cover and a clean working stage. */

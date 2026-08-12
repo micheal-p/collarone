@@ -250,7 +250,7 @@ function SuiteTile({ s, onOpen, index, reduce, commonRole }) {
       onClick={() => s.openable && onOpen(s)} disabled={!s.openable}
       title={locked ? 'You have not been granted access to this suite' : soon ? 'Coming soon' : undefined}>
       <span className="tile-icon">
-        <SuiteIcon name={locked ? 'lock' : meta.icon || 'grid'} size={26} strokeWidth={1.9} color="#fff" />
+        <SuiteIcon name={locked ? 'lock' : meta.icon || 'grid'} size={17} strokeWidth={1.9} color="#fff" />
       </span>
       <span className="tile-body">
         <span className="tile-name">{s.name}</span>
