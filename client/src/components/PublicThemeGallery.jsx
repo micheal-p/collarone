@@ -70,7 +70,12 @@ function MiniMock({ theme }) {
   );
 }
 
-export default function PublicThemeGallery({ limit, seeMoreHref, showFilters = true }) {
+// onUse: when provided (the website builder), each card gains a "Use this
+// theme" primary action and the preview becomes a secondary button — so the
+// admin picker reuses this exact polished card (live thumbnail, real render)
+// instead of its own crude wireframe. category: pre-filter to one category and
+// hide the filter chips, since the builder already chose the category.
+export default function PublicThemeGallery({ limit, seeMoreHref, showFilters = true, onUse, category }) {
   const [themes, setThemes] = useState([]);
   const [cat, setCat] = useState('all');
   const [preview, setPreview] = useState(null);
@@ -78,15 +83,16 @@ export default function PublicThemeGallery({ limit, seeMoreHref, showFilters = t
   useEffect(() => { getThemes().then((t) => setThemes(t || [])).catch(() => {}); }, []);
 
   const shown = useMemo(() => {
+    if (category) return themes.filter((t) => t.category === category);
     const base = cat === 'all' ? themes : themes.filter((t) => t.category === cat);
     return limit ? interleave(base).slice(0, limit) : base;
-  }, [themes, cat, limit]);
+  }, [themes, cat, limit, category]);
 
   if (!themes.length) return null;
 
   return (
     <>
-      {showFilters && (
+      {showFilters && !category && (
         <div className="ptg-filters">
           {CATS.map((c) => <button key={c.key} type="button" className={`ptg-chip ${cat === c.key ? 'on' : ''}`} onClick={() => setCat(c.key)}>{c.label}</button>)}
         </div>
@@ -104,7 +110,14 @@ export default function PublicThemeGallery({ limit, seeMoreHref, showFilters = t
             <div className="ptg-meta">
               <div className="ptg-name">{t.name}<span className="ptg-cat">{CAT_LABEL[t.category] || t.category}</span></div>
               <p className="ptg-desc">{t.description}</p>
-              <button type="button" className="ptg-preview" onClick={() => setPreview(t)}>Preview live</button>
+              {onUse ? (
+                <div className="ptg-actions">
+                  <button type="button" className="ptg-use" onClick={() => onUse(t)}>Use this theme</button>
+                  <button type="button" className="ptg-preview ptg-preview-sm" onClick={() => setPreview(t)}>Preview</button>
+                </div>
+              ) : (
+                <button type="button" className="ptg-preview" onClick={() => setPreview(t)}>Preview live</button>
+              )}
             </div>
           </motion.div>
         ))}

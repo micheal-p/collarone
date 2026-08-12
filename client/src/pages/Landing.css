@@ -744,6 +744,11 @@
 .ptg-desc { font-size: 13.5px; line-height: 1.55; color: var(--text-soft); margin: 8px 0 16px; }
 .ptg-preview { width: 100%; background: var(--accent-soft); color: var(--accent-ink); border: 1px solid transparent; font: inherit; font-weight: 700; font-size: 14px; padding: 11px; border-radius: 10px; cursor: pointer; transition: background .15s ease, color .15s ease; }
 .ptg-preview:hover { background: var(--accent); color: #fff; }
+/* Website builder variant: pick + preview side by side. */
+.ptg-actions { display: flex; gap: 8px; }
+.ptg-use { flex: 1; background: var(--brand); color: #fff; border: none; font: inherit; font-weight: 700; font-size: 14px; padding: 11px; border-radius: 10px; cursor: pointer; box-shadow: 0 6px 16px color-mix(in srgb, var(--brand) 22%, transparent); transition: background .15s ease, transform .12s ease; }
+.ptg-use:hover { background: var(--brand-dark, var(--brand)); transform: translateY(-1px); }
+.ptg-preview-sm { width: auto; flex: none; padding: 11px 16px; }
 /* Mobile: two compact cards per row (a 1-up list of 11 cards was ~4,600px of
    scrolling). The thumb sells the theme — the description can go. */
 @media (max-width: 640px) {

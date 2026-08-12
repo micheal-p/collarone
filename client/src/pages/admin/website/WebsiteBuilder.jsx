@@ -3,8 +3,7 @@ import { useAuth } from '../../../auth/AuthContext.jsx';
 import { applyOrgTheme } from '../../../lib/theme.js';
 import AppLayout from '../../../components/AppLayout.jsx';
 import { safeExternalUrl, EXTERNAL_LINK_REL } from '../../../lib/safeUrl.js';
-import ThemeMockup from '../../../components/ThemeMockup.jsx';
-import ThemePreviewModal from '../../../components/ThemePreview.jsx';
+import PublicThemeGallery from '../../../components/PublicThemeGallery.jsx';
 import { waDigits } from '../../../lib/whatsapp.js';
 import * as W from './websiteApi.js';
 import PaystackConnect from '../../../components/PaystackConnect.jsx';
@@ -44,9 +43,7 @@ function SetupWizard({ themes, defaultName, onSetup, onExisting, flash }) {
   const [tagline, setTagline] = useState('');
   const [existingUrl, setExistingUrl] = useState('');
   const [busy, setBusy] = useState(false);
-  const [previewTheme, setPreviewTheme] = useState(null);
 
-  const categoryThemes = themes.filter((t) => t.category === category);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -115,20 +112,10 @@ function SetupWizard({ themes, defaultName, onSetup, onExisting, flash }) {
       {step === 'theme' && (
         <>
           <button className="btn btn-ghost" style={{ marginBottom: 14 }} onClick={() => setStep('category')}>&larr; Back</button>
-          <div className="theme-grid">
-            {categoryThemes.map((t) => (
-              <div key={t.key} className="theme-card">
-                <div className="theme-card-preview"><ThemeMockup theme={t} /></div>
-                <div className="theme-card-name">{t.name}</div>
-                <div className="theme-card-desc">{t.description}</div>
-                <div className="theme-card-actions">
-                  <button type="button" className="btn btn-primary" onClick={() => { setThemeKey(t.key); setStep('details'); }}>Use this theme</button>
-                  <button type="button" className="btn btn-ghost" onClick={() => setPreviewTheme(t)}>Preview</button>
-                </div>
-              </div>
-            ))}
-          </div>
-          {previewTheme && <ThemePreviewModal theme={previewTheme} onClose={() => setPreviewTheme(null)} />}
+          {/* Reuse the public gallery's polished card — the real live thumbnail
+              and the shared preview modal — with a "Use this theme" action, so
+              the admin picker and the marketing page never drift apart. */}
+          <PublicThemeGallery category={category} onUse={(t) => { setThemeKey(t.key); setStep('details'); }} />
         </>
       )}
 
