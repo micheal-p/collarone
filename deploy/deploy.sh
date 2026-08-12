@@ -173,7 +173,7 @@ location ^~ /embed/ {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
     add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://dxekronjsvnwmnbanlqh.supabase.co https://challenges.cloudflare.com; frame-ancestors *" always;
-    try_files $uri /index.html;
+    try_files \$uri /index.html;
 }
 NGINX
 
