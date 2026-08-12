@@ -173,7 +173,11 @@ location ^~ /embed/ {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
     add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://dxekronjsvnwmnbanlqh.supabase.co https://challenges.cloudflare.com; frame-ancestors *" always;
-    try_files \$uri /index.html;
+    # rewrite ... break serves index.html from THIS location so its headers
+    # (no X-Frame-Options, frame-ancestors *) apply — try_files would internally
+    # redirect into `location = /index.html`, which re-adds X-Frame-Options and
+    # was why the exemption didn't take the first time.
+    rewrite ^ /index.html break;
 }
 NGINX
 
