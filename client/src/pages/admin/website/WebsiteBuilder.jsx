@@ -115,17 +115,15 @@ function SetupWizard({ themes, defaultName, onSetup, onExisting, flash }) {
       {step === 'theme' && (
         <>
           <button className="btn btn-ghost" style={{ marginBottom: 14 }} onClick={() => setStep('category')}>&larr; Back</button>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+          <div className="theme-grid">
             {categoryThemes.map((t) => (
-              <div key={t.key} style={{ display: 'flex', flexDirection: 'column', padding: 12, borderRadius: 'var(--radius-lg)', border: '1px solid var(--line)', background: 'var(--surface)' }}>
-                <ThemeMockup theme={t} />
-                <div style={{ fontWeight: 700, margin: '10px 0 4px' }}>{t.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-2)', flex: 1 }}>{t.description}</div>
-                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                  <button type="button" className="btn btn-primary" style={{ flex: 1, fontSize: 12.5, padding: '8px 0' }}
-                    onClick={() => { setThemeKey(t.key); setStep('details'); }}>Use this theme</button>
-                  <button type="button" className="btn btn-ghost" style={{ fontSize: 12.5, padding: '8px 12px' }}
-                    onClick={() => setPreviewTheme(t)}>Preview</button>
+              <div key={t.key} className="theme-card">
+                <div className="theme-card-preview"><ThemeMockup theme={t} /></div>
+                <div className="theme-card-name">{t.name}</div>
+                <div className="theme-card-desc">{t.description}</div>
+                <div className="theme-card-actions">
+                  <button type="button" className="btn btn-primary" onClick={() => { setThemeKey(t.key); setStep('details'); }}>Use this theme</button>
+                  <button type="button" className="btn btn-ghost" onClick={() => setPreviewTheme(t)}>Preview</button>
                 </div>
               </div>
             ))}

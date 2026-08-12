@@ -83,7 +83,12 @@ button, [role="button"] { -webkit-tap-highlight-color: transparent; user-select:
   white-space: nowrap;
 }
 .btn:active { transform: translateY(0.5px); }
-.btn-primary { background: var(--brand); color: #fff; box-shadow: var(--shadow-2), 0 4px 14px rgba(255,91,31,0.25); }
+/* The glow derives from the button's OWN colour via color-mix, not a
+   hard-coded orange. A tenant whose brand colour is dark (Boutique Noir, an
+   ink storefront) was getting an orange halo under a black button — the glow
+   assumed every primary button is brand-orange, which stopped being true the
+   moment orgs could theme. Now it always matches. */
+.btn-primary { background: var(--brand); color: #fff; box-shadow: var(--shadow-2), 0 4px 14px color-mix(in srgb, var(--brand) 26%, transparent); }
 .btn-primary:hover { background: var(--brand-dark); }
 .btn-primary:disabled { background: var(--line-strong); color: #fff; cursor: not-allowed; box-shadow: none; }
 .btn-ghost { background: var(--surface); color: var(--text); border-color: var(--line-strong); }
