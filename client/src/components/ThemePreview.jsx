@@ -5,6 +5,7 @@
 import { LAYOUTS } from '../pages/site/siteLayouts.jsx';
 import { getSiteTheme } from '../pages/site/themes/index.js';
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const U = (id, w = 800) => `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${w}&q=80`;
 
@@ -114,7 +115,12 @@ export default function ThemePreviewModal({ theme, onClose }) {
     ? <folder.Component data={data} activeSlug={activeSlug} setActiveSlug={setActiveSlug} />
     : <Layout data={data} activeSlug={activeSlug} setActiveSlug={setActiveSlug} />;
 
-  return (
+  // Portal to <body>. Inside the website builder this modal is nested under the
+  // app layout, and an ancestor there establishes a containing block (a
+  // transform/filter), so `position: fixed; inset: 0` was measured against the
+  // content area, not the viewport — the preview came out clipped behind the
+  // sidebar. As a direct child of <body> it always covers the whole screen.
+  return createPortal((
     <div onMouseDown={onClose} style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(4,6,12,0.78)', backdropFilter: 'blur(6px)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 'clamp(12px, 3vw, 36px)' }}>
       <div style={{ width: 'min(1080px, 100%)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexShrink: 0 }}>
         <div style={{ color: '#F4F1EA', fontSize: 14, fontWeight: 650 }}>
@@ -134,5 +140,5 @@ export default function ThemePreviewModal({ theme, onClose }) {
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }

@@ -61,7 +61,10 @@ function SetupWizard({ themes, defaultName, onSetup, onExisting, flash }) {
   };
 
   return (
-    <div style={{ maxWidth: 640 }}>
+    // The forms want a readable 640px column, but the theme gallery is cards —
+    // capping it at 640 squeezed them to two per row with the rest of the page
+    // empty. The theme step gets the room to show three or four across.
+    <div style={{ maxWidth: step === 'theme' ? 1120 : 640 }}>
       <h2 style={{ fontSize: 18, margin: '0 0 6px' }}>Set up your public website</h2>
       <p className="muted" style={{ fontSize: 13.5, margin: '0 0 20px' }}>Pick what kind of site you need, each type starts with the right pages already filled in.</p>
 
