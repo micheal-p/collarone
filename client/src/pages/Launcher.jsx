@@ -322,7 +322,7 @@ export default function Launcher() {
   const grantedCount = suites.filter((s) => s.granted).length;
 
   return (
-    <AppLayout breadcrumb={[{ label: 'Home' }]}>
+    <AppLayout>
       <motion.div
         className="home-hero"
         initial={reduce ? false : { opacity: 0, y: 14 }}
