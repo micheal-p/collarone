@@ -338,7 +338,7 @@ const TEMPLATE_CSS = `
 .tdt-band { display: none; }
 .tdt-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
 .tdt-logo { max-height: 54px; max-width: 190px; object-fit: contain; margin-bottom: 8px; display: block; }
-.tdt-wordmark { font-size: 21px; font-weight: 750; letter-spacing: -.02em; line-height: 1; margin-bottom: 8px; color: var(--accent); }
+.tdt-wordmark { font-family: Georgia, 'Times New Roman', serif; font-size: 23px; font-weight: 700; letter-spacing: -.015em; line-height: 1; margin-bottom: 8px; color: var(--accent); }
 .tdt-company { font-size: 19px; font-weight: 700; letter-spacing: -.01em; }
 .tdt-tagline { font-size: 11.5px; color: #6b7280; margin-top: 2px; }
 .tdt-contactline { font-size: 10.5px; color: #8b8578; margin-top: 6px; line-height: 1.6; max-width: 46ch; }
@@ -387,11 +387,15 @@ const TEMPLATE_CSS = `
 
 /* ---- totals ---- */
 .tdt-totals { display: flex; justify-content: flex-end; margin-top: 12px; }
-.tdt-totals table { border-collapse: collapse; min-width: 280px; }
+.tdt-totals table { border-collapse: separate; border-spacing: 0; min-width: 300px; }
 .tdt-totals th { text-align: left; font-weight: 400; padding: 3px 22px 3px 0; font-size: 12.5px; color: #55504a; }
 .tdt-totals td { text-align: right; padding: 3px 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.tdt-totals-due th, .tdt-totals-due td { font-weight: 700; font-size: 15px; color: #14171f;
-  border-top: 1.5px solid #14171f; padding-top: 8px; }
+/* The amount the customer is looking for gets a filled strip, not a plain
+   underlined row — the single biggest lift from "generated" to "designed". */
+.tdt-spacer td { height: 8px; padding: 0; }
+.tdt-totals-due th, .tdt-totals-due td { background: var(--accent); color: #fff; border-top: none; padding: 12px 15px; }
+.tdt-totals-due th { border-radius: 10px 0 0 10px; font-weight: 700; font-size: 12.5px; text-align: left; }
+.tdt-totals-due td { border-radius: 0 10px 10px 0; font-weight: 800; font-size: 17px; }
 .tdt-words { margin-top: 8px; font-size: 11px; color: #6b7280; max-width: 62%; font-style: italic; }
 .tdt-notes { margin-top: 14px; font-size: 12px; color: #6b7280; white-space: pre-wrap; }
 
@@ -399,7 +403,10 @@ const TEMPLATE_CSS = `
 .tdt-paybox { margin-top: 18px; border: 1px solid #e3ded2; border-left: 3px solid var(--accent);
   border-radius: 8px; padding: 11px 15px; background: #fbfaf7; }
 .tdt-payline { font-size: 13.5px; font-weight: 600; }
-.tdt-paynote { font-size: 11.5px; color: #6b7280; margin-top: 3px; }
+.tdt-pay-grid { display: flex; flex-wrap: wrap; gap: 30px; margin-top: 4px; }
+.tdt-pay-item span { display: block; font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase; color: #a29b8c; margin-bottom: 1px; }
+.tdt-pay-item strong { font-size: 14px; font-weight: 700; color: #14171f; font-variant-numeric: tabular-nums; }
+.tdt-paynote { font-size: 11.5px; color: #6b7280; margin-top: 8px; }
 
 /* ---- signatures: who signs, and space to do it ---- */
 .tdt-sigblock { display: flex; gap: 26px; margin-top: 34px; }
@@ -426,6 +433,7 @@ const TEMPLATE_CSS = `
 .tdt-classic .tdt-doctitle { letter-spacing: .2em; }
 .tdt-classic .tdt-rule { border-top: 3px double #14171f; }
 .tdt-classic .tdt-metastrip, .tdt-classic .tdt-duebox, .tdt-classic .tdt-paybox { border-radius: 0; }
+.tdt-classic .tdt-totals-due th, .tdt-classic .tdt-totals-due td { border-radius: 0; }
 .tdt-classic .tdt-items th { border-bottom-width: 2px; }
 
 /* ===== MODERN, accent rail, tight type =================================== */
@@ -759,16 +767,20 @@ function DocPreviewBody({ doc, settings, warehouseName = '' }) {
                   <>
                     <tr><th scope="row">Total</th><td>{TD.money(doc.total)}</td></tr>
                     {paid > 0 && <tr><th scope="row">Paid</th><td>&minus;{TD.money(paid)}</td></tr>}
+                    <tr className="tdt-spacer" aria-hidden="true"><td colSpan={2} /></tr>
                     <tr className="tdt-totals-due">
                       <th scope="row">{settled ? 'Balance' : 'Balance due'}</th>
                       <td>{TD.money(balance)}</td>
                     </tr>
                   </>
                 ) : (
-                  <tr className="tdt-totals-due">
-                    <th scope="row">{meta.isReceipt ? 'Total paid' : 'Total'}</th>
-                    <td>{TD.money(doc.total)}</td>
-                  </tr>
+                  <>
+                    <tr className="tdt-spacer" aria-hidden="true"><td colSpan={2} /></tr>
+                    <tr className="tdt-totals-due">
+                      <th scope="row">{meta.isReceipt ? 'Total paid' : 'Total'}</th>
+                      <td>{TD.money(doc.total)}</td>
+                    </tr>
+                  </>
                 )}
               </tbody>
             </table>
@@ -786,8 +798,12 @@ function DocPreviewBody({ doc, settings, warehouseName = '' }) {
       {mny.showPayTo && (s.account_number || s.bank_name || s.payment_note) && (
         <div className="tdt-paybox">
           <div className="tdt-label">Pay to</div>
-          <div className="tdt-payline">
-            {[s.account_name || s.company_name, s.bank_name, s.account_number].filter(Boolean).join(' · ')}
+          <div className="tdt-pay-grid">
+            {(s.account_name || s.company_name) && (
+              <div className="tdt-pay-item"><span>Account name</span><strong>{s.account_name || s.company_name}</strong></div>
+            )}
+            {s.bank_name && <div className="tdt-pay-item"><span>Bank</span><strong>{s.bank_name}</strong></div>}
+            {s.account_number && <div className="tdt-pay-item"><span>Account no.</span><strong>{s.account_number}</strong></div>}
           </div>
           {s.payment_note && <div className="tdt-paynote">{s.payment_note}</div>}
           {doc.doc_no && <div className="tdt-paynote">Quote <strong>{doc.doc_no}</strong> as your payment reference.</div>}

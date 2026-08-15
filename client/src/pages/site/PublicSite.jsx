@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { applySiteSeo } from './siteSeo.js';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { getPublicSite, getPreviewSite } from '../admin/website/websiteApi.js';
 import { LAYOUTS } from './siteLayouts.jsx';
@@ -78,6 +79,15 @@ export default function PublicSite({ slugProp }) {
       keepalive: true,
     }).catch(() => {});
   }, [slug, activeSlug, isPreview]);
+
+  // Auto-SEO: rewrite the page head from THIS tenant's own data — title,
+  // description, canonical, Open Graph, Twitter card and structured data — so
+  // the site represents itself in search and on social, not Collarone. Runs on
+  // load and every page change. isPreview is passed through so a preview is
+  // marked noindex.
+  useEffect(() => {
+    if (data) applySiteSeo({ ...data, isPreview }, activeSlug);
+  }, [data, activeSlug, isPreview]);
 
   if (loading) return <div className="full-center"><div className="boot-spinner" /></div>;
 
