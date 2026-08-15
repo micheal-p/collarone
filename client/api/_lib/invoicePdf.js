@@ -207,8 +207,37 @@ export function renderInvoicePdf({ doc, settings = {}, meta }) {
         y += boxH + 14;
       }
 
-      // ---- signature -------------------------------------------------------
-      if (settings.signature_name || settings.signature_title) {
+      // ---- signature(s) ----------------------------------------------------
+      // A stock or custody note with one company signature proves nothing — the
+      // value is the counter-signature from whoever received or checked the
+      // goods. These docs get the same three-party block the on-screen template
+      // draws (Released/Delivered by · Collected/Returned/Received by · Checked
+      // by), so what you download matches what you preview. Everything else
+      // (invoice/quote/receipt) keeps the single issuer signature.
+      const isCheck = !!(m.isStock || m.isCustody);
+      if (isCheck) {
+        if (y > pdf.page.height - pdf.page.margins.bottom - 74) { pdf.addPage(); y = pdf.page.margins.top; }
+        const stockDir = doc.doc_type === 'grn' ? 'in' : doc.doc_type === 'srp' ? 'out' : null;
+        const custodyDir = doc.doc_type === 'handover' ? 'out' : doc.doc_type === 'return_note' ? 'in' : null;
+        const cols = [
+          { role: stockDir === 'in' ? 'Delivered by' : 'Released by', meta: 'Name, signature & date' },
+          {
+            role: custodyDir === 'out' ? 'Collected by' : custodyDir === 'in' ? 'Returned by' : 'Received by',
+            meta: doc.party_name ? `${doc.party_name}, signature & date` : 'Name, signature & date',
+          },
+          { role: 'Checked by', meta: m.isCustody ? 'Condition on return' : 'Store officer' },
+        ];
+        const gap = 24;
+        const colW = (W - gap * 2) / 3;
+        const sigY = y + 34; // room to actually sign, above the line
+        cols.forEach((c, i) => {
+          const x = L + i * (colW + gap);
+          pdf.moveTo(x, sigY).lineTo(x + colW, sigY).lineWidth(0.8).strokeColor(INK).stroke();
+          pdf.font('Helvetica-Bold').fontSize(9).fillColor(INK).text(c.role, x, sigY + 5, { width: colW });
+          pdf.font('Helvetica').fontSize(7.5).fillColor(MUTED).text(c.meta, x, pdf.y + 1, { width: colW });
+        });
+        y = sigY + 34;
+      } else if (settings.signature_name || settings.signature_title) {
         if (y > pdf.page.height - pdf.page.margins.bottom - 60) { pdf.addPage(); y = pdf.page.margins.top; }
         pdf.moveTo(L, y + 18).lineTo(L + 200, y + 18).lineWidth(0.8).strokeColor(INK).stroke();
         pdf.font('Helvetica-Bold').fontSize(9.5).fillColor(INK).text(settings.signature_name || '', L, y + 22);
