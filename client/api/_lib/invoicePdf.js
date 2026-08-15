@@ -99,7 +99,11 @@ export function renderInvoicePdf({ doc, settings = {}, meta }) {
 
       if (mny.show) {
         const accent = mny.overdue ? RED : mny.settled ? GREEN : INK;
-        const boxH = doc.due_date && m.hasDueDate && !mny.settled ? 62 : 52;
+        // Tall box only when a caption line is drawn under the amount ("Received
+        // with thanks" / "Due …"). Without this the caption cleared the bottom
+        // border and read as overflow.
+        const hasCaption = mny.settled || (m.hasDueDate && doc.due_date);
+        const boxH = hasCaption ? 66 : 50;
         pdf.roundedRect(boxX, y - 4, boxW, boxH, 6).lineWidth(1.2).strokeColor(accent).stroke();
         pdf.font('Helvetica-Bold').fontSize(8).fillColor(MUTED)
           .text(mny.label.toUpperCase(), boxX, y + 6, { width: boxW - 14, align: 'right' });
