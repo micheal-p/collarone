@@ -2574,7 +2574,7 @@ export async function supabaseApi(path, opts = {}) {
   }
   if (head === 'POST /trade-docs' && seg[1] === 'settings') {
     const { companyName, address, tagline, phone, email, logoUrl, accentColor, signatureName, signatureTitle, signatureUrl, templateKey,
-      bankName, accountName, accountNumber, paymentNote } = body;
+      bankName, accountName, accountNumber, paymentNote, orientation } = body;
     const { data, error } = await supabase.rpc('upsert_trade_doc_settings', {
       p_company_name: companyName || '', p_address: address || '', p_tagline: tagline || '',
       p_phone: phone || '', p_email: email || '', p_logo_url: logoUrl || '', p_accent_color: accentColor || '#0A0E1A',
@@ -2585,6 +2585,7 @@ export async function supabaseApi(path, opts = {}) {
       // database no matter what the form sends.
       p_bank_name: bankName || '', p_account_name: accountName || '',
       p_account_number: accountNumber || '', p_payment_note: paymentNote || '',
+      p_orientation: orientation || 'portrait',
     });
     if (error) fail(400, error.message);
     return { settings: data };

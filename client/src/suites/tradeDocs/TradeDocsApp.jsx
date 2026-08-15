@@ -329,6 +329,13 @@ const TEMPLATE_CSS = `
 .tdt-doc { --accent: #0A0E1A; position: relative; color: #14171f;
   font-family: -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 13px; line-height: 1.5; }
 .tdt-doc .table { min-width: 0; }
+/* On screen, give the preview the SHAPE of the chosen page so portrait vs
+   landscape is visible before printing — the real page size for print/PDF is
+   set by @page and the PDF renderer's own layout, not this. ~96dpi A4 widths. */
+@media screen {
+  .tdt-doc[data-orientation] { max-width: 794px; margin-left: auto; margin-right: auto; }
+  .tdt-doc[data-orientation="landscape"] { max-width: 1123px; }
+}
 .tdt-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .tdt-label { display: block; font-size: 9px; font-weight: 700; letter-spacing: .12em;
@@ -502,6 +509,7 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
     accentColor: settings?.accent_color || '#0A0E1A', signatureName: settings?.signature_name || '',
     signatureTitle: settings?.signature_title || '', signatureUrl: settings?.signature_url || '',
     templateKey: settings?.template_key || 'classic',
+    orientation: settings?.orientation || 'portrait',
     bankName: settings?.bank_name || '',
     accountName: settings?.account_name || '',
     accountNumber: settings?.account_number || '',
@@ -518,6 +526,7 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
     company_name: f.companyName, address: f.address, tagline: f.tagline, phone: f.phone, email: f.email,
     logo_url: f.logoUrl, accent_color: f.accentColor, signature_name: f.signatureName,
     signature_title: f.signatureTitle, signature_url: f.signatureUrl, template_key: f.templateKey,
+    orientation: f.orientation,
     bank_name: f.bankName, account_name: f.accountName, account_number: f.accountNumber, payment_note: f.paymentNote,
   };
 
@@ -607,6 +616,22 @@ function SettingsModal({ orgId, settings, onClose, onSaved, flash }) {
                   ))}
                 </div>
               </Field>
+
+              <Field label="Page orientation">
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {[
+                    ['portrait', 'Portrait', 'Upright A4 — the standard for invoices and receipts.'],
+                    ['landscape', 'Landscape', 'Wide A4 — better for long, many-column quotes and stock notes.'],
+                  ].map(([k, name, desc]) => (
+                    <label key={k} className="card" style={{ flex: '1 1 180px', padding: 10, cursor: 'pointer', border: f.orientation === k ? '2px solid var(--brand)' : undefined }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: 13 }}>
+                        <input type="radio" name="orientation" checked={f.orientation === k} onChange={() => set('orientation', k)} /> {name}
+                      </div>
+                      <div className="muted" style={{ fontSize: 11, marginTop: 2 }}>{desc}</div>
+                    </label>
+                  ))}
+                </div>
+              </Field>
             </>
           ) : (
             <>
@@ -648,7 +673,7 @@ function DocPreviewBody({ doc, settings, warehouseName = '' }) {
   // paperwork that gets checked and signed on delivery
   const isCheck = !!(meta.isStock || meta.isCustody);
   return (
-    <div id="td-print-area" className={`tdt-doc tdt-${s.template_key || 'classic'}`} style={{ '--accent': s.accent_color || '#0A0E1A' }}>
+    <div id="td-print-area" className={`tdt-doc tdt-${s.template_key || 'classic'}`} data-orientation={s.orientation === 'landscape' ? 'landscape' : 'portrait'} style={{ '--accent': s.accent_color || '#0A0E1A' }}>
       <div className="tdt-band" />
       {mny.stamp && (
         <div className={`tdt-stamp${mny.stamp === 'overdue' ? ' tdt-stamp-overdue' : ''}`} aria-hidden="true">
@@ -890,8 +915,9 @@ function PrintView({ doc, settings, onClose, flash }) {
         ${TEMPLATE_CSS}
         @media print {
           /* A4 with real margins. Without @page the browser picks its own and
-             the document floats in the middle of the sheet. */
-          @page { size: A4; margin: 14mm 12mm; }
+             the document floats in the middle of the sheet. Orientation follows
+             the letterhead's company-wide setting. */
+          @page { size: A4 ${settings?.orientation === 'landscape' ? 'landscape' : 'portrait'}; margin: 14mm 12mm; }
           body * { visibility: hidden; }
           #td-print-area, #td-print-area * { visibility: visible; }
           #td-print-area { position: absolute; top: 0; left: 0; width: 100%; }

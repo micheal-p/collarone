@@ -44,7 +44,10 @@ export function invoiceFilename(doc) {
 export function renderInvoicePdf({ doc, settings = {}, meta }) {
   return new Promise((resolve, reject) => {
     try {
-      const pdf = new PDFDocument({ size: 'A4', margin: 40, info: {
+      // Every position below is derived from pdf.page.width/height (W, R,
+      // BOTTOM), so switching layout reflows the whole document — column widths
+      // widen, the vertical page-break threshold shortens — with no other change.
+      const pdf = new PDFDocument({ size: 'A4', layout: settings.orientation === 'landscape' ? 'landscape' : 'portrait', margin: 40, info: {
         Title: `${DOC_LABEL[doc.doc_type] || 'Document'} ${doc.doc_no || ''}`.trim(),
         Author: settings.company_name || 'Collarone',
       } });
