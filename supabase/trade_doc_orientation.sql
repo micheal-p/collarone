@@ -94,3 +94,15 @@ begin
   return row;
 end;
 $$;
+
+-- Adding p_orientation makes this a DISTINCT function signature (16 args, not
+-- 15), so it is born with Postgres' default PUBLIC EXECUTE plus Supabase's
+-- default anon grant — the exact hole test/anon_execute.mjs guards. Revoking
+-- from public alone leaves anon; revoke both, then grant only authenticated
+-- (this is a signed-in letterhead action, not a public-API or server-only fn).
+revoke execute on function public.upsert_trade_doc_settings(
+  text, text, text, text, text, text, text, text, text, text, text, text, text, text, text, text
+) from public, anon;
+grant execute on function public.upsert_trade_doc_settings(
+  text, text, text, text, text, text, text, text, text, text, text, text, text, text, text, text
+) to authenticated;
