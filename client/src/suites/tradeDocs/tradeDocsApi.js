@@ -56,6 +56,9 @@ export const TEMPLATES = {
   minimal:   { name: 'Minimal',   desc: 'Ultra-plain, mono figures, lots of white space.' },
   corporate: { name: 'Corporate', desc: 'Two-column header, shaded table rows.' },
   elegant:   { name: 'Elegant',   desc: 'Serif italic accents, thin gold-toned rule.' },
+  ribbon:    { name: 'Ribbon',    desc: 'Soft rounded panels tinted with your brand colour.' },
+  slate:     { name: 'Slate',     desc: 'Accent side-rail with structured uppercase labels.' },
+  mono:      { name: 'Mono',      desc: 'Monospace worksheet, dashed hairlines, aligned figures.' },
 };
 
 export const DOC_TYPES = {

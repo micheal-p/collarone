@@ -45,7 +45,7 @@ export function buildInvoiceHtml({ doc, settings }) {
   const isCheck = !!(meta.isStock || meta.isCustody);
   const accent = s.accent_color || '#0A0E1A';
   const orientation = s.orientation === 'landscape' ? 'landscape' : 'portrait';
-  const tmpl = /^(classic|modern|bold|minimal|corporate|elegant)$/.test(s.template_key || '') ? s.template_key : 'classic';
+  const tmpl = /^(classic|modern|bold|minimal|corporate|elegant|ribbon|slate|mono)$/.test(s.template_key || '') ? s.template_key : 'classic';
 
   const contact = [s.address, s.phone, s.email].filter(Boolean).map(esc).join(' &middot; ');
 

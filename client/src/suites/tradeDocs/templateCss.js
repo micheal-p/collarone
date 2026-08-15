@@ -181,4 +181,45 @@ export const TEMPLATE_CSS = `
 .tdt-elegant .tdt-duebox { border-color: #c3a14e; border-radius: 0; }
 .tdt-elegant .tdt-dueamount { color: #14171f; }
 .tdt-elegant .tdt-paybox { border-color: #ecdfc4; border-left-color: #c3a14e; background: #fdfbf6; }
+
+/* Ribbon — soft, friendly, modern-SaaS: the header and every panel are rounded
+   and washed with a faint tint of the brand accent (color-mix, so it tracks
+   whatever colour the tenant picks). Reads warm and approachable, the opposite
+   of Bold's solid slab. */
+.tdt-ribbon .tdt-header { background: color-mix(in srgb, var(--accent) 8%, #fff); border: 1px solid color-mix(in srgb, var(--accent) 16%, #fff); border-radius: 16px; padding: 20px 22px; }
+.tdt-ribbon .tdt-rule { display: none; }
+.tdt-ribbon .tdt-wordmark, .tdt-ribbon .tdt-company { color: var(--accent); }
+.tdt-ribbon .tdt-doctitle { color: var(--accent); }
+.tdt-ribbon .tdt-metastrip { border: none; background: color-mix(in srgb, var(--accent) 6%, #fff); border-radius: 14px; }
+.tdt-ribbon .tdt-meta { border-right-color: color-mix(in srgb, var(--accent) 14%, #fff); }
+.tdt-ribbon .tdt-duebox { border-radius: 16px; border-color: color-mix(in srgb, var(--accent) 22%, #fff); background: color-mix(in srgb, var(--accent) 6%, #fff); }
+.tdt-ribbon .tdt-items thead th { background: color-mix(in srgb, var(--accent) 7%, #fff); }
+.tdt-ribbon .tdt-paybox { border-radius: 16px; border-left-width: 1px; border-color: color-mix(in srgb, var(--accent) 20%, #fff); background: color-mix(in srgb, var(--accent) 5%, #fff); }
+
+/* Slate — structured and corporate/legal: a bold accent rail runs down the
+   whole left edge, section labels and column heads are set in accent-coloured
+   uppercase. Feels formal and organised without going serif. */
+.tdt-slate { border-left: 5px solid var(--accent); padding-left: 22px; }
+.tdt-slate .tdt-doctitle { color: var(--accent); }
+.tdt-slate .tdt-rule { border-top: 2px solid var(--accent); }
+.tdt-slate .tdt-label { color: var(--accent); letter-spacing: .14em; }
+.tdt-slate .tdt-items thead th { border-bottom: 2px solid var(--accent); text-transform: uppercase; letter-spacing: .05em; font-size: 10px; }
+.tdt-slate .tdt-metastrip { border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; }
+.tdt-slate .tdt-duebox { border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; }
+.tdt-slate .tdt-paybox { border-left-width: 4px; border-left-color: var(--accent); }
+
+/* Mono — technical/engineering: everything set in a monospace face with dashed
+   hairlines and small uppercase heads, like a well-kept worksheet. Figures line
+   up perfectly. Distinct from Minimal, which stays sans and only monospaces the
+   numbers. */
+.tdt-mono { font-family: "SFMono-Regular", ui-monospace, "DejaVu Sans Mono", Menlo, Consolas, monospace; font-size: 12px; }
+.tdt-mono .tdt-wordmark, .tdt-mono .tdt-company { font-family: inherit; letter-spacing: -.02em; }
+.tdt-mono .tdt-doctitle { font-weight: 700; letter-spacing: .08em; }
+.tdt-mono .tdt-rule { border-top: 1px dashed #b3ada0; }
+.tdt-mono .tdt-label { letter-spacing: .1em; }
+.tdt-mono .tdt-items thead th { border-bottom: 1px solid #14171f; text-transform: uppercase; font-size: 10px; letter-spacing: .04em; }
+.tdt-mono .tdt-metastrip { border-style: dashed; border-radius: 0; }
+.tdt-mono .tdt-duebox { border-style: dashed; border-radius: 0; }
+.tdt-mono .tdt-paybox { border-style: dashed; border-radius: 0; }
+.tdt-mono .tdt-totals-due th, .tdt-mono .tdt-totals-due td { border-radius: 0; }
 `;
