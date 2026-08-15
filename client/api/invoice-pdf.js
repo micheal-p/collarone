@@ -11,6 +11,8 @@
 // folder with copies.
 import { createClient } from '@supabase/supabase-js';
 import { renderInvoicePdf, invoiceFilename } from './_lib/invoicePdf.js';
+import { buildInvoiceHtml } from './_lib/invoiceHtml.js';
+import { htmlToPdf } from './_lib/htmlToPdf.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -18,6 +20,22 @@ const BUCKET = 'org-documents';
 const FOLDER_NAME = 'Invoices';
 
 const json = (res, s, o) => res.status(s).json(o);
+
+// The downloaded/filed/emailed PDF is the REAL letterhead template (all six
+// designs, accent colour, orientation), rendered from HTML by headless
+// Chromium so it matches the on-screen preview exactly. If Chromium is
+// unavailable or the render errors, fall back to the always-present PDFKit
+// renderer — a download must never fail over the styled path.
+async function renderDocPdf({ doc, settings }) {
+  const s = settings || {};
+  try {
+    const html = buildInvoiceHtml({ doc, settings: s });
+    return await htmlToPdf(html, { landscape: s.orientation === 'landscape' });
+  } catch (e) {
+    console.error('[invoice-pdf] template render failed, using PDFKit fallback:', e.message);
+    return renderInvoicePdf({ doc, settings: s, meta: DOC_META[doc.doc_type] || {} });
+  }
+}
 
 // Mirrors DOC_TYPES in client/src/suites/tradeDocs/tradeDocsApi.js. A
 // serverless function can't import the suite module (it reaches for the browser
@@ -54,11 +72,10 @@ export default async function handler(req, res) {
   if (!hasTd) return json(res, 403, { message: 'Invoicing access required.' });
 
   const { data: settings } = await admin.from('trade_doc_settings').select('*').eq('org_id', doc.org_id).maybeSingle();
-  const meta = DOC_META[doc.doc_type] || {};
 
   let pdf;
   try {
-    pdf = await renderInvoicePdf({ doc, settings: settings || {}, meta });
+    pdf = await renderDocPdf({ doc, settings });
   } catch (e) {
     return json(res, 500, { message: `Could not build the PDF: ${e.message}` });
   }
@@ -82,7 +99,7 @@ export default async function handler(req, res) {
 // Exported so notify.js can attach the same bytes without a second render.
 export async function buildInvoicePdf(admin, doc) {
   const { data: settings } = await admin.from('trade_doc_settings').select('*').eq('org_id', doc.org_id).maybeSingle();
-  return renderInvoicePdf({ doc, settings: settings || {}, meta: DOC_META[doc.doc_type] || {} });
+  return renderDocPdf({ doc, settings });
 }
 
 export async function fileIntoDocuments({ admin, doc, pdf, callerId }) {

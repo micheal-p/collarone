@@ -64,6 +64,33 @@ printf '%s\n' "${BUILD_ID}" > "${APP_DIR}/BUILD_ID"
 npm ci --workspace client
 npm ci --prefix server
 
+# ---- headless Chromium for the styled trade-document PDFs ------------------
+# client/api/_lib/htmlToPdf.js renders the real letterhead template (all six
+# designs + orientation) to PDF so a DOWNLOAD matches the on-screen preview.
+# The browser lives OUTSIDE the app dir — rsync --delete would wipe anything
+# inside it — at a fixed path the collarone service reads through
+# PLAYWRIGHT_BROWSERS_PATH. Every step is best-effort: if the install fails,
+# invoice-pdf.js falls back to the PDFKit renderer, so downloads never break —
+# they just render the plainer design until this is healthy.
+PW_DIR=/opt/collarone/pw-browsers
+mkdir -p "\$PW_DIR" || true
+if ! grep -q '^PLAYWRIGHT_BROWSERS_PATH=' "${APP_DIR}/.env" 2>/dev/null; then
+  echo "PLAYWRIGHT_BROWSERS_PATH=\$PW_DIR" >> "${APP_DIR}/.env"
+fi
+# Only the FIRST deploy pays for the browser + its apt system deps + fonts; once
+# \$PW_DIR has a browser, every later deploy skips this entirely (no per-deploy
+# apt cost). To force a reinstall, empty the directory. If a browser is ever
+# needed for another feature, this is the one place that provides it.
+if [ -z "\$(ls -A "\$PW_DIR" 2>/dev/null)" ]; then
+  # Headless images ship with almost no fonts; without these the text and the ₦
+  # sign render as boxes.
+  (apt-get update -qq && apt-get install -y --no-install-recommends fonts-liberation fonts-noto-core >/dev/null 2>&1) || true
+  PLAYWRIGHT_BROWSERS_PATH="\$PW_DIR" npx playwright-core install --with-deps chromium \
+    || PLAYWRIGHT_BROWSERS_PATH="\$PW_DIR" npx playwright-core install chromium \
+    || true
+  chown -R collarone:collarone "\$PW_DIR" || true
+fi
+
 # Bake VITE_* build-time vars from the server's .env into client/.env
 grep '^VITE_' .env > client/.env
 

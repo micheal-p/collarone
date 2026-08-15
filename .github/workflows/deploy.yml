@@ -64,6 +64,9 @@ jobs:
       - name: Trade documents say the right thing about money
         run: node test/invoice_document_rules.mjs
 
+      - name: Downloaded trade-document HTML matches the template
+        run: node test/invoice_html_renders.mjs
+
       - name: Every product-tour step points at a real element
         run: node test/tour_targets.mjs
 
