@@ -79,7 +79,14 @@ jobs:
           if [ ! -s backup.sql.gz ]; then echo "DUMP PRODUCED NOTHING:"; cat dump.err; exit 1; fi
           echo "dump size: $(du -h backup.sql.gz | cut -f1)"
           echo "== restoring into the throwaway Postgres (tolerating Supabase-only objects vanilla PG can't build) =="
-          gzip -dc backup.sql.gz | psql "$TARGET_URL" -v ON_ERROR_STOP=0 >restore.log 2>&1 || true
+          # session_replication_role=replica disables user triggers during the
+          # load — the CORRECT way to restore. Several tables (leave_types,
+          # paye_bands, deduction_rates) are seeded per-org by an AFTER INSERT
+          # trigger on organizations; without this, restoring the org rows
+          # re-fires that trigger and DOUBLES the statutory defaults on top of the
+          # rows the dump already carries. This is how a real recovery must run.
+          { echo "SET session_replication_role = replica;"; gzip -dc backup.sql.gz; } \
+            | psql "$TARGET_URL" -v ON_ERROR_STOP=0 >restore.log 2>&1 || true
           echo "restore statements that errored (expected: Supabase-internal extensions/objects): $(grep -c '^ERROR' restore.log || echo 0)"
           echo "== first 15 restore errors, if any =="
           grep '^ERROR' restore.log | head -15 || true
