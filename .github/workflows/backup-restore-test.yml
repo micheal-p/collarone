@@ -65,6 +65,9 @@ jobs:
           PGSSLMODE: require   # Supabase's pooler requires TLS
         run: |
           set -uo pipefail
+          # The runner ships an older pg_dump on PATH; Supabase is on PG17, so use
+          # the v17 client we just installed or pg_dump aborts on version mismatch.
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
           pg_dump --version
           echo "== connectivity check =="
           psql "$DATABASE_URL" -tAc 'select version()' || { echo "cannot connect to the source DB"; exit 1; }
