@@ -61,18 +61,19 @@ jobs:
 
       - name: Dump production exactly like the nightly backup, then restore it
         if: ${{ env.DATABASE_URL != '' }}
-        env:
-          PGSSLMODE: require   # Supabase's pooler requires TLS
         run: |
           set -uo pipefail
           # The runner ships an older pg_dump on PATH; Supabase is on PG17, so use
           # the v17 client we just installed or pg_dump aborts on version mismatch.
           export PATH="/usr/lib/postgresql/17/bin:$PATH"
           pg_dump --version
+          # TLS is required for the Supabase SOURCE only — set it per-command, NOT
+          # step-wide, or it also forces SSL on the LOCAL restore, which the
+          # throwaway Postgres doesn't offer (the connection then silently no-ops).
           echo "== connectivity check =="
-          psql "$DATABASE_URL" -tAc 'select version()' || { echo "cannot connect to the source DB"; exit 1; }
+          PGSSLMODE=require psql "$DATABASE_URL" -tAc 'select version()' || { echo "cannot connect to the source DB"; exit 1; }
           echo "== dumping (--no-owner --no-acl --format=plain | gzip -9), same as deploy/backup-db.sh =="
-          if ! pg_dump "$DATABASE_URL" --no-owner --no-acl --format=plain 2>dump.err | gzip -9 > backup.sql.gz; then
+          if ! PGSSLMODE=require pg_dump "$DATABASE_URL" --no-owner --no-acl --format=plain 2>dump.err | gzip -9 > backup.sql.gz; then
             echo "pg_dump FAILED:"; cat dump.err; exit 1
           fi
           if [ ! -s backup.sql.gz ]; then echo "DUMP PRODUCED NOTHING:"; cat dump.err; exit 1; fi
