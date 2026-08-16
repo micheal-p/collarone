@@ -46,6 +46,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # A shipped dependency with a known high/critical vulnerability fails the
+      # build, the same way the XSS test does. Scoped to PRODUCTION deps
+      # (--omit=dev) so build-only tooling can't block a deploy; moderate and
+      # below are reported by `npm audit` but don't gate. This is the automated
+      # answer to "is a library we ship vulnerable".
+      - name: No high/critical vulnerabilities in shipped dependencies
+        run: npm audit --omit=dev --audit-level=high
       - name: Install pg driver (only needed for the live-DB layers)
         if: env.DATABASE_URL != ''
         run: npm install --no-save pg
@@ -195,6 +202,10 @@ jobs:
           # least as much. Empty when the secret is absent, and the deploy
           # simply skips the seeding.
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # Collarone's own Paystack secret — seeded into the box's .env so
+          # /api/platform-pay can initialize checkouts and the webhook can
+          # auto-activate paid orgs. Empty when unset; deploy skips seeding it.
+          PLATFORM_PAYSTACK_SECRET: ${{ secrets.PLATFORM_PAYSTACK_SECRET }}
         run: ./deploy/deploy.sh
 
   # A failed deploy tells the platform about itself — the row lands in

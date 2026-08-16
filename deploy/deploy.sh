@@ -334,7 +334,7 @@ EOF
 echo "==> Installing the offsite database backup"
 scp -q deploy/backup-db.sh "${REMOTE_USER}@${REMOTE_HOST}:/usr/local/bin/collarone-backup-db" 2>/dev/null || \
   echo "    (could not copy the backup script; continuing — the deploy matters more)"
-$SSH "APP_DIR='${APP_DIR}' SEED_BACKUP_URL='${DATABASE_URL:-}' bash -s" <<'BACKUP'
+$SSH "APP_DIR='${APP_DIR}' SEED_BACKUP_URL='${DATABASE_URL:-}' SEED_PAYSTACK='${PLATFORM_PAYSTACK_SECRET:-}' bash -s" <<'BACKUP'
 set -uo pipefail
 : "${APP_DIR:=/opt/collarone/app}"
 chmod 700 /usr/local/bin/collarone-backup-db 2>/dev/null || true
@@ -346,6 +346,21 @@ if [ -n "${SEED_BACKUP_URL:-}" ] && ! grep -q '^BACKUP_DB_URL=' "${APP_DIR}/.env
   printf 'BACKUP_DB_URL=%s\n' "$SEED_BACKUP_URL" >> "${APP_DIR}/.env"
   chmod 600 "${APP_DIR}/.env" 2>/dev/null || true
   echo "backup: BACKUP_DB_URL seeded from CI"
+fi
+
+# Collarone's Paystack secret, from the CI secret. UPSERTED (not once-only, unlike
+# BACKUP_DB_URL) so rotating the CI secret — or swapping the test key for the live
+# key — propagates on the next deploy. Only touched when CI actually holds a value,
+# so an empty secret never wipes a key set by hand. The API reads it, so restart.
+if [ -n "${SEED_PAYSTACK:-}" ]; then
+  if grep -q '^PLATFORM_PAYSTACK_SECRET=' "${APP_DIR}/.env" 2>/dev/null; then
+    sed -i "s|^PLATFORM_PAYSTACK_SECRET=.*|PLATFORM_PAYSTACK_SECRET=${SEED_PAYSTACK}|" "${APP_DIR}/.env"
+  else
+    printf 'PLATFORM_PAYSTACK_SECRET=%s\n' "$SEED_PAYSTACK" >> "${APP_DIR}/.env"
+  fi
+  chmod 600 "${APP_DIR}/.env" 2>/dev/null || true
+  systemctl restart collarone-api 2>/dev/null || true
+  echo "paystack: PLATFORM_PAYSTACK_SECRET seeded/refreshed from CI"
 fi
 
 # A systemd timer rather than cron: it survives a reboot mid-window

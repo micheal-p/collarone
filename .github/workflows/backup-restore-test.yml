@@ -1,0 +1,81 @@
+# Proves the backup restores — task #19. Once a week (and on demand) this takes
+# a production dump with the SAME flags the nightly backup uses, restores it
+# into a throwaway Postgres, and verifies every business-critical table comes
+# back with its rows intact. A backup nobody has restored isn't a backup; this
+# makes restorability a checked fact, not an assumption.
+name: Backup restore-test
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'   # Mondays 04:17 UTC
+  workflow_dispatch: {}
+
+jobs:
+  restore-test:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      TARGET_URL: postgresql://postgres:restorepw@localhost:5432/restore_test
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: restorepw
+          POSTGRES_DB: restore_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Skip if no DATABASE_URL secret
+        if: ${{ env.DATABASE_URL == '' }}
+        run: echo "No DATABASE_URL secret — nothing to restore-test." && exit 0
+
+      - name: Install PostgreSQL client 17
+        if: ${{ env.DATABASE_URL != '' }}
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Pre-create the roles the restore references
+        if: ${{ env.DATABASE_URL != '' }}
+        # RLS policies say `... TO authenticated` etc.; those roles must exist or
+        # the policy statements fail. Grants/owners are already stripped from the
+        # dump (--no-owner --no-acl), so nologin placeholder roles are enough.
+        run: |
+          for role in anon authenticated service_role authenticator \
+                      supabase_auth_admin supabase_storage_admin supabase_admin \
+                      supabase_read_only_user supabase_replication_admin \
+                      supabase_functions_admin dashboard_user pgbouncer; do
+            psql "$TARGET_URL" -v ON_ERROR_STOP=0 -c \
+              "DO \$\$ BEGIN CREATE ROLE $role NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END \$\$;"
+          done
+
+      - name: Dump production exactly like the nightly backup, then restore it
+        if: ${{ env.DATABASE_URL != '' }}
+        run: |
+          set -uo pipefail
+          echo "== dumping (--no-owner --no-acl --format=plain | gzip -9), same as deploy/backup-db.sh =="
+          pg_dump "$DATABASE_URL" --no-owner --no-acl --format=plain 2>dump.err | gzip -9 > backup.sql.gz
+          if [ ! -s backup.sql.gz ]; then echo "DUMP PRODUCED NOTHING:"; cat dump.err; exit 1; fi
+          echo "dump size: $(du -h backup.sql.gz | cut -f1)"
+          echo "== restoring into the throwaway Postgres (tolerating Supabase-only objects vanilla PG can't build) =="
+          gzip -dc backup.sql.gz | psql "$TARGET_URL" -v ON_ERROR_STOP=0 >restore.log 2>&1 || true
+          echo "restore statements that errored (expected: Supabase-internal extensions/objects): $(grep -c '^ERROR' restore.log || echo 0)"
+          tail -20 restore.log || true
+
+      - name: Verify every critical table round-tripped
+        if: ${{ env.DATABASE_URL != '' }}
+        env:
+          SOURCE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          npm install --no-save pg >/dev/null 2>&1
+          node .github/scripts/verify-restore.mjs
