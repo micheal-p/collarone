@@ -61,16 +61,24 @@ jobs:
 
       - name: Dump production exactly like the nightly backup, then restore it
         if: ${{ env.DATABASE_URL != '' }}
+        env:
+          PGSSLMODE: require   # Supabase's pooler requires TLS
         run: |
           set -uo pipefail
+          pg_dump --version
+          echo "== connectivity check =="
+          psql "$DATABASE_URL" -tAc 'select version()' || { echo "cannot connect to the source DB"; exit 1; }
           echo "== dumping (--no-owner --no-acl --format=plain | gzip -9), same as deploy/backup-db.sh =="
-          pg_dump "$DATABASE_URL" --no-owner --no-acl --format=plain 2>dump.err | gzip -9 > backup.sql.gz
+          if ! pg_dump "$DATABASE_URL" --no-owner --no-acl --format=plain 2>dump.err | gzip -9 > backup.sql.gz; then
+            echo "pg_dump FAILED:"; cat dump.err; exit 1
+          fi
           if [ ! -s backup.sql.gz ]; then echo "DUMP PRODUCED NOTHING:"; cat dump.err; exit 1; fi
           echo "dump size: $(du -h backup.sql.gz | cut -f1)"
           echo "== restoring into the throwaway Postgres (tolerating Supabase-only objects vanilla PG can't build) =="
           gzip -dc backup.sql.gz | psql "$TARGET_URL" -v ON_ERROR_STOP=0 >restore.log 2>&1 || true
           echo "restore statements that errored (expected: Supabase-internal extensions/objects): $(grep -c '^ERROR' restore.log || echo 0)"
-          tail -20 restore.log || true
+          echo "== first 15 restore errors, if any =="
+          grep '^ERROR' restore.log | head -15 || true
 
       - name: Verify every critical table round-tripped
         if: ${{ env.DATABASE_URL != '' }}
