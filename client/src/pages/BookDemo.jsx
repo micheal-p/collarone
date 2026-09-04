@@ -112,9 +112,14 @@ export default function BookDemo() {
 
           <p className="ct-note">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-            Free, no commitment and no card. We currently visit Lagos and can travel further by
-            arrangement, so tell us where you are. If you would rather look around by yourself
-            first, the <Link to="/try">live demo</Link> needs no account at all.
+            {/* One span, deliberately. .ct-note is display:flex, so every child
+                node is a flex item — an inline <Link> mid-sentence split this
+                into three columns of stacked words. */}
+            <span>
+              Free, no commitment and no card. Tell us where you are and we will confirm whether we
+              can reach you. If you would rather look around by yourself first, the{' '}
+              <Link to="/try">live demo</Link> needs no account at all.
+            </span>
           </p>
         </div>
 

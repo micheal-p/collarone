@@ -38,12 +38,19 @@ function buildDays(dailyRows, count = 90) {
     byDay[dayKey(r.day)] = { total: Number(r.total) || 0, ok: Number(r.ok) || 0, down: Number(r.down) || 0 };
   });
 
-  const earliest = Math.min(...rows.map((r) => new Date(r.day).getTime()));
-  const span = Math.max(1, Math.min(count, Math.floor((Date.now() - earliest) / DAY_MS) + 1));
-
+  // The window is 90 days, always. That is the design, and it matches how every
+  // status page a customer has seen presents this — a fixed period so the shape
+  // is comparable week to week.
+  //
+  // I briefly changed it to "only the days we monitored" because the run of
+  // empty bars before monitoring started looked broken. That was mine to raise,
+  // not to decide, and it made things worse: the window then tracked whatever
+  // history happened to be in the data, so it read 20 days one deploy and 55 the
+  // next. Days with no data render pale and say so on hover, which is the
+  // honest presentation of "we were not watching yet".
   const days = [];
   const today = new Date();
-  for (let i = span - 1; i >= 0; i--) {
+  for (let i = count - 1; i >= 0; i--) {
     const d = new Date(today.getTime() - i * DAY_MS);
     const k = dayKey(d);
     const rec = byDay[k];
@@ -125,12 +132,9 @@ export default function Status() {
   }, [checks]);
   const overallPct = useMemo(() => {
     if (serverPct === null) return null;
-    // The window is the period actually monitored, not a hard 90 days. Dividing
-    // incident time by 90 while only 55 days were watched quietly flatters the
-    // number: the same outage looks smaller against a window a third of which
-    // never existed. Keyed to days.length so the figure and the chart above it
-    // always describe the same period.
-    const windowMs = Math.max(1, days.length) * DAY_MS;
+    // 90 days, matching the chart above it. Both describe the same fixed
+    // period, which is what makes the figure comparable over time.
+    const windowMs = 90 * DAY_MS;
     const start = Date.now() - windowMs;
     let weightedMs = 0;
     (incidents || []).forEach((x) => {
@@ -139,7 +143,7 @@ export default function Status() {
       if (e > s) weightedMs += (e - s) * (Number(x.impact) || 0.25);
     });
     return Math.min(serverPct, (windowMs - weightedMs) / windowMs);
-  }, [serverPct, incidents, days.length]);
+  }, [serverPct, incidents]);
 
   // The banner reflects a real check made right now (hits the API + DB live),
   // not just the daily-cron history — so it reads correctly from the first
@@ -183,18 +187,36 @@ export default function Status() {
 
           {/* 90 bars at 3px+gap need ~570px — on a 360px phone that was pushing
               the WHOLE PAGE into horizontal scroll. Wide content scrolls inside
-              its own container, never the page. */}
-          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <div style={{ position: 'relative', minWidth: 480 }} onMouseLeave={() => setHover(null)}>
-            <div style={{ display: 'flex', gap: 3, marginBottom: 12 }}>
-              {days.map((d, i) => (
-                <div key={d.key} onMouseEnter={() => setHover({ i, d })}
-                  style={{
-                    flex: 1, minWidth: 3, height: 46, borderRadius: 2, background: dayColor(d, incidentsOnDay(incidents, d.key)), cursor: 'pointer',
-                    transition: 'transform .12s ease, opacity .12s ease',
-                    ...(hover && hover.i === i ? { transform: 'scaleY(1.14)' } : hover ? { opacity: 0.55 } : {}),
-                  }} />
-              ))}
+              its own container, never the page.
+
+              The scroller wraps ONLY THE BARS, and the tooltip is its sibling.
+              It used to wrap both, which silently killed the hover detail:
+              setting overflow-x to auto computes overflow-y to auto as well, so
+              the absolutely-positioned tooltip below the bars was clipped by the
+              very container added to fix mobile scrolling. The handler fired and
+              the state updated; the panel was just never visible. */}
+          <div style={{ position: 'relative' }} onMouseLeave={() => setHover(null)}>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 3, minWidth: 480 }}>
+                {days.map((d, i) => (
+                  <div key={d.key}
+                    onMouseEnter={() => setHover({ i, d })}
+                    // Touch has no hover. The copy has always said "hover or tap"
+                    // and there was no tap handler at all, so on a phone the
+                    // detail was unreachable by any means.
+                    onClick={() => setHover((h) => (h && h.i === i ? null : { i, d }))}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${d.key}: ${d.pct === null ? 'no data' : `${Math.round(d.pct * 100)}% healthy`}`}
+                    onFocus={() => setHover({ i, d })}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setHover({ i, d }); } }}
+                    style={{
+                      flex: 1, minWidth: 3, height: 46, borderRadius: 2, background: dayColor(d, incidentsOnDay(incidents, d.key)), cursor: 'pointer',
+                      transition: 'transform .12s ease, opacity .12s ease',
+                      ...(hover && hover.i === i ? { transform: 'scaleY(1.14)' } : hover ? { opacity: 0.55 } : {}),
+                    }} />
+                ))}
+              </div>
             </div>
             {hover && (() => {
               const d = hover.d;
@@ -253,7 +275,6 @@ export default function Status() {
               );
             })()}
           </div>
-          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12.5, color: 'rgba(10,14,26,0.45)' }}>
             <span>{days.length} days ago</span>
@@ -291,13 +312,21 @@ export default function Status() {
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>
                     {INCIDENT_LABEL[inc.kind] || inc.kind}
+                    {/* Severity only, no percentage.
+                        `impact` is a CONSTANT per kind (application error 0.25,
+                        degraded 0.5, full outage 1.0), so "~75% of service
+                        healthy" was 1 − 0.25 rendered on every application
+                        error — three incidents, three identical numbers, which
+                        reads as a broken calculation. It was not measured per
+                        incident and should never have been presented as if it
+                        were. The weighting still drives the availability figure
+                        above, where it belongs and is explained once. */}
                     <span style={{
                       marginLeft: 8, fontSize: 11.5, fontWeight: 700, borderRadius: 100, padding: '2px 9px',
                       background: (Number(inc.impact) || 0.25) >= 1 ? '#fbe4e4' : (Number(inc.impact) || 0.25) >= 0.5 ? '#fdf0dc' : '#fdf6e4',
                       color: (Number(inc.impact) || 0.25) >= 1 ? '#c02b2b' : '#9c6b12',
                     }}>
                       {(Number(inc.impact) || 0.25) >= 1 ? 'Full outage' : (Number(inc.impact) || 0.25) >= 0.5 ? 'Major degradation' : 'Partial impact'}
-                      {' · ~'}{Math.round((1 - (Number(inc.impact) || 0.25)) * 100)}% of service healthy
                     </span>
                     {inc.resolved_at
                       ? <span style={{ marginLeft: 8, fontSize: 11.5, fontWeight: 700, borderRadius: 100, padding: '2px 9px', background: '#e2f2e4', color: '#1a7a3e' }}>✓ Fixed</span>

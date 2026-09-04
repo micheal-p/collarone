@@ -48,3 +48,41 @@
   .ct-card { padding: 22px 18px; }
   .ct-row2 { grid-template-columns: 1fr; gap: 15px; }
 }
+
+/* ---- selects and grid overflow ------------------------------------------
+   Added for /book-demo, which is the first page on this stylesheet to use
+   <select> and a datetime input.
+
+   Two separate causes of the same symptom, fields pushing out of the card:
+
+   1. `.ct-form .input { width: 100% }` never matched `.select`, so dropdowns
+      sized themselves to their WIDEST OPTION. "Staff records, leave and
+      attendance" is wider than the column it sits in.
+   2. `.ct-row2` is a grid, and grid items default to `min-width: auto`, which
+      refuses to shrink below the content's intrinsic width. So even a
+      width-100% field could not shrink, and the column grew instead.
+
+   min-width: 0 on the items is the fix for (2) and is why this is not simply
+   a width rule. */
+.ct-form .select {
+  width: 100%;
+  border: 1px solid rgba(10,14,26,0.14);
+  border-radius: 11px;
+  padding: 11px 13px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #FCFBF9;
+  color: #0A0E1A;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.ct-form .select:focus {
+  outline: none;
+  border-color: #FF5B1F;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(255,91,31,0.13);
+}
+.ct-row2 > *,
+.ct-form .field { min-width: 0; }
+/* Safari renders date/time inputs at an intrinsic width that ignores width:100%
+   unless the box model is pinned. */
+.ct-form .input[type="datetime-local"] { max-width: 100%; box-sizing: border-box; }
