@@ -539,6 +539,11 @@ export default function Landing() {
             <motion.p {...heroItemVariants} className="cl-hero-sub">People, payroll, customers, tasks and money: finally moving together in one calm command centre.</motion.p>
             <motion.div {...heroItemVariants} className="cl-hero-ctas">
               <Link className="cl-btn cl-btn-primary cl-hero-primary" to="/signup">Build my workspace <span aria-hidden="true">↗</span></Link>
+              {/* Self-serve suits the visitor who already knows what they want.
+                  A business owner weighing up moving payroll off a spreadsheet
+                  usually wants to be walked through it by a person first, and
+                  had no way to ask for that until this button. */}
+              <Link className="cl-btn cl-btn-ghost" to="/book-demo">Book a demo <span aria-hidden="true">→</span></Link>
               <Link className="cl-btn cl-btn-ghost" to="/try">Explore the live demo <span aria-hidden="true">→</span></Link>
             </motion.div>
             <motion.div {...heroItemVariants} className="cl-hero-proof">
@@ -812,6 +817,7 @@ export default function Landing() {
               <a href="#platform">What's inside</a>
               <a href="#pricing">Pricing</a>
               <a href="#faq">FAQ</a>
+              <Link to="/book-demo">Book a demo</Link>
               <Link to="/login">Sign in</Link>
             </div>
             <div className="cl-footer-col">
@@ -823,6 +829,7 @@ export default function Landing() {
               <div className="cl-footer-h">Legal</div>
               <Link to="/terms">Terms of Service</Link>
               <Link to="/privacy">Privacy Policy</Link>
+              <Link to="/trust">Security &amp; Reliability</Link>
               <Link to="/status">System Status</Link>
             </div>
           </div>

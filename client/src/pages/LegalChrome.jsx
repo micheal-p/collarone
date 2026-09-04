@@ -27,6 +27,7 @@ export function LegalFooter() {
       <div className="lg-foot-links">
         <Link to="/terms">Terms</Link>
         <Link to="/privacy">Privacy</Link>
+        <Link to="/trust">Security</Link>
         <Link to="/status">Status</Link>
         <a href="https://wa.me/2348148128551" target="_blank" rel="noreferrer">WhatsApp</a>
       </div>

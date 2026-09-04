@@ -44,6 +44,8 @@ const PlatformAnalytics = lazy(() => import('./pages/PlatformAnalytics.jsx'));
 const PlatformSupport = lazy(() => import('./pages/PlatformSupport.jsx'));
 const PostJob = lazy(() => import('./pages/careers/PostJob.jsx'));
 const Privacy = lazy(() => import('./pages/Privacy.jsx'));
+const Trust = lazy(() => import('./pages/Trust.jsx'));
+const BookDemo = lazy(() => import('./pages/BookDemo.jsx'));
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 const PublicInvoice = lazy(() => import('./pages/PublicInvoice.jsx'));
 const PublicSite = lazy(() => import('./pages/site/PublicSite.jsx'));
@@ -155,6 +157,8 @@ export default function App() {
       <Route path="/terms" element={<Terms />} />
       <Route path="/docs/connect-device" element={<DeviceGuide />} />
       <Route path="/privacy" element={<Privacy />} />
+      <Route path="/trust" element={<Trust />} />
+      <Route path="/book-demo" element={<BookDemo />} />
       <Route path="/contact" element={<Contact />} />
       <Route path="/status" element={<Status />} />
       <Route path="/themes" element={<PublicThemes />} />
@@ -324,6 +328,8 @@ const ROUTE_TITLES = [
   ['/jobs', 'Jobs board'], ['/careers', 'Careers'],
   ['/docs/connect-device', 'Connect a clocking device'], ['/try', 'Live demo'],
   ['/themes', 'Website themes'], ['/terms', 'Terms'], ['/privacy', 'Privacy'],
+  ['/trust', 'Security and reliability'],
+  ['/book-demo', 'Book a demo'],
   ['/contact', 'Contact'],
 ];
 const MARKETING_TITLE = 'Collarone: HR, Payroll, CRM & Business Software for Nigerian Companies';
