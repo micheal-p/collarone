@@ -107,10 +107,21 @@ function ContactMessagesPanel({ flash }) {
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', marginBottom: 5 }}>
                 <strong style={{ fontSize: 13.5 }}>{m.name}</strong>
                 {m.company && <span className="pc-dim" style={{ fontSize: 12 }}>{m.company}</span>}
+                {/* A demo request is a warm lead with a time attached, not a
+                    general enquiry. It has to be tellable apart at a glance or
+                    it sits in the list looking like everything else. */}
+                {m.kind === 'demo' && <span className="pc-badge accent">DEMO REQUEST</span>}
                 <span className={`pc-badge ${m.status === 'new' ? 'accent' : 'ok'}`}>{m.status === 'new' ? 'NEW' : 'REPLIED'}</span>
                 <span className="pc-sec-spacer" />
                 <span className="pc-mono pc-faint" style={{ fontSize: 11 }}>{fmtDateTime(m.created_at)}</span>
               </div>
+              {m.kind === 'demo' && (m.preferred_at || m.staff_count || m.interest) && (
+                <div className="pc-dim" style={{ fontSize: 12, margin: '0 0 7px', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                  {m.preferred_at && <span><strong>Wants:</strong> {fmtDateTime(m.preferred_at)}</span>}
+                  {m.staff_count && <span><strong>Staff:</strong> {m.staff_count}</span>}
+                  {m.interest && <span><strong>Pain:</strong> {m.interest}</span>}
+                </div>
+              )}
               <p style={{ fontSize: 13, color: 'var(--dim)', margin: '0 0 10px', lineHeight: 1.55, maxWidth: 760 }}>{m.message}</p>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {m.phone && <a className="pc-btn sm" style={{ textDecoration: 'none' }} href={waLink(m.phone)} target="_blank" rel="noreferrer">Reply on WhatsApp</a>}
