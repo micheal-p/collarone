@@ -16,9 +16,26 @@ function buildDays(checks, count = 90) {
     if (c.api_ok && c.db_ok) byDay[k].ok += 1;
     else if (!c.db_ok) byDay[k].down += 1;
   });
+
+  // Only chart days we actually watched.
+  //
+  // This walked back a fixed 90 days no matter when monitoring started.
+  // Monitoring began 12 July 2026, so on 4 September the first 35 bars covered
+  // a period with no data and rendered blank — 39% of the chart, one unbroken
+  // pale block, which reads as an outage or a broken page. On the one page
+  // whose entire job is to be believable, that is worse than showing less.
+  //
+  // Clamping the window also fixes the label and the axis, which both derive
+  // from days.length: it now says "past 55 days" and means it, instead of
+  // claiming 90 days of history that does not exist.
+  const times = checks.map((c) => new Date(c.checked_at).getTime()).filter((t) => Number.isFinite(t));
+  const span = times.length
+    ? Math.max(1, Math.min(count, Math.floor((Date.now() - Math.min(...times)) / DAY_MS) + 1))
+    : count;
+
   const days = [];
   const today = new Date();
-  for (let i = count - 1; i >= 0; i--) {
+  for (let i = span - 1; i >= 0; i--) {
     const d = new Date(today.getTime() - i * DAY_MS);
     const k = dayKey(d);
     const rec = byDay[k];
@@ -93,7 +110,12 @@ export default function Status() {
   const serverPct = checks?.length ? checks.filter((c) => c.api_ok && c.db_ok).length / checks.length : null;
   const overallPct = useMemo(() => {
     if (serverPct === null) return null;
-    const windowMs = 90 * DAY_MS;
+    // The window is the period actually monitored, not a hard 90 days. Dividing
+    // incident time by 90 while only 55 days were watched quietly flatters the
+    // number: the same outage looks smaller against a window a third of which
+    // never existed. Keyed to days.length so the figure and the chart above it
+    // always describe the same period.
+    const windowMs = Math.max(1, days.length) * DAY_MS;
     const start = Date.now() - windowMs;
     let weightedMs = 0;
     (incidents || []).forEach((x) => {
@@ -102,7 +124,7 @@ export default function Status() {
       if (e > s) weightedMs += (e - s) * (Number(x.impact) || 0.25);
     });
     return Math.min(serverPct, (windowMs - weightedMs) / windowMs);
-  }, [serverPct, incidents]);
+  }, [serverPct, incidents, days.length]);
 
   // The banner reflects a real check made right now (hits the API + DB live),
   // not just the daily-cron history — so it reads correctly from the first

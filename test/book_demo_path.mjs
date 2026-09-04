@@ -40,6 +40,27 @@ need(/grant execute on function public\.public_request_demo[\s\S]{0,200}to anon/
   'public_request_demo is not granted to anon, so a logged-out prospect cannot book');
 need(/kind[\s\S]{0,80}'demo'/.test(sql), 'the migration no longer stamps kind = demo on the row');
 
+// A demo is a visit to the prospect's premises. Without an address the request
+// is unactionable, so the address is required end to end and must be visible to
+// whoever is going to travel there. Each link pinned separately because any one
+// of them going missing still leaves a form that submits and a row that saves.
+const visitSql = read('supabase/demo_visits.sql');
+need(/p_location/.test(visitSql), 'the migration no longer takes a location');
+need(/raise exception[\s\S]{0,120}where to come/i.test(visitSql),
+  'the database no longer REQUIRES a location, so a visit can be booked with no address');
+need(/f\.location/.test(page), 'BookDemo.jsx no longer collects the office address');
+need(/p_location:/.test(api), 'the /book-demo route no longer passes the address to the database');
+// Pinned to the CONDITIONAL RENDER and its label, not to the string
+// "m.location". The first version of this check matched the bare identifier,
+// which also appears inside the maps href — so blanking the guard to
+// `{false && (` left the identifier in the file and the test went green while
+// the address had vanished from the screen. Same substring trap as the CSP
+// test's "present in the policy" check.
+need(/\{m\.location && \(/.test(inbox),
+  'PlatformAdmin.jsx no longer conditionally renders the address');
+need(/<strong>Visit:<\/strong>/.test(inbox),
+  'the address row lost its label, so nobody knows where to go');
+
 // The button. Without an entry point the page exists and nobody finds it.
 need(/to="\/book-demo"/.test(landing), 'the landing page has no link to /book-demo');
 

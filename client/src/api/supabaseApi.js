@@ -3341,9 +3341,10 @@ export async function supabaseApi(path, opts = {}) {
   // so there is one place to check rather than two, and a prospect cannot go
   // cold in the tab nobody opens. See supabase/demo_requests.sql.
   if (head === 'POST /book-demo' && seg.length === 1) {
-    const { name, email, phone, company, staffCount, interest, preferredAt, message } = body;
+    const { name, email, phone, company, location, staffCount, interest, preferredAt, message } = body;
     const { error } = await supabase.rpc('public_request_demo', {
       p_name: name, p_email: email || '', p_phone: phone || '', p_company: company || '',
+      p_location: location || '',
       p_staff_count: staffCount || '', p_interest: interest || '',
       p_preferred_at: preferredAt || null, p_message: message || '',
     });

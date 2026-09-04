@@ -7,7 +7,15 @@ import './Contact.css';
 
 const WA = 'https://wa.me/2348148128551';
 
-// Book a demo.
+// Book a demo — an OFFICE VISIT, not a screen share.
+//
+// The first version of this page was built as a remote product walkthrough.
+// That was wrong: a demo here means somebody from Collarone travelling to the
+// prospect's premises to sit with them and set the workspace up in the room.
+//
+// That is why `location` is a required field rather than one more optional
+// qualifier. You cannot visit an office whose address you never asked for, and
+// a request without one is just a phone call before anything can be booked.
 //
 // Deliberately not a third-party scheduling embed. A booking widget would mean
 // an external account to keep paying for, a script the CSP has to allow, and a
@@ -28,7 +36,7 @@ const INTERESTS = [
 
 export default function BookDemo() {
   const [f, setF] = useState({
-    name: '', company: '', email: '', phone: '',
+    name: '', company: '', email: '', phone: '', location: '',
     staffCount: '', interest: '', preferredAt: '', message: '',
   });
   const [busy, setBusy] = useState(false);
@@ -43,7 +51,8 @@ export default function BookDemo() {
     setError('');
     if (!f.name.trim()) return setError('Your name is required.');
     if (!f.company.trim()) return setError('Your company name is required.');
-    if (!f.email.trim() && !f.phone.trim()) return setError('An email or phone number is required so we can confirm the time.');
+    if (!f.location.trim()) return setError('We need the office address so we know where to come.');
+    if (!f.email.trim() && !f.phone.trim()) return setError('An email or phone number is required so we can confirm the visit.');
 
     let preferredAt = null;
     if (f.preferredAt) {
@@ -79,12 +88,13 @@ export default function BookDemo() {
 
       <div className="ct-body">
         <div className="ct-left">
-          <p className="lg-kicker">See it working</p>
-          <h1 className="ct-h1">Book a demo,<br /><em>on your own numbers.</em></h1>
+          <p className="lg-kicker">We come to you</p>
+          <h1 className="ct-h1">Book a demo,<br /><em>at your office.</em></h1>
           <p className="ct-lede">
-            Half an hour, screen shared, with someone who built it. We set your company up as we
-            talk and run one real thing end to end, usually a payroll or an invoice, using your
-            figures rather than a sample file.
+            Someone from Collarone comes to you, sits with your team, and sets your company up in
+            the room. About an hour. We run one real thing end to end while we are there, usually a
+            payroll or an invoice, using your own figures rather than a sample file. You keep
+            whatever we build.
           </p>
 
           <div className="ct-channels">
@@ -102,8 +112,9 @@ export default function BookDemo() {
 
           <p className="ct-note">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-            No commitment and no card. If you would rather look around by yourself first,
-            the <Link to="/try">live demo</Link> needs no account at all.
+            Free, no commitment and no card. We currently visit Lagos and can travel further by
+            arrangement, so tell us where you are. If you would rather look around by yourself
+            first, the <Link to="/try">live demo</Link> needs no account at all.
           </p>
         </div>
 
@@ -113,17 +124,18 @@ export default function BookDemo() {
               <span className="ct-sent-ic">
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5" /></svg>
               </span>
-              <strong>Request received.</strong>
+              <strong>Visit requested.</strong>
               <p>
-                Thanks {f.name.split(' ')[0]}, we will confirm a time with you today, by
-                {f.email.trim() ? ' email' : ' WhatsApp'}. Want it sooner?{' '}
-                <a href={WA} target="_blank" rel="noreferrer">Message us on WhatsApp</a> and we will
-                often do it the same afternoon.
+                Thanks {f.name.split(' ')[0]}, we will confirm the day and time with you today by
+                {f.email.trim() ? ' email' : ' WhatsApp'}, and come to you at {f.location.trim() || 'your office'}.
+                Need it sooner?{' '}
+                <a href={WA} target="_blank" rel="noreferrer">Message us on WhatsApp</a> and we can
+                often come the same week.
               </p>
             </div>
           ) : (
             <>
-              <h2 className="ct-card-t">Pick a time</h2>
+              <h2 className="ct-card-t">Tell us where and when</h2>
               <p className="ct-card-s">Two minutes to fill in. A person reads it, not a bot.</p>
               <form onSubmit={submit} className="ct-form">
                 <div className="ct-row2">
@@ -138,13 +150,16 @@ export default function BookDemo() {
                   <div className="field"><label>Phone / WhatsApp</label>
                     <input className="input" value={f.phone} onChange={(e) => set('phone', e.target.value)} placeholder="0801 234 5678" /></div>
                 </div>
+                <div className="field"><label>Office address *</label>
+                  <input className="input" value={f.location} onChange={(e) => set('location', e.target.value)} required
+                    placeholder="Street, area and city, e.g. 12 Awolowo Road, Ikoyi, Lagos" /></div>
                 <div className="ct-row2">
                   <div className="field"><label>How many staff?</label>
                     <select className="select" value={f.staffCount} onChange={(e) => set('staffCount', e.target.value)}>
                       <option value="">Prefer not to say</option>
                       {STAFF_BANDS.map((b) => <option key={b} value={b}>{b}</option>)}
                     </select></div>
-                  <div className="field"><label>Preferred time</label>
+                  <div className="field"><label>When suits you?</label>
                     <input className="input" type="datetime-local" min={minLocal} value={f.preferredAt} onChange={(e) => set('preferredAt', e.target.value)} /></div>
                 </div>
                 <div className="field"><label>What hurts most right now?</label>

@@ -115,8 +115,16 @@ function ContactMessagesPanel({ flash }) {
                 <span className="pc-sec-spacer" />
                 <span className="pc-mono pc-faint" style={{ fontSize: 11 }}>{fmtDateTime(m.created_at)}</span>
               </div>
-              {m.kind === 'demo' && (m.preferred_at || m.staff_count || m.interest) && (
+              {m.kind === 'demo' && (m.location || m.preferred_at || m.staff_count || m.interest) && (
                 <div className="pc-dim" style={{ fontSize: 12, margin: '0 0 7px', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+                  {/* A demo is a visit to their premises, so the address is the
+                      one field you cannot act without. Linked to maps because
+                      whoever picks this up is going to look it up anyway. */}
+                  {m.location && (
+                    <span><strong>Visit:</strong>{' '}
+                      <a href={`https://maps.google.com/?q=${encodeURIComponent(m.location)}`} target="_blank" rel="noreferrer">{m.location}</a>
+                    </span>
+                  )}
                   {m.preferred_at && <span><strong>Wants:</strong> {fmtDateTime(m.preferred_at)}</span>}
                   {m.staff_count && <span><strong>Staff:</strong> {m.staff_count}</span>}
                   {m.interest && <span><strong>Pain:</strong> {m.interest}</span>}
