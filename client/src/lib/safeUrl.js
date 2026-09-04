@@ -65,3 +65,35 @@ export function safeImageSrc(raw) {
   if (DATA_IMAGE.test(s)) return s;
   return safeExternalUrl(s);   // http(s) only; javascript:, //host etc. rejected
 }
+
+// For a path that arrived in the URL bar and is about to be navigated to —
+// today only Login's `?next=`, the deep link ProtectedRoute hands back after
+// sign-in.
+//
+// Login hand-rolled `startsWith('/') && !startsWith('//')`, which is exactly
+// the check the top of this file warns is not enough: `/\evil.ng` passes it and
+// the browser resolves it to https://evil.ng. That turns a genuine
+// collarone.app login page into a credential-phishing hop, the victim types
+// their password on our own domain and is then handed to the attacker's site.
+//
+// So don't restate the rule by hand: normalise backslashes, refuse
+// protocol-relative paths and control characters (the parser strips those, and
+// a stripped one can hide a leading //), then make the URL parser itself prove
+// the result is still same-origin. Returns the safe path, or null so the caller
+// falls back to home.
+const SAME_ORIGIN_PROBE = 'https://collarone.invalid';
+
+export function safeInternalPath(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return null;
+  if (/[\u0000-\u001f\u007f]/.test(s)) return null;
+  const norm = s.replace(/\\/g, '/');                  // browsers treat \ as / in URLs
+  if (!norm.startsWith('/') || norm.startsWith('//')) return null;
+  try {
+    const u = new URL(norm, SAME_ORIGIN_PROBE);
+    if (u.origin !== SAME_ORIGIN_PROBE) return null;   // the parser gets the last word
+    return u.pathname + u.search + u.hash;
+  } catch {
+    return null;
+  }
+}

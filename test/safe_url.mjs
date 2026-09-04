@@ -7,7 +7,7 @@
 //
 // Run:  node test/safe_url.mjs
 import { readFileSync } from 'node:fs';
-import { safeExternalUrl, safeLinkOrEmpty, safeImageSrc } from '../client/src/lib/safeUrl.js';
+import { safeExternalUrl, safeLinkOrEmpty, safeImageSrc, safeInternalPath } from '../client/src/lib/safeUrl.js';
 
 let failures = 0;
 
@@ -108,4 +108,40 @@ console.log('User URLs are sanitised before they become links. ALL PASSED');
 
   if (bad) { console.error(`\nFAILED, ${bad} image-src problem(s)`); process.exit(1); }
   console.log('Letterhead image sources are sanitised. ALL PASSED');
+}
+
+// ---- ?next= on the login page ----------------------------------------------
+// Login hand-rolled `startsWith('/') && !startsWith('//')` to decide whether a
+// ?next= path was same-origin. A backslash defeats that check: browsers treat
+// \ as / when parsing a URL, so `/\evil.ng` passes the guard and resolves to
+// https://evil.ng. The result is a phishing hop wearing our own domain, the
+// victim signs in on the real collarone.app and is handed to the attacker.
+// safeInternalPath() replaces the guard, and this locks the bypasses out.
+{
+  let bad = 0;
+  const keep = (v, why) => { if (safeInternalPath(v) === null) { bad++; console.log(`x next= wrongly dropped (${why}): ${JSON.stringify(v)}`); } };
+  const drop = (v, why) => { const got = safeInternalPath(v); if (got !== null) { bad++; console.log(`x next= wrongly allowed (${why}): ${JSON.stringify(v)} -> ${JSON.stringify(got)}`); } };
+
+  keep('/workspace', 'the ordinary deep link');
+  keep('/suite/payroll?tab=runs', 'query string survives');
+  keep('/admin/billing#plan', 'hash survives');
+
+  drop('/\\evil.ng', 'THE BUG: backslash open-redirect, react-router CVE shape');
+  drop('/\\\\evil.ng', 'double backslash');
+  drop('/\\/evil.ng', 'backslash then slash');
+  drop('//evil.ng', 'protocol-relative');
+  drop('https://evil.ng', 'absolute off-origin URL');
+  drop('javascript:alert(1)', 'javascript scheme');
+  drop('/\nevil.ng', 'control character the parser would strip');
+  drop('workspace', 'not a path at all');
+  drop('', 'empty');
+  drop(null, 'absent');
+
+  // The guard that used to live in Login.jsx, kept here so the bypass it missed
+  // stays visible: if someone reintroduces it, this fails loudly.
+  const oldGuard = (r) => typeof r === 'string' && r.startsWith('/') && !r.startsWith('//');
+  if (!oldGuard('/\\evil.ng')) { bad++; console.log('x the regression case no longer describes the old bug'); }
+
+  if (bad) { console.error(`\nFAILED, ${bad} next= problem(s)`); process.exit(1); }
+  console.log('Login ?next= stays on our own origin. ALL PASSED');
 }

@@ -3,6 +3,7 @@ import { useNavigate, Navigate, Link, useLocation, useSearchParams } from 'react
 import GoogleButton from '../components/GoogleButton.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
 import logo from '../assets/collarone-mark-dark.svg';
+import { safeInternalPath } from '../lib/safeUrl.js';
 
 export default function Login() {
   // Safety net: a leftover try-demo sandbox flag must never leak into real
@@ -21,10 +22,12 @@ export default function Login() {
   // just never read here, so deep links died at the gate (audit finding 7).
   // ?next= is authoritative: router state dies on the sandbox-purge reload
   // above, the URL doesn't (signed-in audit, regression of finding 7).
-  // Same-origin paths only; anything else falls back to home.
   const [params] = useSearchParams();
   const rawFrom = params.get('next') || loc.state?.from;
-  const from = typeof rawFrom === 'string' && rawFrom.startsWith('/') && !rawFrom.startsWith('//') ? rawFrom : null;
+  // Same-origin paths only, via the shared sanitiser. The hand-rolled
+  // startsWith('/') check that used to live here let a backslash path through
+  // as an open redirect, see safeInternalPath().
+  const from = safeInternalPath(rawFrom);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [step, setStep] = useState('email'); // 2-step: email, then password
