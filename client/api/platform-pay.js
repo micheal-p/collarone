@@ -1,4 +1,4 @@
-// Vercel serverless function — self-serve payment of Collarone's own fees
+// API handler, mounted by server/index.js on the VPS — self-serve payment of Collarone's own fees
 // (activation fee / seat-credit packs) through COLLARONE'S Paystack account.
 // This is Collarone collecting its own subscription revenue — normal merchant
 // use, completely separate from org_payment_gateways (which are merchants'

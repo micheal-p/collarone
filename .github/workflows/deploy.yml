@@ -95,6 +95,48 @@ jobs:
       - name: User-supplied URLs are sanitised before becoming links
         run: node test/safe_url.mjs
 
+      - name: The CSP allows every origin the browser actually loads
+        run: node test/csp_covers_origins.mjs
+
+      - name: Unauthenticated write endpoints are rate limited
+        run: node test/public_endpoints_rate_limited.mjs
+
+      - name: The published integration URL still exists, and so does v1
+        run: node test/api_versioning.mjs
+
+      - name: Every claim on the public security page is still true
+        run: node test/trust_page_claims.mjs
+
+      - name: Book a demo is wired from the button through to the inbox
+        run: node test/book_demo_path.mjs
+
+      - name: No handler reads an edge-supplied header directly
+        run: node test/edge_headers_via_helper.mjs
+
+      # These seven were written as guards but never wired into this file, so
+      # they had been passing on nobody's machine for weeks. A test that does
+      # not run on every push is documentation, not a guard.
+      - name: Errors are written for humans, not stack traces
+        run: node test/human_errors.mjs
+
+      - name: A delete that removed nothing never reports success
+        run: node test/no_silent_deletes.mjs
+
+      - name: A missing secret refuses the request instead of skipping the check
+        run: node test/no_fail_open_secrets.mjs
+
+      - name: A card payment can only ever credit the invoice it was raised for
+        run: node test/invoice_payment_binding.mjs
+
+      - name: Today means today in Lagos, not on the server
+        run: node test/lagos_today.mjs
+
+      - name: Support tickets reach a mailbox that exists
+        run: node test/support_ticket_mail.mjs
+
+      - name: Animated lists keep stable keys (no ghost rows on re-render)
+        run: node test/animatepresence_keys.mjs
+
       - name: Suite tile colours stay distinct and readable
         run: node test/suite_palette.mjs
 

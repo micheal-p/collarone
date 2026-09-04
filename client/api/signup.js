@@ -1,4 +1,4 @@
-// Vercel serverless function — the public self-serve signup entry point.
+// API handler, mounted by server/index.js on the VPS — the public self-serve signup entry point.
 // Unauthenticated by design (this IS account creation), but every write goes
 // through the SERVICE ROLE key server-side, never the browser. Mirrors the
 // privileged-op pattern in admin.js.

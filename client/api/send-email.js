@@ -1,4 +1,4 @@
-// Vercel serverless function — candidate email (ATS Phase 4, channel: email).
+// API handler, mounted by server/index.js on the VPS — candidate email (ATS Phase 4, channel: email).
 //
 // Sends through the shared provider-agnostic sender (_lib/email.js:
 // Twilio SendGrid when SENDGRID_API_KEY is set, else Resend) from Collarone's
