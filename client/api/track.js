@@ -1,8 +1,14 @@
-// Vercel serverless function — records an anonymous page view for the
-// Platform Admin analytics page. Deliberately no auth, no cookies, no IP
-// storage: just a path and the country Vercel's edge already resolved for
-// this request (x-vercel-ip-country), which is the only reason this needs
-// to be a function instead of a direct browser->Supabase insert.
+// API handler, mounted by server/index.js on the VPS — records an anonymous
+// page view for the Platform Admin analytics page, and files Content-Security-
+// Policy violation reports. Deliberately no auth, no cookies, no IP storage:
+// just a path and the country the edge in front of us already resolved, which
+// is the only reason this needs to be a handler rather than a direct
+// browser->Supabase insert.
+//
+// That country came from Vercel's edge until this moved to nginx behind
+// Cloudflare, after which the header simply stopped arriving and every row was
+// filed as "XX" without anything failing. _lib/callerCountry.js now owns
+// reading it, for that reason.
 //
 // The insert is awaited before responding — the container can be frozen the
 // instant the response flushes, so anything fired-and-forgotten after
@@ -10,6 +16,7 @@
 // wait on this either way (see App.jsx's usePageViewTracking), so the extra
 // round-trip here costs the visitor nothing.
 import { createClient } from '@supabase/supabase-js';
+import { callerCountry } from './_lib/callerCountry.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -20,8 +27,38 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
     const path = String(body.path || '/').slice(0, 200);
-    const country = (req.headers['x-vercel-ip-country'] || 'XX').toString().slice(0, 2).toUpperCase();
+    // 'XX' stays the stored value for "we don't know", which is what every row
+    // has said since the Vercel header stopped arriving. See _lib/callerCountry.js.
+    const country = callerCountry(req) || 'XX';
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
+
+    // A Content-Security-Policy violation, posted by the browser itself to the
+    // policy's report-uri. Recorded so the Report-Only policy finally collects
+    // evidence: until now it shipped a real policy, logged what it WOULD block
+    // to nobody, and could therefore never be promoted to enforcing with any
+    // confidence.
+    //
+    // Tagged `[csp]` and excluded from the degraded threshold in health.js, for
+    // the same reason `[third-party]` is: a policy missing one font host would
+    // otherwise fire thousands of reports and tell every customer we were down.
+    // A violation is something to fix, not an outage.
+    const cspReport = body['csp-report'] || (Array.isArray(body) && body[0]?.body) || null;
+    if (cspReport) {
+      const directive = String(cspReport['effective-directive'] || cspReport['violated-directive'] || cspReport.effectiveDirective || 'unknown').slice(0, 60);
+      const blocked = String(cspReport['blocked-uri'] || cspReport.blockedURL || 'unknown').slice(0, 300);
+      const docUri = String(cspReport['document-uri'] || cspReport.documentURL || '');
+      // A CSP report carries no body.path, so the generic `path` above would
+      // record every violation as "/". The page is in document-uri instead.
+      let cspPath = path;
+      try { if (docUri) cspPath = new URL(docUri).pathname.slice(0, 200); } catch { /* keep the default */ }
+      await admin.from('client_errors').insert({
+        message: `[csp] ${directive} blocked ${blocked}`.slice(0, 480),
+        stack: docUri.slice(0, 3000) || null,
+        path: cspPath,
+        user_agent: String(req.headers['user-agent'] || '').slice(0, 300),
+      });
+      return res.status(204).end();
+    }
 
     if (body.type === 'client_error') {
       // a real crash in someone's browser — the uptime checks can't see these,

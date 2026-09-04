@@ -1,4 +1,4 @@
-// Vercel serverless function — real health check, not a fabricated status.
+// API handler, mounted by server/index.js on the VPS — real health check, not a fabricated status.
 // GET is safe to call anytime: the /status page, the Platform Admin
 // dashboard, and Vercel's own once-a-day cron (vercel.json) all hit this.
 //
@@ -104,6 +104,12 @@ export default async function handler(req, res) {
         // customers it is would be the false alarm that teaches them to
         // ignore the status page.
         .not('message', 'like', '[third-party]%')
+        // Same reasoning for CSP violations (tagged in track.js): a policy
+        // missing one font host fires a report on every page view. That is a
+        // policy to fix, not an outage, and letting it flip the public status
+        // page to degraded would be the false alarm that teaches customers to
+        // ignore the status page.
+        .not('message', 'like', '[csp]%')
         .gte('occurred_at', new Date(Date.now() - 60 * 60 * 1000).toISOString());
       clientErrorsLastHour = count || 0;
     } catch { /* counting must never break the health check itself */ }

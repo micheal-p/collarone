@@ -160,12 +160,48 @@ mkdir -p /etc/nginx/snippets
 # location declares even one, so the cache locations below must pull these back
 # in or they'd ship the JS/HTML with no security headers at all.
 #
-# CSP is deliberately Report-Only for now. A wrong CSP silently blocks Supabase
-# (no data), Google sign-in, Paystack (no payments) or the Unsplash theme
-# previews — and a live card transaction cannot be tested from here. Report-Only
-# ships the real policy, logs what it WOULD block, and breaks nothing; it gets
-# promoted to enforcing once the browser console shows a clean run through
-# login, a data page, checkout and a theme preview.
+# CSP IS ENFORCING as of 2026-09-04. It was Report-Only for months because a
+# wrong CSP silently blocks Supabase (no data), Google sign-in, Paystack (no
+# payments) or the theme previews, and a live card payment cannot be tested from
+# a development machine.
+#
+# What unblocked the promotion, and what it rests on:
+#
+# 1. The policy had NO report-uri, so "Report-Only logs what it would block"
+#    logged to nobody. The only way to see a violation was for a human to have
+#    the console open on exactly the right page. It now reports to /api/track,
+#    filed as `[csp]` rows and excluded from the status-page threshold so a
+#    noisy policy cannot fake an outage.
+#
+# 2. Two real breakages were found and fixed BEFORE flipping, either of which
+#    would have hit customers the moment this was enforced:
+#      * style-src/font-src did not allow fonts.googleapis.com / fonts.gstatic.com,
+#        which TEN tenant storefront themes load. Every published customer
+#        website would have lost its typography.
+#      * frame-src did not allow the Supabase host, but FilePreview.jsx renders
+#        a signed storage URL in an <iframe>. Every PDF preview — receipts,
+#        employee documents, letters — would have shown an empty frame.
+#
+# 3. The third-party scripts were read rather than guessed. js.paystack.co
+#    reaches only api.paystack.co, checkout.paystack.com and paystack.com, all
+#    allowed; checkout itself is an IFRAME, so what loads inside it is governed
+#    by Paystack's own policy, not ours. GoogleButton.jsx documents its own
+#    requirement (accounts.google.com in script/frame/connect-src) and all three
+#    are present. Turnstile needs challenges.cloudflare.com in script/frame-src;
+#    both present.
+#
+# 4. test/csp_covers_origins.mjs now checks each origin against THE DIRECTIVE
+#    THAT GOVERNS IT, not merely that the host appears somewhere in the policy.
+#    The weaker version of that test went green while the frame-src gap above
+#    was live, because the host was present in connect-src. Presence is not
+#    permission.
+#
+# STILL UNVERIFIED, because it cannot be done from here: a real card payment end
+# to end. If checkout misbehaves after this ships, look for `[csp]` rows first.
+#
+# TO ROLL BACK: change both `add_header Content-Security-Policy ` below back to
+# `add_header Content-Security-Policy-Report-Only ` and deploy. That is the
+# whole revert; the policy content does not need to change.
 cat > /etc/nginx/snippets/collarone-security.conf <<'NGINX'
 # managed by deploy/deploy.sh — edit there, not here
 add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
@@ -173,7 +209,7 @@ add_header X-Content-Type-Options "nosniff" always;
 add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(self)" always;
 add_header X-Frame-Options "SAMEORIGIN" always;
-add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://js.paystack.co https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://static.cloudflareinsights.com https://dxekronjsvnwmnbanlqh.supabase.co wss://dxekronjsvnwmnbanlqh.supabase.co https://accounts.google.com https://api.paystack.co https://checkout.paystack.com https://images.unsplash.com; frame-src 'self' https://accounts.google.com https://checkout.paystack.com https://js.paystack.co https://challenges.cloudflare.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https://checkout.paystack.com; object-src 'none'" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com https://js.paystack.co https://challenges.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://accounts.google.com https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://static.cloudflareinsights.com https://dxekronjsvnwmnbanlqh.supabase.co wss://dxekronjsvnwmnbanlqh.supabase.co https://accounts.google.com https://api.paystack.co https://checkout.paystack.com https://paystack.com https://images.unsplash.com; frame-src 'self' https://accounts.google.com https://checkout.paystack.com https://js.paystack.co https://challenges.cloudflare.com https://dxekronjsvnwmnbanlqh.supabase.co; frame-ancestors 'self'; base-uri 'self'; form-action 'self' https://checkout.paystack.com; object-src 'none'; report-uri /api/track" always;
 NGINX
 
 cat > /etc/nginx/snippets/collarone-cache.conf <<'NGINX'
@@ -199,7 +235,7 @@ location ^~ /embed/ {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    add_header Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://dxekronjsvnwmnbanlqh.supabase.co https://challenges.cloudflare.com; frame-ancestors *" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://dxekronjsvnwmnbanlqh.supabase.co https://challenges.cloudflare.com; frame-ancestors *; report-uri /api/track" always;
     # rewrite ... break serves index.html from THIS location so its headers
     # (no X-Frame-Options, frame-ancestors *) apply — try_files would internally
     # redirect into `location = /index.html`, which re-adds X-Frame-Options and
