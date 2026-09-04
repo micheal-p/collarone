@@ -1,8 +1,9 @@
-// Vercel serverless function — privileged admin operations that require the
+// API handler, mounted by server/index.js on the VPS — privileged admin operations that require the
 // Supabase SERVICE ROLE key. Runs server-side only; the key never reaches the
 // browser. Set SUPABASE_SERVICE_KEY (and optionally SUPABASE_URL) in Vercel env.
 import { createClient } from '@supabase/supabase-js';
 import { emitOrgEvent } from './_lib/events.js';
+import { callerCountry } from './_lib/callerCountry.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -70,8 +71,13 @@ export default async function handler(req, res) {
 
       // Same Nigeria-only payroll gate as grant-suites, checked against the
       // creating admin's real IP (see the grant-suites action below).
-      const ipCountry = (req.headers['x-vercel-ip-country'] || '').toUpperCase();
+      const ipCountry = callerCountry(req);
       let grantedSuites = role === 'super_admin' ? [] : (Array.isArray(suites) ? suites : []);
+      // Unknown country still allows payroll, which is a DELIBERATE choice kept
+      // from the original: an edge that stops sending the header must not lock a
+      // Nigerian admin out of their own payroll. It is fail-open, so it is only
+      // as strong as the header arriving, which is exactly how this gate came to
+      // be silently inert for weeks. See _lib/callerCountry.js.
       if (ipCountry && ipCountry !== 'NG') grantedSuites = grantedSuites.filter((s) => s.key !== 'payroll');
 
       const row = {
@@ -449,7 +455,9 @@ export default async function handler(req, res) {
       if (await rejectForeignTarget(id)) return;
 
       const wantsPayroll = suites.some((s) => s.key === 'payroll');
-      const ipCountry = (req.headers['x-vercel-ip-country'] || '').toUpperCase();
+      // Fail-open on an unknown country, deliberately — see the create-user
+      // action above and _lib/callerCountry.js for why this read moved.
+      const ipCountry = callerCountry(req);
       const finalSuites = (wantsPayroll && ipCountry && ipCountry !== 'NG')
         ? suites.filter((s) => s.key !== 'payroll')
         : suites;
