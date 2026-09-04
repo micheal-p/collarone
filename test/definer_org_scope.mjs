@@ -27,6 +27,7 @@ const PUBLIC_BY_DESIGN = new Set([
   'public_submit_application',
   'public_submit_contact_message',
   'public_request_demo',
+  'public_status_daily',
   'public_submit_lead',
   'public_place_order',
   'public_decide_offer',

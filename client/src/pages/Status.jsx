@@ -7,31 +7,39 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 function dayKey(d) { return new Date(d).toISOString().slice(0, 10); }
 
-function buildDays(checks, count = 90) {
+// Takes the per-day roll-up from public_status_daily(), one row per day the
+// service was actually watched: { day, total, ok, down }.
+//
+// TWO BUGS LIVED HERE, and the second was caused by fixing the first badly.
+//
+// 1. It walked back a fixed 90 days regardless of when monitoring started.
+//    Monitoring began 12 July 2026, so on 4 September the first 35 bars covered
+//    a period with no data and rendered as one unbroken pale block — 39% of the
+//    chart, which reads as an outage on the page whose whole job is to be
+//    believable.
+//
+// 2. Clamping the window to the earliest RAW CHECK looked right and was not:
+//    the raw feed was capped at 500 rows, so the window silently became however
+//    much history those 500 rows happened to span. That was twenty days, and it
+//    would have shrunk further as check density grew. The page then claimed
+//    100.00% availability directly above a list of three incidents, because all
+//    three fell outside the accidental window.
+//
+// The span now comes from the aggregate, which is one row per monitored day and
+// therefore cannot be truncated by row limits. Days are rendered from the
+// earliest returned day to today, so a genuine gap in monitoring still shows as
+// a gap — that is real information — while the pre-monitoring void does not.
+function buildDays(dailyRows, count = 90) {
+  const rows = (dailyRows || []).filter((r) => r && r.day);
+  if (!rows.length) return [];
+
   const byDay = {};
-  checks.forEach((c) => {
-    const k = dayKey(c.checked_at);
-    if (!byDay[k]) byDay[k] = { total: 0, ok: 0, down: 0 };
-    byDay[k].total += 1;
-    if (c.api_ok && c.db_ok) byDay[k].ok += 1;
-    else if (!c.db_ok) byDay[k].down += 1;
+  rows.forEach((r) => {
+    byDay[dayKey(r.day)] = { total: Number(r.total) || 0, ok: Number(r.ok) || 0, down: Number(r.down) || 0 };
   });
 
-  // Only chart days we actually watched.
-  //
-  // This walked back a fixed 90 days no matter when monitoring started.
-  // Monitoring began 12 July 2026, so on 4 September the first 35 bars covered
-  // a period with no data and rendered blank — 39% of the chart, one unbroken
-  // pale block, which reads as an outage or a broken page. On the one page
-  // whose entire job is to be believable, that is worse than showing less.
-  //
-  // Clamping the window also fixes the label and the axis, which both derive
-  // from days.length: it now says "past 55 days" and means it, instead of
-  // claiming 90 days of history that does not exist.
-  const times = checks.map((c) => new Date(c.checked_at).getTime()).filter((t) => Number.isFinite(t));
-  const span = times.length
-    ? Math.max(1, Math.min(count, Math.floor((Date.now() - Math.min(...times)) / DAY_MS) + 1))
-    : count;
+  const earliest = Math.min(...rows.map((r) => new Date(r.day).getTime()));
+  const span = Math.max(1, Math.min(count, Math.floor((Date.now() - earliest) / DAY_MS) + 1));
 
   const days = [];
   const today = new Date();
@@ -39,7 +47,7 @@ function buildDays(checks, count = 90) {
     const d = new Date(today.getTime() - i * DAY_MS);
     const k = dayKey(d);
     const rec = byDay[k];
-    days.push({ key: k, pct: rec ? rec.ok / rec.total : null, hadOutage: rec ? rec.down > 0 : false, total: rec ? rec.total : 0 });
+    days.push({ key: k, pct: rec && rec.total ? rec.ok / rec.total : null, hadOutage: rec ? rec.down > 0 : false, total: rec ? rec.total : 0 });
   }
   return days;
 }
@@ -93,7 +101,7 @@ export default function Status() {
   const [hover, setHover] = useState(null); // { i, d } — hovered day bar
 
   useEffect(() => {
-    apiGet('/status/checks').then((d) => setChecks(d.checks)).catch((e) => setErr(e.message));
+    apiGet('/status/daily').then((d) => setChecks(d.days)).catch((e) => setErr(e.message));
     apiGet('/status/incidents').then((d) => setIncidents(d.incidents)).catch(() => {}).finally(() => setIncLoaded(true));
     fetch('/api/health').then((r) => r.json()).then(setLive).catch(() => {});
   }, []);
@@ -107,7 +115,14 @@ export default function Status() {
   // days of black screen). Each incident carries a declared IMPACT weight
   // (full outage 1.0, degraded 0.5, application error 0.25 — kind-based, not
   // invented per incident) and availability subtracts duration × impact.
-  const serverPct = checks?.length ? checks.filter((c) => c.api_ok && c.db_ok).length / checks.length : null;
+  // Summed from the per-day roll-up rather than counted over a truncated sample
+  // of raw rows, so the figure covers every check ever recorded in the window.
+  const serverPct = useMemo(() => {
+    if (!checks?.length) return null;
+    const t = checks.reduce((a, r) => a + (Number(r.total) || 0), 0);
+    const o = checks.reduce((a, r) => a + (Number(r.ok) || 0), 0);
+    return t ? o / t : null;
+  }, [checks]);
   const overallPct = useMemo(() => {
     if (serverPct === null) return null;
     // The window is the period actually monitored, not a hard 90 days. Dividing

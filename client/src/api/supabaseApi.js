@@ -533,6 +533,16 @@ export async function supabaseApi(path, opts = {}) {
   }
 
   // ---- status: public health-check history (unauthenticated, anon role) ----
+  // Per-day roll-up, not raw rows. The raw query below is capped at 500, and how
+  // much HISTORY that covers depends on how densely checks happen to have been
+  // recorded — on 2026-09-04 the newest 500 rows reached back only 20 days while
+  // the table held 54 days of monitoring, so the public page understated the
+  // record by two thirds and would have shrunk further as traffic grew.
+  if (head === 'GET /status' && seg[1] === 'daily') {
+    const { data, error } = await supabase.rpc('public_status_daily', { p_days: 90 });
+    if (error) fail(400, error.message);
+    return { days: data };
+  }
   if (head === 'GET /status' && seg[1] === 'checks') {
     const { data, error } = await supabase.from('status_checks').select('*').order('checked_at', { ascending: false }).limit(500);
     if (error) fail(400, error.message);

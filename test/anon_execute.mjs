@@ -38,6 +38,7 @@ const PUBLIC_API = new Set([
   'public_submit_application',
   'public_submit_contact_message',
   'public_request_demo',
+  'public_status_daily',
   'public_submit_lead',
 ]);
 
