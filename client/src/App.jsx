@@ -46,6 +46,7 @@ const PostJob = lazy(() => import('./pages/careers/PostJob.jsx'));
 const Privacy = lazy(() => import('./pages/Privacy.jsx'));
 const Trust = lazy(() => import('./pages/Trust.jsx'));
 const BookDemo = lazy(() => import('./pages/BookDemo.jsx'));
+const Approvals = lazy(() => import('./pages/Approvals.jsx'));
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 const PublicInvoice = lazy(() => import('./pages/PublicInvoice.jsx'));
 const PublicSite = lazy(() => import('./pages/site/PublicSite.jsx'));
@@ -200,6 +201,15 @@ export default function App() {
           only way into a tenant view is the audited guest mode, where the
           session belongs to that org's admin (so isPlatformAdmin is false). */}
       <Route
+        path="/approvals"
+        element={
+          <ProtectedRoute>
+            <Approvals />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path="/workspace"
         element={
           <ProtectedRoute>
@@ -322,7 +332,7 @@ const ROUTE_TITLES = [
   ['/forgot-password', 'Reset password'], ['/reset-password', 'Reset password'],
   ['/change-password', 'Change password'], ['/status', 'System status'],
   ['/support', 'Contact support'], ['/help', 'How to use Collarone'],
-  ['/profile', 'My profile'], ['/workspace', 'Workspace'],
+  ['/profile', 'My profile'], ['/workspace', 'Workspace'], ['/approvals', 'Approvals'],
   ['/platform-admin', 'Platform Control'], ['/admin', 'Admin Center'],
   ['/suite', 'Workspace'], ['/chat', 'Team Chat'],
   ['/jobs', 'Jobs board'], ['/careers', 'Careers'],

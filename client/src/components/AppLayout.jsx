@@ -447,6 +447,11 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
         {drawer && <div className="rail-scrim" onClick={() => setDrawer(false)} />}
         <nav className={`rail ${railOpen ? '' : 'rail-collapsed'} ${drawer ? 'rail-drawer' : ''}`}>
           <RailItem to="/" icon="home" label="Home" end onClick={() => setDrawer(false)} />
+          {/* Second, above the suites, because "what is waiting on me" is a
+              question people ask before they decide which suite to open. The
+              page itself shows nothing to anyone who cannot approve anything,
+              so it is safe for every role to see the link. */}
+          <RailItem to="/approvals" icon="check" label="Approvals" onClick={() => setDrawer(false)} />
 
           {/* Grouped by what the work IS, not alphabetically: a fifteen-item
               flat list makes someone read every label to find Payroll. The
