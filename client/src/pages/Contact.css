@@ -86,3 +86,40 @@
 /* Safari renders date/time inputs at an intrinsic width that ignores width:100%
    unless the box model is pinned. */
 .ct-form .input[type="datetime-local"] { max-width: 100%; box-sizing: border-box; }
+
+/* ---- /book-demo: one viewport, then the footer ---------------------------
+   Scoped to .bd-body so the Contact page, which shares this stylesheet and has
+   a much shorter form, is untouched.
+
+   The demo form carries eight fields plus a textarea. At the Contact page's
+   spacing that ran to roughly 900px of card, which pushed the page past the
+   fold and left a tall empty column on the left where the copy had run out.
+   Nothing was wrong with it, it just wasted a screen and made a two-minute
+   form look like a long one.
+
+   Everything below is compression, not redesign: tighter rhythm, a shorter
+   textarea, and the two columns centred against each other so the left no
+   longer dangles. */
+.bd-body { padding: 30px 24px 34px; gap: 44px; align-items: center; }
+.bd-body .ct-h1 { font-size: 33px; margin-bottom: 12px; }
+.bd-body .ct-lede { font-size: 15px; line-height: 1.62; margin-bottom: 22px; }
+.bd-body .ct-note { margin-top: 18px; font-size: 12.5px; }
+.bd-body .ct-card { padding: 22px 24px 20px; }
+.bd-body .ct-card-s { margin-bottom: 18px; }
+.bd-body .ct-form { gap: 10px; }
+.bd-body .ct-row2 { gap: 12px; }
+.bd-body .ct-form .field label { margin-bottom: 5px; font-size: 12px; }
+.bd-body .ct-form .input,
+.bd-body .ct-form .select { padding: 9px 12px; border-radius: 10px; }
+/* Two rows of notes is enough to say "we run payroll on a spreadsheet"; the
+   field still drags taller if someone wants to write more. */
+.bd-body .ct-form textarea.input { min-height: 46px; }
+.bd-body .ct-send { padding: 11px 20px; margin-top: 2px; }
+.bd-body .ct-fine { font-size: 11.5px; line-height: 1.45; margin-top: 0; }
+.bd-body .ct-card-t { font-size: 16.5px; }
+
+@media (max-width: 880px) {
+  /* Stacked, so height is the sum of both columns — compression matters more
+     here, not less, and centring is meaningless once there is one column. */
+  .bd-body { align-items: start; gap: 28px; padding-top: 32px; }
+}

@@ -86,15 +86,14 @@ export default function BookDemo() {
     <div className="lg">
       <LegalNav />
 
-      <div className="ct-body">
+      <div className="ct-body bd-body">
         <div className="ct-left">
           <p className="lg-kicker">We come to you</p>
           <h1 className="ct-h1">Book a demo,<br /><em>at your office.</em></h1>
           <p className="ct-lede">
-            Someone from Collarone comes to you, sits with your team, and sets your company up in
-            the room. About an hour. We run one real thing end to end while we are there, usually a
-            payroll or an invoice, using your own figures rather than a sample file. You keep
-            whatever we build.
+            Someone from Collarone comes to you, sits with your team, and sets your workspace up in
+            the room. About an hour. We run one real payroll or invoice on your own figures while we
+            are there, and you keep whatever we build.
           </p>
 
           <div className="ct-channels">
@@ -155,25 +154,32 @@ export default function BookDemo() {
                   <div className="field"><label>Phone / WhatsApp</label>
                     <input className="input" value={f.phone} onChange={(e) => set('phone', e.target.value)} placeholder="0801 234 5678" /></div>
                 </div>
-                <div className="field"><label>Office address *</label>
-                  <input className="input" value={f.location} onChange={(e) => set('location', e.target.value)} required
-                    placeholder="Street, area and city, e.g. 12 Awolowo Road, Ikoyi, Lagos" /></div>
+                {/* Address paired with the visit time, and the two dropdowns
+                    paired with each other. Six stacked rows ran the card to
+                    850px and pushed the whole page past the fold for a form
+                    that takes two minutes; four rows fit the screen and read as
+                    shorter, which is the honest impression. */}
+                <div className="ct-row2">
+                  <div className="field"><label>Office address *</label>
+                    <input className="input" value={f.location} onChange={(e) => set('location', e.target.value)} required
+                      placeholder="Street, area, city" /></div>
+                  <div className="field"><label>When suits you?</label>
+                    <input className="input" type="datetime-local" min={minLocal} value={f.preferredAt} onChange={(e) => set('preferredAt', e.target.value)} /></div>
+                </div>
                 <div className="ct-row2">
                   <div className="field"><label>How many staff?</label>
                     <select className="select" value={f.staffCount} onChange={(e) => set('staffCount', e.target.value)}>
                       <option value="">Prefer not to say</option>
                       {STAFF_BANDS.map((b) => <option key={b} value={b}>{b}</option>)}
                     </select></div>
-                  <div className="field"><label>When suits you?</label>
-                    <input className="input" type="datetime-local" min={minLocal} value={f.preferredAt} onChange={(e) => set('preferredAt', e.target.value)} /></div>
+                  <div className="field"><label>What hurts most?</label>
+                    <select className="select" value={f.interest} onChange={(e) => set('interest', e.target.value)}>
+                      <option value="">Not sure yet</option>
+                      {INTERESTS.map((i) => <option key={i} value={i}>{i}</option>)}
+                    </select></div>
                 </div>
-                <div className="field"><label>What hurts most right now?</label>
-                  <select className="select" value={f.interest} onChange={(e) => set('interest', e.target.value)}>
-                    <option value="">Not sure yet</option>
-                    {INTERESTS.map((i) => <option key={i} value={i}>{i}</option>)}
-                  </select></div>
                 <div className="field"><label>Anything we should know?</label>
-                  <textarea className="input" rows={4} value={f.message} onChange={(e) => set('message', e.target.value)} placeholder="Optional. How you run payroll today, what you have tried before, anything you want us to show." /></div>
+                  <textarea className="input" rows={2} value={f.message} onChange={(e) => set('message', e.target.value)} placeholder="Optional. How you run payroll today, or what you want us to show." /></div>
                 {error && <p className="ct-err">{error}</p>}
                 <button className="ct-send" disabled={busy}>
                   {busy ? 'Sending…' : 'Request my demo'}
