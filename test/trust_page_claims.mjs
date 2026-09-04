@@ -47,6 +47,23 @@ claim(/npm audit .*--audit-level=high/.test(deployYml),
   'a high or critical vulnerability stops the release',
   'the npm audit gate is gone from the deploy workflow');
 
+// The audit step is allowed to give up when npm's advisory service is down,
+// because blocking every deploy on someone else's uptime is worse. /trust says
+// so explicitly, and says an unscanned build is MARKED rather than treated as
+// clean. That second half is the whole reason the first half is acceptable, so
+// pin it: without the annotation, a skipped scan is indistinguishable from a
+// passed one and the page is making a promise the pipeline does not keep.
+claim(/::warning title=Vulnerability scan did not run/.test(deployYml),
+  'an unscanned release is marked as unscanned, not treated as clean',
+  'the audit step no longer annotates the run when the scan could not be performed');
+
+// And the real finding must still be fatal, or "a finding stops the release" is
+// false. Guards against someone widening the outage match until everything
+// looks like an outage.
+claim(/::error title=Vulnerable dependency/.test(deployYml),
+  'a high or critical finding stops the release',
+  'the audit step no longer raises an error for a genuine finding');
+
 // The mechanism, not the word. A comment saying "rollback" is not a rollback.
 claim(/rsync .*--delete.*\$\{APP_DIR\}\.rollback/.test(deploySh) || /\.rollback\/" "\$\{APP_DIR\}\//.test(deploySh),
   'a failed health check restores the previous version automatically',

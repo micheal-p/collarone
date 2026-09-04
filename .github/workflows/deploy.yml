@@ -52,41 +52,64 @@ jobs:
       # /security/audits/quick endpoint, which npm's own output says is being
       # retired and which returned 400 then 503 on 2026-09-04, blocking this
       # deploy twice for reasons that had nothing to do with our dependencies.
+      # Retried, because moving the audit onto the supported API is pointless if
+      # the install itself is a single unretried registry call — that just moves
+      # the same outage-blocks-the-deploy failure one step earlier.
+      #
+      # `if [ ... ]; then sleep; fi` rather than `[ ... ] && sleep`: under the
+      # `bash -e` that Actions uses, an && list whose test is false returns
+      # non-zero and kills the step. That exact trap is what broke the first
+      # version of the audit step below.
       - name: Install dependencies (also puts the audit on the supported API)
-        run: npm ci
+        run: |
+          set +e
+          for attempt in 1 2 3; do
+            npm ci && exit 0
+            echo "npm ci failed (attempt ${attempt} of 3)"
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
+          done
+          echo "::error title=Install failed::npm ci failed 3 times; the registry is likely unavailable."
+          exit 1
 
       # A shipped dependency with a known high/critical vulnerability fails the
       # build, the same way the XSS test does. Scoped to PRODUCTION deps
       # (--omit=dev) so build-only tooling can't block a deploy; moderate and
-      # below are reported by `npm audit` but don't gate. This is the automated
-      # answer to "is a library we ship vulnerable".
+      # below are reported by `npm audit` but don't gate.
       #
       # "npm could not reach its advisory service" and "you are shipping a known
       # vulnerability" are DIFFERENT ANSWERS and must not share an exit code.
-      # Treating them the same meant a registry outage blocked every deploy,
-      # including the one carrying security fixes — exactly backwards. So an
-      # endpoint error retries, then warns loudly and lets the build continue;
-      # a real finding still fails. Deliberately not a silent skip: the warning
-      # is annotated on the run so an outage is visible rather than assumed.
+      # Conflating them meant a registry outage blocked every deploy, including
+      # the one carrying security fixes — exactly backwards.
+      #
+      # `set +e` is load-bearing. Actions runs this as `bash -e {0}`, where
+      # `out="$(cmd)"; code=$?` ABORTS THE STEP the moment cmd exits non-zero:
+      # the classification below never runs, and the captured output is never
+      # printed, so a genuine finding fails with an empty log. The first version
+      # of this step shipped with that bug because it was "verified" in a plain
+      # `bash` with hardcoded values instead of under `bash -e` with a real
+      # failing command.
+      #
+      # Outage detection matches network-shaped signals broadly, not one npm
+      # message string: anything unmatched falls through to "real finding", and
+      # calling a DNS blip a vulnerability is the same conflation in reverse.
       - name: No high/critical vulnerabilities in shipped dependencies
         run: |
+          set +e
           for attempt in 1 2 3; do
-            out="$(npm audit --omit=dev --audit-level=high 2>&1)"; code=$?
-            if [ "$code" -eq 0 ]; then echo "$out"; exit 0; fi
-            if echo "$out" | grep -q "audit endpoint returned an error"; then
-              echo "attempt ${attempt}: npm advisory endpoint unreachable, retrying"
-              sleep $((attempt * 15))
+            out="$(npm audit --omit=dev --audit-level=high 2>&1)"
+            code=$?
+            echo "$out"
+            if [ "$code" -eq 0 ]; then exit 0; fi
+            if printf '%s' "$out" | grep -qEi 'audit endpoint returned an error|E5[0-9][0-9]|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|service unavailable|network'; then
+              echo "attempt ${attempt} of 3: npm advisory service unreachable"
+              if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
               continue
             fi
-            # A real finding. Show it and fail.
-            echo "$out"
+            echo "::error title=Vulnerable dependency::npm audit reports a high or critical vulnerability in a dependency we ship."
             exit 1
           done
-          echo "$out"
-          echo "::warning title=Vulnerability scan skipped::npm's advisory endpoint failed 3 times, so shipped dependencies were NOT scanned on this run. Re-run this job once npm recovers."
-      - name: Install pg driver (only needed for the live-DB layers)
-        if: env.DATABASE_URL != ''
-        run: npm install --no-save pg
+          echo "::warning title=Vulnerability scan did not run::npm's advisory service was unreachable on all 3 attempts, so shipped dependencies were NOT scanned on this run. Re-run this job once npm recovers."
+          exit 0
       - name: Pricing golden (estimator layer; + live SQL matrix when DB secret set)
         run: node test/pricing_besttier_golden.mjs
 

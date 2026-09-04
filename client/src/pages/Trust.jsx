@@ -89,9 +89,14 @@ export default function Trust() {
 
         <h2>7. Known vulnerabilities fail the build</h2>
         <p>
-          Every release scans the software libraries we ship for publicly known vulnerabilities. A high
-          or critical finding stops the release until it is dealt with, rather than appearing in a report
-          nobody reads.
+          Every release is gated on a scan of the software libraries we ship for publicly known
+          vulnerabilities. A high or critical finding stops the release until it is dealt with, rather
+          than appearing in a report nobody reads.
+        </p>
+        <p>
+          The scan depends on an outside advisory service, and that service does go down. When it does,
+          the release is marked on the record as unscanned rather than quietly treated as clean, so a
+          build nobody could check never looks like a build that passed.
         </p>
 
         <h2>8. The service is fast on a Nigerian connection</h2>
