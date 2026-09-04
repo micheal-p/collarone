@@ -46,13 +46,44 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # Installing before the audit is not incidental, it decides which npm API
+      # gets used. With a full tree on disk npm queries the BULK ADVISORY
+      # endpoint; with only a lockfile it falls back to the legacy
+      # /security/audits/quick endpoint, which npm's own output says is being
+      # retired and which returned 400 then 503 on 2026-09-04, blocking this
+      # deploy twice for reasons that had nothing to do with our dependencies.
+      - name: Install dependencies (also puts the audit on the supported API)
+        run: npm ci
+
       # A shipped dependency with a known high/critical vulnerability fails the
       # build, the same way the XSS test does. Scoped to PRODUCTION deps
       # (--omit=dev) so build-only tooling can't block a deploy; moderate and
       # below are reported by `npm audit` but don't gate. This is the automated
       # answer to "is a library we ship vulnerable".
+      #
+      # "npm could not reach its advisory service" and "you are shipping a known
+      # vulnerability" are DIFFERENT ANSWERS and must not share an exit code.
+      # Treating them the same meant a registry outage blocked every deploy,
+      # including the one carrying security fixes — exactly backwards. So an
+      # endpoint error retries, then warns loudly and lets the build continue;
+      # a real finding still fails. Deliberately not a silent skip: the warning
+      # is annotated on the run so an outage is visible rather than assumed.
       - name: No high/critical vulnerabilities in shipped dependencies
-        run: npm audit --omit=dev --audit-level=high
+        run: |
+          for attempt in 1 2 3; do
+            out="$(npm audit --omit=dev --audit-level=high 2>&1)"; code=$?
+            if [ "$code" -eq 0 ]; then echo "$out"; exit 0; fi
+            if echo "$out" | grep -q "audit endpoint returned an error"; then
+              echo "attempt ${attempt}: npm advisory endpoint unreachable, retrying"
+              sleep $((attempt * 15))
+              continue
+            fi
+            # A real finding. Show it and fail.
+            echo "$out"
+            exit 1
+          done
+          echo "$out"
+          echo "::warning title=Vulnerability scan skipped::npm's advisory endpoint failed 3 times, so shipped dependencies were NOT scanned on this run. Re-run this job once npm recovers."
       - name: Install pg driver (only needed for the live-DB layers)
         if: env.DATABASE_URL != ''
         run: npm install --no-save pg
