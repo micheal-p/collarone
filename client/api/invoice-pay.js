@@ -1,4 +1,4 @@
-// Vercel serverless function — Paystack card payment for a shared invoice
+// API handler, mounted by server/index.js on the VPS — Paystack card payment for a shared invoice
 // (/inv/<token>). Mirrors site-pay.js: every merchant uses THEIR OWN Paystack
 // account (org_payment_gateways, service-role only), so the money settles
 // straight into the merchant's bank. Collarone never holds or routes funds.
@@ -16,6 +16,7 @@
 // actions act only on the single invoice tied to the share token.
 import { createClient } from '@supabase/supabase-js';
 import { decryptSecret } from './_lib/gatewayCrypto.js';
+import { allow, LIMIT_MESSAGE } from './_lib/rateLimit.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -29,6 +30,16 @@ export default async function handler(req, res) {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
   const { action, token } = body;
+
+  // Unauthenticated by design: whoever holds the invoice share link can pay it,
+  // and requiring an account to settle a bill would kill the whole feature. The
+  // share token scopes what can be touched, but nothing bounded how OFTEN — and
+  // both actions make an outbound call to the merchant's Paystack, so an
+  // untended loop here spends someone else's API quota, not just ours.
+  // Generous enough that a customer retrying a failed card never notices.
+  if (!allow(`${req.ip}:invoice-pay`, { capacity: 10, refillPerSec: 1 / 6 })) {
+    return json(res, 429, { message: LIMIT_MESSAGE });
+  }
 
   try {
     const { data: doc } = await admin.from('trade_documents')

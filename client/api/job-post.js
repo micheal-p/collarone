@@ -19,10 +19,11 @@
 //
 // Uses the app's existing OpenAI setup (same OPENAI_API_KEY/OPENAI_MODEL as
 // ai-letter.js) rather than adding a second AI provider — one convention.
-// NOTE: real per-IP rate-limiting is a v1.1 TODO (needs a store); today the
-// guards are AI spam-scoring + reports + quarantine + length caps.
+// Guards: per-IP token buckets (below) plus AI spam-scoring, reports,
+// quarantine and length caps.
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
+import { allow, LIMIT_MESSAGE } from './_lib/rateLimit.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -120,6 +121,25 @@ export default async function handler(req, res) {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
   const { action } = body;
+
+  // Token bucket per IP on the actions that cost something. This file used to
+  // carry "real per-IP rate-limiting is a v1.1 TODO (needs a store)". The store
+  // arrived when the API moved off serverless onto one long-lived Express
+  // process, where an in-memory bucket simply works (see _lib/rateLimit.js) —
+  // the TODO had outlived the constraint that wrote it.
+  //
+  // 'register' and 'report' are open to anyone, and 'structure' spends OpenAI
+  // credit on every call. Reads and moderation are untouched: the spam scoring,
+  // reports, quarantine and length caps still do the content work, this only
+  // stops one connection doing it ten thousand times.
+  const LIMITS = {
+    register:  { capacity: 5,  refillPerSec: 1 / 30 },  // real people register once
+    report:    { capacity: 10, refillPerSec: 1 / 10 },  // flagging several posts is legitimate
+    structure: { capacity: 8,  refillPerSec: 1 / 10 },  // costs money per call
+  };
+  if (LIMITS[action] && !allow(`${req.ip}:job-post:${action}`, LIMITS[action])) {
+    return json(res, 429, { message: LIMIT_MESSAGE });
+  }
 
   try {
     // ---- platform-admin moderation (approve/reject posters) -----------------

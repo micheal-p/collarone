@@ -1,4 +1,4 @@
-// Vercel serverless function — Paystack card checkout for built stores.
+// API handler, mounted by server/index.js on the VPS — Paystack card checkout for built stores.
 //
 // The money model, non-negotiable: every merchant uses THEIR OWN Paystack
 // account (keys stored server-side by the platform admin, never readable
@@ -18,6 +18,7 @@
 // actions only ever act on the single order tied to the reference/id.
 import { createClient } from '@supabase/supabase-js';
 import { decryptSecret } from './_lib/gatewayCrypto.js';
+import { allow, LIMIT_MESSAGE } from './_lib/rateLimit.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -31,6 +32,15 @@ export default async function handler(req, res) {
   const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
   const { action, orgSlug } = body;
+
+  // Same reasoning as invoice-pay.js: a storefront shopper has no account, so
+  // this is open by design, and every action reaches out to the merchant's own
+  // Paystack. Unbounded, one connection can burn a customer's API quota and
+  // fill their dashboard with dead transactions. Sized so a real shopper
+  // retrying a declined card never sees it.
+  if (!allow(`${req.ip}:site-pay`, { capacity: 10, refillPerSec: 1 / 6 })) {
+    return json(res, 429, { message: LIMIT_MESSAGE });
+  }
 
   try {
     const { data: org } = await admin.from('organizations').select('id, slug').eq('slug', String(orgSlug || '')).maybeSingle();

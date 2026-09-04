@@ -14,6 +14,7 @@
 //   POST { action: 'apply', plan }    (Bearer, owner) → { created }
 import { createClient } from '@supabase/supabase-js';
 import { emitOrgEvent } from './_lib/events.js';
+import { allow, LIMIT_MESSAGE } from './_lib/rateLimit.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -57,18 +58,6 @@ function validatePlan(raw) {
   return { departments, leaveTypes, suggestedSuites, summary };
 }
 
-// Cheap in-memory throttle for the PUBLIC suggest action (it burns OpenAI
-// tokens): a handful of calls per IP per minute is plenty for real signups.
-const suggestHits = new Map();
-const throttled = (ip) => {
-  const now = Date.now();
-  const hits = (suggestHits.get(ip) || []).filter((t) => now - t < 60_000);
-  hits.push(now);
-  suggestHits.set(ip, hits);
-  if (suggestHits.size > 5000) suggestHits.clear(); // bound memory
-  return hits.length > 8;
-};
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { message: 'Method not allowed' });
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
@@ -78,10 +67,17 @@ export default async function handler(req, res) {
   if (!SERVICE_KEY) return json(res, 500, { message: 'Server not configured.' });
 
   // 'suggest' — the SIGNUP CART helper: describe the business, get the suites
-  // that fit. Public (the visitor has no account yet), read-only, throttled.
+  // that fit. Public (the visitor has no account yet), read-only, and throttled
+  // because it burns OpenAI credit on every call.
+  //
+  // This used to be a second, hand-rolled sliding window kept in this file. It
+  // worked, but two implementations of one idea means two places to get the
+  // memory bound wrong, and only one of them was ever reviewed. Same token
+  // bucket as every other public endpoint now, sized to match the old
+  // behaviour: about eight calls a minute, then a steady trickle.
   if (body.action === 'suggest') {
-    if (throttled(req.ip || req.socket?.remoteAddress || 'unknown')) {
-      return json(res, 429, { message: 'A moment — try again shortly.' });
+    if (!allow(`${req.ip || req.socket?.remoteAddress || 'unknown'}:onboard-ai:suggest`, { capacity: 8, refillPerSec: 1 / 8 })) {
+      return json(res, 429, { message: LIMIT_MESSAGE });
     }
     const prompt = String(body.prompt || '').slice(0, 300).trim();
     if (prompt.length < 8) return json(res, 400, { message: 'Describe the business in a sentence.' });
