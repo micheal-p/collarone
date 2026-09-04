@@ -17,12 +17,36 @@ app.set('trust proxy', 1);
 // Keep the raw request bytes alongside the parsed body — webhook HMAC
 // signatures (Paystack x-paystack-signature) are computed over the raw body,
 // and a re-stringified JSON.parse round-trip would not match byte-for-byte.
-app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
+// The type list matters: a browser posts a CSP violation as
+// `application/csp-report` (or `application/reports+json` via the newer
+// Reporting API), never as `application/json`. Without these, express.json
+// leaves req.body empty and every violation report is silently discarded —
+// which is the same "reporting to nowhere" the Report-Only policy already
+// suffered from, just moved one step later.
+app.use(express.json({
+  type: ['application/json', 'application/csp-report', 'application/reports+json'],
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
 
+// Each handler answers on two paths, deliberately.
+//
+// `/api/<name>` is what the app itself calls and what DeviceGuide.jsx has
+// already published to hardware integrators — an attendance terminal bolted to
+// a customer's wall has POST https://collarone.app/api/punch burned into its
+// configuration. That path can never be withdrawn, whatever we build later.
+//
+// `/api/v1/<name>` is the same handler under a base URL that carries a promise:
+// a customer integrating against v1 gets to keep the shape they built on, and
+// the day something has to change incompatibly it becomes v2 while v1 keeps
+// answering. Retrofitting that after somebody depends on you is the expensive
+// version of this, so it is done now, while the only integrator is us.
+//
+// Same function, no duplicated logic, no behaviour change today.
 for (const file of readdirSync(apiDir).filter((f) => f.endsWith('.js'))) {
   const name = file.slice(0, -3);
   const { default: handler } = await import(pathToFileURL(path.join(apiDir, file)));
   app.all(`/api/${name}`, (req, res) => handler(req, res));
+  app.all(`/api/v1/${name}`, (req, res) => handler(req, res));
 }
 
 const port = process.env.PORT || 4000;

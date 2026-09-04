@@ -36,9 +36,16 @@ export default function DeviceGuide() {
       </tbody></table>
 
       <h2 style={h2}>The endpoint</h2>
-      <code style={code}>{`POST https://collarone.app/api/punch
+      <code style={code}>{`POST https://collarone.app/api/v1/punch
 x-device-key: <the device key>
 Content-Type: application/json`}</code>
+      <p style={p}>
+        Devices already configured against <code>/api/punch</code> keep working exactly as they are,
+        and always will. The <code>/api/v1/</code> address is the same endpoint under a versioned
+        base URL: anything you build against <strong>v1</strong> keeps the shape you built on, and if
+        the format ever has to change incompatibly it becomes <strong>v2</strong> while v1 carries on
+        answering. Use it for new installations.
+      </p>
 
       <h3 style={h3}>One punch</h3>
       <code style={code}>{`{ "personRef": "42", "timestamp": "2026-08-07T08:03:00+01:00", "direction": "in" }`}</code>
@@ -56,7 +63,7 @@ Content-Type: application/json`}</code>
       </tbody></table>
 
       <h3 style={h3}>A test punch with curl</h3>
-      <code style={code}>{`curl -X POST https://collarone.app/api/punch \\
+      <code style={code}>{`curl -X POST https://collarone.app/api/v1/punch \\
   -H "x-device-key: YOUR_DEVICE_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{"personRef":"42"}'`}</code>
