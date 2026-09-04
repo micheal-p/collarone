@@ -67,5 +67,38 @@ for (const internal of ['geo_signal_lost', 'letters_bad_reference', 'unguarded_t
     'it is serious, but a visitor loading the app right now is unaffected');
 }
 
+// ---- a check that threw must not look like a check that passed -------------
+// Every check is wrapped in its own try/catch so one failure cannot kill the
+// other ten. The cost is that a check which ERRORS produces no finding, exactly
+// like a check that found nothing — so a silently broken check reads as good
+// news forever. This is the same fail-silent shape as a guard that skips on an
+// empty value, and it is what stopped me verifying the correctness checks after
+// deploying them: "0 findings" could not be told apart from "all four are dead".
+//
+// So each check records that it completed, and the run stores it.
+{
+  // Anchored to findings.push specifically. A bare /kind: '...'/ also matches
+  // the ran.failed.push entries, which double-counted every check and made this
+  // fail against correct code.
+  const kinds = [...watchdog.matchAll(/findings\.push\(\{ kind: '([a-z_]+)'/g)].map((m) => m[1]);
+  const okPushes = [...watchdog.matchAll(/ran\.ok\.push\('([a-z_]+)'\)/g)].map((m) => m[1]);
+  const failPushes = [...watchdog.matchAll(/ran\.failed\.push\(\{ kind: '([a-z_]+)'/g)].map((m) => m[1]);
+
+  need(okPushes.length === failPushes.length,
+    `every check must record both outcomes (${okPushes.length} success, ${failPushes.length} failure)`);
+  need(okPushes.length >= kinds.length,
+    `${kinds.length} findings are emitted but only ${okPushes.length} checks record that they ran`,
+    'a check with no record is one that can die silently');
+
+  for (const k of kinds) {
+    need(okPushes.includes(k), `check '${k}' never records that it completed`);
+    need(failPushes.includes(k), `check '${k}' never records that it raised`);
+  }
+
+  need(/checks_ran: ran/.test(watchdog),
+    'the run no longer stores which checks ran',
+    'without it the record cannot distinguish a clean run from a dead one');
+}
+
 if (failures) { console.error(`\nFAILED, ${failures} problem(s) with the correctness watchdog`); process.exit(1); }
 console.log(`Watchdog still asks all ${CHECKS.length + 1} correctness questions, service-role only. ALL PASSED`);
