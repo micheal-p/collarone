@@ -170,6 +170,9 @@ jobs:
       - name: Approvals stays a view over the suites, never its own authority
         run: node test/approvals_inbox.mjs
 
+      - name: The watchdog still asks whether things are right, not just up
+        run: node test/watchdog_correctness.mjs
+
       # These seven were written as guards but never wired into this file, so
       # they had been passing on nobody's machine for weeks. A test that does
       # not run on every push is documentation, not a guard.

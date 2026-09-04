@@ -74,6 +74,60 @@ export default async function handler(req, res) {
     if ((count || 0) > 0) findings.push({ kind: 'deploy_failures', count, detail: `${count} deploy failure${count > 1 ? 's' : ''} reported in 6h — prod may be behind main` });
   } catch { /* independent */ }
 
+  /* ---- correctness, not availability -------------------------------------
+     Checks 1 to 6 above ask whether things are WORKING. The four below ask
+     whether they are RIGHT, which is a different question and the one that
+     went unasked for months.
+
+     On 2026-09-04 the status page reported 100% availability since 5 August,
+     truthfully: 1,871 scheduled checks, zero failures, ever. On the same day
+     the Nigeria-only payroll gate turned out to have been doing nothing for
+     months, letter reference numbers were never being stored, and a login link
+     could send a user to an attacker's site. Every one of those left the API
+     answering and nothing throwing. Availability monitoring cannot see them.
+
+     Each check below is derived from a defect that actually happened. A check
+     nobody has ever needed is one that will eventually cry wolf and be
+     ignored. */
+
+  // 7. The edge stopped telling us the caller's country.
+  //    This is the payroll bug's exact shape: the gate reads
+  //    `if (country && country !== 'NG')`, so an unknown country skips it
+  //    entirely. When the header stopped arriving the rule silently stopped
+  //    applying — while still reporting to the UI that it had been enforced.
+  //    Returns 0 when there is no traffic to judge by, so a quiet night is
+  //    never mistaken for a broken edge.
+  try {
+    const { data: n } = await admin.rpc('watchdog_geo_signal_lost');
+    if ((n || 0) > 0) findings.push({ kind: 'geo_signal_lost', count: n, detail: `${n} page views in 24h and not one carried a country — every geo rule (incl. the payroll gate) is currently inert` });
+  } catch { /* independent */ }
+
+  // 8. Issued letters with no reference, or a duplicate one. These go to banks
+  //    and embassies; both faults are invisible until somebody outside the
+  //    company rejects the document.
+  try {
+    const { data: n } = await admin.rpc('watchdog_letters_without_reference');
+    if ((n || 0) > 0) findings.push({ kind: 'letters_bad_reference', count: n, detail: `${n} issued letter${n > 1 ? 's' : ''} with a missing or duplicated reference number` });
+  } catch { /* independent */ }
+
+  // 9. A tenant table a support session could write to. The write-block is
+  //    attached by a sweep over existing tables, so anything created by a later
+  //    migration is born without it and nothing says so.
+  try {
+    const { data: n } = await admin.rpc('watchdog_unguarded_tables');
+    if ((n || 0) > 0) findings.push({ kind: 'unguarded_tables', count: n, detail: `${n} tenant table${n > 1 ? 's are' : ' is'} missing the support write-block — re-run supabase/support_readonly_enforcement.sql` });
+  } catch { /* independent */ }
+
+  // 10. The CSP is enforcing now, so a burst of violations means the policy is
+  //     actively blocking something real in customers' browsers. A threshold,
+  //     not any single one: one odd extension should not raise an alarm.
+  try {
+    const { count } = await admin.from('client_errors')
+      .select('id', { count: 'exact', head: true })
+      .like('message', '[csp]%').gte('occurred_at', since(30));
+    if ((count || 0) >= 5) findings.push({ kind: 'csp_blocking', count, detail: `${count} CSP violations in 30min — the enforcing policy is blocking something customers use; check the blocked URI and allow it or roll the policy back to Report-Only` });
+  } catch { /* independent */ }
+
   // Record the run, always — a run with zero findings is the good news.
   try {
     await admin.from('watchdog_runs').insert({ findings, findings_count: findings.length });

@@ -140,7 +140,16 @@ export default async function handler(req, res) {
   // Public status degrades for what CUSTOMERS feel: crash floods, or the
   // watchdog seeing signups actively fail. Internal-only findings (stale
   // tickets, deploy failures) stay in the ops surfaces, not the public banner.
-  const watchdogCustomerImpact = Boolean(watchdog?.findings?.includes('signup_failures'));
+  // `csp_blocking` joins signup failures as customer-facing. An enforcing CSP
+  // that is blocking something real breaks pages in the visitor's browser while
+  // the server answers every ping perfectly — exactly the class of fault the
+  // status page could not see before. The other correctness findings
+  // (geo_signal_lost, letters_bad_reference, unguarded_tables) stay INTERNAL:
+  // they are serious, but a customer loading the app right now is unaffected,
+  // and a status page that goes amber for an internal defect teaches people to
+  // ignore it.
+  const CUSTOMER_FACING_FINDINGS = ['signup_failures', 'csp_blocking'];
+  const watchdogCustomerImpact = Boolean(watchdog?.findings?.some((f) => CUSTOMER_FACING_FINDINGS.includes(f)));
   const status = !dbOk ? 'down'
     : (clientErrorsLastHour >= CLIENT_ERROR_DEGRADED_AT || watchdogCustomerImpact) ? 'degraded'
     : 'operational';
