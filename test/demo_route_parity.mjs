@@ -26,6 +26,12 @@ const REQUIRED = [
   { call: 'GET /attendance/devices', needle: "seg[1] === 'devices'" },
   { call: 'POST /attendance/device-map', needle: "seg[1] === 'device-map'" },
   { call: 'GET /trade-docs/settings', needle: '/trade-docs/settings' },
+  // Issuing a letter now asks the server for its reference number first, so a
+  // demo without this route throws before the letter is ever composed.
+  { call: 'POST /hr/next-letter-reference', needle: "route === 'POST /hr/next-letter-reference'" },
+  // The booking form is a sales surface. A prospect who clicks "Book a demo"
+  // from inside the demo and gets an error is the most expensive 404 we have.
+  { call: 'POST /book-demo', needle: "route === 'POST /book-demo'" },
   // The Task & Report suite loads tasks + stats in one Promise.all, so a
   // missing /taskstats blanked the whole page (caught live 2026-08-08).
   { call: 'GET /taskstats', needle: "route === 'GET /taskstats'" },

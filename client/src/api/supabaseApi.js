@@ -1466,15 +1466,30 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { letters: data };
   }
+  // The reference number is minted by the database, never by the browser: two
+  // HR users composing at the same moment used to count the same register and
+  // both issue HR/CONF/2026/007. See supabase/hr_letter_references.sql.
+  if (head === 'POST /hr' && seg[1] === 'next-letter-reference') {
+    const { data, error } = await supabase.rpc('hr_next_letter_reference', { p_letter_type: body.letterType || 'custom' });
+    if (error) fail(400, error.message);
+    return { reference: data };
+  }
   if (head === 'POST /hr' && seg[1] === 'issued-letters') {
-    const { employeeId, letterType, title, letterBody, letterheadId, requestId, filePath } = body;
+    const { employeeId, letterType, title, letterBody, letterheadId, requestId, filePath, reference } = body;
     if (!employeeId || !title?.trim() || !letterBody?.trim()) fail(400, 'Employee, title and letter body are required.');
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from('hr_letters').insert({
       org_id: await myOrgId(), employee_id: employeeId, letter_type: letterType || 'custom',
       title: title.trim(), body: letterBody, letterhead_id: letterheadId || null,
       request_id: requestId || null, file_path: filePath || null, issued_by: user.id,
+      reference: reference?.trim() || null,
     }).select('*, employee:profiles!employee_id(id,name,email), issuedBy:profiles!issued_by(id,name)').single();
+    // The unique index is the backstop against a hand-typed duplicate. Postgres
+    // says "duplicate key value violates unique constraint", which means
+    // nothing to an HR officer, so say what they can act on.
+    if (error?.code === '23505' && /hr_letters_reference_uniq/.test(error.message || '')) {
+      fail(409, `Reference ${reference?.trim()} has already been used on another letter. Clear the field to have the next number assigned automatically.`);
+    }
     if (error) fail(400, error.message);
     return { letter: data };
   }
@@ -3317,6 +3332,20 @@ export async function supabaseApi(path, opts = {}) {
     const { name, email, phone, company, message } = body;
     const { error } = await supabase.rpc('public_submit_contact_message', {
       p_name: name, p_email: email || '', p_phone: phone || '', p_company: company || '', p_message: message || '',
+    });
+    if (error) fail(400, error.message);
+    return { ok: true };
+  }
+
+  // Book a demo. Lands in the SAME platform inbox as /contact (kind='demo'),
+  // so there is one place to check rather than two, and a prospect cannot go
+  // cold in the tab nobody opens. See supabase/demo_requests.sql.
+  if (head === 'POST /book-demo' && seg.length === 1) {
+    const { name, email, phone, company, staffCount, interest, preferredAt, message } = body;
+    const { error } = await supabase.rpc('public_request_demo', {
+      p_name: name, p_email: email || '', p_phone: phone || '', p_company: company || '',
+      p_staff_count: staffCount || '', p_interest: interest || '',
+      p_preferred_at: preferredAt || null, p_message: message || '',
     });
     if (error) fail(400, error.message);
     return { ok: true };

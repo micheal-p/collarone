@@ -975,10 +975,20 @@ async function demoApiInner(path, opts = {}) {
       save(); return { letterhead: lh };
     }
     if (route === 'GET /hr/issued-letters') return { letters: db.issuedLetters };
+    // Mirrors hr_next_letter_reference(): one shared sequence per year, the
+    // type only decides the label. The real one is a counter row in Postgres;
+    // here the register is the counter, which is safe because a demo has a
+    // single user.
+    if (route === 'POST /hr/next-letter-reference') {
+      const abbrev = { confirmation: 'CONF', promotion: 'PROM', introduction: 'INTR', employment_verification: 'VERF', query: 'QRY', warning: 'WARN' }[body.letterType] || 'LTR';
+      const year = new Date().getFullYear();
+      const n = db.issuedLetters.filter((l) => String(l.issued_at || '').startsWith(String(year))).length + 1;
+      return { reference: `HR/${abbrev}/${year}/${String(n).padStart(3, '0')}` };
+    }
     if (route === 'POST /hr/issued-letters') {
       const empRec = staff.find((s) => s.id === body.employeeId);
       const me = session.get();
-      const l = { id: 'il' + Math.random().toString(36).slice(2, 8), employee_id: body.employeeId, employee: { id: empRec?.id, name: empRec?.name, email: empRec?.email }, letter_type: body.letterType, title: body.title, body: body.letterBody, letterhead_id: body.letterheadId || null, request_id: body.requestId || null, file_path: null, issuedBy: { id: me?.id, name: me?.name }, issued_at: new Date().toISOString() };
+      const l = { id: 'il' + Math.random().toString(36).slice(2, 8), employee_id: body.employeeId, employee: { id: empRec?.id, name: empRec?.name, email: empRec?.email }, letter_type: body.letterType, title: body.title, body: body.letterBody, letterhead_id: body.letterheadId || null, request_id: body.requestId || null, file_path: null, reference: body.reference || null, issuedBy: { id: me?.id, name: me?.name }, issued_at: new Date().toISOString() };
       db.issuedLetters.unshift(l); save(); return { letter: l };
     }
 
@@ -1853,6 +1863,10 @@ async function demoApiInner(path, opts = {}) {
   }
   if (route === 'POST /embed/lead') return { ok: true };
   if (route === 'POST /contact') return { ok: true };
+  // Accepted and discarded, like /contact above: the demo must never post a
+  // prospect's real details into the sandbox, but the page has to succeed or a
+  // visitor clicking through the demo hits an error on the booking form.
+  if (route === 'POST /book-demo') return { ok: true };
   if (route === 'GET /me/notices') return { notices: [] };
   if (/^POST \/notices\/.+\/dismiss$/.test(route)) return { ok: true };
 

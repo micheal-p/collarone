@@ -4,7 +4,7 @@ import { useConfirm, EmptyState, SearchSelect } from '../../components/ui.jsx';
 import * as L from './lettersApi.js';
 import * as C from './complianceApi.js';
 import * as D from '../documents/documentsApi.js';
-import { LETTER_TYPES, LETTERHEAD_TEMPLATES, LETTERHEAD_CSS, letterHeadHtml, letterBodyHtml, buildLetterDocument, suggestReference, LETTER_FOLDER_SUGGESTION, compressLogo, compressSignature } from './letterheadTemplates.js';
+import { LETTER_TYPES, LETTERHEAD_TEMPLATES, LETTERHEAD_CSS, letterHeadHtml, letterBodyHtml, buildLetterDocument, LETTER_FOLDER_SUGGESTION, compressLogo, compressSignature } from './letterheadTemplates.js';
 
 /* =========================================================================
    HR Letters engine, compose company letters (manually or with Collarone
@@ -57,7 +57,10 @@ function LetterPreview({ letterhead, letter, scale = 1 }) {
 }
 
 /* ---- Compose tab ------------------------------------------------------------- */
-function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, prefill, me, issued, folders, confirm, onFolderCreated }) {
+// `issued` (the register) used to be passed in so the form could count it and
+// guess the next reference. The database issues the number now, so the compose
+// form no longer needs to know what has already been issued.
+function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, prefill, me, folders, confirm, onFolderCreated }) {
   // Which saved letterhead this letter uses (defaults to the org default),
   // plus a per-letter template override that doesn't touch the saved design.
   const [lhId, setLhId] = useState(letterhead?.id || null);
@@ -72,7 +75,10 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
   const initialType = prefill?.letterType || 'confirmation';
   const [f, setF] = useState(() => ({
     employeeId: prefill?.employeeId || '', letterType: initialType,
-    reference: suggestReference(initialType, issued), refTouched: false,
+    // Left blank on purpose. The number is allocated by the database at the
+    // moment of issue, so the form can't show one yet without guessing — and
+    // guessing is exactly what produced two letters numbered .../007.
+    reference: '',
     folderName: LETTER_FOLDER_SUGGESTION[initialType] || 'HR Letters',
     instructions: prefill?.instructions || '', body: '', requestId: prefill?.requestId || null,
     caseId: prefill?.caseId || null, caseField: prefill?.caseField || null,
@@ -91,11 +97,12 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
   const [busy, setBusy] = useState(false);
 
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
-  // Changing letter type refreshes the auto ref (unless hand-edited) and the
-  // suggested filing folder.
+  // Changing letter type moves the suggested filing folder. The reference is
+  // not touched: it is either blank (the database assigns it) or something the
+  // officer typed deliberately, and silently rewriting the latter loses their
+  // input.
   const setType = (t) => setF((s) => ({
     ...s, letterType: t,
-    reference: s.refTouched ? s.reference : suggestReference(t, issued),
     folderName: LETTER_FOLDER_SUGGESTION[t] || 'HR Letters',
   }));
   const emp = staff.find((s) => s.id === f.employeeId);
@@ -150,15 +157,20 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
     if (!emp || !f.body.trim()) return flash('Employee and letter body are required.', true);
     setBusy(true);
     try {
+      // Take the number FIRST, from the database, and use that one value
+      // everywhere below: on the page, on the filed copy and on the register
+      // row. A hand-typed reference is honoured, and the unique index rejects
+      // it if it has already been used.
+      const reference = f.reference.trim() || await L.nextLetterReference(f.letterType);
       const html = buildLetterDocument({
-        letterhead: effectiveLetterhead, title, date: today(), reference: f.reference,
+        letterhead: effectiveLetterhead, title, date: today(), reference,
         body: f.body, signerName: f.signerName, signerRole: f.signerRole, signature,
       });
       let filePath = null;
       try { filePath = await L.uploadIssuedLetterHtml(html, title); } catch { /* register still records it */ }
       const saved = await L.issueLetter({
         employeeId: emp.id, letterType: f.letterType, title, letterBody: f.body,
-        letterheadId: chosenLetterhead?.id || null, requestId: f.requestId, filePath,
+        letterheadId: chosenLetterhead?.id || null, requestId: f.requestId, filePath, reference,
       });
       if (f.requestId) {
         try { await L.decideLetter(f.requestId, { status: 'issued', issuedFilePath: filePath }); } catch { /* request row may already be decided */ }
@@ -174,13 +186,13 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
       // on file. The letter itself is already issued and downloaded either way;
       // only the filing is in question, so the message says exactly that.
       try {
-        await fileToDocuments({ html, title: `${title} · ${f.reference}`, employeeId: emp.id, folderName: f.folderName });
+        await fileToDocuments({ html, title: `${title} · ${reference}`, employeeId: emp.id, folderName: f.folderName });
         flash(`Letter issued and filed to "${f.folderName}".`);
       } catch (fileErr) {
         flash(`Letter issued and downloaded, but filing to "${f.folderName}" failed: ${fileErr.message}. The copy on your computer is the only one.`, true);
       }
       onIssued(saved);
-      setF((s) => ({ ...s, body: '', instructions: '', requestId: null, caseId: null, caseField: null, refTouched: false, reference: suggestReference(s.letterType, [saved, ...(issued || [])]) }));
+      setF((s) => ({ ...s, body: '', instructions: '', requestId: null, caseId: null, caseField: null, refTouched: false, reference: '' }));
     } catch (e) { flash(e.message, true); }
     finally { setBusy(false); }
   };
@@ -222,8 +234,9 @@ function ComposeTab({ staff, letterhead, letterheads = [], flash, onIssued, pref
         </div>
 
         <div className="form-grid">
-          <div className="field"><label>Our ref <span className="muted">(auto)</span></label>
-            <input className="input" value={f.reference} onChange={(e) => setF((s) => ({ ...s, reference: e.target.value, refTouched: true }))} /></div>
+          <div className="field"><label>Our ref <span className="muted">(assigned on issue)</span></label>
+            <input className="input" value={f.reference} placeholder="e.g. HR/CONF/2026/007, leave blank to assign"
+              onChange={(e) => setF((s) => ({ ...s, reference: e.target.value, refTouched: true }))} /></div>
           <div className="field"><label>File into <span className="muted">(Documents folder)</span></label>
             <select className="select" value={f.folderName}
               onChange={(e) => { if (e.target.value === '__new__') { e.target.value = f.folderName; createFolder(); } else set('folderName', e.target.value); }}>
@@ -357,7 +370,12 @@ function IssuedTab({ issued, letterheads, flash }) {
     try {
       if (l.file_path) { window.open(await L.getLetterUrl(l.file_path), '_blank'); return; }
       const lh = letterheads.find((x) => x.id === l.letterhead_id) || letterheads.find((x) => x.is_default);
-      const html = buildLetterDocument({ letterhead: lh, title: l.title, date: L.fmtDate(l.issued_at), reference: '', body: l.body, signerName: l.issuedBy?.name || '', signerRole: '' });
+      // Reprints carry the number the letter was issued under. This used to
+      // pass '' unconditionally, so a reprinted letter came out with no
+      // reference at all — and nowhere in the product could say what it was,
+      // because the number was never stored. Letters issued before
+      // hr_letter_references.sql genuinely have none, hence the fallback.
+      const html = buildLetterDocument({ letterhead: lh, title: l.title, date: L.fmtDate(l.issued_at), reference: l.reference || '', body: l.body, signerName: l.issuedBy?.name || '', signerRole: '' });
       downloadHtml(html, `${l.title.replace(/[^a-zA-Z0-9]+/g, '-')}.html`);
     } catch (e) { flash(e.message, true); }
   };
@@ -632,7 +650,7 @@ export default function LettersApp({ staff, flash, externalPrefill = null, onPre
 
       {tab === 'compose' && (
         <ComposeTab key={prefill ? `${prefill.requestId || ''}-${prefill.employeeId || ''}-${prefill.letterType || ''}-${prefill.caseId || ''}` : 'blank'}
-          staff={staff} letterhead={defaultLetterhead} flash={flash} me={me} prefill={prefill} issued={issued} folders={folders}
+          staff={staff} letterhead={defaultLetterhead} flash={flash} me={me} prefill={prefill} folders={folders}
           confirm={confirm} onFolderCreated={(fl) => setFolders((xs) => [fl, ...xs])}
           onIssued={(l) => { setIssued((xs) => [l, ...xs]); setRequests((rs) => rs.map((r) => (r.id === l.request_id ? { ...r, status: 'issued' } : r))); setPrefill(null); }} />
       )}

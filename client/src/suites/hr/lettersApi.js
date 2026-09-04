@@ -14,6 +14,10 @@ export const updateLetterhead = (id, body) => apiPatch(`/hr/letterheads/${id}`, 
 export const deleteLetterhead = (id) => apiDelete(`/hr/letterheads/${id}`);
 export const getIssuedLetters = () => apiGet('/hr/issued-letters').then((d) => d.letters);
 export const issueLetter      = (body) => apiPost('/hr/issued-letters', body).then((d) => d.letter);
+// Minted by the database so two HR users issuing at once can't land on the same
+// number. Allocated just before the letter is built, so the reference printed
+// on the page, filed to Documents and stored on the row are all one value.
+export const nextLetterReference = (letterType) => apiPost('/hr/next-letter-reference', { letterType }).then((d) => d.reference);
 
 export const uploadLetterheadFile = async (file) => {
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
