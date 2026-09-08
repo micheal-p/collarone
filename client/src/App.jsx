@@ -41,6 +41,7 @@ const OfferPage = lazy(() => import('./pages/OfferPage.jsx'));
 const PayThanks = lazy(() => import('./pages/PayThanks.jsx'));
 const PlatformAdmin = lazy(() => import('./pages/PlatformAdmin.jsx'));
 const PlatformAnalytics = lazy(() => import('./pages/PlatformAnalytics.jsx'));
+const PlatformOverview = lazy(() => import('./pages/PlatformOverview.jsx'));
 const PlatformSupport = lazy(() => import('./pages/PlatformSupport.jsx'));
 const PostJob = lazy(() => import('./pages/careers/PostJob.jsx'));
 const Privacy = lazy(() => import('./pages/Privacy.jsx'));
@@ -261,11 +262,15 @@ export default function App() {
         }
       />
 
+      {/* Platform Control: one URL per section, so the rail links are real
+          links and a refresh lands where you were. PlatformAdmin still owns
+          the working sections (organizations, revenue, inbox, jobs, themes,
+          audit) and reads which one from the URL. */}
       <Route
         path="/platform-admin"
         element={
           <ProtectedRoute requirePlatformAdmin>
-            <PlatformAdmin />
+            <PlatformOverview />
           </ProtectedRoute>
         }
       />
@@ -284,6 +289,15 @@ export default function App() {
         element={
           <ProtectedRoute requirePlatformAdmin>
             <PlatformSupport />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/platform-admin/:section"
+        element={
+          <ProtectedRoute requirePlatformAdmin>
+            <PlatformAdmin />
           </ProtectedRoute>
         }
       />

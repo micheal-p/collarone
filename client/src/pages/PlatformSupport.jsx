@@ -57,37 +57,37 @@ export default function PlatformSupport() {
           : t.status !== 'resolved'));
 
   return (
-    <PlatformShell>
-      <section className="pc-section">
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Support tickets</h1>
-          <span className="pc-dim" style={{ fontSize: 13 }}>
-            {needsUs > 0 ? `${needsUs} waiting on us` : 'nothing waiting on us'}
-          </span>
-          <span className="pc-sec-spacer" />
+    <PlatformShell
+      title="Support"
+      subtitle={needsUs > 0 ? `${needsUs} ticket${needsUs === 1 ? '' : 's'} waiting on us. A reply lands in the customer's thread as Collarone support.` : 'Nothing waiting on us. A reply lands in the customer\'s thread as Collarone support.'}
+      actions={(
+        <div className="pc-seg" role="tablist">
           {['active', 'open', 'resolved', 'all'].map((f) => (
-            <button key={f} className={`pc-btn sm${filter === f ? ' primary' : ''}`} onClick={() => setFilter(f)}>
+            <button key={f} role="tab" aria-selected={filter === f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>
               {f === 'active' ? 'Active' : f === 'open' ? 'Needs reply' : f === 'resolved' ? 'Resolved' : 'All'}
             </button>
           ))}
         </div>
+      )}
+    >
+      <section className="pc-section">
 
         {tickets == null && <p className="pc-dim" style={{ fontSize: 13 }}>Loading…</p>}
         {tickets != null && visible.length === 0 && (
           <p className="pc-dim" style={{ fontSize: 13 }}>
-            {filter === 'active' ? 'Inbox zero — no active tickets.' : 'Nothing here.'}
+            {filter === 'active' ? 'Inbox zero. No active tickets.' : 'Nothing here.'}
           </p>
         )}
 
         {visible.map((t) => (
-          <div key={t.id} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, marginBottom: 8, overflow: 'hidden' }}>
+          <div key={t.id} className="pc-panel" style={{ marginBottom: 8, overflow: 'hidden' }}>
             <button onClick={() => openThread(t)} style={{ width: '100%', textAlign: 'left', background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', padding: '12px 14px', display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
               <span style={{ fontWeight: 600, fontSize: 13.5 }}>{t.subject}</span>
               <span className="pc-dim" style={{ fontSize: 12 }}>{orgName(t.org_id)} · {CATEGORY[t.category] || t.category}</span>
               <span className="pc-sec-spacer" />
               <span className="pc-dim" style={{ fontSize: 11.5 }}>{fmtDateTime(t.updated_at)}</span>
               <span className="pc-dim" style={{ fontSize: 11.5 }}>
-                <span className="pc-dot" style={{ background: t.status === 'open' ? '#e8b23f' : t.status === 'pending' ? 'var(--ok)' : 'var(--faint)', marginRight: 6 }} />
+                <span className="pc-dot" style={{ background: t.status === 'open' ? 'var(--warn)' : t.status === 'pending' ? 'var(--ok)' : 'var(--faint)', marginRight: 6 }} />
                 {t.status === 'open' ? 'needs reply' : t.status === 'pending' ? 'their turn' : 'resolved'}
               </span>
             </button>
@@ -95,7 +95,7 @@ export default function PlatformSupport() {
               <div style={{ padding: '0 14px 12px' }}>
                 {messages == null && <p className="pc-dim" style={{ fontSize: 12.5 }}>Loading thread…</p>}
                 {(messages || []).map((m) => (
-                  <div key={m.id} style={{ fontSize: 13, lineHeight: 1.6, padding: '7px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div key={m.id} style={{ fontSize: 13, lineHeight: 1.6, padding: '7px 0', borderTop: '1px solid var(--line)' }}>
                     <span className="pc-dim" style={{ fontSize: 11.5 }}>{m.is_platform ? 'Collarone' : 'Customer'} · {fmtDateTime(m.created_at)}: </span>
                     <span style={{ whiteSpace: 'pre-wrap' }}>{m.body}</span>
                   </div>

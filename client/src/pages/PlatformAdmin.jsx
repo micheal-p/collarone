@@ -1,18 +1,28 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { apiGet, apiPost, apiPatch, getAccessToken } from '../api/client.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { waLink } from '../lib/whatsapp.js';
 import { safeExternalUrl, EXTERNAL_LINK_REL } from '../lib/safeUrl.js';
 import { FOUNDING_ORG_ID } from '../config/org.js';
-import PlatformShell from '../components/PlatformShell.jsx';
+import PlatformShell, { usePlatformCounts } from '../components/PlatformShell.jsx';
 import { SUITES } from '../config/suites.js';
 import { useToast } from '../components/ui.jsx';
 import ThemeMockup from '../components/ThemeMockup.jsx';
 import ThemePreviewModal from '../components/ThemePreview.jsx';
 
 const GUEST_KEY = 'collarone_guest_mode';
+
+// One URL per section. Title and subtitle feed the page head in the shell.
+const SECTIONS = {
+  organizations: { title: 'Organizations', sub: 'Every workspace on the platform. Test a suite, guest in with an audit trail, manage billing.' },
+  revenue: { title: 'Revenue', sub: 'Payments awaiting confirmation, every transaction, the published price list and promo codes.' },
+  inbox: { title: 'Inbox', sub: 'Messages and demo requests from the public site, and errors from real browsers.' },
+  jobs: { title: 'Jobs board', sub: 'Companies that asked to post on the public jobs board.' },
+  themes: { title: 'Website themes', sub: 'The catalog customers pick from in the website builder, and how many live or draft sites use each.' },
+  audit: { title: 'Audit log', sub: 'Every sensitive action taken from Platform Control, most recent first.' },
+};
 
 const STATUS_LABEL = { pending_payment: 'Pending payment', active: 'Active', past_due: 'Past due', read_only: 'Read-only', suspended: 'Suspended', cancelled: 'Cancelled' };
 const AUDIT_LABEL = { confirm_payment: 'Confirmed payment', refund_transaction: 'Recorded refund', delete_org: 'Deleted organization', impersonate: 'Impersonated admin (retired)', guest_mode: 'Guested into organization', payment_gateway: 'Changed card-payment gateway' };
@@ -33,37 +43,6 @@ function SectionHead({ title, count, children }) {
       {count !== undefined && <span className="pc-sec-count">{count}</span>}
       <span className="pc-sec-spacer" />
       {children}
-    </div>
-  );
-}
-
-function StatusRow() {
-  const [live, setLive] = useState(null);
-  const [openIncident, setOpenIncident] = useState(null);
-
-  useEffect(() => {
-    fetch('/api/health').then((r) => r.json()).then(setLive).catch(() => {});
-    apiGet('/status/incidents').then((d) => setOpenIncident((d.incidents || []).find((i) => !i.resolved_at) || null)).catch(() => {});
-  }, []);
-
-  const state = live ? live.status : 'checking';
-  const color = { operational: 'var(--ok)', degraded: 'var(--warn)', down: 'var(--err)', checking: 'var(--faint)' }[state];
-  const label = { operational: 'All systems operational', degraded: 'Degraded performance', down: 'Service disruption', checking: 'Checking…' }[state];
-
-  return (
-    <div className="pc-panel" style={{ marginBottom: 36 }}>
-      <a className="pc-status" href="/status" target="_blank" rel="noreferrer">
-        <span className="pc-dot" style={{ background: color }} />
-        <span style={{ fontWeight: 550 }}>{label}</span>
-        {live && <span className="pc-mono pc-faint" style={{ fontSize: 11.5 }}>{live.responseMs}ms</span>}
-        {openIncident && (
-          <span style={{ color: 'var(--err)', fontSize: 12 }}>
-            ongoing incident since {new Date(openIncident.started_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        )}
-        <span className="pc-sec-spacer" />
-        <span className="pc-faint" style={{ fontSize: 12 }}>status page ↗</span>
-      </a>
     </div>
   );
 }
@@ -813,11 +792,12 @@ export default function PlatformAdmin() {
 
   const { flash, toastNode } = useToast();
 
-  // Section tabs — hash-synced so a refresh (or a shared link) lands on the
-  // same view. One long scroll was unusable once the panel count grew.
-  const initialTab = (window.location.hash || '').replace('#', '') || 'overview';
-  const [tab, setTabState] = useState(['overview', 'orgs', 'revenue', 'inbox', 'audit', 'jobs'].includes(initialTab) ? initialTab : 'overview');
-  const setTab = (t) => { setTabState(t); window.history.replaceState(null, '', `#${t}`); };
+  // Which section, from the URL: /platform-admin/organizations etc. The rail
+  // in PlatformShell links here. The overview and analytics are their own
+  // pages now; this component owns the sections you WORK in.
+  const { section } = useParams();
+  const tab = SECTIONS[section] ? section : null;
+  const { refreshCounts } = usePlatformCounts();
 
   const [adminIds, setAdminIds] = useState([]);
   const [sites, setSites] = useState([]);
@@ -835,7 +815,7 @@ export default function PlatformAdmin() {
         setAuditLog(a.entries); setAdminIds(ai.adminIds); setSites(s.sites); setThemes(th.themes);
       })
       .catch((e) => flash(e.message, true))
-      .finally(() => setLoading(false));
+      .finally(() => { setLoading(false); refreshCounts(); });
   };
   useEffect(load, []);
 
@@ -851,18 +831,7 @@ export default function PlatformAdmin() {
     return m;
   }, [customerProfiles]);
 
-  const activeLast24h = useMemo(() => {
-    const cutoff = Date.now() - DAY_MS;
-    return customerProfiles.filter((p) => p.last_login_at && new Date(p.last_login_at).getTime() > cutoff).length;
-  }, [customerProfiles]);
-
   const pendingTx = transactions.filter((t) => t.status === 'pending');
-  const confirmedTx = transactions.filter((t) => t.status === 'confirmed');
-  const revenueAll = confirmedTx.reduce((s2, t) => s2 + t.amount_kobo, 0);
-  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
-  const revenueThisMonth = confirmedTx
-    .filter((t) => new Date(t.confirmed_at || t.created_at).getTime() >= monthStart)
-    .reduce((s2, t) => s2 + t.amount_kobo, 0);
   const orgName = (id) => orgs.find((o) => o.id === id)?.name || (id ? id.slice(0, 8) : '—');
 
   const confirmPayment = async (txId) => {
@@ -968,60 +937,12 @@ export default function PlatformAdmin() {
     } catch (e) { flash(e.message, true); } finally { setDeleting(false); }
   };
 
-  const TAB_DEFS = [
-    ['overview', 'Overview', 0],
-    ['orgs', 'Organizations', 0],
-    ['revenue', 'Revenue', pendingTx.length],
-    ['inbox', 'Inbox', 0],
-    ['jobs', 'Jobs', 0],
-    ['audit', 'Audit', 0],
-  ];
+  if (!tab) return <Navigate to="/platform-admin" replace />;
+  const meta = SECTIONS[tab];
 
   return (
-    <PlatformShell>
-      <nav className="pc-subtabs">
-        {TAB_DEFS.map(([key, label, badge]) => (
-          <button key={key} className={`pc-subtab${tab === key ? ' active' : ''}`} onClick={() => setTab(key)}>
-            {label}{badge > 0 && <span className="pc-subtab-badge">{badge}</span>}
-          </button>
-        ))}
-      </nav>
-
-      {tab === 'overview' && (<>
-      <div className="pc-kpis" style={{ marginBottom: 10 }}>
-        <div className="pc-kpi">
-          <div className="pc-kpi-label">Organizations</div>
-          <div className="pc-kpi-value">{orgs.length}</div>
-        </div>
-        <div className="pc-kpi">
-          <div className="pc-kpi-label">Signed-up users</div>
-          <div className="pc-kpi-value">{customerProfiles.length}</div>
-        </div>
-        <div className="pc-kpi">
-          <div className="pc-kpi-label">Active, last 24h</div>
-          <div className="pc-kpi-value">{activeLast24h}</div>
-          <div className="pc-kpi-sub">from sign-in timestamps, not live presence</div>
-        </div>
-        <div className="pc-kpi">
-          <div className="pc-kpi-label">Revenue (confirmed)</div>
-          <div className="pc-kpi-value">{naira(revenueAll)}</div>
-          <div className="pc-kpi-sub pc-mono">{naira(revenueThisMonth)} this month</div>
-        </div>
-        <div className="pc-kpi">
-          <div className="pc-kpi-label">Pending payments</div>
-          <div className={`pc-kpi-value${pendingTx.length > 0 ? ' warn' : ''}`}>{pendingTx.length}</div>
-          {pendingTx.length > 0 && (
-            <div className="pc-kpi-sub pc-mono">{naira(pendingTx.reduce((s, t) => s + t.amount_kobo, 0))} awaiting</div>
-          )}
-        </div>
-      </div>
-      <p style={{ fontSize: 11.5, color: 'var(--faint)', margin: '0 0 24px' }}>
-        Page-visitor analytics live in Vercel's dashboard for this project.
-      </p>
-
-      <StatusRow />
-
-      {pendingTx.length > 0 && (
+    <PlatformShell title={meta.title} subtitle={meta.sub}>
+      {tab === 'revenue' && pendingTx.length > 0 && (
         <section className="pc-section">
           <SectionHead title="Pending payments" count={String(pendingTx.length)} />
           <div className="pc-panel pc-tablewrap">
@@ -1051,8 +972,6 @@ export default function PlatformAdmin() {
         </section>
       )}
 
-      </>)}
-
       {tab === 'inbox' && (<>
       <ContactMessagesPanel flash={flash} />
 
@@ -1071,7 +990,7 @@ export default function PlatformAdmin() {
       <JobPostersPanel flash={flash} />
       </>)}
 
-      {tab === 'orgs' && (<>
+      {tab === 'organizations' && (<>
       <section className="pc-section">
         <SectionHead title="Organizations" count={String(orgs.length)} />
         {loading && <p className="pc-dim" style={{ fontSize: 13 }}>Loading…</p>}
@@ -1174,6 +1093,10 @@ export default function PlatformAdmin() {
         )}
       </section>
 
+      <DemoSuitesPanel flash={flash} />
+      </>)}
+
+      {tab === 'themes' && (<>
       <section className="pc-section">
         <SectionHead title="Website themes" count={String(themes.length)} />
         <p style={{ fontSize: 12, color: 'var(--faint)', margin: '0 0 12px' }}>
@@ -1200,7 +1123,6 @@ export default function PlatformAdmin() {
       </section>
       {previewTheme && <ThemePreviewModal theme={previewTheme} onClose={() => setPreviewTheme(null)} />}
 
-      <DemoSuitesPanel flash={flash} />
       </>)}
 
       {tab === 'audit' && (
