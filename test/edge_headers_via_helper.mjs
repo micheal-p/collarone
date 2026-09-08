@@ -23,6 +23,7 @@ const HELPER = '_lib/callerCountry.js';
 const EDGE_HEADERS = [
   'x-vercel-ip-country',
   'cf-ipcountry',
+  'cf-ipcity',
   'x-vercel-ip-city',
   'x-vercel-ip-region',
 ];
@@ -38,7 +39,7 @@ for (const f of files) {
     if (reads) {
       failures++;
       console.log(`x client/api/${f} reads the ${h} header directly`);
-      console.log(`    use callerCountry(req) from ${HELPER} — the edge changes, the callers should not`);
+      console.log(`    use callerCountry(req) / callerCity(req) from ${HELPER} — the edge changes, the callers should not`);
     }
   }
 }

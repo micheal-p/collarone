@@ -70,15 +70,22 @@ const TryDemo = lazy(() => import('./pages/TryDemo.jsx'));
 // explicit way to still reach the tenant view when they need it.
 // One beacon per navigation, app-wide — powers the "page visitors" panel on
 // Platform Admin's analytics page. No cookies, no ids; see api/track.js.
+// The referrer travels with the FIRST beacon of a page load only. document
+// .referrer never changes across in-app navigation, so sending it every time
+// would credit a whole session's page views to the site that sent the first
+// one. Sent once, it answers "where do visits start", which is the question.
+let referrerSent = false;
 function usePageViewTracking() {
   const location = useLocation();
   useEffect(() => {
     // the operator's own control-plane browsing is not visitor insight
     if (location.pathname.startsWith('/platform-admin')) return;
+    const payload = { path: location.pathname };
+    if (!referrerSent) { referrerSent = true; if (document.referrer) payload.referrer = document.referrer; }
     fetch('/api/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: location.pathname }),
+      body: JSON.stringify(payload),
       keepalive: true,
     }).catch(() => {});
   }, [location.pathname]);

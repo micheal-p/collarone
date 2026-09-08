@@ -16,7 +16,8 @@
 // wait on this either way (see App.jsx's usePageViewTracking), so the extra
 // round-trip here costs the visitor nothing.
 import { createClient } from '@supabase/supabase-js';
-import { callerCountry } from './_lib/callerCountry.js';
+import { callerCountry, callerCity } from './_lib/callerCountry.js';
+import { deviceClass, referrerHost } from './_lib/visitorSignals.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://dxekronjsvnwmnbanlqh.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -30,6 +31,11 @@ export default async function handler(req, res) {
     // 'XX' stays the stored value for "we don't know", which is what every row
     // has said since the Vercel header stopped arriving. See _lib/callerCountry.js.
     const country = callerCountry(req) || 'XX';
+    // Anonymous dimensions, see _lib/visitorSignals.js: a device CLASS and a
+    // referring HOST are stored, the user agent and full referrer URL are not.
+    const device = deviceClass(req.headers['user-agent']);
+    const referrer = referrerHost(body.referrer);
+    const city = callerCity(req) || null;
     const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { autoRefreshToken: false, persistSession: false } });
 
     // A Content-Security-Policy violation, posted by the browser itself to the
@@ -97,10 +103,10 @@ export default async function handler(req, res) {
         await admin.from('site_visits').insert({ org_id: org.id, page: path, country });
       } else {
         // unknown/renamed slug — don't lose the visit entirely
-        await admin.from('page_views').insert({ path: `/site/${String(body.orgSlug).slice(0, 60)}:${path}`.slice(0, 200), country });
+        await admin.from('page_views').insert({ path: `/site/${String(body.orgSlug).slice(0, 60)}:${path}`.slice(0, 200), country, device, referrer, city });
       }
     } else {
-      await admin.from('page_views').insert({ path, country });
+      await admin.from('page_views').insert({ path, country, device, referrer, city });
     }
   } catch {
     // best-effort only — never surface a tracking failure to the visitor

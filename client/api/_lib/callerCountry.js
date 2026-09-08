@@ -35,3 +35,18 @@ export function callerCountry(req) {
   if (!/^[A-Z]{2}$/.test(code) || code === 'XX' || code === 'T1') return '';
   return code;
 }
+
+// Which CITY the request came from, when the edge says. Cloudflare only sends
+// cf-ipcity once the zone's "Add visitor location headers" managed transform is
+// switched on, so an empty result here most likely means that toggle is off,
+// not that the visitor is untraceable. Returns '' when the edge did not say;
+// callers store null, never a placeholder, so "no city" is never mistaken for
+// a city called Unknown in the analytics.
+export function callerCity(req) {
+  const raw = req.headers['cf-ipcity'] || req.headers['x-vercel-ip-city'] || '';
+  let city = String(raw).trim();
+  // Vercel percent-encodes its city header; Cloudflare does not.
+  try { city = decodeURIComponent(city); } catch { /* keep as sent */ }
+  if (!city || city.length > 80) return '';
+  return city;
+}

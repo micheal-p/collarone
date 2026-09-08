@@ -436,11 +436,20 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
     return { entries: data };
   }
-  if (head === 'GET /platform' && seg[1] === 'page-views') {
-    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await supabase.from('page_views').select('path, country, created_at').gte('created_at', since).not('path', 'like', '/platform-admin%').order('created_at', { ascending: false }).limit(20000);
+  // Visitor analytics come back aggregated. The old handler pulled raw rows
+  // with .limit(20000) and PostgREST capped it at 1,000, so the page silently
+  // charted the newest thousand visits and nothing else. Totals, not rows.
+  if (head === 'GET /platform' && seg[1] === 'analytics-summary') {
+    const days = Math.min(400, Math.max(1, parseInt(query.days, 10) || 30));
+    const { data, error } = await supabase.rpc('platform_analytics_summary', { p_days: days });
     if (error) fail(error.code === '42501' ? 403 : 400, error.message);
-    return { pageViews: data };
+    return { summary: data };
+  }
+  // The rail's badge numbers, one round trip.
+  if (head === 'GET /platform' && seg[1] === 'counts') {
+    const { data, error } = await supabase.rpc('platform_counts');
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { counts: data || {} };
   }
   // Promo codes + payment reminders — plain RLS writes: the promo_codes and
   // org_notices policies only admit is_platform_admin(), so no service-role
