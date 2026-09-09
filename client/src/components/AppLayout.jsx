@@ -55,6 +55,7 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
   const [sbQ, setSbQ] = useState('');
   const [sbUsers, setSbUsers] = useState([]);
   const [sbRecords, setSbRecords] = useState([]);
+  const [sbOpen, setSbOpen] = useState(false); // phone: search shown as a sheet
   const [sbIndex, setSbIndex] = useState(-1);
   const sbInputRef = useRef(null);
   const [chatUnread, setChatUnread] = useState(0);
@@ -245,7 +246,7 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
   // ⌘K / Ctrl+K focuses the search from anywhere in the workspace.
   useEffect(() => {
     const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); sbInputRef.current?.focus(); sbInputRef.current?.select(); }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSbOpen(true); setTimeout(() => { sbInputRef.current?.focus(); sbInputRef.current?.select(); }, 30); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -266,7 +267,8 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
     ...sbUsers.map((u) => ({ id: `u:${u.id}`, path: `/admin/users?q=${encodeURIComponent(u.name)}` })),
     ...sbAdmin.map((l) => ({ id: `a:${l.to}`, path: l.to })),
   ];
-  const sbClose = () => { setSbQ(''); setSbUsers([]); setSbRecords([]); setSbIndex(-1); };
+  const sbClose = () => { setSbQ(''); setSbUsers([]); setSbRecords([]); setSbIndex(-1); setSbOpen(false); };
+  const sbOpenSheet = () => { setSbOpen(true); setTimeout(() => { sbInputRef.current?.focus(); }, 30); };
   const sbKey = (e) => {
     if (e.key === 'Escape') { sbClose(); e.currentTarget.blur(); return; }
     if (!sbFlat.length) return;
@@ -344,7 +346,8 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
           )}
         </div>
 
-        <div className="sb-search" ref={sbRef} data-tour="search">
+        {sbOpen && <div className="sb-search-scrim" onClick={sbClose} />}
+        <div className={`sb-search${sbOpen ? ' sb-open' : ''}`} ref={sbRef} data-tour="search">
           <SearchIcon />
           <input
             ref={sbInputRef}
@@ -422,6 +425,12 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
         </div>
 
         <div className="sb-right">
+          {/* Phones: the search box is hidden under 820px, this opens it as a
+              sheet under the bar. Without it the command bar did not exist on
+              a phone at all. */}
+          <button className="iconbtn sb-search-toggle" aria-label="Search" title="Search" onClick={sbOpenSheet}>
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+          </button>
           {/* Labelled on purpose: as a bare glyph this was the least
               discoverable thing in the product, nobody knew chat existed. */}
           <button className="iconbtn iconbtn-labelled" aria-label={chatUnread ? `Team chat, ${chatUnread} unread` : 'Team chat'} title="Team chat" onClick={() => go('/chat')}>

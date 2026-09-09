@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useToast, EmptyState } from '../components/ui.jsx';
+import AppLayout from '../components/AppLayout.jsx';
 import * as L from '../suites/leave/leaveApi.js';
 import * as P from '../suites/procurement/procurementApi.js';
 import * as F from '../suites/finance/financeApi.js';
@@ -27,7 +28,7 @@ import * as F from '../suites/finance/financeApi.js';
    ========================================================================= */
 
 const CSS = `
-  .ap-wrap { max-width: 940px; margin: 0 auto; padding: 26px 20px 60px; }
+  .ap-wrap { max-width: 940px; }
   .ap-h1 { font-size: 22px; font-weight: 680; margin: 0 0 4px; }
   .ap-sub { font-size: 13.5px; color: var(--dim); margin: 0 0 22px; }
   .ap-group { margin-bottom: 26px; }
@@ -145,7 +146,10 @@ export default function Approvals() {
   const total = useMemo(() => (groups || []).reduce((n, g) => n + g.items.length, 0), [groups]);
   const live = (groups || []).filter((g) => g.items.length > 0);
 
+  // Inside AppLayout: this page had no top bar and no rail, so on a phone the
+  // only way out was the browser's back button.
   return (
+    <AppLayout breadcrumb={[{ label: 'Home', to: '/' }, { label: 'Approvals' }]}>
     <div className="ap-wrap">
       <style>{CSS}</style>
       {toastNode}
@@ -200,5 +204,6 @@ export default function Approvals() {
         );
       })}
     </div>
+    </AppLayout>
   );
 }

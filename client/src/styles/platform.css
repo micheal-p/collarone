@@ -419,3 +419,12 @@
 .pc-event-what { font-size: 13.5px; }
 .pc-event-what b { font-weight: 600; }
 .pc-event-detail { font-size: 12.5px; color: var(--dim); margin-top: 2px; }
+
+/* Phone: the back button takes its own row in a detail head, so the title
+   is not squeezed beside it. */
+@media (max-width: 900px) {
+  .pc-detail-head { padding: 12px 14px 14px; }
+  .pc-thread-back, .pc-thread-head .pc-thread-back { width: 100%; justify-content: flex-start; order: -1; margin-bottom: 2px; }
+  .pc-detail-head > div { flex-basis: 100%; }
+  .pc-detail-actions { width: 100%; }
+}
