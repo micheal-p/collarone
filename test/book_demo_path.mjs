@@ -23,7 +23,9 @@ const api = read('client/src/api/supabaseApi.js');
 const demo = read('client/src/api/demo.js');
 const sql = read('supabase/demo_requests.sql');
 const landing = read('client/src/pages/Landing.jsx');
-const inbox = read('client/src/pages/PlatformAdmin.jsx');
+// The inbox moved into its own file when Platform Control was split into
+// sections (Sept 2026); the demo request still has to be tellable apart there.
+const inbox = read('client/src/pages/platform/Inbox.jsx');
 
 let failures = 0;
 const need = (ok, what) => { if (!ok) { failures++; console.log(`x ${what}`); } };
@@ -56,19 +58,21 @@ need(/p_location:/.test(api), 'the /book-demo route no longer passes the address
 // `{false && (` left the identifier in the file and the test went green while
 // the address had vanished from the screen. Same substring trap as the CSP
 // test's "present in the policy" check.
-need(/\{m\.location && \(/.test(inbox),
-  'PlatformAdmin.jsx no longer conditionally renders the address');
-need(/<strong>Visit:<\/strong>/.test(inbox),
+need(/\{open\.location && /.test(inbox),
+  'Inbox.jsx no longer conditionally renders the address');
+need(/<dt>Visit address<\/dt>/.test(inbox),
   'the address row lost its label, so nobody knows where to go');
+need(/maps\.google\.com\/\?q=\$\{encodeURIComponent\(open\.location\)\}/.test(inbox),
+  'the address is no longer a maps link, and whoever picks this up will look it up anyway');
 
 // The button. Without an entry point the page exists and nobody finds it.
 need(/to="\/book-demo"/.test(landing), 'the landing page has no link to /book-demo');
 
 // The last link in the chain, and the quietest one to break.
 need(/kind === 'demo'/.test(inbox),
-  'PlatformAdmin.jsx no longer distinguishes demo requests, so they arrive invisible');
+  'Inbox.jsx no longer distinguishes demo requests, so they arrive invisible');
 need(/preferred_at/.test(inbox),
-  'PlatformAdmin.jsx no longer shows the requested time, which is the whole point of the booking');
+  'Inbox.jsx no longer shows the requested time, which is the whole point of the booking');
 
 if (failures) { console.error(`\nFAILED, ${failures} break(s) in the Book a demo path`); process.exit(1); }
 console.log('Book a demo is wired end to end: button, page, API, demo mode, database, inbox. ALL PASSED');

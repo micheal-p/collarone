@@ -61,8 +61,8 @@ for (const [input, expected] of cases) {
 const SITES = [
   ['client/src/pages/careers/CareersApply.jsx', 'org.website', /(?:href|to)=\{org\.website\}/],
   ['client/src/suites/hr/RecruitingApp.jsx', 'app.candidate.portfolio_url', /href=\{app\.candidate\.portfolio_url\}/],
-  ['client/src/pages/PlatformAdmin.jsx', 'org.external_website_url', /href=\{org\.external_website_url\}/],
-  ['client/src/pages/PlatformAdmin.jsx', 'p.website', /href=\{\/\^https\?/],
+  ['client/src/pages/platform/shared.jsx', 'org.external_website_url', /href=\{org\.external_website_url\}/],
+  ['client/src/pages/platform/Jobs.jsx', 'p.website', /href=\{p\.website\}/],
   ['client/src/pages/admin/website/WebsiteBuilder.jsx', 'org.externalWebsiteUrl', /href=\{org\.externalWebsiteUrl\}/],
 ];
 for (const [file, field, rawPattern] of SITES) {
