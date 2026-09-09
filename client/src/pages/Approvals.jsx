@@ -65,7 +65,7 @@ function waitingFor(iso) {
 
 /* Each source is a small adapter over a suite's OWN api module. Adding a
    fourth approval type later is one entry here, not a new page. */
-const SOURCES = [
+export const APPROVAL_SOURCES = [
   {
     key: 'leave',
     label: 'Leave requests',
@@ -109,8 +109,8 @@ export default function Approvals() {
   const [rowErr, setRowErr] = useState({});
 
   const load = useCallback(async () => {
-    const settled = await Promise.allSettled(SOURCES.map((s) => s.load()));
-    setGroups(SOURCES.map((s, i) => ({
+    const settled = await Promise.allSettled(APPROVAL_SOURCES.map((s) => s.load()));
+    setGroups(APPROVAL_SOURCES.map((s, i) => ({
       source: s,
       // A rejected source means "you do not have this suite, or may not approve
       // in it". That is a section that does not exist, not an error to shout

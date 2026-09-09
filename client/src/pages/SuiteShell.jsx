@@ -1,5 +1,6 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { recordRecent } from '../lib/recent.js';
 import { apiGet } from '../api/client.js';
 import { SUITE_META } from '../config/suites.js';
 import AppLayout from '../components/AppLayout.jsx';
@@ -46,6 +47,8 @@ export default function SuiteShell() {
     apiGet(`/suites/${key}`)
       .then((d) => {
         setState({ loading: false, suite: d.suite, access: d.access, error: null });
+        // "Pick up where you left off" on the home page.
+        recordRecent(user?.id, { name: d.suite?.name || key, path: `/suite/${key}`, tint: SUITE_META[key]?.tint });
         // First visit only, and never mid-task: the tour opens on arrival or
         // not at all.
         try { if (seenKey && !localStorage.getItem(seenKey)) setTourOpen(true); } catch { /* private mode */ }

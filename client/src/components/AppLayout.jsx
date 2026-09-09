@@ -7,6 +7,7 @@ import { SUITE_META, PINNED_TOOLS, FAMILIES, SUITE_FAMILY } from '../config/suit
 import SuiteIcon from './SuiteIcon.jsx';
 import NotificationBell from './NotificationBell.jsx';
 import logoMark from '../assets/collarone-mark.svg';
+import { searchRecords } from '../lib/commandSearch.js';
 
 const initials = (name = '') =>
   name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('') || '?';
@@ -53,6 +54,9 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
   const [suites, setSuites] = useState([]);
   const [sbQ, setSbQ] = useState('');
   const [sbUsers, setSbUsers] = useState([]);
+  const [sbRecords, setSbRecords] = useState([]);
+  const [sbIndex, setSbIndex] = useState(-1);
+  const sbInputRef = useRef(null);
   const [chatUnread, setChatUnread] = useState(0);
   const [guestMode, setGuestMode] = useState(() => {
     // localStorage (matching where the auth session lives) — a guest marker
@@ -226,13 +230,51 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
     return () => clearTimeout(t);
   }, [sbQ, isAdmin]);
 
+  // Records, not only suites and people: tasks, customers, documents and
+  // invoices from the suites this person can open. Debounced, allSettled, and
+  // each suite's own api module, so RLS decides what comes back.
+  useEffect(() => {
+    const q = sbQ.trim();
+    if (q.length < 2) { setSbRecords([]); return; }
+    const t = setTimeout(() => {
+      searchRecords(q, suites.filter((x) => x.openable).map((x) => x.key)).then((rows) => setSbRecords(rows)).catch(() => setSbRecords([]));
+    }, 220);
+    return () => clearTimeout(t);
+  }, [sbQ, suites]);
+
+  // ⌘K / Ctrl+K focuses the search from anywhere in the workspace.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); sbInputRef.current?.focus(); sbInputRef.current?.select(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  useEffect(() => { setSbIndex(-1); }, [sbQ]);
+
   const sbSuites = sbQ.trim()
     ? suites.filter((s) => new RegExp(sbQ.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(s.name)).slice(0, 4)
     : [];
   const sbAdmin = isAdmin && sbQ.trim()
     ? ADMIN_LINKS.filter((l) => new RegExp(sbQ.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(l.label))
     : [];
-  const sbHasResults = sbUsers.length > 0 || sbSuites.length > 0 || sbAdmin.length > 0;
+  const sbHasResults = sbUsers.length > 0 || sbSuites.length > 0 || sbAdmin.length > 0 || sbRecords.length > 0;
+  // One flat list in display order, so the arrow keys walk every group.
+  const sbFlat = [
+    ...sbSuites.map((x) => ({ id: `s:${x.key}`, path: `/suite/${x.key}` })),
+    ...sbRecords.map((r) => ({ id: `r:${r.id}`, path: r.path })),
+    ...sbUsers.map((u) => ({ id: `u:${u.id}`, path: `/admin/users?q=${encodeURIComponent(u.name)}` })),
+    ...sbAdmin.map((l) => ({ id: `a:${l.to}`, path: l.to })),
+  ];
+  const sbClose = () => { setSbQ(''); setSbUsers([]); setSbRecords([]); setSbIndex(-1); };
+  const sbKey = (e) => {
+    if (e.key === 'Escape') { sbClose(); e.currentTarget.blur(); return; }
+    if (!sbFlat.length) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSbIndex((i) => (i + 1) % sbFlat.length); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setSbIndex((i) => (i <= 0 ? sbFlat.length - 1 : i - 1)); }
+    else if (e.key === 'Enter') { e.preventDefault(); const pick = sbFlat[sbIndex >= 0 ? sbIndex : 0]; if (pick) { sbClose(); go(pick.path); } }
+  };
+  const sbActive = (id) => (sbIndex >= 0 && sbFlat[sbIndex]?.id === id ? ' active' : '');
 
   const go = (path) => { setDrawer(false); nav(path); };
 
@@ -305,19 +347,23 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
         <div className="sb-search" ref={sbRef} data-tour="search">
           <SearchIcon />
           <input
-            placeholder="Search suites, people and settings"
+            ref={sbInputRef}
+            placeholder="Search people, records, suites and settings"
             aria-label="Search"
+            role="combobox"
+            aria-expanded={Boolean(sbQ)}
             value={sbQ}
             onChange={(e) => setSbQ(e.target.value)}
-            onKeyDown={(e) => e.key === 'Escape' && (setSbQ(''), setSbUsers([]))}
+            onKeyDown={sbKey}
           />
+          {!sbQ && <kbd className="sb-kbd" aria-hidden="true">{navigator.platform?.startsWith('Mac') ? '⌘K' : 'Ctrl K'}</kbd>}
           {sbQ && (
-            <div className="sb-results">
+            <div className="sb-results" role="listbox">
               {sbSuites.length > 0 && (
                 <div className="sb-group">
                   <div className="sb-group-label">Suites</div>
                   {sbSuites.map((s) => (
-                    <button key={s.key} className="sb-result" onClick={() => { setSbQ(''); go(`/suite/${s.key}`); }}>
+                    <button key={s.key} className={`sb-result${sbActive(`s:${s.key}`)}`} onClick={() => { sbClose(); go(`/suite/${s.key}`); }}>
                       <span className="sb-result-icon" style={{ background: SUITE_META[s.key]?.tint || 'var(--brand)' }}>
                         <SuiteIcon name={SUITE_META[s.key]?.icon || 'grid'} size={13} color="#fff" />
                       </span>
@@ -326,11 +372,27 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
                   ))}
                 </div>
               )}
+              {sbRecords.length > 0 && (
+                <div className="sb-group">
+                  <div className="sb-group-label">Records</div>
+                  {sbRecords.map((r) => (
+                    <button key={r.id} className={`sb-result${sbActive(`r:${r.id}`)}`} onClick={() => { sbClose(); go(r.path); }}>
+                      <span className="sb-result-icon" style={{ background: SUITE_META[r.suite]?.tint || 'var(--brand)' }}>
+                        <SuiteIcon name={SUITE_META[r.suite]?.icon || 'grid'} size={13} color="#fff" />
+                      </span>
+                      <span className="sb-result-info">
+                        <span className="sb-result-name">{r.title}</span>
+                        <span className="sb-result-sub">{r.sub}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {sbUsers.length > 0 && (
                 <div className="sb-group">
                   <div className="sb-group-label">People</div>
                   {sbUsers.map((u) => (
-                    <button key={u.id} className="sb-result" onClick={() => { setSbQ(''); go(`/admin/users?q=${encodeURIComponent(u.name)}`); }}>
+                    <button key={u.id} className={`sb-result${sbActive(`u:${u.id}`)}`} onClick={() => { sbClose(); go(`/admin/users?q=${encodeURIComponent(u.name)}`); }}>
                       <span className="avatar sm" style={{ flexShrink: 0 }}>
                         {u.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()}
                       </span>
@@ -346,14 +408,14 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
                 <div className="sb-group">
                   <div className="sb-group-label">Administration</div>
                   {sbAdmin.map((l) => (
-                    <button key={l.to} className="sb-result" onClick={() => { setSbQ(''); go(l.to); }}>
+                    <button key={l.to} className={`sb-result${sbActive(`a:${l.to}`)}`} onClick={() => { sbClose(); go(l.to); }}>
                       <span className="sb-result-name">{l.label}</span>
                     </button>
                   ))}
                 </div>
               )}
               {!sbHasResults && (
-                <div className="sb-no-results">No results for "{sbQ}"</div>
+                <div className="sb-no-results">{sbQ.trim().length < 2 ? 'Keep typing to search records too.' : `No results for "${sbQ}"`}</div>
               )}
             </div>
           )}

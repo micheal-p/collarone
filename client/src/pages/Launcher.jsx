@@ -8,6 +8,8 @@ import { FOUNDING_ORG_ID } from '../config/org.js';
 import AppLayout from '../components/AppLayout.jsx';
 import SuiteIcon from '../components/SuiteIcon.jsx';
 import ProductTour, { tourSeen } from '../components/ProductTour.jsx';
+import { QuickActions, RecentRow, TodayStrip, useToday } from './home/Today.jsx';
+import { recordRecent } from '../lib/recent.js';
 
 /* ---- First-run setup checklist --------------------------------------------
    A fresh workspace used to greet its owner with locked tiles and empty
@@ -317,6 +319,9 @@ export default function Launcher() {
     return top ? top[0] : null;
   })();
 
+  // What is waiting on this person today, from the suites they can open.
+  const todayCards = useToday({ suites, isAdmin, enabled: !loading });
+
   const core = suites.filter((s) => s.tier === 'core');
   const extended = suites.filter((s) => s.tier === 'extended');
   const grantedCount = suites.filter((s) => s.granted).length;
@@ -347,6 +352,14 @@ export default function Launcher() {
 
       {err && <div className="error-text">{err}</div>}
 
+      {!loading && (
+        <section className="home-today" aria-label="Today">
+          <QuickActions suites={suites} isAdmin={isAdmin} />
+          <TodayStrip cards={todayCards} />
+          <RecentRow userId={user?.id} />
+        </section>
+      )}
+
       {!loading && isAdmin && user?.org?.id && user.org.id !== FOUNDING_ORG_ID && (
         <SetupChecklist orgId={user.org.id} nav={nav} />
       )}
@@ -357,7 +370,7 @@ export default function Launcher() {
         <>
           <div className="suite-group">
             <div className="group-head"><h2>{tierLabel.core}</h2><span className="group-line" /></div>
-            <div className="tile-grid" data-tour="tiles">{core.map((s, i) => <SuiteTile key={s.key} s={s} index={i} reduce={reduce} commonRole={commonRole} onOpen={(x) => { localStorage.setItem(`co-setup-opened:${user?.org?.id}`, '1'); nav(`/suite/${x.key}`); }} />)}</div>
+            <div className="tile-grid" data-tour="tiles">{core.map((s, i) => <SuiteTile key={s.key} s={s} index={i} reduce={reduce} commonRole={commonRole} onOpen={(x) => { localStorage.setItem(`co-setup-opened:${user?.org?.id}`, '1'); recordRecent(user?.id, { name: x.name, path: `/suite/${x.key}`, tint: SUITE_META[x.key]?.tint }); nav(`/suite/${x.key}`); }} />)}</div>
           </div>
           <div className="suite-group">
             <div className="group-head"><h2>{tierLabel.extended}</h2><span className="group-line" /></div>
