@@ -52,9 +52,13 @@
 .pc a { color: inherit; text-decoration: none; }
 
 /* ---- rail ------------------------------------------------------------- */
+/* Fixed, not sticky. Sticky inside the app's flex root let the rail scroll
+   away with long pages (the founder: "the whole page is growing with the
+   content, so the menu scrolls away"). Fixed ignores whatever the ancestors
+   do; the body takes a left margin of the rail's width instead. */
 .pc-rail {
   width: var(--rail-w); flex: none;
-  position: sticky; top: 0; height: 100vh;
+  position: fixed; top: 0; left: 0; height: 100vh; z-index: 40;
   display: flex; flex-direction: column;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 30%), var(--rail-bg);
   color: var(--rail-text);
@@ -99,7 +103,7 @@
 .pc-rail-user button:hover:not(:disabled) { color: #fff; background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.18); }
 
 /* ---- main ------------------------------------------------------------- */
-.pc-body { flex: 1; min-width: 0; }
+.pc-body { flex: 1; min-width: 0; margin-left: var(--rail-w); }
 .pc-topbar { display: none; }
 .pc-main { max-width: 1240px; margin: 0 auto; padding: 28px 32px 96px; }
 .pc-page-head { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
@@ -257,7 +261,8 @@
   .pc-topbar .pc-brand { padding: 0; }
   .pc-topbar-menu { appearance: none; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--rail-line); color: #fff; border-radius: 9px; width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer; }
   .pc-topbar-title { margin-left: auto; font-size: 13px; color: var(--rail-text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pc-rail { position: fixed; top: 0; left: 0; z-index: 60; transform: translateX(-100%); transition: transform 0.2s ease; box-shadow: none; }
+  .pc-body { margin-left: 0; }
+  .pc-rail { z-index: 60; transform: translateX(-100%); transition: transform 0.2s ease; box-shadow: none; }
   .pc-rail.open { transform: none; box-shadow: 20px 0 60px rgba(10, 14, 26, 0.35); }
   .pc-rail-scrim { position: fixed; inset: 0; background: rgba(10, 14, 26, 0.4); z-index: 55; }
   .pc-main { padding: 20px 16px 80px; }
@@ -277,4 +282,46 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .pc *, .pc *::before, .pc *::after { transition: none !important; }
+}
+
+/* ---- support inbox: queue left, conversation right ------------------- */
+.pc-split { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: 12px; align-items: start; }
+.pc-list { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-sm); overflow: hidden; max-height: calc(100vh - 160px); overflow-y: auto; }
+.pc-list-item {
+  appearance: none; width: 100%; text-align: left; background: none; border: 0; border-top: 1px solid var(--line);
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; font: inherit; color: var(--text);
+  transition: background 0.12s ease;
+}
+.pc-list-item:first-child { border-top: 0; }
+.pc-list-item:hover { background: var(--tint); }
+.pc-list-item.active { background: rgba(255, 91, 31, 0.07); box-shadow: inset 3px 0 0 var(--accent); }
+.pc-list-main { min-width: 0; flex: 1; display: grid; gap: 2px; }
+.pc-list-title { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-list-sub { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-list-when { font-size: 11.5px; color: var(--faint); flex: none; font-variant-numeric: tabular-nums; }
+
+.pc-thread { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; min-height: 420px; max-height: calc(100vh - 160px); }
+.pc-thread-head { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.pc-thread-back { display: none; }
+.pc-thread-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--dim); margin-top: 5px; }
+.pc-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; background: var(--tint); }
+.pc-msg { max-width: min(78%, 620px); align-self: flex-start; }
+.pc-msg.ours { align-self: flex-end; }
+.pc-msg-body { background: var(--panel); border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; padding: 9px 13px; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pc-msg.ours .pc-msg-body { background: var(--text); color: #fff; border-color: var(--text); border-radius: 14px 14px 4px 14px; }
+.pc-msg-meta { font-size: 11px; color: var(--faint); margin: 4px 6px 0; }
+.pc-msg.ours .pc-msg-meta { text-align: right; }
+.pc-composer { border-top: 1px solid var(--line); padding: 12px 14px 14px; display: grid; gap: 8px; }
+.pc-composer textarea { resize: vertical; min-height: 44px; line-height: 1.5; }
+.pc-composer-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pc-empty-wide { max-width: 560px; }
+.pc-empty-wide p { color: var(--dim); margin: 6px 0 0; font-size: 13.5px; line-height: 1.6; }
+
+@media (max-width: 900px) {
+  .pc-split { grid-template-columns: 1fr; }
+  .pc-split.has-open .pc-list { display: none; }
+  .pc-split:not(.has-open) .pc-thread { display: none; }
+  .pc-thread { max-height: none; }
+  .pc-thread-back { display: inline-flex; }
+  .pc-list { max-height: none; }
 }
