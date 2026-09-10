@@ -481,6 +481,12 @@ export default function Landing() {
             </button>
           </div>
         </div>
+      </nav>
+      {/* The menu and its scrim live OUTSIDE <nav> on purpose. The nav has
+          backdrop-filter, which makes it the containing block for any
+          position:fixed descendant — so the scrim was sized to the nav
+          instead of the screen, covering the burger and every menu link.
+          A tap then hit the scrim and closed the menu it had just opened. */}
         <AnimatePresence>
           {navOpen && (
             <motion.div
@@ -510,7 +516,6 @@ export default function Landing() {
             </motion.div>
           )}
         </AnimatePresence>
-      </nav>
 
       <header
         className="cl-hero cl-dark cl-hero-dark"

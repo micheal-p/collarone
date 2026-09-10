@@ -63,10 +63,18 @@
    (z-index 30) so the menu itself stays live. */
 .cl-nav-scrim { display: none; }
 @media (max-width: 780px) {
-  .cl-nav-scrim { display: block; position: fixed; inset: 0; z-index: 29; background: rgba(10,14,26,0.32); }
+  /* Below the nav bar (z-index 30) so the burger stays tappable, and below the
+     menu so its links do. Now a sibling of <nav>, "fixed" finally means the
+     screen: inside the nav it was clipped to the nav's own box. */
+  .cl-nav-scrim { display: block; position: fixed; inset: 0; z-index: 28; background: rgba(10,14,26,0.32); }
 }
 @media (max-width: 780px) {
-  .cl-mobile-menu { display: block; background: #fff; border-bottom: 1px solid var(--line);
+  /* Hangs under the nav bar rather than growing it: no layout shift on the
+     hero, and it paints above the scrim. Scrolls itself if it ever outgrows
+     a short screen. */
+  .cl-mobile-menu { display: block; position: fixed; top: 68px; left: 0; right: 0; z-index: 31;
+    max-height: calc(100dvh - 68px); overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: #fff; border-bottom: 1px solid var(--line);
     box-shadow: var(--shadow-md); padding: 8px 20px 18px; }
   .cl-mm-link { display: block; padding: 13px 4px; font-size: 16px; font-weight: 600; color: var(--text);
     text-decoration: none; border-bottom: 1px solid var(--line); }

@@ -176,6 +176,9 @@ jobs:
       - name: Visitor analytics are aggregated in the database, never counted from a capped sample
         run: node test/platform_analytics_aggregate.mjs
 
+      - name: Full-screen overlays are not trapped inside a blurred ancestor
+        run: node test/overlay_containing_block.mjs
+
       # These seven were written as guards but never wired into this file, so
       # they had been passing on nobody's machine for weeks. A test that does
       # not run on every push is documentation, not a guard.
