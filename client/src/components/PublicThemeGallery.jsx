@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { getThemes } from '../pages/admin/website/websiteApi.js';
@@ -8,9 +8,41 @@ import { getThemes } from '../pages/admin/website/websiteApi.js';
 // /themes = all + filters). The heavy preview modal is lazy-loaded so it never
 // weighs down the page that only wants to show cards.
 const ThemePreviewModal = lazy(() => import('./ThemePreview.jsx'));
-// Live theme render for the card. Lazy so the heavy theme code loads only when
-// a card is on screen; until then MiniMock stands in as the placeholder.
+// Live theme render for the card. Lazy-imported AND gated on visibility, which
+// are two different things: React.lazy starts fetching the moment the component
+// RENDERS, and these cards render as soon as the page does, however far down
+// the section sits. So on the landing page every thumbnail mounted immediately,
+// each one injecting its theme's Google Fonts stylesheet and its sample
+// photographs — measured at 404KB of fonts across 28 requests plus 335KB of
+// images, for cards scaled to about a quarter size where the typeface cannot be
+// told apart anyway. WhenVisible defers the mount until the card is near the
+// viewport; MiniMock, a few divs, stands in until then.
 const ThemeThumb = lazy(() => import('./ThemeThumb.jsx'));
+
+// Mounts its children once the card has come within `margin` of the viewport,
+// then stops watching. No IntersectionObserver (a very old browser, or a test
+// environment) means show it immediately — degrading to today's behaviour is
+// the right failure here, never a blank card.
+//
+// The wrapper is a plain block and is ALWAYS rendered. The first version gave
+// it `display: contents`, which generates no box at all, so there was nothing
+// for the observer to observe: it never fired, the placeholder never gave way,
+// and scrolling to the section showed five grey mocks with no error anywhere.
+// Same fail-silent shape as the payroll gate and the login guard — the code
+// ran, observed nothing, and reported success.
+function WhenVisible({ margin = '400px', placeholder, children }) {
+  const ref = useRef(null);
+  const [show, setShow] = useState(() => typeof IntersectionObserver === 'undefined');
+  useEffect(() => {
+    if (show || !ref.current) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { setShow(true); io.disconnect(); }
+    }, { rootMargin: margin });
+    io.observe(ref.current);
+    return () => io.disconnect();
+  }, [show, margin]);
+  return <div ref={ref}>{show ? children : placeholder}</div>;
+}
 
 const CATS = [
   { key: 'all', label: 'All' },
@@ -102,9 +134,11 @@ export default function PublicThemeGallery({ limit, seeMoreHref, showFilters = t
         {shown.map((t, i) => (
           <motion.div key={t.key} className="ptg-card" initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: '-40px' }} transition={{ duration: 0.5, delay: (i % 3) * 0.06 }}>
             <button type="button" className="ptg-mock" onClick={() => setPreview(t)} aria-label={`Preview the ${t.name} theme`}>
-              <Suspense fallback={<MiniMock theme={t} />}>
-                <ThemeThumb theme={t} />
-              </Suspense>
+              <WhenVisible placeholder={<MiniMock theme={t} />}>
+                <Suspense fallback={<MiniMock theme={t} />}>
+                  <ThemeThumb theme={t} />
+                </Suspense>
+              </WhenVisible>
               <span className="ptg-mock-hover">Preview live →</span>
             </button>
             <div className="ptg-meta">

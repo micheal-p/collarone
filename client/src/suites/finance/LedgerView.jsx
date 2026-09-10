@@ -70,7 +70,7 @@ function EntryModal({ accounts, onClose, onSaved, onError }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal wide" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 760 }}>
         <div className="modal-head"><h3>New journal entry</h3>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button></div>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">×</button></div>
         <form onSubmit={submit} className="modal-body">
           <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 12, marginBottom: 14 }}>
             <div className="field"><label htmlFor="je-date">Date</label>

@@ -179,6 +179,9 @@ jobs:
       - name: Full-screen overlays are not trapped inside a blurred ancestor
         run: node test/overlay_containing_block.mjs
 
+      - name: The shipped fonts can draw a Nigerian customer's name
+        run: node test/font_covers_names.mjs
+
       # These seven were written as guards but never wired into this file, so
       # they had been passing on nobody's machine for weeks. A test that does
       # not run on every push is documentation, not a guard.
