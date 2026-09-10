@@ -1285,3 +1285,15 @@ textarea.input { padding: 12px 14px; }
   .content { overflow-x: clip; }
   .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
+
+/* 6. The drawer opened as a 68px strip on phones whenever the rail had been
+   collapsed on a desktop. The collapse is remembered in localStorage, and two
+   later rules (.rail-collapsed at 68px, unconditional and again under 1100px)
+   beat the ≤820 rule that widens it. On a phone the drawer is the whole menu,
+   collapsed or not; that state belongs to desktops. */
+@media (max-width: 820px) {
+  .rail, .rail-collapsed, .rail.rail-drawer { width: min(300px, 84vw); }
+  .rail-collapsed .rail-label, .rail-collapsed .rail-group, .rail-collapsed .rail-divider { display: revert; }
+  .rail-collapsed .rail-item { justify-content: flex-start; padding: 0 13px; }
+  .rail-collapsed .rail-foot { display: block; }
+}

@@ -279,6 +279,12 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
   const sbActive = (id) => (sbIndex >= 0 && sbFlat[sbIndex]?.id === id ? ' active' : '');
 
   const go = (path) => { setDrawer(false); nav(path); };
+  // "Collapsed" is a desktop preference remembered in localStorage. On a phone
+  // the drawer IS the menu, so an open drawer always renders the full rail:
+  // groups, labels and footer. Without this, a founder who had collapsed the
+  // rail on a laptop got a 68px strip of icons over a dimmed page on their
+  // phone and, reasonably, concluded the menu was broken.
+  const railExpanded = railOpen || drawer;
 
   return (
     <div className="m365">
@@ -532,10 +538,10 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
               the same vocabulary the customer met when they signed up.
               Collapsed rail stays flat: there is no room for headings, and
               icons are the whole point of that mode. */}
-          {openable.length > 0 && !railOpen && openable.map((s) => (
+          {openable.length > 0 && !railExpanded && openable.map((s) => (
             <RailItem key={s.key} to={`/suite/${s.key}`} suiteKey={s.key} label={s.name} onClick={() => setDrawer(false)} />
           ))}
-          {openable.length > 0 && railOpen && suiteGroups.map(({ family, items }) => (
+          {openable.length > 0 && railExpanded && suiteGroups.map(({ family, items }) => (
             <div key={family.key} className="rail-fam">
               <button
                 type="button"
@@ -580,7 +586,7 @@ export default function AppLayout({ breadcrumb = [], title, commandBar, children
               often enough to deserve a permanent home: seat credits and how
               many staff they have. Owners only; staff cannot buy anything and
               should not be nudged to. */}
-          {railOpen && isAdmin && <RailFooter upsell={upsell} onGo={() => setDrawer(false)} />}
+          {railExpanded && isAdmin && <RailFooter upsell={upsell} onGo={() => setDrawer(false)} />}
         </nav>
 
         <main className="content">
