@@ -60,6 +60,12 @@ begin
   on conflict (org_id, code) do nothing;
 end;
 $$;
+-- Definer, writes, and takes the organisation as an argument — so left callable
+-- it would let any signed-in person insert an account into somebody else's
+-- chart. Nothing outside this file needs it: the posting triggers are
+-- themselves definer and call it as the owner. Caught by
+-- test/definer_org_scope.mjs, which is exactly the shape it watches for.
+revoke execute on function public.seed_ledger_accounts_extra(uuid) from public, anon, authenticated;
 
 do $$
 declare o record;
