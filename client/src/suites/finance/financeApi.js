@@ -4,6 +4,7 @@ import { privateFileUrl } from '../../lib/privateFile.js';
 
 export const getCategories  = () => apiGet('/finance/categories').then((d) => d.categories);
 export const createCategory = (body) => apiPost('/finance/categories', body).then((d) => d.category);
+export const updateCategory = (id, body) => apiPatch(`/finance/categories/${id}`, body).then((d) => d.category);
 
 export const getExpenses   = () => apiGet('/finance/expenses').then((d) => d.expenses);
 export const createExpense = (body) => apiPost('/finance/expenses', body).then((d) => d.expense);
@@ -28,6 +29,26 @@ export const fmtDate = (d) => d
   : '—';
 
 // ---- Bank reconciliation -----------------------------------------------------
+// Opening balances, the cash position, and posting a bank-only movement.
+// All three exist because the ledger now receives everything the business
+// does; see supabase/finance_auto_posting.sql.
+export const getOpeningBalances = () => apiGet('/finance/opening-balances').then((d) => d.opening);
+export const setOpeningBalances = (body) => apiPost('/finance/opening-balances', body);
+export const getCashPosition = () => apiGet('/finance/cash').then((d) => d.cash);
+export const postBankLineToBooks = (id, code, note) => apiPost(`/finance/bank-lines/${id}/post`, { code, note });
+
+// The accounts an expense category can be filed under. Codes come from the
+// seeded chart in finance_ledger.sql.
+export const EXPENSE_ACCOUNTS = [
+  ['5000', 'Cost of sales'],
+  ['6000', 'Salaries & wages'],
+  ['6100', 'Rent'],
+  ['6200', 'Utilities & diesel'],
+  ['6300', 'Transport & logistics'],
+  ['6400', 'Bank charges'],
+  ['6900', 'General & administrative'],
+];
+
 export const getBankLines = () => apiGet('/finance/bank-lines').then((d) => d.lines);
 export const importBankLines = (rows) => apiPost('/finance/bank-lines', { rows }).then((d) => d.lines);
 export const matchBankLine = (id, body) => apiPatch(`/finance/bank-lines/${id}`, body).then((d) => d.line);

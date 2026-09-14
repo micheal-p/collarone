@@ -5,6 +5,18 @@ import { useToast, useConfirm, Modal, EmptyState, searchMatcher, usePagedList, P
 import { todayISO } from '../../lib/today.js';
 
 const CSS = `
+  .fn-hint { display: block; font-size: 12px; color: var(--text-3); margin-top: 4px; line-height: 1.45; }
+  .fn-cash { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 14px; }
+  .fn-cash-card { flex: 1 1 170px; background: var(--surface); border: 1px solid var(--line); border-radius: 13px; padding: 12px 15px; }
+  .fn-cash-l { font-size: 12px; color: var(--text-2); }
+  .fn-cash-v { font-size: 21px; font-weight: 600; letter-spacing: -.02em; margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .fn-cash-total .fn-cash-v { color: var(--brand-ink, #8f3009); }
+  .fn-open-note { font-size: 12.5px; color: var(--text-2); line-height: 1.6; margin: 0 0 14px; }
+  .fn-open-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .fn-open-sum { display: flex; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13.5px; }
+  .fn-open-sum b { font-variant-numeric: tabular-nums; }
+  @media (max-width: 560px) { .fn-open-grid { grid-template-columns: 1fr; } }
+
   .fn-badge { display:inline-block; padding:2px 9px; border-radius:10px; font-size:11px; font-weight:700; letter-spacing:.03em; }
   .fn-s-pending  { background:#fff4ce; color:#7a5200; }
   .fn-s-approved { background:#dff6dd; color:#1a6a1a; }
@@ -21,26 +33,116 @@ const STATUS_PILLS = [
   ['all', 'All'], ['pending', 'Pending'], ['approved', 'Approved'], ['paid', 'Paid'], ['rejected', 'Rejected'],
 ];
 
-function Field({ label, children }) { return <div className="field"><label>{label}</label>{children}</div>; }
+function Field({ label, hint, children }) {
+  return (
+    <div className="field">
+      <label>{label}</label>
+      {children}
+      {hint && <span className="fn-hint">{hint}</span>}
+    </div>
+  );
+}
 function StatusBadge({ status }) { const s = F.STATUS[status] || F.STATUS.pending; return <span className={`fn-badge ${s.cls}`}>{s.label}</span>; }
 
 function CategoryModal({ onClose, onSaved, flash }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [ledgerCode, setLedgerCode] = useState('6900');
   const submit = async (e) => {
     e.preventDefault();
     if (!name.trim()) return flash('Category name is required.', true);
     setBusy(true);
-    try { const saved = await F.createCategory({ name }); flash('Category added.'); onSaved(saved); onClose(); }
+    try { const saved = await F.createCategory({ name, ledgerCode }); flash('Category added.'); onSaved(saved); onClose(); }
     catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
   return (
     <Modal title="Add expense category" onClose={onClose}>
       <form onSubmit={submit}>
         <Field label="Name *"><input className="input" value={name} onChange={(e) => setName(e.target.value)} required autoFocus /></Field>
+        {/* Where this category's spending lands in the books. Without it every
+            expense in the business piles into one line and the profit & loss
+            says nothing useful. */}
+        <Field label="Counts as" hint="Which account this spending shows under in your profit & loss.">
+          <select className="select" value={ledgerCode} onChange={(e) => setLedgerCode(e.target.value)}>
+            {F.EXPENSE_ACCOUNTS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+          </select>
+        </Field>
         <div className="modal-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Add category'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ---- Opening balances -------------------------------------------------------
+   A business joining Collarone mid-life already has money in the bank, stock on
+   the shelf, customers who owe it and bills outstanding. Without somewhere to
+   say so, the balance sheet starts at zero and can never be right however
+   careful the bookkeeping afterwards. Entered once; whatever does not balance
+   is the owner's stake, which is what equity means. */
+function OpeningBalancesModal({ onClose, onSaved, flash }) {
+  const [f, setF] = useState({ asAt: todayISO(), cash: '', bank: '', receivable: '', inventory: '', equipment: '', payable: '', loans: '' });
+  const [busy, setBusy] = useState(false);
+  const set = (k, v) => setF((s2) => ({ ...s2, [k]: v }));
+  const n = (v) => Number(v) || 0;
+  const assets = n(f.cash) + n(f.bank) + n(f.receivable) + n(f.inventory) + n(f.equipment);
+  const owed = n(f.payable) + n(f.loans);
+  const equity = assets - owed;
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await F.setOpeningBalances(f);
+      flash('Opening balances recorded. Your balance sheet now starts from where the business actually is.');
+      onSaved(); onClose();
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
+  const money = (k, label, hint) => (
+    <Field label={label} hint={hint}>
+      <input className="input" type="number" min="0" step="0.01" inputMode="decimal"
+        value={f[k]} onChange={(e) => set(k, e.target.value)} placeholder="0.00" />
+    </Field>
+  );
+
+  return (
+    <Modal title="What the business already had" onClose={onClose} wide>
+      <form onSubmit={submit}>
+        <p className="fn-open-note">
+          Enter where the business stood on the day it started using Collarone. You only do this once,
+          and it is what makes the balance sheet true rather than a record of this month alone.
+          Leave anything that does not apply at zero.
+        </p>
+        <Field label="As at"><input className="input" type="date" value={f.asAt} onChange={(e) => set('asAt', e.target.value)} required /></Field>
+        <div className="fn-open-grid">
+          {money('cash', 'Cash in hand (₦)', 'Notes in the drawer or the safe.')}
+          {money('bank', 'Money in the bank (₦)', 'Add up every business account.')}
+          {money('receivable', 'Owed to you (₦)', 'Invoices customers have not paid yet.')}
+          {money('inventory', 'Stock on hand (₦)', 'What you paid for goods still unsold.')}
+          {money('equipment', 'Equipment and vehicles (₦)', 'What they are worth now, not new.')}
+          {money('payable', 'Owed to suppliers (₦)', 'Bills you have received and not paid.')}
+          {money('loans', 'Staff owe you (₦)', 'Salary advances and staff loans outstanding.')}
+        </div>
+        <div className="fn-open-sum">
+          <span>What the business owns</span><b>{F.money(assets)}</b>
+        </div>
+        <div className="fn-open-sum" style={{ borderTop: 0, paddingTop: 0, marginTop: 4 }}>
+          <span>Less what it owes</span><b>{F.money(owed)}</b>
+        </div>
+        <div className="fn-open-sum">
+          <span><strong>The owner&rsquo;s stake</strong></span><b>{F.money(equity)}</b>
+        </div>
+        {equity < 0 && (
+          <p className="fn-open-note" style={{ marginTop: 10 }}>
+            That is negative, which simply means the business owes more than it owns today. It is recorded as it is.
+          </p>
+        )}
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Record opening balances'}</button>
         </div>
       </form>
     </Modal>
@@ -168,6 +270,9 @@ export default function FinanceApp({ access }) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [catFilter, setCatFilter] = useState('');
   const [q, setQ] = useState('');
+  const [openingModal, setOpeningModal] = useState(false);
+  const [opening, setOpening] = useState(undefined);   // undefined = still loading
+  const [cash, setCash] = useState([]);
   const [expModal, setExpModal] = useState(false);
   const [editExp, setEditExp] = useState(null);
   const [budgetModal, setBudgetModal] = useState(false);
@@ -183,10 +288,19 @@ export default function FinanceApp({ access }) {
     } catch (e2) { flash(e2.message, true); } finally { setLoading(false); }
   }, [flash]);
 
-  useEffect(() => { load(); }, [load]);
+  // The books, which now fill themselves: every approved expense, issued
+  // invoice and payroll run posts to the ledger (supabase/finance_auto_posting.sql).
+  // Cash is read from the ledger rather than guessed from expenses, so it is the
+  // same number the balance sheet shows.
+  const loadBooks = useCallback(() => {
+    F.getCashPosition().then(setCash).catch(() => setCash([]));
+    F.getOpeningBalances().then(setOpening).catch(() => setOpening(null));
+  }, []);
+
+  useEffect(() => { load(); loadBooks(); }, [load, loadBooks]);
 
   const decide = async (e, action) => {
-    try { await F.decideExpense(e.id, action); flash(`Expense ${action}.`); load(); } catch (err) { flash(err.message, true); }
+    try { await F.decideExpense(e.id, action); flash(`Expense ${action}.`); load(); loadBooks(); } catch (err) { flash(err.message, true); }
   };
   const removeExpense = async (e) => {
     const ok = await confirm({
@@ -247,6 +361,39 @@ export default function FinanceApp({ access }) {
   return (
     <div className="lv">
       <style>{CSS}</style>
+      {/* What the owner actually asks first, and nothing answered before: how
+          much money is there. Read from the ledger, so it is the same figure
+          the balance sheet shows rather than a second opinion. */}
+      {isManager && cash.length > 0 && (
+        <div className="fn-cash">
+          {cash.map((a) => (
+            <div key={a.code} className="fn-cash-card">
+              <div className="fn-cash-l">{a.name}</div>
+              <div className="fn-cash-v">{F.money(a.balance)}</div>
+            </div>
+          ))}
+          <div className="fn-cash-card fn-cash-total">
+            <div className="fn-cash-l">Money available</div>
+            <div className="fn-cash-v">{F.money(cash.reduce((t, a) => t + Number(a.balance || 0), 0))}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Shown once, until it is done. A balance sheet built on nothing is
+          wrong from its first day, and the owner is the only one who knows
+          where the business stood when they arrived. */}
+      {isManager && opening === null && (
+        <div className="fn-cash-card" style={{ marginBottom: 14, display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 300px' }}>
+            <div style={{ fontWeight: 600, fontSize: 14 }}>Tell us what the business already had</div>
+            <div className="fn-cash-l" style={{ marginTop: 2 }}>
+              Money in the bank, stock, what customers owe you. Without it your balance sheet starts at zero and can never be right.
+            </div>
+          </div>
+          <button className="btn btn-primary" onClick={() => setOpeningModal(true)}>Set opening balances</button>
+        </div>
+      )}
+
       <div className="lv-tabs">
         <button className={`lv-tab ${tab === 'expenses' ? 'active' : ''}`} onClick={() => setTab('expenses')}>Expenses</button>
         {isManager && <button className={`lv-tab ${tab === 'budgets' ? 'active' : ''}`} onClick={() => setTab('budgets')}>Budgets</button>}
@@ -381,6 +528,7 @@ export default function FinanceApp({ access }) {
       {editExp && <ExpenseModal categories={categories} expense={editExp} onClose={() => setEditExp(null)} onSaved={load} flash={flash} />}
       {budgetModal && <BudgetModal categories={categories} onClose={() => setBudgetModal(false)} onSaved={load} flash={flash} />}
       {catModal && <CategoryModal onClose={() => setCatModal(false)} onSaved={load} flash={flash} />}
+      {openingModal && <OpeningBalancesModal onClose={() => setOpeningModal(false)} onSaved={loadBooks} flash={flash} />}
       {confirmNode}
       {toastNode}
     </div>

@@ -2851,12 +2851,61 @@ export async function supabaseApi(path, opts = {}) {
     return { categories: data };
   }
   if (head === 'POST /finance' && seg[1] === 'categories') {
-    const { name } = body;
+    const { name, ledgerCode } = body;
     if (!name?.trim()) fail(400, 'Category name is required.');
     const { data: { user } } = await supabase.auth.getUser();
-    const { data, error } = await supabase.from('expense_categories').insert({ name: name.trim(), created_by: user.id, org_id: await myOrgId() }).select().single();
+    const { data, error } = await supabase.from('expense_categories')
+      .insert({ name: name.trim(), ledger_code: ledgerCode || '6900', created_by: user.id, org_id: await myOrgId() })
+      .select().single();
     if (error) fail(400, /unique/i.test(error.message) ? 'That category already exists.' : error.message);
     return { category: data };
+  }
+  // Which account a category's spending lands in. Without this every expense
+  // piles into "General & administrative" and a profit & loss where one line is
+  // most of the costs tells the owner nothing.
+  if (method === 'PATCH' && seg[0] === 'finance' && seg[1] === 'categories' && seg.length === 3) {
+    const patch = {};
+    if (body.name !== undefined) patch.name = String(body.name).trim();
+    if (body.ledgerCode !== undefined) patch.ledger_code = body.ledgerCode;
+    const { data, error } = await supabase.from('expense_categories').update(patch).eq('id', seg[2]).select().single();
+    if (error) fail(error.code === '42501' ? 403 : 400, error.message);
+    return { category: data };
+  }
+  // What a business already had on the day it started using Collarone. Without
+  // it the balance sheet begins at zero and can never be right, however careful
+  // the bookkeeping afterwards.
+  if (head === 'POST /finance' && seg[1] === 'opening-balances') {
+    const n = (v) => Math.max(0, Number(v || 0));
+    const { data, error } = await supabase.rpc('ledger_set_opening_balances', {
+      // Today means today in Lagos, not on whichever server answers.
+      p_as_at: body.asAt || todayISO(),
+      p_cash: n(body.cash), p_bank: n(body.bank), p_receivable: n(body.receivable),
+      p_inventory: n(body.inventory), p_equipment: n(body.equipment),
+      p_payable: n(body.payable), p_loans: n(body.loans),
+    });
+    if (error) fail(400, error.message);
+    return { entryId: data };
+  }
+  if (head === 'GET /finance' && seg[1] === 'opening-balances') {
+    const { data, error } = await supabase.from('ledger_entries')
+      .select('id, entry_date').eq('source_type', 'opening').eq('status', 'posted').maybeSingle();
+    if (error) fail(400, error.message);
+    return { opening: data };
+  }
+  // The first question an owner asks, and nothing answered it before.
+  if (head === 'GET /finance' && seg[1] === 'cash') {
+    const { data, error } = await supabase.rpc('finance_cash_position');
+    if (error) fail(400, error.message);
+    return { cash: data || [] };
+  }
+  // A bank charge or interest has no document behind it, so nothing else will
+  // ever post it, and the bank can never be reconciled to the last naira.
+  if (head === 'POST /finance' && seg[1] === 'bank-lines' && seg[3] === 'post') {
+    const { data, error } = await supabase.rpc('ledger_post_bank_line', {
+      p_line: seg[2], p_code: body.code, p_note: body.note || '',
+    });
+    if (error) fail(400, error.message);
+    return { entryId: data };
   }
 
   const EXPENSE_SELECT = '*, category:expense_categories(id,name), dept:departments(id,name), submitter:profiles!submitted_by(id,name,email)';

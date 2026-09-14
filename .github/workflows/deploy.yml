@@ -182,6 +182,11 @@ jobs:
       - name: The shipped fonts can draw a Nigerian customer's name
         run: node test/font_covers_names.mjs
 
+      - name: Approving, invoicing and payroll all post balanced entries
+        run: node test/finance_auto_posting.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       # These seven were written as guards but never wired into this file, so
       # they had been passing on nobody's machine for weeks. A test that does
       # not run on every push is documentation, not a guard.
