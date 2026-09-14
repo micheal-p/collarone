@@ -441,7 +441,14 @@ begin
   return public.ledger_post_auto(v_org, p_as_at, 'Opening balances', v_lines, 'opening', v_org);
 end;
 $$;
-grant execute on function public.ledger_set_opening_balances(date, numeric, numeric, numeric, numeric, numeric, numeric, numeric) to authenticated;
+-- A function is executable by PUBLIC the moment it is created, and anon
+-- inherits that: reachable by anyone holding the publishable key that ships in
+-- the browser. Both of these scope internally on my_org_id() and
+-- is_finance_manager(), so anon would get nothing — but that check lives in a
+-- function body while the grant is one line, which is the whole argument for
+-- closing it here. Caught by test/anon_execute.mjs.
+revoke execute on function public.ledger_set_opening_balances(date, numeric, numeric, numeric, numeric, numeric, numeric, numeric) from public, anon;
+grant  execute on function public.ledger_set_opening_balances(date, numeric, numeric, numeric, numeric, numeric, numeric, numeric) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 7. Bank-only movements
@@ -478,7 +485,8 @@ begin
     end, 'bank', p_line);
 end;
 $$;
-grant execute on function public.ledger_post_bank_line(uuid, text, text) to authenticated;
+revoke execute on function public.ledger_post_bank_line(uuid, text, text) from public, anon;
+grant  execute on function public.ledger_post_bank_line(uuid, text, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 8. What the owner actually asks: how much money do we have

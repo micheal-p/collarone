@@ -61,7 +61,12 @@ declare
     'public_place_order',             -- storefront checkout
     'public_submit_application',      -- careers page application
     'public_submit_contact_message',  -- storefront contact form
-    'public_submit_lead'              -- storefront lead capture
+    'public_submit_lead',             -- storefront lead capture
+    -- Added after this migration was first written, which is exactly how a
+    -- re-run breaks a live page: the sweep revokes everything not named here,
+    -- and these are reached by visitors with no session at all.
+    'public_request_demo',            -- /book-demo, an unauthenticated visitor
+    'public_status_daily'             -- /status, the public status page
   ];
   -- Functions no browser ever calls: cron sweeps, platform administration and
   -- internal helpers invoked from inside other functions. They run under the
@@ -81,7 +86,10 @@ declare
     'generate_recurring_invoices', -- nightly sweep, from /api/health
     'platform_delete_org',         -- platform administration, from /api/admin
     'queue_notification',          -- called from inside other functions
+    'ledger_post_auto',            -- automatic posting, called from triggers only
+    'ledger_unpost_auto',          -- automatic reversal, called from triggers only
     'seed_ledger_accounts',        -- called from inside other functions
+    'seed_ledger_accounts_extra',  -- called from inside other functions
     'seed_org_leave_defaults',     -- called from inside other functions
     'visitors_autoclose_all',      -- watchdog sweep, from /api/watchdog
     'watchdog_autoclose_all'       -- watchdog sweep, from /api/watchdog

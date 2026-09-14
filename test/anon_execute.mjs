@@ -57,6 +57,13 @@ const SERVER_ONLY = new Set([
   'platform_delete_org',
   'queue_notification',
   'seed_ledger_accounts',
+  // The automatic-posting engine and its helpers (finance_auto_posting.sql).
+  // Triggers call them as the owner; no signed-in person should be able to
+  // write a journal entry except through ledger_post_entry, which checks that
+  // they are a finance manager.
+  'ledger_post_auto',
+  'ledger_unpost_auto',
+  'seed_ledger_accounts_extra',
   'seed_org_leave_defaults',
   'visitors_autoclose_all',
   'watchdog_autoclose_all',
