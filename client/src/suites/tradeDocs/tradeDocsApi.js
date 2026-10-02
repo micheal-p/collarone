@@ -1,8 +1,14 @@
-import { apiGet, apiPost, apiPatch, apiDelete } from '../../api/client.js';
+import { apiGet, apiPost, apiPatch, apiPut, apiDelete } from '../../api/client.js';
 import { uploadSiteImage } from '../../pages/admin/website/websiteApi.js';
 
 export const getDocuments = () => apiGet('/trade-docs').then((d) => d.documents);
 export const createDocument = (body) => apiPost('/trade-docs', body).then((d) => d.document);
+// Correct a document in place: same number, same share link. The database
+// decides what may still change (see supabase/trade_docs_edit.sql).
+export const updateDocument = (id, body) => apiPut(`/trade-docs/${id}`, body).then((d) => d.document);
+// An invoice already in the books cannot have its amounts changed in place;
+// the edit screen offers to cancel it and raise a corrected copy instead.
+export const needsReissue = (message) => /already in your books/i.test(String(message || ''));
 export const setDocumentStatus = (id, status) => apiPatch(`/trade-docs/${id}`, { status }).then((d) => d.document);
 // 'monthly' | 'yearly' | null — a scheduled invoice re-raises itself as a
 // ready-to-send draft each period (owner reviews, then sends).

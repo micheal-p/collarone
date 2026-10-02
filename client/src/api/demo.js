@@ -1820,6 +1820,22 @@ async function demoApiInner(path, opts = {}) {
         };
         db.tradeDocs.unshift(doc); save(); return { document: doc };
       }
+      if (method === 'PUT' && seg.length === 2) {
+        const d = db.tradeDocs.find((x) => x.id === seg[1]);
+        if (!d) return fail(404, 'That document could not be found. It may have been deleted.');
+        if (d.status === 'void') return fail(400, `${d.doc_no} is cancelled, so it can no longer be edited.`);
+        if ((Number(d.amount_paid) || 0) > 0) return fail(400, `Money has already been recorded against ${d.doc_no}, so it can no longer be changed. Cancel it and raise a new one instead.`);
+        const items = body.items || [];
+        const subtotal = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.unit_price) || 0), 0);
+        const vat_rate = body.vatRate ?? d.vat_rate;
+        Object.assign(d, {
+          party_name: body.partyName || '', party_phone: body.partyPhone || '', party_email: body.partyEmail || '',
+          party_address: body.partyAddress || '', items, subtotal, vat_rate, vat_amount: subtotal * vat_rate,
+          total: subtotal + subtotal * vat_rate, due_date: body.dueDate || null, reference: body.reference || '',
+          notes: body.notes || '', edited_at: now(),
+        });
+        save(); return { document: d };
+      }
       if (method === 'PATCH' && seg.length === 2) {
         const d = db.tradeDocs.find((x) => x.id === seg[1]);
         if (d) { d.status = body.status || d.status; save(); }

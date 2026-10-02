@@ -2576,6 +2576,25 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { document: data };
   }
+  if (method === 'PUT' && seg[0] === 'trade-docs' && seg.length === 2) {
+    const { partyName, partyPhone, partyEmail, partyAddress, contactId, vendorId, warehouseId, items, vatRate, dueDate, reference, notes } = body;
+    if (!items || !items.length) fail(400, 'Add at least one line item.');
+    const { data, error } = await supabase.rpc('update_trade_document', {
+      p_id: seg[1], p_party_name: partyName || '', p_party_phone: partyPhone || '',
+      p_party_email: partyEmail || '', p_party_address: partyAddress || '',
+      p_contact_id: contactId || null, p_vendor_id: vendorId || null, p_warehouse_id: warehouseId || null,
+      p_items: items, p_vat_rate: vatRate ?? 0.075, p_due_date: dueDate || null,
+      p_reference: reference || '', p_notes: notes || '',
+    });
+    // PGRST202: the function is not in the database yet (the screen shipped
+    // before supabase/trade_docs_edit.sql was applied). Say that plainly
+    // rather than "something went wrong".
+    if (error?.code === 'PGRST202') fail(501, 'Editing documents is not switched on for this workspace yet. For now, cancel the document and raise a new one.');
+    if (error) fail(400, error.message);
+    const { data: full, error: getErr } = await supabase.from('trade_documents').select(TRADE_DOC_SELECT).eq('id', data.id).single();
+    if (getErr) fail(400, getErr.message);
+    return { document: full };
+  }
   if (method === 'DELETE' && seg[0] === 'trade-docs' && seg.length === 2) {
     const { data: removed, error } = await supabase.from('trade_documents').delete().eq('id', seg[1]).select('id');
     if (error) fail(400, error.message);

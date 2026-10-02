@@ -26,6 +26,7 @@ const REQUIRED = [
   { call: 'GET /attendance/devices', needle: "seg[1] === 'devices'" },
   { call: 'POST /attendance/device-map', needle: "seg[1] === 'device-map'" },
   { call: 'GET /trade-docs/settings', needle: '/trade-docs/settings' },
+  { call: 'PUT /trade-docs/:id (edit)', needle: "method === 'PUT' && seg.length === 2) {\n        const d = db.tradeDocs" },
   // Issuing a letter now asks the server for its reference number first, so a
   // demo without this route throws before the letter is ever composed.
   { call: 'POST /hr/next-letter-reference', needle: "route === 'POST /hr/next-letter-reference'" },

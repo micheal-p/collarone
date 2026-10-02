@@ -133,20 +133,34 @@ function LineItems({ type, items, setItems, stockItems, vatRate = 0 }) {
   );
 }
 
-function CreateModal({ docType, onClose, onSaved, flash }) {
+// Also the edit form: pass `doc` and it opens filled in, saves in place, and
+// keeps the number. `onReissued(newDoc, cancelledDoc)` handles the one case
+// the database refuses to edit in place, an invoice already in the books.
+function CreateModal({ docType, doc = null, onClose, onSaved, onReissued, flash }) {
   const meta = TD.DOC_TYPES[docType];
+  const editing = Boolean(doc);
   const contacts = useOptional(getContacts);
   const vendors = useOptional(getVendors);
   const warehouses = useOptional(getWarehouses);
   const stockItems = useOptional(getItems);
 
-  const [f, setF] = useState({
+  const [f, setF] = useState(doc ? {
+    partyName: doc.party_name || '', partyPhone: doc.party_phone || '', partyEmail: doc.party_email || '', partyAddress: doc.party_address || '',
+    contactId: doc.contact_id || '', vendorId: doc.vendor_id || '', warehouseId: doc.warehouse_id || '',
+    vatRate: Number(doc.vat_rate ?? 0), dueDate: doc.due_date || '', reference: doc.reference || '', notes: doc.notes || '', linkStock: false,
+  } : {
     partyName: '', partyPhone: '', partyEmail: '', partyAddress: '',
     contactId: '', vendorId: '', warehouseId: '', vatRate: meta.hasVat ? 0.075 : 0,
     dueDate: '', reference: '', notes: '', linkStock: false,
   });
-  const [items, setItems] = useState(meta.isStock ? [{ item_id: '', description: '', qty: 1, unit_price: 0 }] : [{ description: '', qty: 1, unit_price: 0 }]);
+  const [items, setItems] = useState(doc?.items?.length
+    ? doc.items.map((r) => ({ item_id: r.item_id || '', description: r.description || '', qty: r.qty, unit_price: r.unit_price }))
+    : (meta.isStock ? [{ item_id: '', description: '', qty: 1, unit_price: 0 }] : [{ description: '', qty: 1, unit_price: 0 }]));
   const [busy, setBusy] = useState(false);
+  // Set when the database says this invoice is already in the books: the
+  // corrected version has to go out as a new invoice, and the old one is
+  // cancelled (which reverses its ledger entry).
+  const [reissue, setReissue] = useState('');
   const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
 
   const subtotal = TD.lineTotal(items);
@@ -157,21 +171,53 @@ function CreateModal({ docType, onClose, onSaved, flash }) {
     const cleanItems = items.filter((r) => (Number(r.qty) || 0) > 0 && (r.description?.trim() || r.item_id));
     if (!cleanItems.length) return flash('Add at least one line item.', true);
     setBusy(true);
+    const values = {
+      docType, partyName: f.partyName, partyPhone: f.partyPhone, partyEmail: f.partyEmail, partyAddress: f.partyAddress,
+      contactId: f.contactId || null, vendorId: f.vendorId || null, warehouseId: f.warehouseId || null,
+      items: cleanItems.map((r) => ({ item_id: r.item_id || undefined, description: r.description, qty: Number(r.qty), unit_price: Number(r.unit_price) || 0 })),
+      vatRate: Number(f.vatRate) || 0, dueDate: f.dueDate || null, reference: f.reference, notes: f.notes, linkStock: f.linkStock,
+    };
     try {
-      const saved = await TD.createDocument({
+      if (editing) {
+        const saved = await TD.updateDocument(doc.id, values);
+        flash(`${saved.doc_no} updated.`);
+        onSaved(saved);
+      } else {
+        const saved = await TD.createDocument(values);
+        flash(`${meta.label} ${saved.doc_no} created.`);
+        onSaved(saved);
+      }
+      onClose();
+    } catch (e2) {
+      if (editing && TD.needsReissue(e2.message)) setReissue(e2.message);
+      else flash(e2.message, true);
+    } finally { setBusy(false); }
+  };
+
+  // Cancel the original first only once the replacement exists, so a failure
+  // part-way never leaves the customer with no invoice at all.
+  const correctAndReissue = async () => {
+    const cleanItems = items.filter((r) => (Number(r.qty) || 0) > 0 && (r.description?.trim() || r.item_id));
+    setBusy(true);
+    try {
+      const fresh = await TD.createDocument({
         docType, partyName: f.partyName, partyPhone: f.partyPhone, partyEmail: f.partyEmail, partyAddress: f.partyAddress,
         contactId: f.contactId || null, vendorId: f.vendorId || null, warehouseId: f.warehouseId || null,
         items: cleanItems.map((r) => ({ item_id: r.item_id || undefined, description: r.description, qty: Number(r.qty), unit_price: Number(r.unit_price) || 0 })),
-        vatRate: f.vatRate, dueDate: f.dueDate || null, reference: f.reference, notes: f.notes, linkStock: f.linkStock,
+        vatRate: Number(f.vatRate) || 0, dueDate: f.dueDate || null,
+        reference: f.reference ? `${f.reference} (replaces ${doc.doc_no})` : `Replaces ${doc.doc_no}`, notes: f.notes,
       });
-      flash(`${meta.label} ${saved.doc_no} created.`);
-      onSaved(saved);
+      let cancelled = null;
+      try { cancelled = await TD.setDocumentStatus(doc.id, 'void'); }
+      catch (e3) { flash(`${fresh.doc_no} was raised, but ${doc.doc_no} could not be cancelled: ${e3.message} Cancel it from the list.`, true); }
+      if (cancelled) flash(`${fresh.doc_no} raised with the corrections. ${doc.doc_no} is cancelled and its entry reversed in the books.`);
+      onReissued?.(fresh, cancelled);
       onClose();
     } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
   };
 
   return (
-    <Modal title={`New ${meta.label}`} onClose={onClose} wide>
+    <Modal title={editing ? `Edit ${doc.doc_no}` : `New ${meta.label}`} onClose={onClose} wide>
       <form onSubmit={submit}>
           <div className="form-grid">
             <Field label={docType === 'grn' ? 'Vendor name *' : 'Customer / party name *'}>
@@ -223,7 +269,13 @@ function CreateModal({ docType, onClose, onSaved, flash }) {
             </div>
           )}
 
-          {meta.isStock && f.warehouseId && (
+          {editing && doc.stock_linked && (
+            <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
+              This note already moved stock, so its lines are fixed. The other details can still be corrected.
+            </p>
+          )}
+
+          {!editing && meta.isStock && f.warehouseId && (
             <Field label="">
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 400 }}>
                 <input type="checkbox" checked={f.linkStock} onChange={(e) => set('linkStock', e.target.checked)} />
@@ -234,9 +286,21 @@ function CreateModal({ docType, onClose, onSaved, flash }) {
 
           <Field label="Notes"><textarea className="input" rows={2} value={f.notes} onChange={(e) => set('notes', e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} /></Field>
 
+          {reissue && (
+            <div role="alert" style={{ padding: '10px 14px', margin: '0 0 12px', borderRadius: 10, background: 'var(--surface-2)', border: '1px solid var(--line)', fontSize: 13 }}>
+              <p style={{ margin: '0 0 8px' }}>
+                {doc.doc_no} is already in your books, so its amounts can't be changed in place. You can raise a corrected
+                invoice instead: {doc.doc_no} is cancelled and its entry reversed, and the new one carries these figures.
+              </p>
+              <button type="button" className="btn btn-primary" disabled={busy} onClick={correctAndReissue}>
+                {busy ? <span className="spinner" /> : 'Correct and re-issue'}
+              </button>
+            </div>
+          )}
+
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : `Create ${meta.label}`}</button>
+            <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : (editing ? 'Save changes' : `Create ${meta.label}`)}</button>
           </div>
       </form>
     </Modal>
@@ -817,6 +881,7 @@ export default function TradeDocsApp({ access }) {
   const [tour, setTour] = useState(false);
   const [payDoc, setPayDoc] = useState(null);
   const [shareDoc, setShareDoc] = useState(null);
+  const [editDoc, setEditDoc] = useState(null);
   const { flash, toastNode } = useToast();
   const { confirm, confirmNode } = useConfirm();
 
@@ -851,6 +916,11 @@ export default function TradeDocsApp({ access }) {
     .filter((d) => d.doc_type === 'invoice' && d.status !== 'void' && d.status !== 'draft')
     .reduce((s, d) => s + TD.balance(d), 0);
 
+  // Mirrors update_trade_document: nothing cancelled or with money against
+  // it; drafts by whoever raised them, anything else by a manager.
+  const canEdit = (d) => d.status !== 'void'
+    && !((Number(d.amount_paid) || 0) > 0)
+    && (isManager || (d.status === 'draft' && d.created_by === user?.id));
   const updateDoc = (saved) => setDocs((ds) => ds.map((d) => (d.id === saved.id ? { ...d, ...saved } : d)));
 
   const markStatus = async (doc, status) => {
@@ -1001,6 +1071,9 @@ export default function TradeDocsApp({ access }) {
                     <td className="muted" style={{ fontSize: 13 }}>{TD.fmtDate(d.created_at)}</td>
                     <td style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <button className="iconbtn" onClick={() => setViewDoc(d)}>View</button>
+                      {canEdit(d) && tab !== 'receivables' && (
+                        <button className="iconbtn" onClick={() => setEditDoc(d)}>Edit</button>
+                      )}
                       {isInv && d.status !== 'void' && d.status !== 'draft' && bal > 0 && (
                         <button className="iconbtn" onClick={() => setPayDoc(d)}>Record payment</button>
                       )}
@@ -1032,6 +1105,10 @@ export default function TradeDocsApp({ access }) {
       )}
 
       {createOpen && <CreateModal docType={tab === 'receivables' ? 'invoice' : tab} onClose={() => setCreateOpen(false)} onSaved={(d) => setDocs((ds) => [d, ...ds])} flash={flash} />}
+      {editDoc && (
+        <CreateModal docType={editDoc.doc_type} doc={editDoc} onClose={() => setEditDoc(null)} onSaved={updateDoc} flash={flash}
+          onReissued={(fresh, cancelled) => setDocs((ds) => [fresh, ...ds.map((d) => (cancelled && d.id === cancelled.id ? { ...d, ...cancelled } : d))])} />
+      )}
       {settingsOpen && <SettingsModal orgId={orgId} settings={settings} onClose={() => setSettingsOpen(false)} onSaved={setSettings} flash={flash} />}
       {viewDoc && <PrintView doc={viewDoc} settings={settings} flash={flash} onClose={() => setViewDoc(null)} />}
       {statementParty && <StatementModal party={statementParty} docs={docs} orgName={settings?.company_name || user?.org?.name} onClose={() => setStatementParty(null)} />}
