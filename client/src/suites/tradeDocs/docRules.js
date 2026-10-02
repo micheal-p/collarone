@@ -14,6 +14,8 @@ export const isOverdue = (d) => !!d?.due_date && balance(d) > 0 && d.status !== 
 //   invoice  → amount due (or amount paid once settled), bank details, stamps
 //   receipt  → amount paid, never a demand, never bank details
 //   quote    → the quoted total, no due date, no bank details, no stamp
+//   purchase order → the order total, a delivery date, never bank details:
+//              we are the ones paying, so "Amount due" would read backwards
 //   the rest → no money block at all (delivery/custody paperwork)
 export function moneyState(doc, meta) {
   const m = meta || {};
@@ -26,6 +28,10 @@ export function moneyState(doc, meta) {
   if (m.isReceipt) {
     return { show: true, showPayTo: false, stamp: 'paid', label: 'Amount paid', amount: total, settled: true, showTotals: true,
       wordsLabel: 'Total paid in words', wordsAmount: total };
+  }
+  if (m.isPurchase) {
+    return { show: true, showPayTo: false, stamp: null, label: 'Order total', amount: total, settled: false, showTotals: true,
+      wordsLabel: 'Order total in words', wordsAmount: total };
   }
   if (!m.demandsPayment) {           // quotation
     return { show: true, showPayTo: false, stamp: null, label: 'Quoted total', amount: total, settled: false, showTotals: true,

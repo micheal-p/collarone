@@ -49,6 +49,7 @@ const DOC_META = {
   srp: { hasVat: false, isStock: true },
   handover: { hasVat: false, isCustody: true },
   return_note: { hasVat: false, isCustody: true },
+  purchase_order: { hasVat: true, hasDueDate: true, isPurchase: true },
 };
 
 export default async function handler(req, res) {
@@ -68,8 +69,13 @@ export default async function handler(req, res) {
   if (!doc) return json(res, 404, { message: 'Document not found.' });
   // Service role bypasses RLS, so the org check has to be explicit here.
   if (doc.org_id !== caller.org_id) return json(res, 403, { message: 'Not your organization.' });
-  const hasTd = caller.role === 'super_admin' || (Array.isArray(caller.suites) && caller.suites.some((s) => s.key === 'trade-docs'));
-  if (!hasTd) return json(res, 403, { message: 'Invoicing access required.' });
+  const suites = Array.isArray(caller.suites) ? caller.suites : [];
+  const hasTd = caller.role === 'super_admin' || suites.some((s) => s.key === 'trade-docs');
+  // A purchase order is also a procurement document: the managers who issue
+  // them may not hold the invoicing suite (same rule as the read policy in
+  // supabase/procurement_orders.sql).
+  const buysFor = doc.doc_type === 'purchase_order' && suites.some((s) => s.key === 'procurement' && s.role === 'manager');
+  if (!hasTd && !buysFor) return json(res, 403, { message: 'Invoicing access required.' });
 
   const { data: settings } = await admin.from('trade_doc_settings').select('*').eq('org_id', doc.org_id).maybeSingle();
 

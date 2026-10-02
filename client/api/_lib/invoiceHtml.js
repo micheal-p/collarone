@@ -19,6 +19,7 @@ const DOC_TYPES = {
   srp: { label: 'Stock release note', hasVat: false, isStock: true, stockDirection: 'out' },
   handover: { label: 'Handover note', hasVat: false, isCustody: true, custodyDirection: 'out' },
   return_note: { label: 'Goods return', hasVat: false, isCustody: true, custodyDirection: 'in' },
+  purchase_order: { label: 'Purchase order', hasVat: true, hasDueDate: true, isPurchase: true, partyLabel: 'Supplier', dueLabel: 'Deliver by' },
 };
 
 const money = (n) => (n == null ? '' : `₦${Number(n).toLocaleString('en-NG')}`);
@@ -79,14 +80,14 @@ export function buildInvoiceHtml({ doc, settings }) {
       ${mny.settled
         ? `<div class="tdt-duemeta">${meta.isReceipt ? 'Received with thanks' : 'Paid in full, thank you'}</div>`
         : (meta.hasDueDate && doc.due_date)
-          ? `<div class="tdt-duemeta">${mny.overdue ? 'Overdue since' : 'Due'} ${esc(fmtDate(doc.due_date))}</div>`
+          ? `<div class="tdt-duemeta">${mny.overdue ? 'Overdue since' : (meta.dueLabel || 'Due')} ${esc(fmtDate(doc.due_date))}</div>`
           : ''}
     </div>` : '';
 
   const partyRow = `
     <div class="tdt-partyrow">
       <div>
-        <div class="tdt-label">Bill to</div>
+        <div class="tdt-label">${esc(meta.partyLabel || 'Bill to')}</div>
         <div class="tdt-partyname">${esc(doc.party_name || '')}</div>
         ${when(doc.party_address, `<div class="tdt-partyline">${esc(doc.party_address)}</div>`)}
         ${when(doc.party_phone, `<div class="tdt-partyline">${esc(doc.party_phone)}</div>`)}

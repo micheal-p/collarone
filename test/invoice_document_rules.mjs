@@ -16,6 +16,7 @@ const T = {
   receipt: { hasVat: true, isReceipt: true },
   grn:     { hasVat: false, isStock: true },
   handover:{ hasVat: false, isCustody: true },
+  purchase_order: { hasVat: true, hasDueDate: true, isPurchase: true },
 };
 const YESTERDAY = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 const NEXT_WEEK = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
@@ -57,6 +58,11 @@ check('a VOID invoice is never overdue',
 check('a quotation shows its total and NEVER asks to be paid',
   shape(moneyState({ total: 967500, status: 'issued' }, T.quote)),
   { show: true, label: 'Quoted total', showPayTo: false, stamp: null });
+
+// ---- purchase orders: we are the ones paying ----------------------------------
+check('a purchase order shows its total and NEVER asks to be paid, even past its delivery date',
+  shape(moneyState({ total: 1161000, status: 'issued', due_date: YESTERDAY }, T.purchase_order)),
+  { show: true, label: 'Order total', showPayTo: false, stamp: null });
 
 // ---- receipts: proof money already arrived ----------------------------------
 check('a receipt reads as paid even with no payment rows recorded',

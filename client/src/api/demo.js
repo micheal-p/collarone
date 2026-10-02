@@ -1118,6 +1118,31 @@ async function demoApiInner(path, opts = {}) {
       if (method === 'DELETE' && seg[1] === 'requests' && seg.length === 3) {
         db.purchaseRequests = db.purchaseRequests.filter((x) => x.id !== seg[2]); save(); return { ok: true };
       }
+      if (route === 'POST /procurement/orders') {
+        const picked = db.purchaseRequests.filter((r) => (body.requestIds || []).includes(r.id));
+        if (!picked.length || picked.some((r) => r.status !== 'approved')) fail(400, 'Only approved requests can be ordered, and each one only once.');
+        const v = db.vendors.find((x) => x.id === (body.vendorId || picked[0].vendor_id));
+        if (!v) fail(400, 'Choose the supplier this order goes to.');
+        db.tradeDocs = db.tradeDocs || [];
+        const items = picked.map((r) => ({ description: r.item_description, qty: Number(r.quantity), unit_price: Number(r.unit_cost) }));
+        const subtotal = items.reduce((s, it) => s + it.qty * it.unit_price, 0);
+        const vat_rate = Number(picked[0].vat_rate ?? 0.075);
+        const seq = db.tradeDocs.filter((d) => d.doc_type === 'purchase_order').length + 1;
+        const po = {
+          id: rid('td'), doc_type: 'purchase_order', doc_no: `PO-${String(seq).padStart(6, '0')}`,
+          party_name: v.name, party_phone: v.phone || '', party_email: v.email || '', party_address: v.address || '',
+          vendor_id: v.id, items, subtotal, vat_rate, vat_amount: subtotal * vat_rate, total: subtotal * (1 + vat_rate),
+          status: 'issued', due_date: body.deliveryDate || null, reference: picked.map((r) => r.item_description).join('; ').slice(0, 200),
+          notes: body.notes || '', created_at: now(), meta: {}, amount_paid: 0, author: meRef,
+        };
+        db.tradeDocs.unshift(po);
+        picked.forEach((r) => { r.status = 'ordered'; r.vendor_id = v.id; r.vendor = { id: v.id, name: v.name }; r.po = { id: po.id, doc_no: po.doc_no, status: po.status }; });
+        save(); return { order: po };
+      }
+      if (method === 'GET' && seg[1] === 'orders' && seg.length === 3) {
+        const po = (db.tradeDocs || []).find((d) => d.id === seg[2] && d.doc_type === 'purchase_order');
+        return po ? { order: po } : fail(404, 'That purchase order could not be found.');
+      }
     }
 
     // ---- crm (companies, contacts, activities, deals pipeline) ----
@@ -1790,7 +1815,7 @@ async function demoApiInner(path, opts = {}) {
       }
       db.tradeDocs = db.tradeDocs || [];
       db.tradeDocSettings = db.tradeDocSettings || null;
-      const PREFIX = { invoice: 'INV', receipt: 'RCT', grn: 'GRN', srp: 'SRP', handover: 'HOV', return_note: 'RTN' };
+      const PREFIX = { invoice: 'INV', receipt: 'RCT', grn: 'GRN', srp: 'SRP', handover: 'HOV', return_note: 'RTN', quote: 'QUO', purchase_order: 'PO' };
       if (route === 'GET /trade-docs/settings') return { settings: db.tradeDocSettings };
       if (route === 'POST /trade-docs/settings') {
         db.tradeDocSettings = {

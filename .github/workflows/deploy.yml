@@ -250,6 +250,7 @@ jobs:
           DB_URL="$DATABASE_URL" node test/anon_execute.mjs
           node test/trade_doc_edit.mjs
           node test/notify_more.mjs
+          node test/purchase_orders.mjs
 
   # ---- payroll week ---------------------------------------------------------
   # Nigerian salaries are paid at the end of the month, and the days around

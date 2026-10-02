@@ -220,13 +220,13 @@ function CreateModal({ docType, doc = null, onClose, onSaved, onReissued, flash 
     <Modal title={editing ? `Edit ${doc.doc_no}` : `New ${meta.label}`} onClose={onClose} wide>
       <form onSubmit={submit}>
           <div className="form-grid">
-            <Field label={docType === 'grn' ? 'Vendor name *' : 'Customer / party name *'}>
+            <Field label={docType === 'grn' ? 'Vendor name *' : meta.isPurchase ? 'Supplier name *' : 'Customer / party name *'}>
               <input className="input" value={f.partyName} onChange={(e) => set('partyName', e.target.value)} required autoFocus />
             </Field>
             <Field label="Phone"><input className="input" value={f.partyPhone} onChange={(e) => set('partyPhone', e.target.value)} /></Field>
             <Field label="Email"><input className="input" value={f.partyEmail} onChange={(e) => set('partyEmail', e.target.value)} /></Field>
             <Field label="Address"><input className="input" value={f.partyAddress} onChange={(e) => set('partyAddress', e.target.value)} /></Field>
-            {contacts.length > 0 && !meta.isStock && (
+            {contacts.length > 0 && !meta.isStock && !meta.isPurchase && (
               <Field label="Link to CRM contact">
                 <select className="select" value={f.contactId} onChange={(e) => set('contactId', e.target.value)}>
                   <option value="">— none —</option>
@@ -234,16 +234,21 @@ function CreateModal({ docType, doc = null, onClose, onSaved, onReissued, flash 
                 </select>
               </Field>
             )}
-            {vendors.length > 0 && docType === 'grn' && (
-              <Field label="Link to vendor">
-                <select className="select" value={f.vendorId} onChange={(e) => set('vendorId', e.target.value)}>
+            {vendors.length > 0 && (docType === 'grn' || meta.isPurchase) && (
+              <Field label={meta.isPurchase ? 'Supplier on file' : 'Link to vendor'}>
+                <select className="select" value={f.vendorId} onChange={(e) => {
+                  const v = vendors.find((x) => x.id === e.target.value);
+                  // Picking a supplier fills in who the order is addressed to.
+                  setF((s) => ({ ...s, vendorId: e.target.value,
+                    ...(meta.isPurchase && v ? { partyName: v.name || s.partyName, partyPhone: v.phone || s.partyPhone, partyEmail: v.email || s.partyEmail, partyAddress: v.address || s.partyAddress } : {}) }));
+                }}>
                   <option value="">— none —</option>
                   {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>
               </Field>
             )}
             {meta.hasDueDate && (
-              <Field label="Due date"><input className="input" type="date" value={f.dueDate} onChange={(e) => set('dueDate', e.target.value)} /></Field>
+              <Field label={meta.isPurchase ? 'Delivery date' : 'Due date'}><input className="input" type="date" value={f.dueDate} onChange={(e) => set('dueDate', e.target.value)} /></Field>
             )}
             {meta.isStock && warehouses.length > 0 && (
               <Field label="Warehouse">
@@ -614,7 +619,7 @@ function DocPreviewBody({ doc, settings, warehouseName = '' }) {
       {!(meta.isStock || meta.isCustody) && (
       <div className="tdt-partyrow">
         <div>
-          <div className="tdt-label">Bill to</div>
+          <div className="tdt-label">{meta.partyLabel || 'Bill to'}</div>
           <div className="tdt-partyname">{doc.party_name}</div>
           {doc.party_address && <div className="tdt-partyline">{doc.party_address}</div>}
           {doc.party_phone && <div className="tdt-partyline">{doc.party_phone}</div>}
@@ -628,7 +633,7 @@ function DocPreviewBody({ doc, settings, warehouseName = '' }) {
             {mny.settled
               ? <div className="tdt-duemeta">{meta.isReceipt ? 'Received with thanks' : 'Paid in full, thank you'}</div>
               : meta.hasDueDate && doc.due_date
-                ? <div className="tdt-duemeta">{mny.overdue ? 'Overdue since' : 'Due'} {TD.fmtDate(doc.due_date)}</div>
+                ? <div className="tdt-duemeta">{mny.overdue ? 'Overdue since' : (meta.dueLabel || 'Due')} {TD.fmtDate(doc.due_date)}</div>
                 : null}
           </div>
         )}
@@ -782,7 +787,8 @@ function DocPreviewBody({ doc, settings, warehouseName = '' }) {
   );
 }
 
-function PrintView({ doc, settings, onClose, flash }) {
+// Exported for Buying & Procurement, which shows its purchase orders here.
+export function PrintView({ doc, settings, onClose, flash }) {
   const [pdfBusy, setPdfBusy] = useState(false);
   // A real file, named after the document, and filed into Documents on the way
   // past. window.print() only ever offered the browser's own Save-as-PDF, which

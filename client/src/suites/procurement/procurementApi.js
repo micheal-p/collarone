@@ -11,6 +11,12 @@ export const updateRequest = (id, body) => apiPatch(`/procurement/requests/${id}
 export const decideRequest = (id, action) => apiPatch(`/procurement/requests/${id}`, { action }).then((d) => d.request);
 export const deleteRequest = (id) => apiDelete(`/procurement/requests/${id}`);
 
+// One numbered purchase order, to one supplier, from one or more approved
+// requests (supabase/procurement_orders.sql). The order is a trade document,
+// so it prints on the company letterhead like an invoice.
+export const issueOrder = (body) => apiPost('/procurement/orders', body).then((d) => d.order);
+export const getOrder = (id) => apiGet(`/procurement/orders/${id}`).then((d) => d.order);
+
 export const STATUS = {
   pending:  { label: 'Pending',  cls: 'pr-s-pending' },
   approved: { label: 'Approved', cls: 'pr-s-approved' },

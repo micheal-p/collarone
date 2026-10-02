@@ -24,6 +24,7 @@ const cases = {
   grn: { doc: { doc_type: 'grn', doc_no: 'GRN-1', created_at: iso, party_name: 'Supplier', items: [{ description: 'Paper', qty: 5 }] }, want: ['Goods received note', 'Delivered by', 'Received by', 'Store officer', 'Expected'] },
   srp: { doc: { doc_type: 'srp', doc_no: 'SRP-1', created_at: iso, party_name: 'Store', items: [{ description: 'Chairs', qty: 6 }] }, want: ['Stock release note', 'Released by', 'Checked by'] },
   handover: { doc: { doc_type: 'handover', doc_no: 'HOV-1', created_at: iso, party_name: 'Emeka', items: [{ description: 'Laptop', qty: 1 }] }, want: ['Handover note', 'Collected by', 'Condition on return'] },
+  purchase_order: { doc: { doc_type: 'purchase_order', doc_no: 'PO-1', created_at: iso, party_name: 'Ikeja Power Supplies', due_date: '2026-08-22', items: [item(1080000)], subtotal: 1080000, vat_rate: 0.075, vat_amount: 81000, total: 1161000 }, want: ['Purchase order', 'Supplier', 'Order total', 'Deliver by'], notWant: ['Pay to', 'Balance due', 'Bill to', 'Amount due', 'OVERDUE'] },
   return_note: { doc: { doc_type: 'return_note', doc_no: 'RTN-1', created_at: iso, party_name: 'Emeka', items: [{ description: 'Laptop', qty: 1 }] }, want: ['Goods return', 'Returned by'] },
 };
 

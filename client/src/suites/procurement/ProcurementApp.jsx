@@ -1,5 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import * as P from './procurementApi.js';
+import { getSettings as getLetterhead } from '../tradeDocs/tradeDocsApi.js';
+import { PrintView } from '../tradeDocs/TradeDocsApp.jsx';
 import { useToast, useConfirm, Modal, EmptyState } from '../../components/ui.jsx';
 
 const CSS = `
@@ -97,6 +99,71 @@ function RequestModal({ vendors, request = null, onClose, onSaved, flash }) {
   );
 }
 
+// Turn approved requests into one purchase order for one supplier. Other
+// approved requests for the same supplier are offered as extra lines, since
+// suppliers would rather get one order than five.
+function OrderModal({ anchor, requests, vendors, onClose, onIssued, flash }) {
+  const [vendorId, setVendorId] = useState(anchor.vendor?.id || anchor.vendor_id || '');
+  const [picked, setPicked] = useState(() => new Set([anchor.id]));
+  const [deliveryDate, setDeliveryDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [busy, setBusy] = useState(false);
+  // Same supplier (or none yet) and the same VAT rate: one order is one
+  // supplier and one VAT treatment, which the database also insists on.
+  const candidates = requests.filter((r) => r.status === 'approved'
+    && (!(r.vendor?.id || r.vendor_id) || (r.vendor?.id || r.vendor_id) === vendorId || r.id === anchor.id)
+    && Number(r.vat_rate) === Number(anchor.vat_rate));
+  const lines = candidates.filter((r) => picked.has(r.id));
+  const total = lines.reduce((s, r) => s + (Number(r.total_cost) || 0), 0);
+  const toggle = (id) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); n.add(anchor.id); return n; });
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!vendorId) return flash('Choose the supplier this order goes to.', true);
+    setBusy(true);
+    try {
+      const order = await P.issueOrder({ requestIds: lines.map((r) => r.id), vendorId, deliveryDate: deliveryDate || null, notes });
+      flash(`${order.doc_no} issued to ${order.party_name}.`);
+      onIssued(order);
+    } catch (e2) { flash(e2.message, true); } finally { setBusy(false); }
+  };
+
+  return (
+    <Modal title="Issue purchase order" onClose={onClose} wide>
+      <form onSubmit={submit}>
+        <div className="form-grid">
+          <Field label="Supplier *">
+            <select className="select" value={vendorId} onChange={(e) => setVendorId(e.target.value)} required>
+              <option value="">— Choose a supplier —</option>
+              {vendors.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+          </Field>
+          <Field label="Delivery date"><input className="input" type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} /></Field>
+        </div>
+        <Field label={candidates.length > 1 ? 'Lines on this order' : 'Line on this order'}>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {candidates.map((r) => (
+              <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 400 }}>
+                <input type="checkbox" checked={picked.has(r.id)} disabled={r.id === anchor.id} onChange={() => toggle(r.id)} />
+                <span style={{ flex: 1 }}>{r.item_description} <span className="muted">&times;{r.quantity}</span></span>
+                <span className="muted">{P.money(r.total_cost)}</span>
+              </label>
+            ))}
+          </div>
+        </Field>
+        <p style={{ fontSize: 13, margin: '0 0 12px' }}>Order total (incl. VAT): <strong>{P.money(total)}</strong></p>
+        <Field label="Notes for the supplier">
+          <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Delivery address, contact on site, payment terms…" style={{ resize: 'vertical', fontFamily: 'inherit' }} />
+        </Field>
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" disabled={busy}>{busy ? <span className="spinner" /> : 'Issue purchase order'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export default function ProcurementApp({ access }) {
   const isManager = access?.role === 'manager';
   const [requests, setRequests] = useState([]);
@@ -108,6 +175,8 @@ export default function ProcurementApp({ access }) {
   const [editReq, setEditReq] = useState(null);
   const [editVendor, setEditVendor] = useState(null);
   const [openVendor, setOpenVendor] = useState(null); // vendor id with details row expanded
+  const [orderFor, setOrderFor] = useState(null);     // the approved request an order is being issued from
+  const [viewOrder, setViewOrder] = useState(null);   // { doc, settings } for the print view
   const { flash, toastNode } = useToast();
   const { confirm, confirmNode } = useConfirm();
 
@@ -121,6 +190,12 @@ export default function ProcurementApp({ access }) {
 
   const decide = async (r, action) => {
     try { await P.decideRequest(r.id, action); flash(`Request ${action}.`); load(); } catch (e) { flash(e.message, true); }
+  };
+  const openOrder = async (id) => {
+    try {
+      const [doc, settings] = await Promise.all([P.getOrder(id), getLetterhead().catch(() => null)]);
+      setViewOrder({ doc, settings });
+    } catch (e) { flash(e.message, true); }
   };
   const removeRequest = async (r) => {
     const ok = await confirm({
@@ -178,7 +253,13 @@ export default function ProcurementApp({ access }) {
                         <button className="iconbtn" onClick={() => decide(r, 'rejected')}>Reject</button>
                       </>
                     )}
-                    {isManager && r.status === 'approved' && <button className="iconbtn" onClick={() => decide(r, 'ordered')}>Mark ordered</button>}
+                    {isManager && r.status === 'approved' && (
+                      <>
+                        <button className="iconbtn" onClick={() => setOrderFor(r)}>Issue PO</button>
+                        <button className="iconbtn" title="Ordered another way, without a purchase order" onClick={() => decide(r, 'ordered')}>Mark ordered</button>
+                      </>
+                    )}
+                    {r.po?.doc_no && <button className="iconbtn" onClick={() => openOrder(r.po.id)}>{r.po.doc_no}</button>}
                     {isManager && r.status === 'ordered' && <button className="iconbtn" onClick={() => decide(r, 'received')}>Mark received</button>}
                     {r.status === 'pending' && <button className="iconbtn" onClick={() => setEditReq(r)}>Edit</button>}
                     {r.approver?.name && (
@@ -230,6 +311,12 @@ export default function ProcurementApp({ access }) {
           onClose={() => setEditReq(null)} onSaved={() => { setEditReq(null); load(); }} flash={flash} />
       )}
       {vendorModal && <VendorModal onClose={() => setVendorModal(false)} onSaved={load} flash={flash} />}
+      {orderFor && (
+        <OrderModal anchor={orderFor} requests={requests} vendors={vendors} flash={flash}
+          onClose={() => setOrderFor(null)}
+          onIssued={(order) => { setOrderFor(null); load(); openOrder(order.id); }} />
+      )}
+      {viewOrder && <PrintView doc={viewOrder.doc} settings={viewOrder.settings} flash={flash} onClose={() => setViewOrder(null)} />}
       {editVendor && (
         <VendorModal vendor={editVendor}
           onClose={() => setEditVendor(null)} onSaved={() => { setEditVendor(null); load(); }} flash={flash} />

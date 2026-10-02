@@ -2366,9 +2366,31 @@ export async function supabaseApi(path, opts = {}) {
   // an approval trail could not show who approved anything.
   const PR_SELECT = '*, requester:profiles!requested_by(id,name,email), approver:profiles!approved_by(id,name), vendor:vendors(id,name), dept:departments(id,name)';
   if (head === 'GET /procurement' && seg[1] === 'requests') {
-    const { data, error } = await supabase.from('purchase_requests').select(PR_SELECT).order('created_at', { ascending: false }).limit(500);
+    // With the purchase order each request was placed on. Until
+    // procurement_orders.sql is applied the po_doc_id column does not exist
+    // and the embed errors, so fall back to the plain list rather than show
+    // an empty screen.
+    let res = await supabase.from('purchase_requests').select(`${PR_SELECT}, po:trade_documents!po_doc_id(id,doc_no,status)`)
+      .order('created_at', { ascending: false }).limit(500);
+    if (res.error) res = await supabase.from('purchase_requests').select(PR_SELECT).order('created_at', { ascending: false }).limit(500);
+    if (res.error) fail(400, res.error.message);
+    return { requests: res.data, truncated: capped(res.data) };
+  }
+  if (head === 'POST /procurement' && seg[1] === 'orders' && seg.length === 2) {
+    const { requestIds, vendorId, deliveryDate, notes } = body;
+    if (!requestIds?.length) fail(400, 'Choose at least one approved request to order.');
+    const { data, error } = await supabase.rpc('issue_purchase_order', {
+      p_request_ids: requestIds, p_vendor_id: vendorId || null, p_delivery_date: deliveryDate || null, p_notes: notes || '',
+    });
+    if (error?.code === 'PGRST202') fail(501, 'Purchase orders are not switched on for this workspace yet. For now, use "Mark ordered".');
     if (error) fail(400, error.message);
-    return { requests: data, truncated: capped(data) };
+    return { order: data };
+  }
+  if (head === 'GET /procurement' && seg[1] === 'orders' && seg.length === 3) {
+    const { data, error } = await supabase.from('trade_documents').select('*').eq('id', seg[2]).eq('doc_type', 'purchase_order').maybeSingle();
+    if (error) fail(400, error.message);
+    if (!data) fail(404, 'That purchase order could not be found, or you do not have access to it.');
+    return { order: data };
   }
   if (head === 'POST /procurement' && seg[1] === 'requests') {
     const { departmentId, vendorId, itemDescription, quantity, unitCost, vatRate, notes } = body;

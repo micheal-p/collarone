@@ -83,6 +83,11 @@ export const DOC_TYPES = {
   // be raised by hand for anything else that leaves the store.
   handover:    { label: 'Handover note', prefix: 'HOV', needsParty: true, hasVat: false, hasStatus: false, hasDueDate: false, isCustody: true, custodyDirection: 'out' },
   return_note: { label: 'Goods return',  prefix: 'RTN', needsParty: true, hasVat: false, hasStatus: false, hasDueDate: false, isCustody: true, custodyDirection: 'in' },
+  // what WE are buying: priced and sent to a supplier, never a demand for
+  // money and never in the books (supabase/procurement_orders.sql). Usually
+  // raised from an approved request in Buying & Procurement.
+  purchase_order: { label: 'Purchase order', prefix: 'PO', needsParty: true, hasVat: true, hasStatus: true, hasDueDate: true, isPurchase: true,
+    partyLabel: 'Supplier', dueLabel: 'Deliver by' },
 };
 
 export const STATUS_LABELS = { draft: 'Draft', issued: 'Sent', part_paid: 'Part-paid', paid: 'Paid', void: 'Cancelled' };
