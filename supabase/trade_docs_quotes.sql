@@ -8,13 +8,15 @@
 -- through the existing paths). Statuses reuse the existing set: draft/issued
 -- while open, 'void' once converted or dead.
 -- ============================================================================
+-- 'purchase_order' likewise, added later by procurement_orders.sql: the live
+-- check (and the rerunnable test) caught that re-running this would drop it.
 alter table public.trade_doc_counters drop constraint if exists trade_doc_counters_doc_type_check;
 alter table public.trade_doc_counters add constraint trade_doc_counters_doc_type_check
-  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note','quote'));
+  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note','quote','purchase_order'));
 
 alter table public.trade_documents drop constraint if exists trade_documents_doc_type_check;
 alter table public.trade_documents add constraint trade_documents_doc_type_check
-  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note','quote'));
+  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note','quote','purchase_order'));
 
 -- extend the create RPC's type gate + prefix (body otherwise identical to the
 -- custody version: recreate with the quote branch added)

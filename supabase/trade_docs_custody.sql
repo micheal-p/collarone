@@ -16,13 +16,15 @@
 -- constraint. Checked against the LIVE definition rather than restated from
 -- memory — test/migrations_rerunnable.mjs now fails the build on any migration
 -- that would narrow a live CHECK list.
+-- 'purchase_order' likewise, added later by procurement_orders.sql: the live
+-- check (and the rerunnable test) caught that re-running this would drop it.
 alter table public.trade_doc_counters drop constraint if exists trade_doc_counters_doc_type_check;
 alter table public.trade_doc_counters add constraint trade_doc_counters_doc_type_check
-  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note','quote'));
+  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note','quote','purchase_order'));
 
 alter table public.trade_documents drop constraint if exists trade_documents_doc_type_check;
 alter table public.trade_documents add constraint trade_documents_doc_type_check
-  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note','quote'));
+  check (doc_type in ('invoice','receipt','grn','srp','handover','return_note','quote','purchase_order'));
 
 -- create_trade_document: same body as trade_documents.sql, with the two
 -- custody types in the allowed list and prefix map. (Stock linkage stays
