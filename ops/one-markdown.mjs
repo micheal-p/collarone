@@ -20,7 +20,7 @@
 // so node_modules, dist and anything in .gitignore never count.
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { relative, resolve } from 'node:path';
+import { basename, relative, resolve } from 'node:path';
 
 const root = resolve(new URL('..', import.meta.url).pathname);
 const README = resolve(root, 'README.md');
@@ -56,7 +56,10 @@ function fold(path) {
   let lines = text.split('\n');
 
   // The file's own first-level heading becomes the section title.
-  let title = path;
+  // Without one, a readable title from the file name, never a bare path:
+  // "notes/payroll_go-live.md" becomes "Payroll go live".
+  const name = basename(path).replace(/\.(md|markdown)$/i, '').replace(/[-_.]+/g, ' ').trim();
+  let title = name ? name[0].toUpperCase() + name.slice(1).toLowerCase() : 'Notes';
   const h1 = lines.findIndex((l) => /^# /.test(l));
   if (h1 !== -1 && lines.slice(0, h1).every((l) => !l.trim())) {
     title = lines[h1].slice(2).trim();
