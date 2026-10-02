@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as INV from './inventoryApi.js';
+import CsvImportModal from '../../components/CsvImportModal.jsx';
 import { createDocument as createTradeDoc, setDocMeta } from '../tradeDocs/tradeDocsApi.js';
 import ReturnConditionModal from '../../components/ReturnConditionModal.jsx';
 import { ManagerView as AssetsManagerView, StaffView as AssetsStaffView } from '../itassets/ITAssetsApp.jsx';
@@ -255,6 +256,26 @@ function TakeoutModal({ items, warehouses, onClose, onSaved, flash }) {
   );
 }
 
+// Columns a stock list usually has, with the header names people use.
+const ITEM_IMPORT_FIELDS = [
+  { key: 'sku', label: 'SKU / code', required: true, guess: /sku|code|item\s*no|part|barcode/i },
+  { key: 'name', label: 'Name', required: true, guess: /^(item\s*)?name$|description|product|item$/i },
+  { key: 'unit', label: 'Unit', guess: /unit|uom|measure/i },
+  { key: 'category', label: 'Category', guess: /categor|group|type|class/i },
+  { key: 'reorderLevel', label: 'Reorder level', guess: /reorder|minimum|min\b|par/i },
+  { key: 'openingQty', label: 'Opening quantity', guess: /qty|quantity|stock|on\s*hand|balance|count/i },
+  { key: 'notes', label: 'Notes', guess: /note|comment|remark/i },
+];
+const itemRowProblem = (m, seen) => {
+  const k = m.sku.toLowerCase();
+  if (seen.has(k)) return 'Duplicate SKU in file';
+  seen.add(k);
+  for (const f of ['reorderLevel', 'openingQty']) {
+    if (m[f] && !(Number(m[f].replace(/,/g, '')) >= 0)) return `${f === 'openingQty' ? 'Opening quantity' : 'Reorder level'} is not a number`;
+  }
+  return null;
+};
+
 export default function InventoryApp({ access }) {
   const isManager = access?.role === 'manager';
   const [items, setItems] = useState([]);
@@ -269,6 +290,8 @@ export default function InventoryApp({ access }) {
   const [typeFilter, setTypeFilter] = useState('all'); // all | sell | staff
   const [returnTarget, setReturnTarget] = useState(null);
   const [itemModal, setItemModal] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importWh, setImportWh] = useState('');
   const [stockTake, setStockTake] = useState(false);
   const [whModal, setWhModal] = useState(false);
   const [moveModal, setMoveModal] = useState(false);
@@ -354,7 +377,8 @@ export default function InventoryApp({ access }) {
         {isManager && tab === 'items' && items.length > 0 && warehouses.length > 0 && (
           <button className="btn btn-ghost lv-apply" onClick={() => setStockTake(true)}>Stock take</button>
         )}
-        {isManager && tab === 'items' && <button className="btn btn-primary lv-apply" onClick={() => setItemModal(true)}>Add item</button>}
+        {isManager && tab === 'items' && <button className="btn btn-ghost lv-apply" onClick={() => setImporting(true)}>Import from Excel</button>}
+        {isManager && tab === 'items' && <button className="btn btn-primary" onClick={() => setItemModal(true)}>Add item</button>}
         {isManager && tab === 'movements' && items.length > 0 && warehouses.length > 0 && (
           <button className="btn btn-primary lv-apply" onClick={() => setMoveModal(true)}>Record movement</button>
         )}
@@ -518,6 +542,22 @@ export default function InventoryApp({ access }) {
       )}
 
       {itemModal && <ItemModal onClose={() => setItemModal(false)} onSaved={load} flash={flash} />}
+      {importing && (
+        <CsvImportModal title="Import stock items from Excel" noun="item" flash={flash}
+          intro="Bring your existing stock list across instead of typing it."
+          fields={ITEM_IMPORT_FIELDS} validate={itemRowProblem}
+          onImport={(rows) => INV.importItems(rows, importWh)}
+          onDone={load} onClose={() => { setImporting(false); setImportWh(''); }}
+          extra={warehouses.length > 0 && (
+            <div className="field" style={{ maxWidth: 360 }}>
+              <label>Put opening quantities into</label>
+              <select className="select" value={importWh} onChange={(e) => setImportWh(e.target.value)}>
+                <option value="">— don't record opening stock —</option>
+                {warehouses.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+              </select>
+            </div>
+          )} />
+      )}
       {stockTake && <StockTakeModal items={items} warehouses={warehouses} onClose={() => setStockTake(false)} onDone={() => { setStockTake(false); load(); }} flash={flash} />}
       {whModal && <WarehouseModal onClose={() => setWhModal(false)} onSaved={load} flash={flash} />}
       {moveModal && <MovementModal items={items} warehouses={warehouses} onClose={() => setMoveModal(false)} onSaved={load} flash={flash} />}

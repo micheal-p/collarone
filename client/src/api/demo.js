@@ -254,6 +254,20 @@ async function demoApiInner(path, opts = {}) {
     };
 
     if (route === 'GET /inventory/items') return { items: db.invItems };
+    if (route === 'POST /inventory/items/bulk') {
+      const skipped = []; let created = 0;
+      const have = new Set(db.invItems.map((x) => String(x.sku).toLowerCase()));
+      for (const r of body.rows || []) {
+        const sku = String(r.sku || '').trim().toUpperCase();
+        if (have.has(sku.toLowerCase())) { skipped.push({ label: sku, error: 'that SKU is already in use' }); continue; }
+        have.add(sku.toLowerCase());
+        const qty = Number(String(r.openingQty || '').replace(/,/g, '')) || 0;
+        db.invItems.unshift({ id: irid('it'), sku, name: r.name || '', unit: r.unit || 'unit', category: r.category || '', reorder_level: Number(r.reorderLevel) || 0, for_sale: true, for_staff_use: false, notes: r.notes || '',
+          levels: body.warehouseId && qty > 0 ? [{ warehouse_id: body.warehouseId, quantity: qty }] : [] });
+        created += 1;
+      }
+      save(); return { created, skipped };
+    }
     if (route === 'POST /inventory/items') {
       const it = { id: irid('it'), sku: (body.sku || '').toUpperCase(), name: body.name || '', unit: body.unit || 'unit', category: body.category || '', reorder_level: Number(body.reorderLevel) || 0, for_sale: body.forSale !== false, for_staff_use: Boolean(body.forStaffUse), notes: body.notes || '', levels: [] };
       db.invItems.unshift(it); save(); return { item: it };
@@ -1230,6 +1244,20 @@ async function demoApiInner(path, opts = {}) {
         db.crmCompanies = db.crmCompanies.filter((x) => x.id !== seg[2]); save(); return { ok: true };
       }
       if (route === 'GET /crm/contacts') return { contacts: db.crmContacts };
+      if (route === 'POST /crm/contacts/bulk') {
+        const skipped = []; let created = 0;
+        const emails = new Set(db.crmContacts.map((c) => String(c.email || '').toLowerCase()).filter(Boolean));
+        for (const r of body.rows || []) {
+          const email = String(r.email || '').trim().toLowerCase();
+          if (email && emails.has(email)) { skipped.push({ label: r.name, error: 'already in your contacts (same email or phone)' }); continue; }
+          if (email) emails.add(email);
+          let co = r.company ? db.crmCompanies.find((x) => x.name.toLowerCase() === String(r.company).trim().toLowerCase()) : null;
+          if (r.company && !co) { co = { id: rid('co'), name: String(r.company).trim(), industry: '', phone: '', email: '', website: '', address: '', notes: '', created_at: now() }; db.crmCompanies.push(co); }
+          db.crmContacts.push({ id: rid('ct'), name: String(r.name).trim(), company_id: co?.id || null, company: companyRef(co), job_title: r.jobTitle || '', email: r.email || '', phone: r.phone || '', whatsapp: r.whatsapp || '', notes: r.notes || '', created_at: now() });
+          created += 1;
+        }
+        save(); return { created, skipped };
+      }
       if (route === 'POST /crm/contacts') {
         if (!body.name?.trim()) fail(400, 'Contact name is required.');
         const co = db.crmCompanies.find((x) => x.id === body.companyId) || null;

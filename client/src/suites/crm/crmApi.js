@@ -7,6 +7,8 @@ export const deleteCompany  = (id) => apiDelete(`/crm/companies/${id}`);
 
 export const getContacts    = () => apiGet('/crm/contacts').then((d) => d.contacts);
 export const createContact  = (body) => apiPost('/crm/contacts', body).then((d) => d.contact);
+// rows: [{ name, company, jobTitle, email, phone, whatsapp, notes }] → { created, skipped }
+export const importContacts = (rows) => apiPost('/crm/contacts/bulk', { rows });
 export const updateContact  = (id, body) => apiPatch(`/crm/contacts/${id}`, body).then((d) => d.contact);
 export const deleteContact  = (id) => apiDelete(`/crm/contacts/${id}`);
 

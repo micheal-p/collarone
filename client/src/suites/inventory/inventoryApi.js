@@ -7,6 +7,8 @@ export const createWarehouse = (body) => apiPost('/inventory/warehouses', body).
 
 export const getItems   = () => apiGet('/inventory/items').then((d) => d.items);
 export const createItem = (body) => apiPost('/inventory/items', body).then((d) => d.item);
+// rows: [{ sku, name, unit, category, reorderLevel, notes, openingQty }] → { created, skipped }
+export const importItems = (rows, warehouseId) => apiPost('/inventory/items/bulk', { rows, warehouseId: warehouseId || null });
 export const deleteItem = (id) => apiDelete(`/inventory/items/${id}`);
 
 export const getMovements  = () => apiGet('/inventory/movements').then((d) => d.movements);

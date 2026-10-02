@@ -3,6 +3,7 @@ import * as C from './crmApi.js';
 import { waDigits as normalizeWa } from '../../lib/whatsapp.js';
 import { EmptyState, Modal, Paginator, searchMatcher, useConfirm, usePagedList, useToast } from '../../components/ui.jsx';
 import { todayISO } from '../../lib/today.js';
+import CsvImportModal from '../../components/CsvImportModal.jsx';
 
 /* ---- icons ---------------------------------------------------------------- */
 const I = {
@@ -389,6 +390,25 @@ function CompaniesTab({ flash }) {
   );
 }
 
+
+// Columns a contact export usually has, with the header names people use.
+const CONTACT_IMPORT_FIELDS = [
+  { key: 'name', label: 'Name', required: true, guess: /^(full\s*)?name$|contact|customer|client/i },
+  { key: 'company', label: 'Company', guess: /company|organi[sz]ation|business|employer/i },
+  { key: 'jobTitle', label: 'Job title', guess: /title|role|position|designation/i },
+  { key: 'email', label: 'Email', guess: /e-?mail/i },
+  { key: 'phone', label: 'Phone', guess: /phone|mobile|tel|cell|gsm/i },
+  { key: 'whatsapp', label: 'WhatsApp', guess: /whats\s*app|wa\b/i },
+  { key: 'notes', label: 'Notes', guess: /note|comment|remark/i },
+];
+const contactRowProblem = (m, seen) => {
+  if (m.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email)) return 'Invalid email';
+  const key = (m.email || '').toLowerCase() || String(m.phone || m.whatsapp || '').replace(/\D/g, '').slice(-10);
+  if (key && seen.has(key)) return 'Duplicate in file';
+  if (key) seen.add(key);
+  return null;
+};
+
 /* ---- ContactsTab -------------------------------------------------------------- */
 function ContactsTab({ flash }) {
   const [contacts, setContacts] = useState([]);
@@ -399,6 +419,7 @@ function ContactsTab({ flash }) {
   const [expand, setExpand] = useState(null);
   const [activities, setActivities] = useState({});
   const [logFor, setLogFor] = useState(null);
+  const [importing, setImporting] = useState(false);
   const { confirm, confirmNode } = useConfirm();
 
   const load = useCallback(async () => {
@@ -453,7 +474,8 @@ function ContactsTab({ flash }) {
           <input placeholder="Search contacts" value={q} onChange={(e) => setQ(e.target.value)} style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, marginLeft: 6, width: 200 }} />
         </div>
         <span className="count">{view.length} contact{view.length === 1 ? '' : 's'}</span>
-        <button className="btn btn-primary lv-apply" onClick={() => setModal('new')}><span style={{ marginRight: 6 }}>{I.add}</span>Add contact</button>
+        <button className="btn btn-ghost lv-apply" onClick={() => setImporting(true)}>Import from Excel</button>
+        <button className="btn btn-primary" onClick={() => setModal('new')}><span style={{ marginRight: 6 }}>{I.add}</span>Add contact</button>
       </div>
 
       {loading && <div className="suite-loading"><div className="boot-spinner" /></div>}
@@ -506,6 +528,13 @@ function ContactsTab({ flash }) {
         </div>
       )}
 
+      {importing && (
+        <CsvImportModal title="Import contacts from Excel" noun="contact" flash={flash}
+          intro="Bring your customer list or phone contacts across instead of typing them."
+          fields={CONTACT_IMPORT_FIELDS} validate={contactRowProblem}
+          onImport={(rows) => C.importContacts(rows)}
+          onDone={load} onClose={() => setImporting(false)} />
+      )}
       {(modal === 'new' || (modal && modal !== 'new')) && (
         <ContactModal contact={modal === 'new' ? null : modal} companies={companies} onClose={() => setModal(null)} onSaved={load} flash={flash} />
       )}

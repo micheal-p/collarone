@@ -26,6 +26,8 @@ const REQUIRED = [
   { call: 'GET /attendance/devices', needle: "seg[1] === 'devices'" },
   { call: 'POST /attendance/device-map', needle: "seg[1] === 'device-map'" },
   { call: 'GET /trade-docs/settings', needle: '/trade-docs/settings' },
+  { call: 'POST /crm/contacts/bulk', needle: "route === 'POST /crm/contacts/bulk'" },
+  { call: 'POST /inventory/items/bulk', needle: "route === 'POST /inventory/items/bulk'" },
   { call: 'POST /procurement/orders', needle: "route === 'POST /procurement/orders'" },
   { call: 'GET /procurement/orders/:id', needle: "seg[1] === 'orders' && seg.length === 3" },
   { call: 'PUT /trade-docs/:id (edit)', needle: "method === 'PUT' && seg.length === 2) {\n        const d = db.tradeDocs" },

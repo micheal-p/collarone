@@ -66,6 +66,20 @@ export const humanizeDbError = (message) => {
 const LIST_CAP = 500;
 const capped = (data) => (data || []).length >= LIST_CAP;
 
+// Every row, a page at a time. The API answers at most 1,000 rows per request
+// whatever .limit() asks for, so a duplicate check against "all contacts" that
+// read one page would quietly miss everything after the first thousand.
+const readAll = async (page, size = 1000, max = 50000) => {
+  const out = [];
+  for (let from = 0; from < max; from += size) {
+    const { data, error } = await page(from, from + size - 1);
+    if (error) fail(400, error.message);
+    out.push(...(data || []));
+    if (!data || data.length < size) break;
+  }
+  return out;
+};
+
 const fail = (status, message) => {
   const e = new Error(humanizeDbError(message)); e.status = status; e.code = 'supabase'; throw e;
 };
@@ -1794,6 +1808,62 @@ export async function supabaseApi(path, opts = {}) {
     if (error) fail(400, error.message);
     return { contacts: data };
   }
+  // Bulk import from a CSV (components/CsvImportModal.jsx). Must sit above the
+  // single-contact route, which does not check the path length.
+  //
+  // People already in the CRM (same email, or same phone by its last ten
+  // digits) are skipped rather than duplicated: importing the same export
+  // twice is the most common mistake there is. Company names are matched to
+  // existing companies, and the missing ones created once each.
+  if (head === 'POST /crm' && seg[1] === 'contacts' && seg[2] === 'bulk') {
+    const rows = (body.rows || []).slice(0, 2000);
+    if (!rows.length) fail(400, 'Nothing to import.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const orgId = await myOrgId();
+    const tail = (p) => String(p || '').replace(/\D/g, '').slice(-10);
+    const existing = await readAll((from, to) => supabase.from('crm_contacts').select('email, phone, whatsapp').range(from, to));
+    const emails = new Set((existing || []).map((c) => String(c.email || '').toLowerCase()).filter(Boolean));
+    const phones = new Set((existing || []).flatMap((c) => [tail(c.phone), tail(c.whatsapp)]).filter((p) => p.length >= 7));
+
+    const { data: cos } = await supabase.from('crm_companies').select('id, name');
+    const coId = new Map((cos || []).map((c) => [String(c.name).trim().toLowerCase(), c.id]));
+    const newCos = [...new Set(rows.map((r) => String(r.company || '').trim()).filter((n) => n && !coId.has(n.toLowerCase())))];
+    if (newCos.length) {
+      const { data: made } = await supabase.from('crm_companies')
+        .insert(newCos.map((name) => ({ name, created_by: user.id, org_id: orgId }))).select('id, name');
+      (made || []).forEach((c) => coId.set(String(c.name).trim().toLowerCase(), c.id));
+    }
+
+    const skipped = [];
+    const toInsert = [];
+    for (const r of rows) {
+      const email = String(r.email || '').trim().toLowerCase();
+      const ph = tail(r.phone) || tail(r.whatsapp);
+      if ((email && emails.has(email)) || (ph.length >= 7 && phones.has(ph))) {
+        skipped.push({ label: r.name, error: 'already in your contacts (same email or phone)' });
+        continue;
+      }
+      if (email) emails.add(email);
+      if (ph.length >= 7) phones.add(ph);
+      toInsert.push({
+        name: String(r.name).trim(), company_id: coId.get(String(r.company || '').trim().toLowerCase()) || null,
+        job_title: r.jobTitle || '', email: r.email || '', phone: r.phone || '', whatsapp: r.whatsapp || '', notes: r.notes || '',
+        created_by: user.id, org_id: orgId,
+      });
+    }
+    let created = 0;
+    for (let i = 0; i < toInsert.length; i += 200) {
+      const chunk = toInsert.slice(i, i + 200);
+      const { data, error } = await supabase.from('crm_contacts').insert(chunk).select('id');
+      if (!error) { created += (data || []).length; continue; }
+      // One bad row fails the whole chunk; go row by row to say which.
+      for (const row of chunk) {
+        const { error: e1 } = await supabase.from('crm_contacts').insert(row).select('id');
+        if (e1) skipped.push({ label: row.name, error: humanizeDbError(e1.message) }); else created += 1;
+      }
+    }
+    return { created, skipped };
+  }
   if (head === 'POST /crm' && seg[1] === 'contacts') {
     const { name, companyId, jobTitle, email, phone, whatsapp, notes } = body;
     if (!name?.trim()) fail(400, 'Contact name is required.');
@@ -2453,6 +2523,57 @@ export async function supabaseApi(path, opts = {}) {
     const { data, error } = await supabase.from('stock_items').select('*, levels:stock_levels(warehouse_id, quantity)').order('name');
     if (error) fail(400, error.message);
     return { items: data };
+  }
+  // Bulk import from a CSV. Above the single-item route for the same reason as
+  // contacts. SKUs already in use are skipped, not overwritten. Opening stock,
+  // when the file has a quantity and a warehouse was chosen, goes in as a
+  // normal "in" movement so it has the same audit trail as any other.
+  if (head === 'POST /inventory' && seg[1] === 'items' && seg[2] === 'bulk') {
+    const rows = (body.rows || []).slice(0, 5000);
+    if (!rows.length) fail(400, 'Nothing to import.');
+    const { data: { user } } = await supabase.auth.getUser();
+    const orgId = await myOrgId();
+    const existing = await readAll((from, to) => supabase.from('stock_items').select('sku').range(from, to));
+    const skus = new Set((existing || []).map((x) => String(x.sku).trim().toLowerCase()));
+    const skipped = [];
+    const toInsert = [];
+    const opening = new Map();
+    for (const r of rows) {
+      const sku = String(r.sku).trim();
+      if (skus.has(sku.toLowerCase())) { skipped.push({ label: sku, error: 'that SKU is already in use' }); continue; }
+      skus.add(sku.toLowerCase());
+      const qty = Number(String(r.openingQty || '').replace(/,/g, ''));
+      if (qty > 0) opening.set(sku.toLowerCase(), qty);
+      toInsert.push({
+        sku, name: String(r.name).trim(), unit: r.unit || 'unit', category: r.category || '',
+        reorder_level: Number(String(r.reorderLevel || '').replace(/,/g, '')) || 0, notes: r.notes || '',
+        created_by: user.id, org_id: orgId, for_sale: true, for_staff_use: false,
+      });
+    }
+    const made = [];
+    for (let i = 0; i < toInsert.length; i += 200) {
+      const chunk = toInsert.slice(i, i + 200);
+      const { data, error } = await supabase.from('stock_items').insert(chunk).select('id, sku');
+      if (!error) { made.push(...(data || [])); continue; }
+      for (const row of chunk) {
+        const { data: one, error: e1 } = await supabase.from('stock_items').insert(row).select('id, sku').single();
+        if (e1) skipped.push({ label: row.sku, error: /unique/i.test(e1.message) ? 'that SKU is already in use' : humanizeDbError(e1.message) });
+        else made.push(one);
+      }
+    }
+    if (body.warehouseId) {
+      const withStock = made.filter((m) => opening.has(String(m.sku).toLowerCase()));
+      for (let i = 0; i < withStock.length; i += 10) {
+        await Promise.all(withStock.slice(i, i + 10).map(async (m) => {
+          const { error } = await supabase.rpc('record_stock_movement', {
+            p_item_id: m.id, p_warehouse_id: body.warehouseId, p_type: 'in', p_quantity: opening.get(String(m.sku).toLowerCase()),
+            p_to_warehouse_id: null, p_reference: 'Opening stock', p_notes: 'Imported from CSV',
+          });
+          if (error) skipped.push({ label: m.sku, error: `item added, but its opening stock was not recorded: ${humanizeDbError(error.message)}` });
+        }));
+      }
+    }
+    return { created: made.length, skipped };
   }
   if (head === 'POST /inventory' && seg[1] === 'items') {
     const { sku, name, unit, category, reorderLevel, notes, forSale, forStaffUse } = body;
