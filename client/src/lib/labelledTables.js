@@ -24,10 +24,14 @@
 // Desktop does nothing: the observer only runs while the narrow media query
 // matches, and disconnects when it stops.
 
-const MOBILE = '(max-width: 640px)';
+// The suite tables (.table) stack below 640px; Platform Control's collapsible
+// tables (.pc-table.collapsible) stack earlier, below 900px. The observer runs
+// over the wider range; the CSS decides where a label is actually shown.
+const MOBILE = '(max-width: 900px)';
+const TABLES = 'table.table, table.pc-table.collapsible';
 
 function stamp(root = document) {
-  for (const table of root.querySelectorAll('table.table')) {
+  for (const table of root.querySelectorAll(TABLES)) {
     const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim());
     if (!heads.length) continue;
     for (const row of table.querySelectorAll('tbody tr')) {
@@ -39,7 +43,8 @@ function stamp(root = document) {
         // and action cells hold buttons, not values.
         const skip = i === 0
           || cells[i].classList.contains('ta-r')
-          || cells[i].classList.contains('col-check');
+          || cells[i].classList.contains('col-check')
+          || cells[i].classList.contains('r');
         const want = skip ? '' : label;
         // Only touch the DOM when it would actually change, so this cannot
         // feed its own MutationObserver.

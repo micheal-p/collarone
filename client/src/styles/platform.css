@@ -273,6 +273,13 @@
   .pc-table.collapsible thead { display: none; }
   .pc-table.collapsible tr { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 12px 14px; border-bottom: 1px solid var(--line); align-items: center; }
   .pc-table.collapsible td { display: block; padding: 0; border: 0; }
+  /* Column names, stamped by lib/labelledTables.js, so a stacked row is not a
+     run of bare numbers. */
+  .pc-table.collapsible td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--faint); font-weight: 600; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .03em; margin-right: 4px;
+  }
 }
 @media (max-width: 560px) {
   .pc-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
