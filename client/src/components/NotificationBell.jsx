@@ -41,9 +41,15 @@ const COPY = {
   'document.signed': (p) => `${p.by || 'Someone'} signed “${p.name || 'a document'}”`,
   'document.expiring': (p) => `Document “${p.name || ''}” expires ${p.expiresAt || 'soon'}, renew or replace it`,
 };
+// Alerts addressed to you carry their own sentence, written when they were
+// queued, so every kind reads properly without a line here.
+const copyFor = (e, uid) => (e.type.startsWith('you.')
+  ? (e.payload?.subject || 'You have a new alert')
+  : (COPY[e.type] || (() => e.type.replace(/[._]/g, ' ')))(e.payload || {}, uid));
 const ICON = (type) => {
   if (type.startsWith('payment.')) return '₦'; // currency symbol, not decoration
   if (type.startsWith('billing.')) return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>;
+  if (type.startsWith('you.')) return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" /></svg>;
   if (type.startsWith('hr.')) return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6" /></svg>;
   return <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /></svg>;
 };
@@ -65,16 +71,29 @@ export default function NotificationBell() {
   const wrapRef = useRef(null);
   useClickOutside(wrapRef, () => setOpen(false));
 
-  const load = () =>
+  // Two feeds. org_events is the company's shared activity, visible to every
+  // member. notification_outbox holds alerts addressed to ONE person (a task
+  // for you, a leave request waiting on you, your probation review); the
+  // database only lets each person read their own rows. They used to reach
+  // people by email alone, so with email switched off nobody saw them.
+  const load = () => Promise.all([
     supabase.from('org_events').select('id, type, payload, created_at')
-      .order('created_at', { ascending: false }).limit(30)
-      .then(({ data }) => setEvents(data || []), () => {});
+      .order('created_at', { ascending: false }).limit(30),
+    supabase.from('notification_outbox').select('id, kind, subject, created_at')
+      .eq('recipient_id', user?.id || '').order('created_at', { ascending: false }).limit(20),
+  ]).then(([shared, mine]) => {
+    const personal = (mine.data || []).map((n) => ({
+      id: `n-${n.id}`, type: `you.${n.kind}`, payload: { subject: n.subject }, created_at: n.created_at,
+    }));
+    setEvents([...(shared.data || []), ...personal]
+      .sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 30));
+  }, () => {});
 
   useEffect(() => {
     load();
     const t = setInterval(load, 90 * 1000); // light poll; events are not chat
     return () => clearInterval(t);
-  }, []);
+  }, [user?.id]); // eslint-disable-line
 
   const unread = events.filter((e) => e.created_at > seenAt).length;
   const markSeen = () => {
@@ -103,7 +122,7 @@ export default function NotificationBell() {
               <div key={e.id} className="notif-row">
                 <span className="notif-ic" aria-hidden="true">{ICON(e.type)}</span>
                 <span className="notif-body">
-                  <span className="notif-text">{(COPY[e.type] || (() => e.type.replace(/[._]/g, ' ')))(e.payload || {}, user?.id)}</span>
+                  <span className="notif-text">{copyFor(e, user?.id)}</span>
                   <span className="notif-time">{ago(e.created_at)}</span>
                 </span>
               </div>

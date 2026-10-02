@@ -86,6 +86,8 @@ declare
     'generate_recurring_invoices', -- nightly sweep, from /api/health
     'platform_delete_org',         -- platform administration, from /api/admin
     'queue_notification',          -- called from inside other functions
+    'queue_expiry_reminders',      -- daily reminders, from /api/health
+    'queue_more_reminders',        -- daily reminders, from /api/health
     'ledger_post_auto',            -- automatic posting, called from triggers only
     'ledger_unpost_auto',          -- automatic reversal, called from triggers only
     'seed_ledger_accounts',        -- called from inside other functions

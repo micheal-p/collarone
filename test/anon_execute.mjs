@@ -56,6 +56,10 @@ const SERVER_ONLY = new Set([
   'generate_recurring_invoices',
   'platform_delete_org',
   'queue_notification',
+  // Daily reminder sweeps (notify_reminders.sql, notify_more.sql), run by
+  // /api/health with the service key. They write for every company at once.
+  'queue_expiry_reminders',
+  'queue_more_reminders',
   'seed_ledger_accounts',
   // The automatic-posting engine and its helpers (finance_auto_posting.sql).
   // Triggers call them as the owner; no signed-in person should be able to
