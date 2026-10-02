@@ -399,5 +399,5 @@ export default async function handler(req, res) {
     }
   }
 
-  return res.status(200).json({ status, apiOk, dbOk, responseMs, clientErrorsLastHour, watchdog, build: buildId(), nginx: nginxStatus(), checkedAt: new Date().toISOString() });
+  return res.status(200).json({ status, apiOk, dbOk, responseMs, clientErrorsLastHour, watchdog, build: buildId(), workers: Number(process.env.COLLARONE_WORKERS || 1), nginx: nginxStatus(), checkedAt: new Date().toISOString() });
 }

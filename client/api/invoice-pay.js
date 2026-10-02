@@ -37,7 +37,7 @@ export default async function handler(req, res) {
   // both actions make an outbound call to the merchant's Paystack, so an
   // untended loop here spends someone else's API quota, not just ours.
   // Generous enough that a customer retrying a failed card never notices.
-  if (!allow(`${req.ip}:invoice-pay`, { capacity: 10, refillPerSec: 1 / 6 })) {
+  if (!(await allow(`${req.ip}:invoice-pay`, { capacity: 10, refillPerSec: 1 / 6 }))) {
     return json(res, 429, { message: LIMIT_MESSAGE });
   }
 

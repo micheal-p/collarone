@@ -38,7 +38,7 @@ export default async function handler(req, res) {
   // Paystack. Unbounded, one connection can burn a customer's API quota and
   // fill their dashboard with dead transactions. Sized so a real shopper
   // retrying a declined card never sees it.
-  if (!allow(`${req.ip}:site-pay`, { capacity: 10, refillPerSec: 1 / 6 })) {
+  if (!(await allow(`${req.ip}:site-pay`, { capacity: 10, refillPerSec: 1 / 6 }))) {
     return json(res, 429, { message: LIMIT_MESSAGE });
   }
 

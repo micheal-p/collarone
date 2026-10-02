@@ -32,7 +32,29 @@ async function getBrowser() {
   return b;
 }
 
-export async function htmlToPdf(html, { landscape = false } = {}) {
+// At most two renders at once per worker. Each open page is another Chromium
+// renderer process; a burst of downloads (month end, everyone printing
+// invoices) would otherwise open as many as there are requests and run the
+// box out of memory, taking every other route down with it. The rest wait
+// their turn, which costs them a second or two, not an error.
+const MAX_RENDERS = 2;
+let active = 0;
+const waiting = [];
+async function slot() {
+  if (active < MAX_RENDERS) { active++; return; }
+  await new Promise((resolve) => waiting.push(resolve));
+}
+function release() {
+  const next = waiting.shift();
+  if (next) next(); else active--;
+}
+
+export async function htmlToPdf(html, opts = {}) {
+  await slot();
+  try { return await render(html, opts); } finally { release(); }
+}
+
+async function render(html, { landscape = false } = {}) {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {

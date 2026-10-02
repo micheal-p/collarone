@@ -137,7 +137,7 @@ export default async function handler(req, res) {
     report:    { capacity: 10, refillPerSec: 1 / 10 },  // flagging several posts is legitimate
     structure: { capacity: 8,  refillPerSec: 1 / 10 },  // costs money per call
   };
-  if (LIMITS[action] && !allow(`${req.ip}:job-post:${action}`, LIMITS[action])) {
+  if (LIMITS[action] && !(await allow(`${req.ip}:job-post:${action}`, LIMITS[action]))) {
     return json(res, 429, { message: LIMIT_MESSAGE });
   }
 

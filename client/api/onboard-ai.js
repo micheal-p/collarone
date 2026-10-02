@@ -76,7 +76,7 @@ export default async function handler(req, res) {
   // bucket as every other public endpoint now, sized to match the old
   // behaviour: about eight calls a minute, then a steady trickle.
   if (body.action === 'suggest') {
-    if (!allow(`${req.ip || req.socket?.remoteAddress || 'unknown'}:onboard-ai:suggest`, { capacity: 8, refillPerSec: 1 / 8 })) {
+    if (!(await allow(`${req.ip || req.socket?.remoteAddress || 'unknown'}:onboard-ai:suggest`, { capacity: 8, refillPerSec: 1 / 8 }))) {
       return json(res, 429, { message: LIMIT_MESSAGE });
     }
     const prompt = String(body.prompt || '').slice(0, 300).trim();

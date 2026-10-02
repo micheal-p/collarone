@@ -137,9 +137,9 @@ export default async function handler(req, res) {
   // token per 15s starves scripted account creation without ever touching a
   // human who fails twice and retries.
   if (action === 'create' || action === 'suggest') {
-    if (!allow(`${req.ip}:signup:${action}`, action === 'create'
+    if (!(await allow(`${req.ip}:signup:${action}`, action === 'create'
       ? { capacity: 5, refillPerSec: 1 / 15 }
-      : { capacity: 10, refillPerSec: 1 / 3 })) {
+      : { capacity: 10, refillPerSec: 1 / 3 }))) {
       return json(res, 429, { message: LIMIT_MESSAGE });
     }
   }

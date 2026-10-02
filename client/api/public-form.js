@@ -24,7 +24,7 @@ export default async function handler(req, res) {
   // lead form out), which means on an unconfigured box this endpoint has no
   // gate at all. It is also an outbound call to Cloudflare on every request, so
   // throttling first avoids paying for traffic we are about to refuse anyway.
-  if (!allow(`${req.ip}:public-form`, { capacity: 6, refillPerSec: 1 / 20 })) {
+  if (!(await allow(`${req.ip}:public-form`, { capacity: 6, refillPerSec: 1 / 20 }))) {
     return res.status(429).json({ message: LIMIT_MESSAGE });
   }
 

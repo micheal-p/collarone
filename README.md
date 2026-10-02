@@ -101,6 +101,15 @@ this repo, so `collarone.vercel.app` is a second live front-end against the same
 database — `client/vercel.json` now redirects it to the real site. The paragraph
 below predates that move.
 
+**How the API copes with load.** `server/index.js` is a small supervisor that runs one API
+worker per CPU core (at most 4, fewer on a small-memory box; override with
+`WEB_CONCURRENCY`). Workers share port 4000, so nginx needs no change. The supervisor
+replaces a worker that crashes (backing off if it keeps crashing), runs the watchdog and
+the 09:00 automation sweep exactly once, and holds the one set of rate-limit buckets so
+limits are not multiplied by the worker count. Each worker renders at most two invoice
+PDFs at a time. `/api/health` reports `workers`. Customer data itself goes from the
+browser straight to Supabase, so heavy load there is a Supabase plan question, not this box.
+
 Vercel only — the React SPA and the serverless functions in `client/api/` deploy together
 from this repo. Supabase (cloud or self-hosted) is configured entirely through environment
 variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_URL`,
