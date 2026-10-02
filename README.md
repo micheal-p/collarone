@@ -326,8 +326,10 @@ Learned this session, not written down anywhere else in the repo:
   and `public_submit_contact_message()` both exist, so `/contact` and the Platform Admin
   inbox have been working all along. The `kind` / demo-request columns were added on the
   same day by `supabase/demo_requests.sql`.
-- **To run once (October 2026): `supabase/bundles/pending_2026_10.sql`** in the Supabase SQL
-  editor, or `node deploy/apply-sql.mjs supabase/bundles/pending_2026_10.sql`. It switches on
+- **To run once (October 2026): `supabase/bundles/pending_2026_10.sql`**, from GitHub:
+  Actions → *Run SQL on production* → Run workflow (`.github/workflows/apply-sql.yml` applies
+  it in one transaction with the stored `DATABASE_URL` secret, then runs the live database
+  checks). The SQL editor or `node deploy/apply-sql.mjs` still work. It switches on
   editing trade documents, purchase orders, personal alerts in the bell and the three new
   alerts. The code is already safe without it: each feature says plainly that it is not
   switched on yet, and its live test skips. Idempotent; running it twice is harmless.
