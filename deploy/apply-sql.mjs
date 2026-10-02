@@ -3,7 +3,7 @@
 // Collarone applies migrations by hand: loose .sql files in supabase/, pasted
 // into the Supabase SQL editor. That works, but nothing records what was
 // applied — which is how supabase/platform_contact.sql came to be listed in
-// PROJECT_SUMMARY.md as "may not yet be run against production", with no way to
+// the project summary (now in README.md) as "may not yet be run against production", with no way to
 // tell short of looking.
 //
 // This does not fix that. It is the smaller thing: one command, so applying a

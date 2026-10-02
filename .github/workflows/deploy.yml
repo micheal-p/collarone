@@ -179,8 +179,17 @@ jobs:
       - name: Full-screen overlays are not trapped inside a blurred ancestor
         run: node test/overlay_containing_block.mjs
 
+      # The font check reads the files with fontTools and SKIPS (exit 0) when it
+      # is missing, which the stock runner image does not have — so without
+      # this step the check never actually ran in CI.
+      - name: Install fontTools for the font coverage check
+        run: pip install --quiet fonttools brotli
+
       - name: The shipped fonts can draw a Nigerian customer's name
         run: node test/font_covers_names.mjs
+
+      - name: All documentation lives in README.md
+        run: node ops/one-markdown.mjs --check
 
       - name: Approving, invoicing and payroll all post balanced entries
         run: node test/finance_auto_posting.mjs

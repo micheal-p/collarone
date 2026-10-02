@@ -6,7 +6,7 @@
 -- request/approval, lateness stamped at clock-in, geofenced phone clock-in, and
 -- fingerprint-device punch mapping (CSV/ingest path). The payroll AUTO-CALC of
 -- overtime_pay / late_deduction into generate_payroll_run is Phase 2 (done
--- carefully because overtime taxation is subtle) — see ATTENDANCE_PAYROLL_PLAN.md.
+-- carefully because overtime taxation is subtle).
 -- Columns for it (payroll_lines.overtime_pay / late_deduction, the adjustments
 -- side table) are created here so Phase 2 is a pure function change.
 -- ============================================================================

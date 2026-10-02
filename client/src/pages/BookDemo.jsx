@@ -22,8 +22,8 @@ const WA = 'https://wa.me/2348148128551';
 // prospect's details living somewhere that is not our own CRM. This posts into
 // the SAME platform inbox as /contact, so there is one place to check.
 //
-// The two options offered first are the two pains ONBOARD_FIRST_CUSTOMER.md
-// says to lead with: payroll done by hand, and invoices chased on WhatsApp.
+// The two options offered first are the two pains the first-customer playbook
+// in README.md says to lead with: payroll done by hand, and invoices chased on WhatsApp.
 const STAFF_BANDS = ['1 to 5', '6 to 20', '21 to 50', '51 to 200', 'More than 200'];
 const INTERESTS = [
   'Running payroll by hand',

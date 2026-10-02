@@ -1047,7 +1047,7 @@
 
 /* ---- "Try it live" embed in the walkthrough (desktop only) ---- */
 
-/* ==== UX-audit batch 1 fixes (see UX-AUDIT.md) =========================== */
+/* ==== UX-audit batch 1 fixes (see README.md) ============================= */
 
 /* [24] scrolled inside the dark hero: the transparent nav gains a dark glass
    background so hero content passing under it reads as "behind the bar". */

@@ -13,7 +13,9 @@
     "typecheck": "npm run typecheck --workspace client",
     "test": "node test/rls_probe.mjs && node test/payroll_golden.mjs",
     "test:rls": "node test/rls_probe.mjs",
-    "test:payroll": "node test/payroll_golden.mjs"
+    "test:payroll": "node test/payroll_golden.mjs",
+    "docs": "node ops/one-markdown.mjs",
+    "docs:check": "node ops/one-markdown.mjs --check"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

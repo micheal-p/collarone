@@ -41,11 +41,12 @@ function recover(reason) {
   if (sessionStorage.getItem(KEY)) return false;   // already tried; let it surface
   sessionStorage.setItem(KEY, String(reason).slice(0, 80));
 
-  // Bust the cache on the way out. index.html is served with no Cache-Control
-  // (see ops/nginx/README.md), so a plain reload can be answered from the
-  // browser's own copy — the same stale HTML naming the same missing chunk,
-  // which is what makes this look like a loop rather than a fix. A query the
-  // server ignores forces a fresh fetch; boot() strips it back out.
+  // Bust the cache on the way out. index.html was served with no Cache-Control
+  // (see "RESOLVED: no-cache on index.html" in README.md), so a plain reload
+  // can be answered from the browser's own copy — the same stale HTML naming
+  // the same missing chunk, which is what makes this look like a loop rather
+  // than a fix. A query the server ignores forces a fresh fetch; boot() strips
+  // it back out.
   try {
     const url = new URL(window.location.href);
     url.searchParams.set('_b', String(Date.now()).slice(-6));
